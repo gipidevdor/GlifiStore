@@ -115,7 +115,7 @@ jobs:
           # shellcheck disable=SC2016
           grep -Fq 'Release-certification eligible: `no`' "$out/summary.md"
       - name: Upload E2 artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: durability-e2-${{ github.run_id }}
           path: durability-evidence/e2-${{ github.run_id }}
@@ -200,7 +200,7 @@ jobs:
           done
       - name: Upload E3 harness artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: durability-e3-linux-ext4-${{ github.run_id }}
           path: durability-evidence/e3-linux-ext4-*-${{ github.run_id }}
@@ -280,7 +280,7 @@ jobs:
           grep -Fq 'Release-certification eligible: `no`' "$out/summary.md"
       - name: Upload randomized E2 artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: durability-e2-random-${{ github.run_id }}
           path: durability-evidence/e2-random-${{ github.run_id }}
@@ -349,7 +349,7 @@ jobs:
           ./scripts/assert-e3-rehearsal-honesty.sh --dir "$out" --kind harness
       - name: Upload E3 macOS harness artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: durability-e3-macos-apfs-${{ github.run_id }}
           path: durability-evidence/e3-macos-apfs-${{ github.run_id }}
@@ -439,7 +439,7 @@ jobs:
           grep -q 'promotion_candidate=no' "$out/campaign-provenance.txt"
       - name: Upload campaign orchestrator artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: durability-e3-campaign-${{ github.run_id }}
           path: |

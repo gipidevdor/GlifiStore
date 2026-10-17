@@ -132,7 +132,7 @@ jobs:
             --limitation 'candidate TLS is disabled; secure-profile installed interop remains a separate CI gate' \
             --require-ci
       - name: Upload same-run installed SDK evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-sdk-installed
           path: build/release-input-sdk/
@@ -230,7 +230,7 @@ jobs:
             --limitation 'requires a permanent tagged Store fixture strictly older than the candidate; no such baseline is inferred from current-tree codec vectors' \
             --require-ci
       - name: Upload same-run persistence evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-persistent-compatibility
           path: build/release-input-persistence/
@@ -364,7 +364,7 @@ jobs:
             --limitation 'requires a complete attested prior release with the same ABI major and its sealed compiled consumer fixture' \
             --require-ci
       - name: Upload same-run ABI evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-abi-compatibility
           path: build/release-input-abi/
@@ -504,7 +504,7 @@ jobs:
             --limitation 'plain TCP wire-v2 baseline; requires a complete attested prior release with its sealed compiled wire client and does not imply compatibility with any other wire version' \
             --require-ci
       - name: Upload same-run wire evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-wire-compatibility
           path: build/release-input-wire/
@@ -581,7 +581,7 @@ jobs:
           python engineering/tools/release_evidence.py --require-ci \
             build/release-input-freebsd/freebsd-package-evidence.json
       - name: Upload native FreeBSD package and evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-freebsd-package
           path: build/release-input-freebsd/
@@ -658,7 +658,7 @@ jobs:
           python engineering/tools/release_evidence.py --require-ci \
             build/release-input-openbsd/openbsd-package-evidence.json
       - name: Upload native OpenBSD package and evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-openbsd-package
           path: build/release-input-openbsd/
@@ -746,7 +746,7 @@ jobs:
           test -f build/package-admission/artifact-manifest.json
           test -f build/package-admission/installed-sdk-matrix.json
       - name: Retain the package admission report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-admission-release-${{ github.sha }}
           path: build/package-admission/
@@ -803,7 +803,7 @@ jobs:
             } >"build/security-logs/security-$check.log"
           done
       - name: Retain sanitizer logs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: security-input-${{ github.sha }}-sanitizer-${{ matrix.id }}
           path: build/security-logs/security-*.log
@@ -892,7 +892,7 @@ jobs:
           echo "SECURITY codeql-$CODEQL_LANGUAGE PASSED" \
             >>"build/security-logs/security-codeql-$CODEQL_LANGUAGE.log"
       - name: Retain CodeQL SARIF and validation log
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: security-input-${{ github.sha }}-codeql-${{ matrix.language }}
           path: |
@@ -949,7 +949,7 @@ jobs:
             echo 'SECURITY warnings-as-errors PASSED'
           } 2>&1 | tee build/security-logs/security-warnings-as-errors.log
       - name: Retain static and strict logs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: security-input-${{ github.sha }}-static
           path: build/security-logs/security-*.log
@@ -1014,7 +1014,7 @@ jobs:
           echo 'SECURITY license-validation PASSED' \
             >>build/security-logs/security-license-validation.log
       - name: Retain supply-chain logs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: security-input-${{ github.sha }}-supply-chain
           path: build/security-logs/
@@ -1120,7 +1120,7 @@ jobs:
             --limitation 'Linux release matrix; findings policy follows the blocking configuration of each pinned analyzer and does not replace native BSD hardening evidence' \
             --require-ci
       - name: Upload same-run security evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-security-matrix
           path: build/release-input-security/
@@ -1256,7 +1256,7 @@ jobs:
             --limitation 'same ubuntu-latest image family and declared toolchain; this does not claim cross-distribution or cross-compiler reproducibility' \
             --require-ci
       - name: Retain independent rebuild archives for diagnosis
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: reproducibility-rebuild-${{ github.sha }}
           path: dist/rebuilt-release/
@@ -1264,7 +1264,7 @@ jobs:
           compression-level: 0
           retention-days: 14
       - name: Upload same-run reproducibility evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-input-${{ github.sha }}-reproducibility
           path: build/release-input-reproducibility/
@@ -1394,14 +1394,14 @@ jobs:
             --source-digest "$GITHUB_SHA"
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verified-release-${{ github.sha }}
           path: dist/release-candidate/
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-provenance-${{ github.sha }}
           path: dist/release-provenance/

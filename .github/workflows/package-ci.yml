@@ -147,7 +147,7 @@ jobs:
           fi
           python engineering/tools/package_ci_plan.py "${arguments[@]}"
       - name: Retain the resolved plan
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-ci-plan-${{ steps.plan.outputs.profile }}-${{ github.sha }}
           path: build/package-ci-plan.json
@@ -262,7 +262,7 @@ jobs:
             --require-ci
       - name: Retain the packaging evidence
         if: always() && steps.lifecycle.outputs.work != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-${{ needs.plan.outputs.profile }}-${{ matrix.id }}-${{ github.sha }}
           path: |
@@ -327,7 +327,7 @@ jobs:
           done
       - name: Retain the extended and negative logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-ci-extended-${{ github.sha }}
           path: build/package-ci-extended/
@@ -403,7 +403,7 @@ jobs:
           test -f build/package-admission/artifact-manifest.json
           test -f build/package-admission/installed-sdk-matrix.json
       - name: Retain the closure record
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-ci-closure-${{ needs.plan.outputs.profile }}-${{ github.sha }}
           path: build/package-ci-closure.json
@@ -411,7 +411,7 @@ jobs:
           retention-days: ${{ needs.plan.outputs.retention-days }}
       - name: Retain the package admission report
         if: inputs.candidate-artifact != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-admission-${{ needs.plan.outputs.profile }}-${{ github.sha }}
           path: build/package-admission/
