@@ -186,6 +186,9 @@ void operator delete[](void* memory) noexcept {
     std::free(memory);
 }
 
+#if defined(__cpp_sized_deallocation)
+// With sized deallocation disabled, Clang treats these as placement deletes;
+// declaring them can break libstdc++'s __builtin_operator_delete calls.
 void operator delete(void* memory, const std::size_t) noexcept {
     std::free(memory);
 }
@@ -193,6 +196,7 @@ void operator delete(void* memory, const std::size_t) noexcept {
 void operator delete[](void* memory, const std::size_t) noexcept {
     std::free(memory);
 }
+#endif
 
 void operator delete(void* memory, const std::align_val_t) noexcept {
     std::free(memory);
@@ -202,6 +206,7 @@ void operator delete[](void* memory, const std::align_val_t) noexcept {
     std::free(memory);
 }
 
+#if defined(__cpp_sized_deallocation)
 void operator delete(void* memory, const std::size_t, const std::align_val_t) noexcept {
     std::free(memory);
 }
@@ -209,6 +214,7 @@ void operator delete(void* memory, const std::size_t, const std::align_val_t) no
 void operator delete[](void* memory, const std::size_t, const std::align_val_t) noexcept {
     std::free(memory);
 }
+#endif
 
 void operator delete(void* memory, const std::nothrow_t&) noexcept {
     std::free(memory);

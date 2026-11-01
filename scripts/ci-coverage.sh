@@ -12,9 +12,35 @@ mkdir -p "$outdir"
 
 export CC="${CC:-clang}"
 export CXX="${CXX:-clang++}"
-export CFLAGS="${CFLAGS:---coverage -O0 -g}"
-export CXXFLAGS="${CXXFLAGS:---coverage -O0 -g}"
-export LDFLAGS="${LDFLAGS:---coverage}"
+
+compiler_version="$("$CXX" --version)"
+clang_coverage=false
+coverage_flags=--coverage
+if grep -qi clang <<<"$compiler_version"; then
+  clang_coverage=true
+  coverage_flags='-fprofile-instr-generate -fcoverage-mapping'
+  clang_major="$("$CXX" -dumpversion | cut -d. -f1)"
+  compiler_dir="$(dirname "$(command -v "$CXX")")"
+  find_llvm_tool() {
+    local tool="$1" override="$2" found
+    if [[ -n "$override" ]]; then
+      command -v "$override"
+      return
+    fi
+    found="$(command -v "$compiler_dir/$tool" || command -v "$tool-$clang_major" \
+      || command -v "$tool" || true)"
+    if [[ -z "$found" ]]; then
+      echo "$tool is required to decode Clang coverage data" >&2
+      return 1
+    fi
+    echo "$found"
+  }
+  coverage_llvm_cov="$(find_llvm_tool llvm-cov "${LLVM_COV:-}")"
+  coverage_llvm_profdata="$(find_llvm_tool llvm-profdata "${LLVM_PROFDATA:-}")"
+fi
+export CFLAGS="${CFLAGS:-$coverage_flags -O0 -g}"
+export CXXFLAGS="${CXXFLAGS:-$coverage_flags -O0 -g}"
+export LDFLAGS="${LDFLAGS:-$coverage_flags}"
 
 cmake -S "$root" -B "$builddir" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \
@@ -28,34 +54,25 @@ cmake -S "$root" -B "$builddir" -G Ninja \
   -DBUILD_TESTING=ON
 
 cmake --build "$builddir" --target glifistore_tests
-ctest --test-dir "$builddir" --output-on-failure --tests-regex '^glifistore_tests$'
+LLVM_PROFILE_FILE="$outdir/%p.profraw" \
+  ctest --test-dir "$builddir" --output-on-failure --tests-regex '^glifistore_tests$'
 
 if ! command -v lcov >/dev/null 2>&1; then
   echo "lcov is required to generate the diagnostic coverage report" >&2
   exit 1
 fi
 
-gcov_args=()
-compiler_version="$("$CXX" --version 2>/dev/null || true)"
-if grep -qi clang <<<"$compiler_version"; then
-  coverage_llvm_cov="${LLVM_COV:-}"
-  if [[ -z "$coverage_llvm_cov" ]]; then
-    coverage_llvm_cov="$(command -v llvm-cov || true)"
-  fi
-  if [[ -z "$coverage_llvm_cov" ]]; then
-    clang_major="$("$CXX" -dumpversion | cut -d. -f1)"
-    coverage_llvm_cov="$(command -v "llvm-cov-$clang_major" || true)"
-  fi
-  if [[ -z "$coverage_llvm_cov" ]]; then
-    echo "llvm-cov is required to decode Clang coverage data" >&2
-    exit 1
-  fi
-  export LLVM_COV="$coverage_llvm_cov"
-  gcov_args=(--gcov-tool "$root/scripts/llvm-gcov.sh")
+if [[ "$clang_coverage" == true ]]; then
+  # Native LLVM coverage avoids the gcov adapter's synthetic line-zero functions.
+  # Keep malformed reports fatal instead of ignoring lcov's format errors.
+  "$coverage_llvm_profdata" merge -sparse "$outdir"/*.profraw -o "$outdir/coverage.profdata"
+  "$coverage_llvm_cov" export --format=lcov \
+    --instr-profile="$outdir/coverage.profdata" "$builddir/glifistore_tests" \
+    > "$outdir/coverage.raw.lcov"
+else
+  lcov --capture --directory "$builddir" --output-file "$outdir/coverage.raw.lcov" \
+    --ignore-errors mismatch,inconsistent,unused
 fi
-
-lcov --capture --directory "$builddir" --output-file "$outdir/coverage.raw.lcov" \
-  "${gcov_args[@]}" --ignore-errors mismatch,inconsistent,unused
 lcov --remove "$outdir/coverage.raw.lcov" \
   '/usr/*' '*/tests/*' '*/_deps/*' \
   --output-file "$outdir/coverage.lcov" \

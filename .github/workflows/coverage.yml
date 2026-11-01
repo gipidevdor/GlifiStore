@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check cmake ninja
           sudo apt-get update
-          sudo apt-get install -y lcov clang
+          sudo apt-get install -y lcov clang llvm
       - name: Generate coverage (diagnostic)
         env:
           CC: clang
