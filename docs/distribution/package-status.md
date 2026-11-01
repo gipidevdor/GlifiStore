@@ -43,8 +43,8 @@ A container target is pinned by digest; a host target runs on the runner itself.
 | `deb-debian-12-amd64` | `deb` | `debian-12` | `amd64` | `ubuntu-24.04` | `docker.io/library/debian:12` | `sha256:6ebd97fa83de…` | `main`, `nightly`, `pr`, `release` |
 | `deb-ubuntu-24.04-amd64` | `deb` | `ubuntu-24.04` | `amd64` | `ubuntu-24.04` | `docker.io/library/ubuntu:24.04` | `sha256:224a1869083a…` | `main`, `nightly`, `release` |
 | `freebsd-14-amd64` | `freebsd` | `freebsd-14` | `amd64` | `ubuntu-latest` | — | — | `main`, `nightly`, `pr`, `release` |
-| `homebrew-macos-14-arm64` | `homebrew` | `macos-14` | `arm64` | `macos-14` | — | — | `main`, `nightly`, `release` |
-| `macports-macos-14-arm64` | `macports` | `macos-14` | `arm64` | `macos-14` | — | — | `main`, `nightly`, `pr`, `release` |
+| `homebrew-macos-15-arm64` | `homebrew` | `macos-15` | `arm64` | `macos-15` | — | — | `main`, `nightly`, `release` |
+| `macports-macos-15-arm64` | `macports` | `macos-15` | `arm64` | `macos-15` | — | — | `main`, `nightly`, `pr`, `release` |
 | `openbsd-7-amd64` | `openbsd` | `openbsd-7` | `amd64` | `ubuntu-latest` | — | — | `main`, `nightly`, `pr`, `release` |
 | `rpm-fedora-43-amd64` | `rpm` | `fedora-43` | `amd64` | `ubuntu-24.04` | `quay.io/fedora/fedora:43` | `sha256:37d4208f1aa0…` | `main`, `nightly`, `release` |
 
