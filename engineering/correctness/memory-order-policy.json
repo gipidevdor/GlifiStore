@@ -98,8 +98,20 @@
       "relaxed_justification": "connection/activity counters and owner-private outstanding counts are observational; cancellation, queue, admission, and stop edges use acquire/release"
     },
     {
+      "id": "server-audit-emitter",
+      "paths": ["src/server/security_audit.cpp"],
+      "classification": "bounded audit emitter completion and telemetry",
+      "allowed_orders": ["relaxed", "acquire", "release"],
+      "writer": "request/reactor threads and the process-lifetime audit emitter",
+      "readers": "STATS and audit-output completion observers",
+      "published_or_protected_data": "owned audit output counters; queued event payloads are protected by the sink mutex",
+      "required_happens_before": "emitter pending release publishes prior output-counter updates to an acquire observing that completion; mutex unlock/lock transfers queued events",
+      "invariant": "queued events retain counter ownership independently of Server lifetime; completion publication never grants Store authority",
+      "relaxed_justification": "independent totals and pending admissions do not publish event payloads; the sink mutex publishes payloads and pending release/acquire communicates completion"
+    },
+    {
       "id": "server-policy-telemetry",
-      "paths": ["src/server/security_audit.cpp", "src/server/abuse_limits.cpp"],
+      "paths": ["src/server/abuse_limits.cpp"],
       "classification": "telemetry and independent rate-state atomics",
       "allowed_orders": ["relaxed"],
       "writer": "request/reactor threads",
