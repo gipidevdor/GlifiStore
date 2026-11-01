@@ -29,7 +29,7 @@ struct SecurityAuditSink final {
         std::shared_ptr<SecurityAuditOutputCounters> counters;
     };
 
-    explicit SecurityAuditSink(const int descriptor) noexcept : descriptor{descriptor} {}
+    explicit SecurityAuditSink(const int output_descriptor) noexcept : descriptor{output_descriptor} {}
     ~SecurityAuditSink() {
         if (descriptor >= 0) {
             static_cast<void>(::close(descriptor));
@@ -66,7 +66,7 @@ auto within_rate_limit(std::chrono::steady_clock::time_point& window, std::uint3
     return true;
 }
 
-void emit_events(const std::shared_ptr<SecurityAuditSink>& sink) noexcept {
+void run_emitter(const std::shared_ptr<SecurityAuditSink>& sink) noexcept {
     // Linux/BSD generate write's SIGPIPE on the writing thread. Darwin additionally
     // needs F_SETNOSIGPIPE below because its pipe EPIPE signal is process-directed.
     sigset_t signals;
@@ -147,7 +147,7 @@ auto process_sink() noexcept -> std::shared_ptr<SecurityAuditSink> {
                 return {};
             }
 #endif
-            std::thread{emit_events, state}.detach();
+            std::thread{run_emitter, state}.detach();
             return state;
         } catch (...) {
             return {}; // Every subsequent eligible event is counted as suppressed.
