@@ -286,7 +286,7 @@ GLIFI_TEST("server request timeout closes partial request frames") {
     GLIFI_REQUIRE(server.join().has_value());
 }
 
-GLIFI_TEST("partial request timeout drains prior decided response before close") {
+GLIFI_TEST("partial request timeout preserves prior response while peer drains within budget") {
     // A small server send buffer makes the large PING retain decided user-space
     // bytes when a trailing partial frame times out. Keep the client receive window
     // normal so completion does not depend on platform TCP retransmit intervals.
@@ -325,7 +325,9 @@ GLIFI_TEST("partial request timeout drains prior decided response before close")
         std::byte{0x02}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
     };
     GLIFI_REQUIRE(send_all(socket, partial));
-    std::this_thread::sleep_for(std::chrono::milliseconds{150});
+    // ADR 0041 also bounds stalled output. Resume within that budget; a peer
+    // that never resumes is covered by the separate output-expiry regression.
+    std::this_thread::sleep_for(std::chrono::milliseconds{30});
 
     std::vector<std::byte> received;
     received.reserve(kPayload + 64);

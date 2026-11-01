@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -53,6 +54,28 @@ GLIFI_TEST("abuse controller windows reset after one second") {
     GLIFI_REQUIRE(!controller.try_admit_accept(now));
     now += std::chrono::seconds{1};
     GLIFI_REQUIRE(controller.try_admit_accept(now));
+}
+
+GLIFI_TEST("abuse controller charges oversized responses and zero byte followups") {
+    using glifistore::server::AbuseController;
+    using glifistore::server::AbuseLimits;
+    const auto now = std::chrono::steady_clock::now();
+    for (const auto response_bytes :
+         {std::uint64_t{16}, std::uint64_t{17}, std::numeric_limits<std::uint64_t>::max()}) {
+        AbuseController controller{AbuseLimits{.principal_max_bytes_per_sec = 16}};
+        GLIFI_REQUIRE(controller.try_admit_principal("reader", 1, now));
+        controller.record_principal_response_bytes("reader", response_bytes, now);
+        GLIFI_REQUIRE(!controller.try_admit_principal("reader", 1, now));
+        // INIT has no request payload but produces a routing identity response.
+        GLIFI_REQUIRE(!controller.try_admit_principal("reader", 0, now));
+        GLIFI_REQUIRE(controller.try_admit_principal("other", 1, now));
+        GLIFI_REQUIRE(controller.try_admit_principal("reader", 1, now + std::chrono::seconds{1}));
+    }
+    AbuseController maximum{
+        AbuseLimits{.principal_max_bytes_per_sec = std::numeric_limits<std::uint64_t>::max()}};
+    GLIFI_REQUIRE(maximum.try_admit_principal("reader", 1, now));
+    maximum.record_principal_response_bytes("reader", std::numeric_limits<std::uint64_t>::max(), now);
+    GLIFI_REQUIRE(!maximum.try_admit_principal("reader", 0, now));
 }
 
 GLIFI_TEST("secure profile abuse defaults are non-zero") {

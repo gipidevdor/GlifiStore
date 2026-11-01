@@ -74,3 +74,10 @@ Applications that previously looped on `new_attempt` for admission backoff must 
 - [Wire protocol v2](../spec/wire-protocol-v2.md)
 - [C++ TCP client API](../reference/cpp-client-api.md)
 - [ADR 0013](0013-native-wire-protocol-v2.md)
+
+## Amendment — 2026-11-01
+
+[ADR 0041](0041-bounded-network-security-lifecycles.md) amends network-security lifetimes,
+output drain, request-attempt admission and audit emission. It preserves persistence v1,
+wire v2 and Store acknowledgement points; its explicit disconnect and quota rules govern
+stalled or abusive peers.

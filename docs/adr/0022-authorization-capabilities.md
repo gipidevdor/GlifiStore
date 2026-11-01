@@ -82,3 +82,10 @@ Authorization must remain simple enough to implement and test on OpenBSD alongsi
 - [Security roadmap](../security/roadmap.md)
 - [Threat model](../security/threat-model.md)
 - [ADR 0006](0006-key-routing-hash.md)
+
+## Amendment — 2026-11-01
+
+[ADR 0041](0041-bounded-network-security-lifecycles.md) amends network-security lifetimes,
+output drain, request-attempt admission and audit emission. It preserves persistence v1,
+wire v2 and Store acknowledgement points; its explicit disconnect and quota rules govern
+stalled or abusive peers.

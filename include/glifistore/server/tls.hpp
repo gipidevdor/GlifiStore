@@ -109,6 +109,9 @@ class TlsContext final {
     // Performs a server handshake on an already-accepted, non-blocking socket.
     // On success the session owns the TLS state; the caller retains SocketHandle ownership.
     [[nodiscard]] auto accept_socket(int descriptor) const -> Result<std::unique_ptr<TlsSession>>;
+    // Allocate TLS state without waiting for peer progress. The Reactor drives
+    // TlsSession::accept_handshake from its poller and owns the deadline/slot.
+    [[nodiscard]] auto begin_accept_socket(int descriptor) const -> Result<std::unique_ptr<TlsSession>>;
 
     // Performs a client handshake on an already-connected, non-blocking socket.
     // server_name is used for SNI and hostname verification (unless insecure).
@@ -137,8 +140,9 @@ class TlsContext final {
     bool crl_enabled_{};
     bool ocsp_fail_closed_{};
     bool client_mode_{};
-    bool insecure_skip_verify_{};
-    std::uint32_t handshake_timeout_ms_{10'000};
+    // Backend-only state also exists in TLS-off builds of this public type.
+    [[maybe_unused]] bool insecure_skip_verify_{};
+    [[maybe_unused]] std::uint32_t handshake_timeout_ms_{10'000};
 };
 
 class TlsSession final {
@@ -158,6 +162,7 @@ class TlsSession final {
     // Bytes already decrypted and waiting in OpenSSL (SSL_pending). Used to decide
     // post-accept drains when the poller will not see a fresh readable edge.
     [[nodiscard]] auto pending() const noexcept -> std::size_t;
+    [[nodiscard]] auto accept_handshake() -> Result<TlsIoResult>;
     [[nodiscard]] auto read(std::byte* data, std::size_t size) -> Result<TlsIoResult>;
     [[nodiscard]] auto write(const std::byte* data, std::size_t size) -> Result<TlsIoResult>;
 

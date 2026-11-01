@@ -66,6 +66,7 @@ alternatives, decision, consequences, compatibility impact, verification, and re
 | [0038](0038-stable-c-abi-artifact-delivery.md) | Stable C ABI + candidate verification architecture | accepted | C ABI independent from product/wire/storage versions; C++ ABI unchanged |
 | [0039](0039-pre-intent-staged-compaction-output.md) | Stage and verify compaction output before the v1 publication lease | accepted | amends 0015/0023; amended by 0040; no persistent-format change |
 | [0040](0040-pre-intent-compaction-write-pacing.md) | Pace bounded private compaction writes before durable authority | accepted | amends 0023/0039; no persistent-format change |
+| [0041](0041-bounded-network-security-lifecycles.md) | Bounded TLS/output lifetimes, denied-attempt quotas and audit emission | accepted | amends 0012/0019/0020/0022; preserves v1/v2 and Store ACK points |
 
 Official TCP client error taxonomy, automatic retries, and deadline behavior are governed by
 [ADR 0019](0019-client-error-retry-timeout.md) and [client semantics v1](../spec/client-semantics-v1.md).

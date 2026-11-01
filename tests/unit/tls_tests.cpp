@@ -1,3 +1,5 @@
+#include "../integration/server_reactor_test_support.hpp"
+#include "glifistore/client/client.hpp"
 #include "glifistore/core/fault_injection.hpp"
 #include "glifistore/server/protocol.hpp"
 #include "glifistore/server/server.hpp"
@@ -869,6 +871,77 @@ GLIFI_TEST("tls CRL rejects revoked mTLS client certificate") {
     GLIFI_REQUIRE(stats->find("tls_ocsp_fail_closed=1") != std::string::npos);
     GLIFI_REQUIRE(stats->find("auth_denies=") != std::string::npos);
 
+    (*server)->request_stop();
+    GLIFI_REQUIRE((*server)->join().has_value());
+}
+
+GLIFI_TEST("tls stalled handshake leaves established sessions responsive") {
+    TemporaryDirectory directory;
+    GLIFI_REQUIRE(write_self_signed_material(directory.path()));
+    auto server = glifistore::server::Server::create({
+        .port = 0,
+        .maximum_connections = 8,
+        .tls = {.certificate_file = directory.path() / "server.crt",
+                .private_key_file = directory.path() / "server.key",
+                .handshake_timeout_ms = 1'500},
+    });
+    GLIFI_REQUIRE(server.has_value());
+    GLIFI_REQUIRE((*server)->start().has_value());
+    auto client = glifistore::client::Client::connect({
+        .port = (*server)->port(),
+        .request_timeout_ms = 500,
+        .tls = {.enable = true,
+                .ca_file = (directory.path() / "server.crt").string(),
+                .server_name = "localhost"},
+    });
+    GLIFI_REQUIRE(client.has_value());
+    glifistore::server::SocketHandle stalled{
+        glifistore::test::server_reactor_support::connect_to((*server)->port())};
+    GLIFI_REQUIRE(stalled.valid());
+    std::this_thread::sleep_for(std::chrono::milliseconds{50});
+    const auto ping = client->ping();
+    GLIFI_REQUIRE(ping.has_value());
+    stalled.reset();
+    (*server)->request_stop();
+    GLIFI_REQUIRE((*server)->join().has_value());
+}
+
+GLIFI_TEST("tls pending handshake has bounded slots deadline and shutdown") {
+    TemporaryDirectory directory;
+    GLIFI_REQUIRE(write_self_signed_material(directory.path()));
+    auto server = glifistore::server::Server::create({
+        .port = 0,
+        .maximum_connections = 1,
+        .tls = {.certificate_file = directory.path() / "server.crt",
+                .private_key_file = directory.path() / "server.key",
+                .handshake_timeout_ms = 250},
+    });
+    GLIFI_REQUIRE(server.has_value());
+    GLIFI_REQUIRE((*server)->start().has_value());
+    const auto connect_raw = [&] {
+        return glifistore::server::SocketHandle{
+            glifistore::test::server_reactor_support::connect_to((*server)->port())};
+    };
+    auto stalled = connect_raw();
+    GLIFI_REQUIRE(stalled.valid());
+    const auto adopted_by = std::chrono::steady_clock::now() + std::chrono::milliseconds{150};
+    while ((*server)->active_connections_per_executor()[0] == 0 &&
+           std::chrono::steady_clock::now() < adopted_by) {
+        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+    GLIFI_REQUIRE((*server)->active_connections_per_executor()[0] == 1);
+    auto excess = connect_raw();
+    GLIFI_REQUIRE(excess.valid());
+    char byte{};
+    GLIFI_REQUIRE(::recv(excess.descriptor(), &byte, 1, 0) == 0);
+    const auto expired_by = std::chrono::steady_clock::now() + std::chrono::seconds{1};
+    while ((*server)->active_connections_per_executor()[0] != 0 &&
+           std::chrono::steady_clock::now() < expired_by) {
+        std::this_thread::sleep_for(std::chrono::milliseconds{5});
+    }
+    GLIFI_REQUIRE((*server)->active_connections_per_executor()[0] == 0);
+    auto replacement = connect_raw();
+    GLIFI_REQUIRE(replacement.valid());
     (*server)->request_stop();
     GLIFI_REQUIRE((*server)->join().has_value());
 }

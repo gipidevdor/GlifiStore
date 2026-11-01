@@ -92,3 +92,10 @@ TLS library is not acceptable as the first-class secure profile.
 - [Wire protocol v2](../spec/wire-protocol-v2.md)
 - [ADR 0013](0013-native-wire-protocol-v2.md)
 - [Architecture charter](../architecture/architecture-charter.md) (OpenBSD target)
+
+## Amendment — 2026-11-01
+
+[ADR 0041](0041-bounded-network-security-lifecycles.md) amends network-security lifetimes,
+output drain, request-attempt admission and audit emission. It preserves persistence v1,
+wire v2 and Store acknowledgement points; its explicit disconnect and quota rules govern
+stalled or abusive peers.

@@ -85,8 +85,58 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             current->input_offset += decoded.consumed;
             continue;
         }
-        if (!authorize_request(config_.authz, current->capabilities, current->key_prefix,
-                               decoded.frame.opcode, decoded.frame.key)) {
+        const bool authorized = authorize_request(config_.authz, current->capabilities, current->key_prefix,
+                                                  decoded.frame.opcode, decoded.frame.key);
+        // Only authorized probes are exempt. Denied requests consume attempt
+        // budgets before audit or response side effects (ADR 0041).
+        const bool lifecycle_probe = authorized && (decoded.frame.opcode == RequestOpcode::health ||
+                                                    decoded.frame.opcode == RequestOpcode::ready ||
+                                                    decoded.frame.opcode == RequestOpcode::stats);
+        const auto refuse_denied_flood = [&] {
+            if (authorized) {
+                return false;
+            }
+            current->close_after_flush = true;
+            current->input.clear();
+            current->input_offset = 0;
+            current->partial_request_since = {};
+            return true;
+        };
+        if (!lifecycle_probe && abuse_) {
+            if (!abuse_->try_admit_connection_request(current->connection_rate_window_start_ns,
+                                                      current->connection_rate_used, now)) {
+                ResponseView refused{.status = ResponseStatus::overloaded,
+                                     .request_id = decoded.frame.request_id,
+                                     .owner_worker = static_cast<std::uint32_t>(executor_id_),
+                                     .worker_count = static_cast<std::uint32_t>(mesh_.size()),
+                                     .routing_epoch = kRoutingEpoch};
+                if (auto queued = queue_response(token, refused); !queued) {
+                    return queued;
+                }
+                if (refuse_denied_flood()) {
+                    return {};
+                }
+                current->input_offset += decoded.consumed;
+                continue;
+            }
+            const auto request_bytes = decoded.frame.key.size() + decoded.frame.value.size();
+            if (!abuse_->try_admit_principal(current->principal, request_bytes, now)) {
+                ResponseView refused{.status = ResponseStatus::overloaded,
+                                     .request_id = decoded.frame.request_id,
+                                     .owner_worker = static_cast<std::uint32_t>(executor_id_),
+                                     .worker_count = static_cast<std::uint32_t>(mesh_.size()),
+                                     .routing_epoch = kRoutingEpoch};
+                if (auto queued = queue_response(token, refused); !queued) {
+                    return queued;
+                }
+                if (refuse_denied_flood()) {
+                    return {};
+                }
+                current->input_offset += decoded.consumed;
+                continue;
+            }
+        }
+        if (!authorized) {
             if (security_audit_) {
                 const auto reason = authorize_opcode(config_.authz, current->capabilities,
                                                      decoded.frame.opcode, current->key_prefix)
@@ -105,39 +155,6 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             }
             current->input_offset += decoded.consumed;
             continue;
-        }
-        // Lifecycle probes stay exempt from request/bandwidth quotas so HEALTH/READY/STATS remain
-        // observable under overload (same posture as shutdown drain).
-        const bool lifecycle_probe = decoded.frame.opcode == RequestOpcode::health ||
-                                     decoded.frame.opcode == RequestOpcode::ready ||
-                                     decoded.frame.opcode == RequestOpcode::stats;
-        if (!lifecycle_probe && abuse_) {
-            if (!abuse_->try_admit_connection_request(current->connection_rate_window_start_ns,
-                                                      current->connection_rate_used, now)) {
-                ResponseView refused{.status = ResponseStatus::overloaded,
-                                     .request_id = decoded.frame.request_id,
-                                     .owner_worker = static_cast<std::uint32_t>(executor_id_),
-                                     .worker_count = static_cast<std::uint32_t>(mesh_.size()),
-                                     .routing_epoch = kRoutingEpoch};
-                if (auto queued = queue_response(token, refused); !queued) {
-                    return queued;
-                }
-                current->input_offset += decoded.consumed;
-                continue;
-            }
-            const auto request_bytes = decoded.frame.key.size() + decoded.frame.value.size();
-            if (!abuse_->try_admit_principal(current->principal, request_bytes, now)) {
-                ResponseView refused{.status = ResponseStatus::overloaded,
-                                     .request_id = decoded.frame.request_id,
-                                     .owner_worker = static_cast<std::uint32_t>(executor_id_),
-                                     .worker_count = static_cast<std::uint32_t>(mesh_.size()),
-                                     .routing_epoch = kRoutingEpoch};
-                if (auto queued = queue_response(token, refused); !queued) {
-                    return queued;
-                }
-                current->input_offset += decoded.consumed;
-                continue;
-            }
         }
         if (decoded.frame.opcode == RequestOpcode::bind_worker) {
             current->input_offset += decoded.consumed;
@@ -414,6 +431,7 @@ auto Reactor::transfer_connection(const ConnectionToken token, const std::size_t
                               .peer_read_closed = current->peer_read_closed,
                               .last_activity = current->last_activity,
                               .partial_request_since = current->partial_request_since,
+                              .output_progress_since = current->output_progress_since,
                               .connection_rate_window_start_ns = current->connection_rate_window_start_ns,
                               .connection_rate_used = current->connection_rate_used};
     current->principal.clear();
@@ -429,6 +447,7 @@ auto Reactor::transfer_connection(const ConnectionToken token, const std::size_t
     current->last_activity = {};
     current->partial_request_since = {};
     current->in_flight_since = {};
+    current->output_progress_since = {};
     current->connection_rate_window_start_ns = 0;
     current->connection_rate_used = 0;
     // Slot stays occupied until enqueue succeeds. A full handoff queue must not
@@ -449,6 +468,7 @@ auto Reactor::transfer_connection(const ConnectionToken token, const std::size_t
         current->peer_read_closed = handoff.peer_read_closed;
         current->last_activity = handoff.last_activity;
         current->partial_request_since = handoff.partial_request_since;
+        current->output_progress_since = handoff.output_progress_since;
         current->connection_rate_window_start_ns = handoff.connection_rate_window_start_ns;
         current->connection_rate_used = handoff.connection_rate_used;
         if (auto added = poller_.add(current->socket.descriptor(), token.encode(), IoInterest::read);

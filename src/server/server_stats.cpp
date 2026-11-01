@@ -227,6 +227,18 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
         out += "tls_errors=";
         out += std::to_string(snapshot.security_audit.tls_errors);
         out += '\n';
+        out += "audit_events_suppressed=";
+        out += std::to_string(snapshot.security_audit.events_suppressed);
+        out += '\n';
+        out += "audit_events_written=";
+        out += std::to_string(snapshot.security_audit.events_written);
+        out += '\n';
+        out += "audit_events_pending=";
+        out += std::to_string(snapshot.security_audit.events_pending);
+        out += '\n';
+        out += "audit_events_write_failed=";
+        out += std::to_string(snapshot.security_audit.events_write_failed);
+        out += '\n';
 
         const auto& maintenance = snapshot.maintenance;
         out += "maintenance_state=";

@@ -538,6 +538,8 @@ hazards:
   cause:
   - Missing rate limits
   - Oversized frame CPU DoS
+  - Stalled TLS handshakes or response output
+  - Uncharged oversized responses and denied attempts before quota admission
   conseguenze:
   - Availability loss
   severita: alta
@@ -549,11 +551,22 @@ hazards:
   - Stop serving affected ops; operator repair/salvage modes are explicit
   prove:
   - scripts/test-secure-profile-interop.sh
-  rischio_residuo: Limits require secure-profile/operator config
+  - tests/unit/tls_tests.cpp
+  - tests/integration/server_security_bounds_tests.cpp
+  - tests/unit/abuse_limits_tests.cpp
+  - tests/unit/security_audit_tests.cpp
+  - tests/security_audit_sink_tests.cpp
+  rischio_residuo: >
+    Limits require secure-profile/operator config; both timeout knobs zero disable output expiry.
+    A blocked operator stderr retains one process-lifetime emitter with a fixed queue; Readers
+    and Server destruction never wait for sink I/O. Suppression/delivery is observable, but audit
+    is best effort and pending events may be lost at exit. Hosted platform evidence for ADR 0041
+    remains open; one decided response may exceed the residual byte allowance.
   stato: mitigato
   accettazione_rischio: Phase 5 abuse controls when enabled
   requisiti:
   - GS-SEC-PROFILE-001
+  - GS-SEC-BOUNDS-001
   - GS-OPS-CONFIG-001
 - id: HAZ-025
   evento_pericoloso: Saturazione delle code

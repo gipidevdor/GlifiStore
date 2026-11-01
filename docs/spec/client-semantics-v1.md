@@ -174,7 +174,7 @@ Daemon policy for work already admitted on the server is defined by the server m
 durable mutations are not cancelled by client disconnect **or** by daemon
 `--request-timeout-ms` / `--idle-timeout-ms` connection reset); clients cannot observe
 cancellation acknowledgements in v2. The daemon may still close the TCP connection when a
-partial frame or in-flight request exceeds `--request-timeout-ms` (abuse counter
+partial frame, in-flight request or stalled output exceeds `--request-timeout-ms` (abuse counter
 `abuse_request_timeout_closed`); Store execution already underway continues to a classified
 completion. Cold reads in flight are cancelled via the connection’s read-cancellation epoch
 when the socket is closed. See [durable TCP daemon](../operations/durable-tcp-daemon.md).
@@ -259,3 +259,9 @@ An official SDK conforms when:
 4. Automatic retries match §5 exactly (no extra silent retries).
 
 Language-specific API sugar is allowed; silent divergence in outcomes or retry counts is not.
+
+### Network-security lifecycle amendment
+
+[ADR 0041](../adr/0041-bounded-network-security-lifecycles.md) permits bounded output-drain
+expiry and closure of over-quota denied request streams. No cancellation acknowledgement is
+introduced: sent mutations without a trustworthy definitive response remain indeterminate.

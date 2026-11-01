@@ -209,6 +209,8 @@ class Reactor final {
     struct Connection {
         SocketHandle socket;
         std::unique_ptr<TlsSession> tls;
+        bool tls_handshake_pending{};
+        std::chrono::steady_clock::time_point tls_handshake_since{};
         std::string principal{};
         Capability capabilities{Capability::none};
         std::string key_prefix{};
@@ -239,6 +241,7 @@ class Reactor final {
         std::chrono::steady_clock::time_point partial_request_since{};
         // Set when request_in_flight becomes true; cleared when the response is queued.
         std::chrono::steady_clock::time_point in_flight_since{};
+        std::chrono::steady_clock::time_point output_progress_since{};
         std::uint64_t connection_rate_window_start_ns{};
         std::uint32_t connection_rate_used{};
         // ADR 0037 Phase C: pipelined GET waits until published epoch covers prior mutations.
@@ -253,6 +256,7 @@ class Reactor final {
             std::shared_ptr<AbuseController> abuse, std::shared_ptr<SecurityAudit> security_audit);
 
     [[nodiscard]] auto accept_ready(bool tls_endpoint) -> Status;
+    [[nodiscard]] auto advance_tls_handshake(ConnectionToken token) -> Status;
     [[nodiscard]] auto accept_unix_ready() -> Status;
     [[nodiscard]] auto adopt_connection(ConnectionHandoff handoff) -> Status;
     // Best-effort OVERLOADED on a handoff that cannot be adopted (full table /
@@ -349,6 +353,8 @@ class Reactor final {
     // Store-entered mutation still owns the slot-pool head. Defer those releases
     // until in-order release succeeds (still send OVERLOADED immediately).
     std::vector<std::uint32_t> deferred_mutation_payloads_;
+    bool tcp_accept_pending_{};
+    bool tls_accept_pending_{};
     bool shutting_down_{};
 };
 

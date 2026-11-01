@@ -9,7 +9,7 @@ Generated from `engineering/gates/`. See also the derived
 | --- | --- | --- | --- | --- |
 | `GATE-API-ABI-POLICY` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-FIXTURE-001`, `GS-COMPAT-NN1-001`, `GS-COMPAT-CABI-001` |
 | `GATE-ARTIFACT-DELIVERY` | distribution_lifecycle | `IMPLEMENTATA` | `rc` | `GS-RELEASE-ARTIFACT-001` |
-| `GATE-AUTH-TRANSPORT` | operations_security | `PROVATA_IN_CI` | `beta` | `GS-SEC-PROFILE-001` |
+| `GATE-AUTH-TRANSPORT` | operations_security | `PROVATA_LOCALMENTE` | `beta` | `GS-SEC-PROFILE-001`, `GS-SEC-BOUNDS-001` |
 | `GATE-BACKUP-RESTORE` | durability_recovery | `PROVATA_IN_CI` | `beta` | `GS-OPS-BACKUP-001`, `GS-OPS-MIGRATE-001` |
 | `GATE-C-ABI-V1` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-CABI-001` |
 | `GATE-CMAKE-INSTALL` | distribution_lifecycle | `PROVATA_IN_CI` | `alpha` | `GS-CORE-API-001`, `GS-CORE-BUILD-001` |
