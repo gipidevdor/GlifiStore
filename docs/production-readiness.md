@@ -147,12 +147,12 @@ The volatile engine under `src/experimental/` is lab-only.
 
 ### Operations and security
 
-- [ ] **GATE-AUTH-TRANSPORT** — Authentication authorization transport security rate limits audit
-  State: `PROVATA_LOCALMENTE` · Release target: `beta`
+- [x] **GATE-AUTH-TRANSPORT** — Authentication authorization transport security rate limits audit
+  State: `PROVATA_IN_CI` · Release target: `beta`
   Requirements: `GS-SEC-PROFILE-001`, `GS-SEC-BOUNDS-001`
-  Residual risk: Multi-tenant Phase 8 remainder unsupported/deferred (ADR 0028, at-rest crypto); hostile-public CRL ops residual; restart-only TLS cert material; best-effort bounded audit may suppress events or lose pending output at process exit; fresh hosted ADR 0041 evidence pending
+  Residual risk: Multi-tenant Phase 8 remainder unsupported/deferred (ADR 0028, at-rest crypto); hostile-public CRL ops residual; restart-only TLS cert material; best-effort bounded audit may suppress events or lose pending output at process exit; no durable-audit or public-readiness claim
 
-  Secure profile Phases 2–6 landed; Phase 8 remainder documented as unsupported/deferred (Wave 4 honesty). Reopened by ADR 0041 security fixes: previous CI evidence does not prove the new TLS/output/admission/audit lifecycle.
+  Secure profile Phases 2–6 landed; Phase 8 remainder documented as unsupported/deferred (Wave 4 honesty). ADR 0041 TLS/output/admission/audit lifecycles proved on bc0b41e with retained Linux/macOS/FreeBSD/OpenBSD CI evidence. No release acceptance.
 
 - [x] **GATE-CONFIG** — Configuration precedence validation safe defaults limits
   State: `PROVATA_IN_CI` · Release target: `alpha`

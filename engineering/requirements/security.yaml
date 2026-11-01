@@ -27,12 +27,14 @@ requirements:
   evidenze:
   - workflow: ci.yml
   - workflow: openbsd-libressl.yml
+  - path: engineering/evidence/security-bounds-ci-2026-11-01.md
+    note: Fresh ADR 0041 hosted platform and installed SDK controls on bc0b41e
   rischio_residuo:
   - >-
     Hostile public bind still wants operator CRL; multi-tenant Phase 8 remainder
     unsupported/deferred (ADR 0028, at-rest crypto); restart-only TLS certs;
-    OpenMetrics/Prometheus intentional non-support; physical E3 honesty open; ADR 0041
-    lifecycle changes require fresh CI evidence; blocked audit sinks suppress best-effort events
+    OpenMetrics/Prometheus intentional non-support; physical E3 honesty open;
+    blocked audit sinks suppress best-effort events, with pending output potentially lost at exit
   hazards:
   - HAZ-023
   - HAZ-024
@@ -73,12 +75,14 @@ requirements:
   claim_massimo: architectural-prototype
   evidenze:
   - path: engineering/evidence/security-bounds-local-2026-11-01.md
-    note: Local campaign only; hosted platform rows for this patch remain required
+    note: Local full suite, TLS-off, ASan/UBSan and mutation controls
+  - path: engineering/evidence/security-bounds-ci-2026-11-01.md
+    note: Source bc0b41e; Linux/macOS CI and FreeBSD/OpenBSD native rows passed
   rischio_residuo:
   - A blocked stderr retains one process-lifetime emitter and bounded queue; events are best effort,
     may be suppressed or lost at exit, and require operator draining. No durable audit or rotation.
   - One decided response may exceed residual byte allowance; packet-level shaping is not provided.
-  - Both timeout knobs zero deliberately disable output expiry; Linux and BSD CI rows pending.
+  - Both timeout knobs zero deliberately disable output expiry in the explicit trusted configuration.
   hazards:
   - HAZ-024
   gates:

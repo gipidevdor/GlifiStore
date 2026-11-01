@@ -528,6 +528,7 @@ gates:
   - tests/integration/server_security_bounds_tests.cpp
   - tests/security_audit_sink_tests.cpp
   - engineering/evidence/security-bounds-local-2026-11-01.md
+  - engineering/evidence/security-bounds-ci-2026-11-01.md
   piattaforme:
   - linux-x86_64
   - macos-arm64
@@ -535,22 +536,24 @@ gates:
   - openbsd
   evidenze:
   - path: engineering/evidence/security-bounds-local-2026-11-01.md
-    note: macOS local tests only; fresh hosted platform evidence pending
+    note: macOS local full suite, TLS-off, sanitizer and mutation controls
+  - path: engineering/evidence/security-bounds-ci-2026-11-01.md
+    note: Source bc0b41e; CI 11/11 jobs, FreeBSD and both OpenBSD LibreSSL shards passed
   - workflow: ci.yml
   - workflow: freebsd.yml
   - workflow: openbsd-libressl.yml
-  stato: PROVATA_LOCALMENTE
+  stato: PROVATA_IN_CI
   rischio_residuo: >
     Multi-tenant Phase 8 remainder unsupported/deferred (ADR 0028, at-rest crypto);
     hostile-public CRL ops residual; restart-only TLS cert material; best-effort bounded audit
-    may suppress events or lose pending output at process exit; fresh hosted ADR 0041 evidence pending
+    may suppress events or lose pending output at process exit; no durable-audit or public-readiness claim
   riapertura:
   - Weakening default-deny secure profile
   - Network lifecycle or admission-bound changes without fresh platform evidence
   narrative: >
     Secure profile Phases 2–6 landed; Phase 8 remainder documented as
-    unsupported/deferred (Wave 4 honesty). Reopened by ADR 0041 security fixes: previous CI
-    evidence does not prove the new TLS/output/admission/audit lifecycle.
+    unsupported/deferred (Wave 4 honesty). ADR 0041 TLS/output/admission/audit lifecycles
+    proved on bc0b41e with retained Linux/macOS/FreeBSD/OpenBSD CI evidence. No release acceptance.
 - id: GATE-THREAT-SUPPLY
   titolo: Threat model and security release process including supply chain
   sezione: operations_security

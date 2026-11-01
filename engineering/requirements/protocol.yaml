@@ -35,8 +35,8 @@ requirements:
     note: sdk-clients / interop
   rischio_residuo:
   - ADR 0041 bounds output progress/drain and over-quota denied streams without changing
-    indeterminate-on-disconnect or no-cancel admitted mutations; updated hosted platform
-    evidence remains required after the local security remediation campaign
+    indeterminate-on-disconnect or no-cancel admitted mutations. Both timeout knobs zero
+    deliberately disable output expiry; one decided response may exceed residual byte allowance.
   hazards:
   - HAZ-010
   - HAZ-011
