@@ -153,7 +153,9 @@ case "${1:-help}" in
         find "$root/include" "$root/src" "$root/tests" "$root/benchmarks" "$root/fuzz" \
             -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
             | xargs -0 "$formatter" --dry-run --Werror
-        find "$root/scripts" -type f -name '*.sh' -exec bash -n {} \;
+        while IFS= read -r -d '' script; do
+            bash -n "$script"
+        done < <(find "$root/scripts" -type f -name '*.sh' -print0)
         "$python" "$root/engineering/tools/validate_assurance.py"
         "$python" "$root/engineering/tools/validate_documentation.py"
         "$python" "$root/engineering/tools/validate_cmake_deps.py"

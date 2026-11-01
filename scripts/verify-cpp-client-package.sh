@@ -36,7 +36,7 @@ if [[ -z "$cmake_bin" ]]; then
       break
     fi
   done
-  else
+  if [[ -z "$cmake_bin" ]]; then
     cmake_bin="$(command -v cmake)"
   fi
 fi
