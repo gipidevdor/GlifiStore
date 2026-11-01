@@ -290,6 +290,8 @@ GLIFI_TEST("partial request timeout preserves prior response while peer drains w
     // A small server send buffer makes the large PING retain decided user-space
     // bytes when a trailing partial frame times out. Keep the client receive window
     // normal so completion does not depend on platform TCP retransmit intervals.
+    // This is the successful-drain control: allow virtualized BSD scheduling and
+    // delayed ACKs. Separate short-budget tests require stalled output to expire.
     auto opened = glifistore::server::Server::create({
         .port = 0,
         .maximum_connections = 4,
@@ -297,7 +299,7 @@ GLIFI_TEST("partial request timeout preserves prior response while peer drains w
         .accepted_socket_send_buffer_bytes = 4U * 1024U,
         .abuse =
             {
-                .request_timeout_ms = 80,
+                .request_timeout_ms = 1'000,
             },
     });
     GLIFI_REQUIRE(opened.has_value());
@@ -355,6 +357,15 @@ GLIFI_TEST("partial request timeout preserves prior response while peer drains w
     GLIFI_REQUIRE(decoded->frame.request_id == 55);
     GLIFI_REQUIRE(decoded->frame.status == glifistore::server::ResponseStatus::ok);
     GLIFI_REQUIRE(decoded->frame.value.size() == kPayload);
+
+    const auto report = server.stats_report();
+    GLIFI_REQUIRE(report.has_value());
+    constexpr std::string_view timeout_counter{"abuse_request_timeout_closed="};
+    const auto marker = report->find(timeout_counter);
+    GLIFI_REQUIRE(marker != std::string::npos);
+    const auto value_start = marker + timeout_counter.size();
+    GLIFI_REQUIRE(value_start < report->size());
+    GLIFI_REQUIRE((*report)[value_start] != '0');
 
     static_cast<void>(::close(socket));
     server.request_stop();
