@@ -114,7 +114,9 @@ their trusted, unbounded-drain policy. No production or hostile-public readiness
   fields larger than portable PIPE_BUF; each has a 15-second CTest deadline.
 - Existing drain, handoff, timeout, mutation and client-semantics tests remain required.
 - Local evidence: [security bounds campaign](../../engineering/evidence/security-bounds-local-2026-11-01.md).
-  Linux epoll and FreeBSD/OpenBSD/LibreSSL execution require their CI rows; local macOS is kqueue.
+- Hosted evidence: [final CI campaign](../../engineering/evidence/security-bounds-ci-2026-11-01.md).
+  Linux epoll, macOS kqueue, FreeBSD and OpenBSD/LibreSSL rows passed on source/test commit
+  bc0b41e; the gate is PROVATA_IN_CI, without release acceptance or production-readiness claims.
 
 Darwin behavior was checked against Apple's
 [write implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_generic.c)

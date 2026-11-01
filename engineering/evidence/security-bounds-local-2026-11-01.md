@@ -18,7 +18,7 @@ slot accounting. A normal TLS handshake/PING control passed. The initial slow-ou
 inconclusive and was strengthened to require a decided response, output-expiry counter, scatter
 path participation and reuse of the freed connection slot.
 
-## Ordered verification results
+## Initial bounds verification results
 
 | Gate | Command / scope | Result |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ path participation and reuse of the freed connection slot.
 | Original TLS failure classes | glifistore_tests 'tls' | 15/15 passed, including stalled handshake, slot/deadline/stop and normal mTLS/CRL/client controls |
 | Output regression sensitivity | Disposable object/library copy with output-expiry branch removed | Expected failure at slot-release assertion; final candidate passes |
 | Nearest controls | abuse controller, security audit, timeout, rate limit, half-close and handoff filters | Passed after the explicit ADR 0041 drain-contract test adjustment |
-| Full final native suite | glifistore_tests | **741/741 passed** after the final receive-stop correction |
+| Initial native suite | glifistore_tests | **741/741 passed** after the receive-stop correction |
 | TLS OFF | Separate strict Debug build; security bounds and tls filters | 4/4 and 6/6 passed |
 | Memory / UB | ASan+UBSan strict Debug TLS build; tls, security bounds, abuse controller, security audit, handoff, half-close and late cold-read completion filters | **37 selected executions passed**, overlapping filters; no sanitizer report |
 | ABI / daemon | Build glifistored and glifistore_c_abi_tests; CTest glifistore_c_abi_tests and glifistore_abi_symbols | 2/2 passed; C ABI exports unchanged |
@@ -67,13 +67,15 @@ ctest --test-dir "$BUILD" -R '^(glifistore_c_abi_tests|glifistore_abi_symbols)$'
 The TLS-off build sets GLIFISTORE_ENABLE_TLS=OFF. The sanitizer build adds
 GLIFISTORE_ENABLE_ASAN=ON and GLIFISTORE_ENABLE_UBSAN=ON, with ASAN_OPTIONS=halt_on_error=1:abort_on_error=1
 and UBSAN_OPTIONS=halt_on_error=1. It runs only the listed focused filters; a complete sanitizer
-suite, leak proof, TSan campaign, fuzz campaign and hosted platform matrix were not run.
+suite, leak proof, TSan campaign and fuzz campaign were not run. The later hosted platform
+matrix is recorded in the [CI campaign](security-bounds-ci-2026-11-01.md).
 Raw baseline, final native, TLS-off, sanitizer and mutation logs are retained in the chat's
 managed remediation artifact collection, separately from the sealed original scan.
 
-GATE-AUTH-TRANSPORT is PROVATA_LOCALMENTE for this patch. Its previous PROVATA_IN_CI state was
-reopened because old CI evidence cannot prove the amended lifecycle. New hosted evidence is
-required before any CI/release promotion.
+GATE-AUTH-TRANSPORT was initially reopened to PROVATA_LOCALMENTE because old CI evidence could
+not prove the amended lifecycle. The later [CI campaign](security-bounds-ci-2026-11-01.md)
+passed on bc0b41e and restores PROVATA_IN_CI for the documented platform rows, without release
+acceptance or production/public-readiness claims.
 
 ## Audit sink isolation follow-up
 
@@ -87,7 +89,7 @@ the shared no-SIGPIPE attribute is explicitly documented in the ADR.
 | Proof | Result |
 | --- | --- |
 | Strict Debug TLS ON build, server/daemon/test targets | Passed |
-| Full native suite after introducing isolation | **740/740 passed**, plus initial three sink subprocesses; one old synchronous-output assertion moved into the dedicated executable |
+| Full native suite on source commit 67ad42f8ef8c6750598cb5436d8b2dedd164c5ce | **740/740 passed**, plus all four sink subprocesses; one old synchronous-output assertion moved into the dedicated executable |
 | Final sink scenarios: normal JSON/quiet/escaping/storm, full blocking pipe, closed pipe, nonblocking backpressure | **4/4 passed** with 15-second CTest deadlines |
 | Same final scenarios with TLS OFF | **4/4 passed** |
 | Same final scenarios with ASan+UBSan | **4/4 passed**, no sanitizer report |
@@ -97,8 +99,9 @@ the shared no-SIGPIPE attribute is explicitly documented in the ADR.
 | Independent read-only review | No surviving Reader-blocking route found; partial-write/error hypothesis confirmed by source inspection and addressed by retaining suffixes on EAGAIN and disabling the sink on hard error |
 
 The final error-handling refinement was followed by all four sink scenarios in the three local
-build variants; the full 740-test run preceded that refinement. Hosted CI must execute the final
-committed sources. Raw CTest logs and the mutation result are retained in the separate managed
+build variants and the complete 740-test native suite. The final naming-only build correction also
+passes a syntax check with -Wshadow-all -Werror and the native suite. Hosted CI must execute the
+final committed sources. Raw CTest logs and the mutation result are retained in the separate managed
 remediation collection under `artifacts/fixes/audit-isolation/`. OpenBSD's explicit build-target
 and CTest filter now include the new executable; Linux/FreeBSD already build and test all targets.
 
@@ -109,6 +112,6 @@ and CTest filter now include the new executable; Linux/FreeBSD already build and
   disable the sink; durable audit, sink rotation and post-initialization fork are unsupported.
 - One already-decided response may exceed the residual byte allowance; this is admission
   accounting, not packet-level egress shaping. Both timeout knobs zero disables output expiry.
-- Linux epoll, FreeBSD and OpenBSD/LibreSSL execution are not available on this local macOS host.
-  Their CI rows remain required. GATE-AUTH-TRANSPORT was reopened for this behavior change;
-  previous CI evidence does not establish these new lifecycle properties.
+- The local macOS host covers kqueue only. Linux epoll, FreeBSD and OpenBSD/LibreSSL results
+  are retained separately in the [hosted campaign](security-bounds-ci-2026-11-01.md), which
+  proves the same final implementation and records the two test-portability corrections.

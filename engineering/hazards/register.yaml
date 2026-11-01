@@ -556,12 +556,13 @@ hazards:
   - tests/unit/abuse_limits_tests.cpp
   - tests/unit/security_audit_tests.cpp
   - tests/security_audit_sink_tests.cpp
+  - engineering/evidence/security-bounds-ci-2026-11-01.md
   rischio_residuo: >
     Limits require secure-profile/operator config; both timeout knobs zero disable output expiry.
     A blocked operator stderr retains one process-lifetime emitter with a fixed queue; Readers
     and Server destruction never wait for sink I/O. Suppression/delivery is observable, but audit
-    is best effort and pending events may be lost at exit. Hosted platform evidence for ADR 0041
-    remains open; one decided response may exceed the residual byte allowance.
+    is best effort and pending events may be lost at exit. One decided response may exceed the
+    residual byte allowance; physical durability and hostile-public readiness are not inferred.
   stato: mitigato
   accettazione_rischio: Phase 5 abuse controls when enabled
   requisiti:
