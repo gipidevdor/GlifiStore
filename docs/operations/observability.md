@@ -196,6 +196,8 @@ Enable with `--log-format json` (or config). Stderr JSON-lines; common fields: `
 
 With `--secure-profile` or JSON logging, `auth` / `authz` / `tls` audit events may also appear on
 stderr (no payloads). See [secure-profile](../security/secure-profile.md).
+`audit_events_suppressed`, `audit_events_written`, `audit_events_pending` and
+`audit_events_write_failed` expose bounded best-effort delivery; snapshots are concurrent.
 
 ## 5. `--dump-config` (startup contract dump)
 
@@ -232,10 +234,13 @@ contracts, scrape SLO) and is **not** on the architectural-prototype claim path.
 on `GATE-TELEMETRY` / `GS-OPS-CONFIG-001`: histogram approximations are diagnostics, not
 SLOs; absence of Prometheus is explicit, not an unfinished stub.
 
-### Security audit mutex (not a hot-path SLO)
+### Security audit emitter (not a hot-path SLO)
 
-`SecurityAudit` serializes JSON-line emission behind a process mutex and increments atomic
-counters. Counters feed `STATS`; emission is off by default unless `--secure-profile` or
+`SecurityAudit` increments atomic decision counters and uses try_lock to submit bounded JSON
+events to one process-lifetime emitter. Sink I/O never runs on Readers or Server destruction.
+The fixed queue has 128 slots plus one in-flight event; admission and write attempts each have
+a 128-per-second cap. A blocked sink suppresses later events; process exit may lose pending
+events. Counters feed `STATS`; emission is off by default unless `--secure-profile` or
 `--log-format json`. Audit/telemetry must **not** be treated as a mutation hot-path SLO:
 deny storms are correctness/coherence tests, not latency budgets. Prefer quiet or disabled
 audit emission under load-sensitive lab runs when only counters matter.

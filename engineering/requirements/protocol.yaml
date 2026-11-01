@@ -9,6 +9,7 @@ requirements:
   autorita:
   - docs/spec/wire-protocol-v2.md
   - docs/spec/connection-drain-state-machine.md
+  - docs/adr/0041-bounded-network-security-lifecycles.md
   - docs/spec/client-semantics-v1.md
   - docs/spec/error-taxonomy-v1.md
   - docs/spec/tcp-client-conformance-v1.md
@@ -33,9 +34,9 @@ requirements:
   - workflow: ci.yml
     note: sdk-clients / interop
   rischio_residuo:
-  - None for daemon request/idle timeout vs client contract (proven by reactor
-    timeout tests); cold-read cancel epochs and no-cancel admitted mutations remain
-    the normative server model
+  - ADR 0041 bounds output progress/drain and over-quota denied streams without changing
+    indeterminate-on-disconnect or no-cancel admitted mutations; updated hosted platform
+    evidence remains required after the local security remediation campaign
   hazards:
   - HAZ-010
   - HAZ-011

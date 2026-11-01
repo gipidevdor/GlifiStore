@@ -263,3 +263,13 @@ backpressure therefore remains authoritative.
 5. Send framed requests and read framed responses in order.
 6. On `WRONG_OWNER`, use a connection bound to `owner_worker`.
 7. On transport loss, re-bootstrap with `INIT` and `BIND_WORKER` (§10.1). Treat mutations with bytes sent as indeterminate; never assume server `request_id` deduplication (§8.1). Apply application-specific reconciliation before retrying a logical mutation. Official clients classify outcomes and automatic retries per [client semantics v1](client-semantics-v1.md).
+
+## Network-security lifecycle amendment (ADR 0041)
+
+[ADR 0041](../adr/0041-bounded-network-security-lifecycles.md) bounds TLS handshakes and
+stalled output without changing frame bytes or version. Output-progress expiry may close a
+stream after bounded best-effort flush. Denied attempts consume abuse quotas before audit;
+exhausted denied streams receive ordered OVERLOADED then bounded closure. Authorized probes
+remain exempt. Response-byte windows saturate for an already-decided response above residual
+allowance, affecting later admissions including zero-payload INIT. Disconnect retains the
+indeterminate-on-sent-mutation rule of section 10.1.

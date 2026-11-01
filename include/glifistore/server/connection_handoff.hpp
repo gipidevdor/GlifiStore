@@ -20,6 +20,8 @@ namespace glifistore::server {
 struct ConnectionHandoff {
     SocketHandle socket{};
     std::unique_ptr<TlsSession> tls{};
+    bool tls_handshake_pending{};
+    std::chrono::steady_clock::time_point tls_handshake_since{};
     std::string principal{};
     Capability capabilities{Capability::none};
     // Empty = unrestricted keyspace; set from --authz-map prefix= (Phase 8 slice).
@@ -31,6 +33,7 @@ struct ConnectionHandoff {
     bool peer_read_closed{};
     std::chrono::steady_clock::time_point last_activity{};
     std::chrono::steady_clock::time_point partial_request_since{};
+    std::chrono::steady_clock::time_point output_progress_since{};
     std::uint64_t connection_rate_window_start_ns{};
     std::uint32_t connection_rate_used{};
 };

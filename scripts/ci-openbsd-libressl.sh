@@ -58,7 +58,7 @@ fi
 
 echo "== build =="
 cmake --build --preset "$preset" --target \
-  glifistored glifistore_tests glifistore_interop_client \
+  glifistored glifistore_tests glifistore_security_audit_sink_tests glifistore_interop_client \
   glifistore_abi glifistore_c_abi_tests glifistore_c_abi_durable_tests
 
 daemon="$build_dir/glifistored"
@@ -77,7 +77,7 @@ echo "== ctest (built targets only; verbose, 15-minute per-target timeout) =="
 # tools, crash harnesses, and benchmarks are not built here; match only binaries that
 # exist so missing executables are not counted as failures. Verbose mode streams each
 # test-harness [RUN] marker, preserving the exact stalled case if the monolith times out.
-ctest --preset "$preset" --verbose --timeout 900 -R '^(glifistore_tests|glifistore_cli_daemon_)'
+ctest --preset "$preset" --verbose --timeout 900 -R '^(glifistore_tests|glifistore_audit_sink_|glifistore_cli_daemon_)'
 
 echo "== installed C ABI consumer =="
 install_root="$(mktemp -d /tmp/glifistore-openbsd-install.XXXXXX)"

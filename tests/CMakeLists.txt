@@ -189,6 +189,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/unit/segment_header_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/segment_catalog_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/tls_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/integration/server_security_bounds_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/trusted_read_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/vacuum_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/worker_tests.cpp
@@ -243,6 +244,21 @@ if(BUILD_TESTING)
     glifistore_enable_hardening(glifistore_tests)
     glifistore_enable_ipo(glifistore_tests)
     add_test(NAME glifistore_tests COMMAND glifistore_tests)
+    add_executable(glifistore_security_audit_sink_tests
+        ${CMAKE_SOURCE_DIR}/tests/security_audit_sink_tests.cpp
+    )
+    target_link_libraries(glifistore_security_audit_sink_tests
+        PRIVATE GlifiStore::server glifistore_project_options
+    )
+    target_include_directories(glifistore_security_audit_sink_tests PRIVATE "${CMAKE_SOURCE_DIR}/tests")
+    glifistore_set_warnings(glifistore_security_audit_sink_tests)
+    glifistore_enable_hardening(glifistore_security_audit_sink_tests)
+    glifistore_enable_ipo(glifistore_security_audit_sink_tests)
+    foreach(scenario IN ITEMS normal blocked closed nonblocking)
+        add_test(NAME glifistore_audit_sink_${scenario}
+            COMMAND glifistore_security_audit_sink_tests ${scenario})
+        set_tests_properties(glifistore_audit_sink_${scenario} PROPERTIES TIMEOUT 15)
+    endforeach()
     add_test(
         NAME glifistore_test_harness_rejects_partial_shard
         COMMAND "${CMAKE_COMMAND}"

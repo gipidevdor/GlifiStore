@@ -45,3 +45,10 @@ This decision defines server architecture, not persistent bytes. Protocol v2 mak
 wrong-owner behavior externally observable. Integration tests must prove one-time ownership
 transfer, stale event-token rejection, queue saturation, partial frames, shutdown, and no source
 access after publication to the destination.
+
+## Amendment — 2026-11-01
+
+[ADR 0041](0041-bounded-network-security-lifecycles.md) amends network-security lifetimes,
+output drain, request-attempt admission and audit emission. It preserves persistence v1,
+wire v2 and Store acknowledgement points; its explicit disconnect and quota rules govern
+stalled or abusive peers.

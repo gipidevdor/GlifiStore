@@ -18,7 +18,10 @@ struct AbuseLimits final {
     std::uint32_t max_accepts_per_sec{};
     // Close connections with no activity for this long (monotonic).
     std::uint32_t idle_timeout_ms{};
-    // Bound time to assemble one request frame or wait for an in-flight response.
+    // Bound partial-frame assembly, in-flight response wait, and stalled output
+    // (time since first queue / last successful write, including close-after-flush).
+    // If zero, idle_timeout_ms is the output-progress fallback. Both zero
+    // explicitly disables output expiry for trusted deployments (ADR 0041).
     // Durable Store mutations already in execution are never cancelled; the TCP
     // peer is closed and the late response is discarded (stale generation).
     std::uint32_t request_timeout_ms{};

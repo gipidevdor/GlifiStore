@@ -11,6 +11,7 @@ requirements:
   - docs/security/threat-model.md
   - docs/adr/0020-tls-outer-transport.md
   - docs/adr/0022-authorization-capabilities.md
+  - docs/adr/0041-bounded-network-security-lifecycles.md
   implementazione:
   - src/server/tls.cpp
   - src/server
@@ -30,9 +31,55 @@ requirements:
   - >-
     Hostile public bind still wants operator CRL; multi-tenant Phase 8 remainder
     unsupported/deferred (ADR 0028, at-rest crypto); restart-only TLS certs;
-    OpenMetrics/Prometheus intentional non-support; physical E3 honesty open
+    OpenMetrics/Prometheus intentional non-support; physical E3 honesty open; ADR 0041
+    lifecycle changes require fresh CI evidence; blocked audit sinks suppress best-effort events
   hazards:
   - HAZ-023
+  - HAZ-024
+  gates:
+  - GATE-AUTH-TRANSPORT
+- id: GS-SEC-BOUNDS-001
+  titolo: Bounded TLS output denied attempts and audit lifecycles
+  categoria: security
+  criticita: alta
+  stato: provato
+  descrizione: Pending TLS consumes bounded connection slots without blocking Readers; output
+    progress expires independently of input; decided responses saturate byte windows; denied
+    attempts consume quotas before audit; a fixed process-wide queue isolates sink I/O from
+    Readers and Server destruction, with explicit delivery and suppression telemetry.
+  autorita:
+  - docs/adr/0041-bounded-network-security-lifecycles.md
+  - docs/security/secure-profile.md
+  - docs/spec/connection-drain-state-machine.md
+  - docs/spec/client-semantics-v1.md
+  implementazione:
+  - src/server/reactor_tls.cpp
+  - src/server/reactor_timeouts.cpp
+  - src/server/reactor_dispatch.cpp
+  - src/server/abuse_limits.cpp
+  - src/server/security_audit.cpp
+  prove:
+  - tests/unit/tls_tests.cpp
+  - tests/integration/server_security_bounds_tests.cpp
+  - tests/integration/server_reactor_limits_timeout_tests.cpp
+  - tests/unit/abuse_limits_tests.cpp
+  - tests/unit/security_audit_tests.cpp
+  - tests/security_audit_sink_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/security-bounds-local-2026-11-01.md
+    note: Local campaign only; hosted platform rows for this patch remain required
+  rischio_residuo:
+  - A blocked stderr retains one process-lifetime emitter and bounded queue; events are best effort,
+    may be suppressed or lost at exit, and require operator draining. No durable audit or rotation.
+  - One decided response may exceed residual byte allowance; packet-level shaping is not provided.
+  - Both timeout knobs zero deliberately disable output expiry; Linux and BSD CI rows pending.
+  hazards:
   - HAZ-024
   gates:
   - GATE-AUTH-TRANSPORT

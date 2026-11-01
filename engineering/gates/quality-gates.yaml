@@ -519,27 +519,38 @@ gates:
   livello_rilascio: beta
   requisiti:
   - GS-SEC-PROFILE-001
+  - GS-SEC-BOUNDS-001
   prove:
   - docs/security/secure-profile.md
   - scripts/test-secure-profile-interop.sh
   - scripts/test-secure-profile-installed-artifacts.sh
   - engineering/evidence/sdk-installed-secure-profile.md
+  - tests/integration/server_security_bounds_tests.cpp
+  - tests/security_audit_sink_tests.cpp
+  - engineering/evidence/security-bounds-local-2026-11-01.md
   piattaforme:
   - linux-x86_64
   - macos-arm64
+  - freebsd
   - openbsd
   evidenze:
+  - path: engineering/evidence/security-bounds-local-2026-11-01.md
+    note: macOS local tests only; fresh hosted platform evidence pending
   - workflow: ci.yml
+  - workflow: freebsd.yml
   - workflow: openbsd-libressl.yml
-  stato: PROVATA_IN_CI
+  stato: PROVATA_LOCALMENTE
   rischio_residuo: >
     Multi-tenant Phase 8 remainder unsupported/deferred (ADR 0028, at-rest crypto);
-    hostile-public CRL ops residual; restart-only TLS cert material
+    hostile-public CRL ops residual; restart-only TLS cert material; best-effort bounded audit
+    may suppress events or lose pending output at process exit; fresh hosted ADR 0041 evidence pending
   riapertura:
   - Weakening default-deny secure profile
+  - Network lifecycle or admission-bound changes without fresh platform evidence
   narrative: >
     Secure profile Phases 2–6 landed; Phase 8 remainder documented as
-    unsupported/deferred (Wave 4 honesty).
+    unsupported/deferred (Wave 4 honesty). Reopened by ADR 0041 security fixes: previous CI
+    evidence does not prove the new TLS/output/admission/audit lifecycle.
 - id: GATE-THREAT-SUPPLY
   titolo: Threat model and security release process including supply chain
   sezione: operations_security

@@ -20,6 +20,9 @@ auto Reactor::read_ready(const ConnectionToken token) -> Status {
     if (current == nullptr) {
         return {};
     }
+    if (current->close_after_flush) {
+        return write_ready(token);
+    }
     std::array<std::byte, std::size_t{16} * 1024U> buffer{};
     while (true) {
         std::size_t received_size = 0;
@@ -130,6 +133,12 @@ auto Reactor::read_ready(const ConnectionToken token) -> Status {
                 return {};
             }
         }
+        // A rejected stream must yield even if the peer keeps sending junk.
+        // Otherwise recv/process_frames/discard could starve the output timer.
+        if (current->close_after_flush) {
+            // TLS may have armed read interest solely to complete SSL_write.
+            return current->tls ? Status{} : update_connection_interest(token);
+        }
     }
 }
 
@@ -201,6 +210,10 @@ auto Reactor::write_ready(const ConnectionToken token) -> Status {
                     std::array<std::byte, std::size_t{16} * 1024U> tls_scratch{};
                     auto received = current->tls->read(tls_scratch.data(), tls_scratch.size());
                     if (received && received->kind == TlsIoKind::ok && received->bytes > 0) {
+                        if (current->close_after_flush) {
+                            // Consume TLS control progress without admitting new plaintext.
+                            continue;
+                        }
                         const auto buffered = current->input.size() - current->input_offset;
                         if (received->bytes <= config_.maximum_input_bytes &&
                             buffered <= config_.maximum_input_bytes - received->bytes) {
@@ -261,7 +274,8 @@ auto Reactor::write_ready(const ConnectionToken token) -> Status {
                     // want_write / would_block / persistent want_read: keep write armed;
                     // keep read unless half-closed *and* OpenSSL only asked for write.
                     const bool needs_read =
-                        tls_io_needs_read(written->kind) || (!current->peer_read_closed && !scatter);
+                        tls_io_needs_read(written->kind) ||
+                        (!current->peer_read_closed && !current->close_after_flush && !scatter);
                     if (current->write_armed && !needs_read) {
                         return {};
                     }
@@ -347,7 +361,7 @@ auto Reactor::write_ready(const ConnectionToken token) -> Status {
                 if (current->write_armed) {
                     return {};
                 }
-                const auto interest = current->peer_read_closed || scatter
+                const auto interest = current->peer_read_closed || current->close_after_flush || scatter
                                           ? IoInterest::write
                                           : IoInterest::read | IoInterest::write;
                 auto modified = [&] {
@@ -368,6 +382,9 @@ auto Reactor::write_ready(const ConnectionToken token) -> Status {
                 output_scatter_partial_writes_.fetch_add(1U, std::memory_order_relaxed);
             }
 
+            if (written_size != 0) {
+                current->output_progress_since = std::chrono::steady_clock::now();
+            }
             auto remaining = written_size;
             const auto consume = [&](std::size_t& offset, const std::size_t size) {
                 const auto available = size - offset;
@@ -394,6 +411,7 @@ auto Reactor::write_ready(const ConnectionToken token) -> Status {
             }
         }
 
+        current->output_progress_since = {};
         touch_activity(*current, std::chrono::steady_clock::now());
         if (reactor_detail::connection_action_for(current->peer_read_closed, current->close_after_flush,
                                                   current->request_in_flight, has_pending_output(*current),

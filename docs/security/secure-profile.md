@@ -80,14 +80,42 @@ policy, stronger multi-tenant isolation, and physical E3 honesty
 | --- | --- | --- |
 | `--max-accepts-per-sec` | 128 | Process-wide accept/handshake admissions per second; excess peers are dropped |
 | `--idle-timeout-ms` | 60000 | Close quiet connections (monotonic idle) |
-| `--request-timeout-ms` | 30000 | Bound partial-frame assembly and in-flight response wait; Store work already executing is not cancelled |
+| `--request-timeout-ms` | 30000 | Bound partial-frame assembly, in-flight response wait and stalled output progress; admitted Store work is not cancelled |
 | `--connection-max-requests-per-sec` | 256 | Per-connection request admission; exceed ⇒ wire `overloaded` |
 | `--principal-max-requests-per-sec` | 1024 | Per-mTLS-principal request admission |
 | `--principal-max-bytes-per-sec` | 32MiB | Per-principal request key+value + response value bytes |
 
 Trusted cleartext leaves these at `0` (disabled). `--secure-profile` fills zeros with the defaults
-above and refuses explicit `0`. `HEALTH` / `READY` / `STATS` stay exempt from request/bandwidth
-quotas. `STATS` exports `abuse_*` reject/close counters.
+above and refuses explicit `0`. Only **authorized** `HEALTH` / `READY` / `STATS` stay exempt
+from request/bandwidth quotas; denied attempts, including denied STATS, consume them before audit.
+An over-quota denied stream receives OVERLOADED after prior decided responses, then closes after
+bounded drain. `STATS` exports `abuse_*` reject/close counters.
+
+[ADR 0041](../adr/0041-bounded-network-security-lifecycles.md) bounds pending TLS handshakes by
+connection slots and their independent deadline (default 10 seconds), without blocking Readers.
+Pending output expires after no write progress for `request-timeout-ms`, falling back to
+`idle-timeout-ms` when the former is zero. New input does not renew this budget; BIND preserves it.
+Both zero explicitly disables output expiry for trusted deployments. Decided replies receive a
+bounded best-effort flush; disconnect never implies that an admitted mutation was cancelled.
+
+Response values exceeding a principal's remaining byte allowance saturate its window; even
+zero-payload INIT is subsequently refused until the one-second reset. One already-decided
+response can exceed the residual allowance; this is not packet-level egress shaping.
+
+Audit decision counters remain exact. One process-wide emitter has a fixed 128-event queue
+(8 KiB maximum per event, plus one in flight); admission and write attempts are each capped at
+128 per monotonic second. Producers use try_lock and perform no sink I/O. A blocked stderr can
+stall only that emitter; Readers and Server destruction do not wait for it. Suppression is
+exported as `audit_events_suppressed`; `audit_events_written`, `audit_events_pending` and
+`audit_events_write_failed` expose delivery progress/failures. Snapshots are concurrent.
+The emitter snapshots stderr on first emitting audit construction, leaves O_NONBLOCK and process
+signal dispositions unchanged, and retains one thread/descriptor until process exit. Darwin
+requires F_SETNOSIGPIPE; that no-SIGPIPE attribute is shared with stderr and its duplicates.
+Nonblocking backpressure waits only in the emitter while retaining the current JSON line.
+A hard I/O error disables the sink, suppressing queued and later events until process exit.
+Operators must drain the sink for delivery; pending events may be lost at exit. Durable audit,
+sink rotation and fork after emitter initialization are unsupported. No hostile-public readiness
+claim follows from these bounds.
 
 ## 2. Principal extraction (ADR 0021)
 

@@ -307,6 +307,8 @@ add_library(glifistore_server_core
     ${CMAKE_SOURCE_DIR}/src/server/openbsd_sandbox.cpp
     ${CMAKE_SOURCE_DIR}/src/server/peercred.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/reactor_tls.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/reactor_timeouts.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_dispatch.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_execute.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_io.cpp

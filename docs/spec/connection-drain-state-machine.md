@@ -90,3 +90,17 @@ succeeded. Rules that must stay true:
   `server_reactor_durable_wire_tests.cpp` — BIND OK flush before decode failure, handoff
   saturation OVERLOADED, shutdown drain
 - `tests/unit/connection_handoff_tests.cpp` — mesh bound + `stop_accepting`
+
+## 7. Bounded output amendment (ADR 0041)
+
+[ADR 0041](../adr/0041-bounded-network-security-lifecycles.md) bounds the drain rules above.
+A decided response is retained only while output makes write progress within request-timeout-ms
+(or idle-timeout-ms when request timeout is zero). Both zero disables this bound intentionally.
+Queueing starts the budget; only positive socket/TLS/scatter writes renew it. Input and BIND
+handoff do not renew it. Expiry offers a bounded best-effort flush and hard-closes, including
+close_after_flush and peer-half-closed states. Previously admitted Store mutations continue;
+disconnect creates no false OVERLOADED/not-committed acknowledgement.
+
+Pending TLS handshakes occupy bounded slots and use a separate handshake deadline before any
+application framing. Over-quota denied streams stop parsing after their ordered OVERLOADED and
+close through the same bounded output lifecycle. Authorized lifecycle probes remain exempt.

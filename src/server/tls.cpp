@@ -269,6 +269,14 @@ struct TlsContext::Impl {
 struct TlsSession::Impl {
     SSL* ssl{};
     std::string peer_principal{};
+    bool server_handshake{};
+    bool mtls_required{};
+    bool handshake_complete{};
+    ~Impl() {
+        if (ssl != nullptr) {
+            SSL_free(ssl);
+        }
+    }
 };
 
 TlsContext::TlsContext() : impl_(std::make_unique<Impl>()) {}
@@ -429,88 +437,91 @@ auto TlsContext::create_client(const ClientTlsConfig& config) -> Result<std::sha
     return context;
 }
 
-auto TlsContext::accept_socket(const int descriptor) const -> Result<std::unique_ptr<TlsSession>> {
-    if (client_mode_) {
-        return fail(ErrorCode::invalid_argument, "TLS context is client-mode; use connect_socket");
+auto TlsContext::begin_accept_socket(const int descriptor) const -> Result<std::unique_ptr<TlsSession>> {
+    if (client_mode_ || impl_ == nullptr || impl_->ctx == nullptr) {
+        return fail(ErrorCode::invalid_argument, "server TLS context is not initialized");
     }
-    if (impl_ == nullptr || impl_->ctx == nullptr) {
-        return fail(ErrorCode::internal_error, "TLS context is not initialized");
+    auto session = std::unique_ptr<TlsSession>(new TlsSession(std::make_unique<TlsSession::Impl>()));
+    auto& state = *session->impl_;
+    state.ssl = SSL_new(impl_->ctx);
+    if (state.ssl == nullptr) {
+        return fail(ErrorCode::resource_exhausted, "SSL_new failed: " + tls_error_string());
     }
-    auto* ssl = SSL_new(impl_->ctx);
-    if (ssl == nullptr) {
-        return fail(ErrorCode::internal_error, "SSL_new failed: " + tls_error_string());
-    }
-    if (SSL_set_fd(ssl, descriptor) != 1) {
-        SSL_free(ssl);
+    if (SSL_set_fd(state.ssl, descriptor) != 1) {
         return fail(ErrorCode::io_error, "SSL_set_fd failed: " + tls_error_string());
     }
-    SSL_set_accept_state(ssl);
+    state.server_handshake = true;
+    state.mtls_required = mtls_enabled_;
+    SSL_set_accept_state(state.ssl);
+    return session;
+}
 
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds{handshake_timeout_ms_};
-    while (true) {
-        const auto result = SSL_accept(ssl);
-        if (result == 1) {
-            break;
+auto TlsSession::accept_handshake() -> Result<TlsIoResult> {
+    if (!valid() || !impl_->server_handshake) {
+        return fail(ErrorCode::invalid_argument, "TLS session has no server handshake");
+    }
+    if (impl_->handshake_complete) {
+        return TlsIoResult{};
+    }
+    const auto result = SSL_accept(impl_->ssl);
+    if (result != 1) {
+        return map_ssl_io_error(impl_->ssl, result, "TLS handshake");
+    }
+    if (impl_->mtls_required) {
+#if defined(LIBRESSL_VERSION_NUMBER) ||                                                                      \
+    (defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x30000000L)
+        auto* peer = SSL_get_peer_certificate(impl_->ssl);
+#else
+        auto* peer = SSL_get1_peer_certificate(impl_->ssl);
+#endif
+        if (peer == nullptr) {
+            return fail(ErrorCode::io_error, "mTLS required but peer certificate is missing");
         }
-        const auto error = SSL_get_error(ssl, result);
-        if (error != SSL_ERROR_WANT_READ && error != SSL_ERROR_WANT_WRITE) {
-            const auto message = "TLS handshake failed: " + tls_error_string();
-            SSL_free(ssl);
-            return fail(ErrorCode::io_error, message);
+        const std::unique_ptr<X509, decltype(&X509_free)> certificate{peer, &X509_free};
+        const auto verify = SSL_get_verify_result(impl_->ssl);
+        if (verify != X509_V_OK) {
+            return fail(ErrorCode::io_error, verify == X509_V_ERR_CERT_REVOKED
+                                                 ? "mTLS peer certificate revoked (CRL fail closed)"
+                                                 : "mTLS peer certificate verification failed");
+        }
+        impl_->peer_principal = extract_certificate_principal(peer);
+        if (impl_->peer_principal.empty()) {
+            return fail(ErrorCode::io_error,
+                        "mTLS peer certificate has no usable principal (URI SAN, DNS SAN, or CN)");
+        }
+    }
+    impl_->handshake_complete = true;
+    return TlsIoResult{};
+}
+
+auto TlsContext::accept_socket(const int descriptor) const -> Result<std::unique_ptr<TlsSession>> {
+    auto session = begin_accept_socket(descriptor);
+    if (!session) {
+        return unexpected(session.error());
+    }
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds{handshake_timeout_ms_};
+    for (;;) {
+        auto advanced = (*session)->accept_handshake();
+        if (!advanced) {
+            return unexpected(advanced.error());
+        }
+        if (advanced->kind == TlsIoKind::ok) {
+            return std::move(*session);
+        }
+        if (!tls_io_blocked(advanced->kind)) {
+            return fail(ErrorCode::io_error, "TLS handshake closed by peer");
         }
         const auto remaining =
             std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now())
                 .count();
         if (remaining <= 0) {
-            SSL_free(ssl);
             return fail(ErrorCode::unavailable, "TLS handshake timed out");
         }
+        const auto error = tls_io_needs_read(advanced->kind) ? SSL_ERROR_WANT_READ : SSL_ERROR_WANT_WRITE;
         if (auto waited = wait_for_socket(descriptor, error, static_cast<int>(remaining)); !waited) {
-            SSL_free(ssl);
             return unexpected(waited.error());
         }
     }
-
-    if (mtls_enabled_) {
-#if defined(LIBRESSL_VERSION_NUMBER) ||                                                                      \
-    (defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x30000000L)
-        auto* peer = SSL_get_peer_certificate(ssl);
-#else
-        auto* peer = SSL_get1_peer_certificate(ssl);
-#endif
-        if (peer == nullptr) {
-            SSL_free(ssl);
-            return fail(ErrorCode::io_error, "mTLS required but peer certificate is missing");
-        }
-        if (SSL_get_verify_result(ssl) != X509_V_OK) {
-            const auto verify = SSL_get_verify_result(ssl);
-            X509_free(peer);
-            SSL_free(ssl);
-            if (verify == X509_V_ERR_CERT_REVOKED) {
-                return fail(ErrorCode::io_error, "mTLS peer certificate revoked (CRL fail closed)");
-            }
-            if (crl_enabled_) {
-                return fail(ErrorCode::io_error,
-                            "mTLS peer certificate verification failed under CRL fail-closed policy");
-            }
-            return fail(ErrorCode::io_error, "mTLS peer certificate verification failed");
-        }
-        auto principal = extract_certificate_principal(peer);
-        X509_free(peer);
-        if (principal.empty()) {
-            SSL_free(ssl);
-            return fail(ErrorCode::io_error,
-                        "mTLS peer certificate has no usable principal (URI SAN, DNS SAN, or CN)");
-        }
-        auto session = std::unique_ptr<TlsSession>(new TlsSession(std::make_unique<TlsSession::Impl>()));
-        session->impl_->ssl = ssl;
-        session->impl_->peer_principal = std::move(principal);
-        return session;
-    }
-
-    auto session = std::unique_ptr<TlsSession>(new TlsSession(std::make_unique<TlsSession::Impl>()));
-    session->impl_->ssl = ssl;
-    return session;
 }
 
 auto TlsContext::connect_socket(const int descriptor, const std::string_view server_name) const
@@ -588,12 +599,7 @@ auto TlsContext::connect_socket(const int descriptor, const std::string_view ser
 
 TlsSession::TlsSession(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 
-TlsSession::~TlsSession() {
-    if (impl_ && impl_->ssl != nullptr) {
-        SSL_free(impl_->ssl);
-        impl_->ssl = nullptr;
-    }
-}
+TlsSession::~TlsSession() = default;
 
 TlsSession::TlsSession(TlsSession&& other) noexcept : impl_(std::move(other.impl_)) {}
 
@@ -670,6 +676,14 @@ auto TlsContext::create_client(const ClientTlsConfig& config) -> Result<std::sha
     if (auto valid = validate_client_tls_config(config); !valid) {
         return unexpected(valid.error());
     }
+    return fail(ErrorCode::invalid_argument, "GlifiStore was built without TLS support");
+}
+
+auto TlsContext::begin_accept_socket(const int) const -> Result<std::unique_ptr<TlsSession>> {
+    return fail(ErrorCode::invalid_argument, "GlifiStore was built without TLS support");
+}
+
+auto TlsSession::accept_handshake() -> Result<TlsIoResult> {
     return fail(ErrorCode::invalid_argument, "GlifiStore was built without TLS support");
 }
 
