@@ -539,7 +539,7 @@ jobs:
             --directory dist/release-candidate --seal candidate-seal.json
           python engineering/tools/validate_bsd_packaging.py --release
       - name: Build, install, exercise, restart, and remove package on FreeBSD
-        uses: vmactions/freebsd-vm@a2f9a41fa97f6848b8c3b791087dfcdaa5b473ff # v1.5.8
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
         env:
           CANDIDATE_SEAL_SHA256: ${{ needs.candidate.outputs.candidate-seal-sha256 }}
         with:
