@@ -36,6 +36,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 sanitizer-*.log
 benchmark-results/
 /benchmark-results-*/
@@ -78,6 +79,9 @@ erl_crash.dump
 
 # Local durability campaign outputs (retain outside the tree or as CI artifacts)
 /durability-evidence/
+
+# Temporary TLC state databases (the model sources and configurations are retained)
+/engineering/formal/*/states/
 # macOS Finder "foo 2[.ext]" duplicate copies
 * 2
 * 2.*

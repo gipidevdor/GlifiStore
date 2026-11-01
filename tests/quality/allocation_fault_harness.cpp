@@ -186,29 +186,36 @@ void operator delete[](void* memory) noexcept {
     std::free(memory);
 }
 
-void operator delete(void* memory, const std::size_t) noexcept {
+#if defined(__cpp_sized_deallocation)
+// With sized deallocation disabled, Clang treats these as placement deletes;
+// declaring them can break libstdc++'s __builtin_operator_delete calls.
+// Keep by-value parameters unqualified: Clang's builtin also rejects const sizes.
+void operator delete(void* memory, std::size_t) noexcept {
     std::free(memory);
 }
 
-void operator delete[](void* memory, const std::size_t) noexcept {
+void operator delete[](void* memory, std::size_t) noexcept {
+    std::free(memory);
+}
+#endif
+
+void operator delete(void* memory, std::align_val_t) noexcept {
     std::free(memory);
 }
 
-void operator delete(void* memory, const std::align_val_t) noexcept {
+void operator delete[](void* memory, std::align_val_t) noexcept {
     std::free(memory);
 }
 
-void operator delete[](void* memory, const std::align_val_t) noexcept {
+#if defined(__cpp_sized_deallocation)
+void operator delete(void* memory, std::size_t, std::align_val_t) noexcept {
     std::free(memory);
 }
 
-void operator delete(void* memory, const std::size_t, const std::align_val_t) noexcept {
+void operator delete[](void* memory, std::size_t, std::align_val_t) noexcept {
     std::free(memory);
 }
-
-void operator delete[](void* memory, const std::size_t, const std::align_val_t) noexcept {
-    std::free(memory);
-}
+#endif
 
 void operator delete(void* memory, const std::nothrow_t&) noexcept {
     std::free(memory);
@@ -218,10 +225,10 @@ void operator delete[](void* memory, const std::nothrow_t&) noexcept {
     std::free(memory);
 }
 
-void operator delete(void* memory, const std::align_val_t, const std::nothrow_t&) noexcept {
+void operator delete(void* memory, std::align_val_t, const std::nothrow_t&) noexcept {
     std::free(memory);
 }
 
-void operator delete[](void* memory, const std::align_val_t, const std::nothrow_t&) noexcept {
+void operator delete[](void* memory, std::align_val_t, const std::nothrow_t&) noexcept {
     std::free(memory);
 }

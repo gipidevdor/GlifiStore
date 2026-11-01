@@ -101,9 +101,11 @@ class CiWorkflowTests(unittest.TestCase):
         self.assertIn("(bounded, required)", workflow)
         self.assertIn('timeout 480 "./engineering/formal/${{ matrix.model }}/run-tlc.sh"', workflow)
         self.assertIn(
-            "2c903dcd6f50f12b0c0a2e14c1406be782126c7cee64f3e0b8550c2020870293",
+            "011267fca25d0752cf18894dd585cd28b96960c112ea8a20b823ea770e7e10cd",
             workflow,
         )
+        self.assertIn("releases/assets/692577622", workflow)
+        self.assertIn("Accept: application/octet-stream", workflow)
         self.assertIn("sha256sum -c -", workflow)
         self.assertNotIn("best-effort", workflow)
         self.assertNotIn("set +e", workflow)
@@ -206,13 +208,17 @@ class CiWorkflowTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/coverage.yml").read_text(encoding="utf-8")
         self.assertIn('cmake --build "$builddir" --target glifistore_tests', script)
         self.assertIn("--tests-regex '^glifistore_tests$'", script)
-        self.assertIn('--gcov-tool "$root/scripts/llvm-gcov.sh"', script)
+        self.assertIn("-fprofile-instr-generate -fcoverage-mapping", script)
+        self.assertIn('LLVM_PROFILE_FILE="$outdir/%p.profraw"', script)
+        self.assertIn('"$coverage_llvm_profdata" merge -sparse', script)
+        self.assertIn('"$coverage_llvm_cov" export --format=lcov', script)
         self.assertIn("--ignore-errors mismatch,inconsistent,unused", script)
         self.assertIn("--ignore-errors inconsistent,unused", script)
         self.assertIn('| tee "$outdir/coverage-report.txt"', script)
         self.assertNotIn("lcov --list", script)
         self.assertNotIn("--ignore-errors mismatch,gcov", script)
-        self.assertIn('command -v "llvm-cov-$clang_major"', script)
+        self.assertIn('command -v "$tool-$clang_major"', script)
+        self.assertNotIn("--ignore-errors format", script)
         self.assertIn('-s "$outdir/coverage-report.txt"', script)
         self.assertIn("grep -q '^SF:'", script)
         self.assertIn("grep -q '^DA:'", script)

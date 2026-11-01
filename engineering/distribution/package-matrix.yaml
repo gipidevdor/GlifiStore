@@ -315,10 +315,11 @@ backends:
     wave: C
     profiles: [pr, main, nightly, release]
     targets:
-      - id: macports-macos-14-arm64
-        platform: macos-14
+      # GitHub retires macos-14 on 2026-11-02 (actions/runner-images#13518).
+      - id: macports-macos-15-arm64
+        platform: macos-15
         arch: arm64
-        runner: macos-14
+        runner: macos-15
         container: null
         container_digest: null
         profiles: [pr, main, nightly, release]
@@ -369,10 +370,10 @@ backends:
     wave: C
     profiles: [main, nightly, release]
     targets:
-      - id: homebrew-macos-14-arm64
-        platform: macos-14
+      - id: homebrew-macos-15-arm64
+        platform: macos-15
         arch: arm64
-        runner: macos-14
+        runner: macos-15
         container: null
         container_digest: null
         profiles: [main, nightly, release]
