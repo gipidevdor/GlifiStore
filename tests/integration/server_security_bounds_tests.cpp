@@ -4,6 +4,7 @@
 #include "server_reactor_test_support.hpp"
 #include "test.hpp"
 
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <cstring>
@@ -14,6 +15,45 @@
 #include <vector>
 
 using namespace glifistore::test::server_reactor_support;
+
+namespace {
+
+// FreeBSD/OpenBSD libc++ versions in scope do not all expose std::jthread.
+class JunkProducer final {
+  public:
+    explicit JunkProducer(const int descriptor)
+        : thread_{[this, descriptor] {
+              std::array<std::byte, 16U * 1024U> junk{};
+              while (!stop_.load(std::memory_order_acquire)) {
+                  const auto sent = ::send(descriptor, junk.data(), junk.size(), MSG_DONTWAIT);
+                  if (sent < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+                      break;
+                  }
+                  std::this_thread::yield();
+              }
+          }} {}
+
+    ~JunkProducer() {
+        request_stop();
+        join();
+    }
+
+    void request_stop() noexcept {
+        stop_.store(true, std::memory_order_release);
+    }
+
+    void join() {
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+  private:
+    std::atomic<bool> stop_{};
+    std::thread thread_;
+};
+
+} // namespace
 
 GLIFI_TEST("security bounds closing denied stream yields despite continued input") {
     ServerTemporaryDirectory temporary;
@@ -64,16 +104,7 @@ GLIFI_TEST("security bounds closing denied stream yields despite continued input
     GLIFI_REQUIRE(send_all(socket.descriptor(), pipeline));
     char peek{};
     GLIFI_REQUIRE(::recv(socket.descriptor(), &peek, 1, MSG_PEEK) == 1);
-    std::jthread producer{[&](std::stop_token stop) {
-        std::array<std::byte, 16U * 1024U> junk{};
-        while (!stop.stop_requested()) {
-            const auto sent = ::send(socket.descriptor(), junk.data(), junk.size(), MSG_DONTWAIT);
-            if (sent < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                break;
-            }
-            std::this_thread::yield();
-        }
-    }};
+    JunkProducer producer{socket.descriptor()};
     const auto probe = connect_to(server.port());
     GLIFI_REQUIRE(probe >= 0);
     const auto health = probe_lifecycle(probe, glifistore::server::RequestOpcode::health, 50);
