@@ -1,6 +1,7 @@
 #include "glifistore/persistence/store_backup.hpp"
 
 #include "glifistore/persistence/segment_file.hpp"
+#include "persistence/blob_storage.hpp"
 #include "system_error.hpp"
 
 #include <algorithm>
@@ -104,12 +105,11 @@ struct SegmentCopyTotals {
     std::vector<std::string> names;
     names.reserve(catalog.segments.size());
     for (const auto& entry : catalog.segments) {
-        const SegmentHeaderIdentity identity{
-            .store_id = catalog.store_id,
-            .segment_id = entry.segment_id,
-            .generation = entry.generation,
-            .owner_worker = entry.owner_worker,
-        };
+        const SegmentHeaderIdentity identity{.store_id = catalog.store_id,
+                                             .segment_id = entry.segment_id,
+                                             .generation = entry.generation,
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = catalog.format_version};
         names.push_back(segment_filename(identity));
     }
     if (names.empty()) {
@@ -251,6 +251,13 @@ auto backup_durable_store_from_open_directory(DataDirectory& source, const Manif
         report.bytes_copied += segments_copied->bytes_copied;
         report.segment_copy_workers = segments_copied->workers_used;
 
+        if (catalog_manifest.format_version == 2) {
+            if (auto copied = detail::copy_blob_closure(source, *destination_locked, catalog_manifest, {},
+                                                        report.files_copied, report.bytes_copied);
+                !copied) {
+                return unexpected(copied.error());
+            }
+        }
         if (auto allowed = detail::invoke_filesystem_before(hooks, FilesystemOperation::copy_backup_manifest);
             !allowed) {
             return unexpected(allowed.error());

@@ -85,3 +85,9 @@ until the slot synchronization completes.
 
 The normative ordering rules are specified in
 [`durability-recovery.md`](../architecture/durability-recovery.md).
+
+## Blob-profile amendment (2026-11-07)
+
+[ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
+Blob payload file/name durability is strict before descriptor admission. Only the logical descriptor uses the existing periodic loss window; a selected descriptor never authorizes a partial payload.
+Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.

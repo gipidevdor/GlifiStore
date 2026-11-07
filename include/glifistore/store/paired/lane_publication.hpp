@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Shared mutation-publication decisions for synchronous and asynchronous lanes.
+ */
 #pragma once
 
 // Shared Writer-side read-generation publication helpers (behavior-neutral extraction).
@@ -23,6 +27,9 @@ class Store;
 
 namespace glifistore::store::paired {
 
+/**
+ * @brief Borrowed Writer-side generation/merge/Store state for one shard publication.
+ */
 struct LanePublicationContext final {
     GenerationState& generation;
     MergeState& merge;
@@ -49,9 +56,9 @@ void store_merge_progress(MergeState& destination) noexcept;
 [[nodiscard]] auto try_drain_durable_snapshot(LanePublicationContext& context, const bool allow_fail_closed,
                                               const std::function<void()>* after_drain) noexcept -> bool;
 
-// ADR 0036 dual-path containment (default Alternative A; opt-in slot pool behind flag).
-// Call sites must not branch on uses_slot_pool() for these operations; polarity of
-// deferred vs fail-closed remains caller-owned via DualPathPublishOutcome.
+/// ADR 0036 dual-path containment (default Alternative A; opt-in slot pool behind flag).
+/// Call sites must not branch on uses_slot_pool() for these operations; polarity of
+/// deferred vs fail-closed remains caller-owned via DualPathPublishOutcome.
 enum class DualPathPublishStatus : std::uint8_t {
     published,
     deferred,      // slot reservation / quiescence; no authority change
@@ -59,6 +66,10 @@ enum class DualPathPublishStatus : std::uint8_t {
     publish_failed // construction succeeded; release-store failed
 };
 
+/**
+ * @brief Publication result shared by pointer and slot-pool paths; the caller classifies deferred/failure
+ * polarity.
+ */
 struct DualPathPublishOutcome final {
     DualPathPublishStatus status{DualPathPublishStatus::published};
     ErrorCode build_error{ErrorCode::internal_error};
@@ -104,7 +115,7 @@ void note_catalog_snapshot_installed(LanePublicationContext& context,
     return generation.published_generation.load(std::memory_order_acquire);
 }
 
-// Dual-path Reader shutdown finalization for one lane generation (ADR 0036 opt-in).
+/// Dual-path Reader shutdown finalization for one lane generation (ADR 0036 opt-in).
 [[nodiscard]] auto finalize_generation_reader_shutdown(GenerationState& generation) -> Status;
 
 } // namespace glifistore::store::paired

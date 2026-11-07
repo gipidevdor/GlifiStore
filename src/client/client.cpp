@@ -184,47 +184,64 @@ class Client::Impl final {
                     {ErrorCode::record_too_large, "request exceeds the configured frame limit"}, operation,
                     request_id, worker, routing_epoch_, 0, std::nullopt, true, false));
             }
-            auto result = exchange(connection, *encoded, config_, *deadline);
-            if (auto* failure = std::get_if<ExchangeFailure>(&result)) {
-                connection.reset();
-                if (failure->request_bytes_sent == 0) {
-                    if (attempt == 0) {
-                        continue;
-                    }
-                    return rejected(enrich_error(failure->error, operation, request_id, worker,
-                                                 routing_epoch_, 0, std::nullopt, true, false));
-                }
-                return indeterminate(enrich_error(failure->error, operation, request_id, worker,
-                                                  routing_epoch_, failure->request_bytes_sent, std::nullopt,
-                                                  true, true));
-            }
-            auto& response = std::get<OwnedResponse>(result);
-            if (auto valid = validate_response(response, request_id, worker); !valid) {
-                connection.reset();
-                return indeterminate(enrich_error(valid.error(), operation, request_id, worker,
-                                                  routing_epoch_, encoded->size(), std::nullopt, true, true));
-            }
-            if (response.status == server::ResponseStatus::ok) {
-                if (!response.value.empty()) {
+            auto allocation_errors =
+                detail::allocation_failure_errors(operation, request_id, worker, routing_epoch_, true);
+            std::size_t bytes_sent{};
+            try {
+                auto result = exchange(connection, *encoded, config_, *deadline);
+                bytes_sent = std::holds_alternative<ExchangeFailure>(result)
+                                 ? std::get<ExchangeFailure>(result).request_bytes_sent
+                                 : encoded->size();
+                if (auto* failure = std::get_if<ExchangeFailure>(&result)) {
                     connection.reset();
-                    return indeterminate(enrich_error(
-                        {ErrorCode::corrupted_data, "mutation response value must be empty"}, operation,
-                        request_id, worker, routing_epoch_, encoded->size(), std::nullopt, true, true));
+                    if (failure->error.code == ErrorCode::resource_exhausted) {
+                        auto error = allocation_errors.take(bytes_sent);
+                        return bytes_sent == 0 ? rejected(std::move(error)) : indeterminate(std::move(error));
+                    }
+                    if (failure->request_bytes_sent == 0) {
+                        if (attempt == 0) {
+                            continue;
+                        }
+                        return rejected(enrich_error(failure->error, operation, request_id, worker,
+                                                     routing_epoch_, 0, std::nullopt, true, false));
+                    }
+                    return indeterminate(enrich_error(failure->error, operation, request_id, worker,
+                                                      routing_epoch_, failure->request_bytes_sent,
+                                                      std::nullopt, true, true));
                 }
-                return {.outcome = MutationOutcome::committed};
+                auto& response = std::get<OwnedResponse>(result);
+                if (auto valid = validate_response(response, request_id, worker, *deadline); !valid) {
+                    connection.reset();
+                    return indeterminate(enrich_error(valid.error(), operation, request_id, worker,
+                                                      routing_epoch_, encoded->size(), std::nullopt, true,
+                                                      true));
+                }
+                if (response.status == server::ResponseStatus::ok) {
+                    if (!response.value.empty()) {
+                        connection.reset();
+                        return indeterminate(enrich_error(
+                            {ErrorCode::corrupted_data, "mutation response value must be empty"}, operation,
+                            request_id, worker, routing_epoch_, encoded->size(), std::nullopt, true, true));
+                    }
+                    return {.outcome = MutationOutcome::committed};
+                }
+                auto error =
+                    enrich_error(response_error(response.status), operation, request_id, worker,
+                                 routing_epoch_, encoded->size(), static_cast<std::uint16_t>(response.status),
+                                 true, response.status == server::ResponseStatus::internal_error);
+                if (response.status == server::ResponseStatus::internal_error) {
+                    return indeterminate(std::move(error));
+                }
+                if (response.status == server::ResponseStatus::wrong_owner ||
+                    response.status == server::ResponseStatus::not_bound) {
+                    healthy_.store(false, std::memory_order_release);
+                }
+                return rejected(std::move(error));
+            } catch (const std::bad_alloc&) {
+                connection.reset();
+                auto error = allocation_errors.take(bytes_sent);
+                return bytes_sent == 0 ? rejected(std::move(error)) : indeterminate(std::move(error));
             }
-            auto error =
-                enrich_error(response_error(response.status), operation, request_id, worker, routing_epoch_,
-                             encoded->size(), static_cast<std::uint16_t>(response.status), true,
-                             response.status == server::ResponseStatus::internal_error);
-            if (response.status == server::ResponseStatus::internal_error) {
-                return indeterminate(std::move(error));
-            }
-            if (response.status == server::ResponseStatus::wrong_owner ||
-                response.status == server::ResponseStatus::not_bound) {
-                healthy_.store(false, std::memory_order_release);
-            }
-            return rejected(std::move(error));
         }
         return rejected(enrich_error({ErrorCode::unavailable, "could not send mutation"}, operation,
                                      std::nullopt, worker, routing_epoch_, 0, std::nullopt, true, false));
@@ -358,7 +375,8 @@ class Client::Impl final {
                 return responses;
             }
             auto& response = std::get<OwnedResponse>(result);
-            if (auto valid = validate_response(response, metadata[index].request_id, worker); !valid) {
+            if (auto valid = validate_response(response, metadata[index].request_id, worker, deadline);
+                !valid) {
                 connection.reset();
                 mark_unresolved(index, valid.error(), bytes_sent);
                 return responses;
@@ -760,60 +778,78 @@ class Client::Impl final {
                     enrich_error({ErrorCode::record_too_large, "request exceeds the configured frame limit"},
                                  operation, request_id, worker, routing_epoch_));
             }
-            auto result = exchange(connection, *encoded, config_, *deadline);
-            if (auto* failure = std::get_if<ExchangeFailure>(&result)) {
-                connection.reset();
-                if (opcode == server::RequestOpcode::backup && failure->request_bytes_sent > 0) {
-                    // Backup is not idempotent to the same destination. A lost OK after a
-                    // completed backup would make a blind retry fail with "destination not
-                    // empty" and falsely claim the backup never succeeded — treat like a
-                    // mutation with bytes in flight (indeterminate / reconcile_first).
-                    return unexpected(enrich_error(failure->error, operation, request_id, worker,
-                                                   routing_epoch_, failure->request_bytes_sent, std::nullopt,
-                                                   true, true));
+            auto allocation_errors = detail::allocation_failure_errors(
+                operation, request_id, worker, routing_epoch_, opcode == server::RequestOpcode::backup);
+            std::size_t bytes_sent{};
+            try {
+                auto result = exchange(connection, *encoded, config_, *deadline);
+                bytes_sent = std::holds_alternative<ExchangeFailure>(result)
+                                 ? std::get<ExchangeFailure>(result).request_bytes_sent
+                                 : encoded->size();
+                if (auto* failure = std::get_if<ExchangeFailure>(&result)) {
+                    connection.reset();
+                    if (failure->error.code == ErrorCode::resource_exhausted) {
+                        return unexpected(allocation_errors.take(bytes_sent));
+                    }
+                    if (opcode == server::RequestOpcode::backup && failure->request_bytes_sent > 0) {
+                        // Backup is not idempotent to the same destination. A lost OK after a
+                        // completed backup would make a blind retry fail with "destination not
+                        // empty" and falsely claim the backup never succeeded — treat like a
+                        // mutation with bytes in flight (indeterminate / reconcile_first).
+                        return unexpected(enrich_error(failure->error, operation, request_id, worker,
+                                                       routing_epoch_, failure->request_bytes_sent,
+                                                       std::nullopt, true, true));
+                    }
+                    last_error = enrich_error(failure->error, operation, request_id, worker, routing_epoch_,
+                                              failure->request_bytes_sent);
+                    continue;
                 }
-                last_error = enrich_error(failure->error, operation, request_id, worker, routing_epoch_,
-                                          failure->request_bytes_sent);
-                continue;
-            }
-            auto& response = std::get<OwnedResponse>(result);
-            if (auto valid = validate_response(response, request_id, worker); !valid) {
-                connection.reset();
-                // BACKUP response arrived after send — fenced copy may already exist.
-                // Same polarity as mutate validate-fail / BACKUP INTERNAL_ERROR.
-                if (opcode == server::RequestOpcode::backup) {
+                auto& response = std::get<OwnedResponse>(result);
+                if (auto valid = validate_response(response, request_id, worker, *deadline); !valid) {
+                    connection.reset();
+                    // BACKUP response arrived after send — fenced copy may already exist.
+                    // Same polarity as mutate validate-fail / BACKUP INTERNAL_ERROR.
+                    if (opcode == server::RequestOpcode::backup) {
+                        return unexpected(enrich_error(valid.error(), operation, request_id, worker,
+                                                       routing_epoch_, encoded->size(), std::nullopt, true,
+                                                       true));
+                    }
                     return unexpected(enrich_error(valid.error(), operation, request_id, worker,
-                                                   routing_epoch_, encoded->size(), std::nullopt, true,
-                                                   true));
+                                                   routing_epoch_, encoded->size()));
                 }
-                return unexpected(enrich_error(valid.error(), operation, request_id, worker, routing_epoch_,
-                                               encoded->size()));
-            }
-            if (response.status != server::ResponseStatus::ok) {
-                if (response.status == server::ResponseStatus::wrong_owner ||
-                    response.status == server::ResponseStatus::not_bound) {
-                    healthy_.store(false, std::memory_order_release);
-                }
-                // BACKUP INTERNAL_ERROR may mean the fenced copy already committed (e.g. report
-                // formatting failed after backup_to). Same-destination retry is not safe —
-                // treat like bytes-in-flight indeterminate / reconcile_first.
-                if (opcode == server::RequestOpcode::backup &&
-                    response.status == server::ResponseStatus::internal_error) {
+                if (response.status != server::ResponseStatus::ok) {
+                    if (response.status == server::ResponseStatus::wrong_owner ||
+                        response.status == server::ResponseStatus::not_bound) {
+                        healthy_.store(false, std::memory_order_release);
+                    }
+                    // BACKUP INTERNAL_ERROR may mean the fenced copy already committed (e.g. report
+                    // formatting failed after backup_to). Same-destination retry is not safe —
+                    // treat like bytes-in-flight indeterminate / reconcile_first.
+                    if (opcode == server::RequestOpcode::backup &&
+                        response.status == server::ResponseStatus::internal_error) {
+                        return unexpected(enrich_error(
+                            response_error(response.status), operation, request_id, worker, routing_epoch_,
+                            encoded->size(), static_cast<std::uint16_t>(response.status), true, true));
+                    }
                     return unexpected(enrich_error(response_error(response.status), operation, request_id,
                                                    worker, routing_epoch_, encoded->size(),
-                                                   static_cast<std::uint16_t>(response.status), true, true));
+                                                   static_cast<std::uint16_t>(response.status)));
                 }
-                return unexpected(enrich_error(response_error(response.status), operation, request_id, worker,
-                                               routing_epoch_, encoded->size(),
-                                               static_cast<std::uint16_t>(response.status)));
+                return std::move(response.value);
+            } catch (const std::bad_alloc&) {
+                connection.reset();
+                return unexpected(allocation_errors.take(bytes_sent));
             }
-            return std::move(response.value);
         }
         return unexpected(std::move(last_error));
     }
 
     [[nodiscard]] auto validate_response(const OwnedResponse& response, const std::uint64_t request_id,
-                                         const std::uint32_t worker) -> Status {
+                                         const std::uint32_t worker, const Clock::time_point deadline)
+        -> Status {
+        if (Clock::now() >= deadline) {
+            return unexpected(detail::request_timeout_error());
+        }
         if (response.request_id != request_id) {
             return fail(ErrorCode::corrupted_data, "server response request ID does not match");
         }

@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief One partition owner with serialized mutation and explicit Index access guards.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -25,12 +29,19 @@ namespace detail {
 class StoreAccess;
 }
 
+/**
+ * @brief Linearized mutation reference paired with the Segment ownership required for read publication.
+ */
 struct WorkerMutationPublication final {
     RecordRef record;
     SegmentPtr segment;
     Opcode opcode{Opcode::put};
 };
 
+/**
+ * @brief One partition Index and Segment history. Paired mutations require exclusive Writer ownership;
+ * diagnostic guards coordinate separately.
+ */
 class Worker final {
   public:
     Worker(WorkerId id, GlobalSegmentManager& manager, WorkerRoutingState routing = get_worker_routing());
@@ -51,7 +62,7 @@ class Worker final {
         return owned_;
     }
 
-    // Expired keys are tombstoned and removed from the Index on read.
+    /// Expired keys are tombstoned and removed from the Index on read.
     [[nodiscard]] auto get(const HashedKey& key, std::uint64_t now_ns = 0) -> Result<RecordView>;
     [[nodiscard]] auto put(const HashedKey& key, std::span<const std::byte> value,
                            std::uint64_t expire_at_ns = 0) -> Status;
@@ -59,9 +70,9 @@ class Worker final {
     [[nodiscard]] auto compact(std::uint64_t now_ns, VacuumPolicy policy = {})
         -> Result<std::optional<VacuumStats>>;
 
-    // Paired exclusive Writer (ADR 0032): ordinary put/erase publication must not
-    // acquire mutex_. Compaction / verify_index observe hot_path_depth + the Index
-    // quiesce gate instead (mutex alone does not serialize with unlocked publish).
+    /// Paired exclusive Writer (ADR 0032): ordinary put/erase publication must not
+    /// acquire mutex_. Compaction / verify_index observe hot_path_depth + the Index
+    /// quiesce gate instead (mutex alone does not serialize with unlocked publish).
     void set_exclusive_writer(bool exclusive) noexcept {
         exclusive_writer_ = exclusive;
     }
@@ -166,7 +177,7 @@ class Worker final {
     std::unordered_map<SegmentId, Segment*> owned_by_id_;
     mutable std::mutex mutex_;
     bool exclusive_writer_{};
-    // Exclusive Writer Index ownership (mirror durable ExclusiveIndexQuiesce).
+    /// Exclusive Writer Index ownership (mirror durable ExclusiveIndexQuiesce).
     std::atomic_bool index_quiesce_active_{};
     std::atomic_uint32_t index_quiesce_holders_{};
     std::atomic_uint32_t hot_path_depth_{};

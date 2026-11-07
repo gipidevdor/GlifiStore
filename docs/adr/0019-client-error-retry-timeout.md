@@ -81,3 +81,22 @@ Applications that previously looped on `new_attempt` for admission backoff must 
 output drain, request-attempt admission and audit emission. It preserves persistence v1,
 wire v2 and Store acknowledgement points; its explicit disconnect and quota rules govern
 stalled or abusive peers.
+
+## Amendment — 2026-11-07: C++ allocation failures and elapsed deadlines
+
+The C++ client must retain send progress when allocation fails during transport, response
+decoding, or error enrichment. A local allocation failure uses `resource_exhausted` / category
+`overloaded`; after positive request bytes it remains `indeterminate` with
+`retryability=reconcile_first`. It must reset the affected connection and must not retry that
+mutation. A decoded wire `OVERLOADED` still means known rejection. Prepare fallback errors before
+I/O so handling a post-send allocation failure does not require another allocation. BACKUP follows
+the same uncertainty rule because copying to the same destination is not safely repeatable.
+
+Request deadlines apply before each send/read, to responses already buffered, and after response
+materialization and validation. Socket readiness does not extend the absolute budget. This restores
+the existing late-response contract; Store acknowledgement points, admitted server work, persistence
+v1 and wire v2 do not change.
+
+Proofs: [transport deadline tests](../../tests/unit/client_transport_tests.cpp) and
+[allocation/late-response tests](../../tests/quality/allocation_fault_client_tests.cpp).
+Retained local evidence: [C++ correctness repair campaign](../../engineering/evidence/cpp-correctness-local-2026-11-07.md).

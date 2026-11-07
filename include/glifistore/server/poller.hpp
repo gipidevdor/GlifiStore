@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Platform event polling with explicit readiness and token identity.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -8,7 +12,13 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Composable requested read/write poller interests.
+ */
 enum class IoInterest : std::uint8_t { none = 0, read = 1U << 0U, write = 1U << 1U };
+/**
+ * @brief Composable platform readiness/error observations; these flags do not validate token freshness.
+ */
 enum class IoFlags : std::uint8_t {
     none = 0,
     readable = 1U << 0U,
@@ -34,11 +44,17 @@ enum class IoFlags : std::uint8_t {
     return (static_cast<std::uint8_t>(value) & static_cast<std::uint8_t>(flag)) != 0;
 }
 
+/**
+ * @brief Readiness/error flags associated with the exact token registered by the caller.
+ */
 struct IoEvent {
     std::uint64_t token{};
     IoFlags flags{IoFlags::none};
 };
 
+/**
+ * @brief Move-only platform poller descriptor; registrations and wait are driven by its owner executor.
+ */
 class Poller final {
   public:
     Poller() = default;
@@ -52,6 +68,13 @@ class Poller final {
     [[nodiscard]] auto add(int descriptor, std::uint64_t token, IoInterest interest) -> Status;
     [[nodiscard]] auto modify(int descriptor, std::uint64_t token, IoInterest interest) -> Status;
     [[nodiscard]] auto remove(int descriptor) -> Status;
+    /**
+     * @brief Fill at most events.size() readiness entries.
+     * @param[out] events Caller-owned output storage.
+     * @param timeout_ms Platform wait budget in milliseconds; -1 permits an unbounded wait.
+     * @return Number of valid entries, zero on timeout, or a poller error.
+     * @note Returned tokens must still be checked against current connection generations.
+     */
     [[nodiscard]] auto wait(std::span<IoEvent> events, int timeout_ms) -> Result<std::size_t>;
 
   private:

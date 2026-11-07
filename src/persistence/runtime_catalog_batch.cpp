@@ -209,6 +209,7 @@ auto DurableRuntimeCatalog::flush_worker_batch(RuntimeWorker& worker,
                 }
                 // Index authority applied: advance durable_through before secondary work so
                 // Writer finalize keeps success ACK if count/hot fails after Index publish.
+                worker.record_compaction_change(hashed, mutation.reference);
                 worker.durable_through = mutation.reference.sequence;
                 if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
                     return publication_failed(
@@ -227,6 +228,7 @@ auto DurableRuntimeCatalog::flush_worker_batch(RuntimeWorker& worker,
                 }
             } else {
                 const auto erased = worker.index.erase_no_compact(hashed);
+                worker.record_compaction_change(hashed, std::nullopt);
                 worker.durable_through = mutation.reference.sequence;
                 if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
                     return publication_failed(

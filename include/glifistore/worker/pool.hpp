@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Fixed Worker ownership set and deterministic key-to-owner routing.
+ */
 #pragma once
 
 #include "glifistore/core/key_hash.hpp"
@@ -11,7 +15,7 @@
 
 namespace glifistore {
 
-// Fixed-size worker set chosen at startup. Routing is hash(key) % size().
+/// Fixed-size worker set chosen at startup. Routing is hash(key) % size().
 class WorkerPool final {
   public:
     WorkerPool(GlobalSegmentManager& manager, std::size_t worker_count,

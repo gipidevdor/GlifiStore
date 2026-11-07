@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded transfer of accepted sockets between owner Reactors.
+ */
 #pragma once
 
 #include "glifistore/server/authz.hpp"
@@ -17,6 +21,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Move-only socket, TLS, and buffered state transferred to the final owner Reactor.
+ */
 struct ConnectionHandoff {
     SocketHandle socket{};
     std::unique_ptr<TlsSession> tls{};
@@ -24,7 +31,7 @@ struct ConnectionHandoff {
     std::chrono::steady_clock::time_point tls_handshake_since{};
     std::string principal{};
     Capability capabilities{Capability::none};
-    // Empty = unrestricted keyspace; set from --authz-map prefix= (Phase 8 slice).
+    /// Empty = unrestricted keyspace; set from --authz-map prefix= (Phase 8 slice).
     std::string key_prefix{};
     std::vector<std::byte> input{};
     std::vector<std::byte> output{};
@@ -38,9 +45,9 @@ struct ConnectionHandoff {
     std::uint32_t connection_rate_used{};
 };
 
-// The only cross-executor data structure in the server data path. It transfers
-// ownership of a connection reference and its buffered state exactly once when
-// BIND_WORKER selects the final Reactor.
+/// The only cross-executor data structure in the server data path. It transfers
+/// ownership of a connection reference and its buffered state exactly once when
+/// BIND_WORKER selects the final Reactor.
 class ConnectionHandoffMesh final {
   public:
     ConnectionHandoffMesh(std::size_t executor_count, std::size_t queue_capacity);
@@ -61,16 +68,16 @@ class ConnectionHandoffMesh final {
     }
 
     void register_wakeup(std::size_t executor, Wakeup& wakeup) noexcept;
-    // Refuse new handoffs (process stop). Queued cells remain until the target pops
-    // or reject_orphaned_handoff drains them — never silently destroy BIND OK.
+    /// Refuse new handoffs (process stop). Queued cells remain until the target pops
+    /// or reject_orphaned_handoff drains them — never silently destroy BIND OK.
     void stop_accepting() noexcept;
 
     [[nodiscard]] auto accepting() const noexcept -> bool {
         return accepting_.load(std::memory_order_acquire);
     }
 
-    // Success consumes connection; rejection leaves it untouched so the
-    // source Reactor can restore and close it through the wire contract.
+    /// Success consumes connection; rejection leaves it untouched so the
+    /// source Reactor can restore and close it through the wire contract.
     [[nodiscard]] auto try_handoff(std::size_t target_executor, ConnectionHandoff& connection) -> bool;
     [[nodiscard]] auto try_handoff(std::size_t target_executor, ConnectionHandoff&& connection) -> bool;
     [[nodiscard]] auto try_pop(std::size_t executor) -> std::optional<ConnectionHandoff>;

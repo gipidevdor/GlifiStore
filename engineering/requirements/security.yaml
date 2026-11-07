@@ -93,7 +93,8 @@ requirements:
   criticita: media
   stato: implementato
   descrizione: Every third-party `uses:` in `.github/workflows/*.yml` pins a 40-character commit
-    SHA (tag comment optional). Mutable tags/branches are rejected by CI.
+    SHA (tag comment optional). Mutable tags/branches and mixed CodeQL Action revisions
+    are rejected by CI. Dependabot groups all CodeQL steps for version and security updates.
   autorita:
   - docs/security/actions-pinning.md
   - docs/security/threat-model.md
@@ -102,6 +103,7 @@ requirements:
   - engineering/tools/validate_actions_pins.py
   prove:
   - engineering/tools/validate_actions_pins.py
+  - scripts/tests/test_actions_pins.py
   - .github/workflows/actionlint.yml
   piattaforme:
   - linux-x86_64
@@ -109,6 +111,8 @@ requirements:
   evidenze:
   - workflow: assurance.yml
   - workflow: actionlint.yml
+  - path: engineering/evidence/dependabot-local-2026-11-07.md
+    note: Local CodeQL revision and Dependabot grouping regression campaign; no hosted CI promotion
   rischio_residuo:
   - Dependabot must rewrite floating tags to 40-character commit SHAs before merge
   - A skipped, cancelled, queued, or unavailable hosted workflow is not evidence for the candidate

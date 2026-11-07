@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded maintenance scheduling from pressure, latency, and reclaim observations.
+ */
 #pragma once
 
 #include "glifistore/store/maintenance_types.hpp"
@@ -17,7 +21,7 @@
 
 namespace glifistore {
 
-// Store-owned optional scheduler. Phase 3: normal + pressure + emergency mutation gate.
+/// Store-owned optional scheduler. Phase 3: normal + pressure + emergency mutation gate.
 class MaintenanceController final {
   public:
     using CompactCallback = std::function<Result<CompactionResult>(
@@ -38,20 +42,20 @@ class MaintenanceController final {
     void join();
     void stop();
     void request_evaluate();
-    // Lock-free daemon feedback. A background evaluation consumes the fixed
-    // histogram window; embedded users that do not report samples are
-    // unaffected.
+    /// Lock-free daemon feedback. A background evaluation consumes the fixed
+    /// histogram window; embedded users that do not report samples are
+    /// unaffected.
     void report_foreground_latency(std::uint64_t latency_ns) noexcept;
 
     [[nodiscard]] auto snapshot() const -> MaintenanceSnapshot;
     [[nodiscard]] auto thread_running() const noexcept -> bool;
-    // Lock-free admission probe for Store::put/erase (memory_order_acquire).
+    /// Lock-free admission probe for Store::put/erase (memory_order_acquire).
     [[nodiscard]] auto mutations_rejected() const noexcept -> bool;
-    // Synchronous compact callback query. Normal maintenance returns its
-    // configured byte rate; pressure/emergency return zero to preserve reclaim
-    // progress. The value is sampled once before the pre-intent build.
+    /// Synchronous compact callback query. Normal maintenance returns its
+    /// configured byte rate; pressure/emergency return zero to preserve reclaim
+    /// progress. The value is sampled once before the pre-intent build.
     [[nodiscard]] auto compaction_copy_rate_limit() const noexcept -> std::uint64_t;
-    // Publish or clear the emergency mutation gate (eval path + litmus TOCTOU).
+    /// Publish or clear the emergency mutation gate (eval path + litmus TOCTOU).
     void publish_mutations_rejected(bool rejected) noexcept;
 
   private:

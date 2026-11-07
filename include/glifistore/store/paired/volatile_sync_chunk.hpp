@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded volatile synchronous mutation chunks and publication fallback policy.
+ */
 #pragma once
 
 // Shared volatile sync publication chunk (behavior-neutral extraction).
@@ -23,6 +27,9 @@ class Store;
 
 namespace glifistore::store::paired {
 
+/**
+ * @brief Select the bounded volatile synchronous execution/publication path.
+ */
 enum class VolatileSyncChunkMode : std::uint8_t {
     // Dedicated Writer loop in run(): mid-chunk fail-closed, publish retry, litmus faults.
     dedicated_writer,
@@ -30,7 +37,13 @@ enum class VolatileSyncChunkMode : std::uint8_t {
     combiner,
 };
 
+/**
+ * @brief Borrowed synchronous mutation inputs for one bounded volatile publication chunk.
+ */
 struct VolatileSyncMutationView final {
+    /**
+     * @brief Mutation operation carried by one borrowed volatile chunk item.
+     */
     enum class Kind : std::uint8_t { put, erase };
 
     Kind kind{};
@@ -40,11 +53,11 @@ struct VolatileSyncMutationView final {
     Status status{};
 };
 
-// Applies Store volatile mutations and publishes one incremental generation for
-// the chunk. Mutates `views[*].status` and invokes `reclaim_after_publish` on
-// success. Caller completes `done` notification.
-// Hooks are non-owning pointers to caller-stable functors. Passing temporaries
-// or assigning std::function under process_fail_at is unsafe (noexcept drains).
+/// Applies Store volatile mutations and publishes one incremental generation for
+/// the chunk. Mutates `views[*].status` and invokes `reclaim_after_publish` on
+/// success. Caller completes `done` notification.
+/// Hooks are non-owning pointers to caller-stable functors. Passing temporaries
+/// or assigning std::function under process_fail_at is unsafe (noexcept drains).
 void apply_volatile_sync_publication_chunk(
     Store& store, std::size_t shard, LanePublicationContext& publication,
     std::span<VolatileSyncMutationView> views,

@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Opt-in TLS contexts and nonblocking sessions with explicit I/O progress states.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -11,18 +15,18 @@
 
 namespace glifistore::server {
 
-// Secure-profile TLS settings (ADR 0020). Empty paths mean "not configured".
-// When any TLS path is set, certificate_file and private_key_file are both
-// required. A non-empty client_ca_file enables mTLS (ADR 0021 hook).
-// Optional crl_file enables fail-closed CRL checking for mTLS peers.
-// ocsp_fail_closed requires crl_file (live AIA OCSP HTTP is unsupported).
+/// Secure-profile TLS settings (ADR 0020). Empty paths mean "not configured".
+/// When any TLS path is set, certificate_file and private_key_file are both
+/// required. A non-empty client_ca_file enables mTLS (ADR 0021 hook).
+/// Optional crl_file enables fail-closed CRL checking for mTLS peers.
+/// ocsp_fail_closed requires crl_file (live AIA OCSP HTTP is unsupported).
 struct TlsConfig {
     std::filesystem::path certificate_file{};
     std::filesystem::path private_key_file{};
     std::filesystem::path client_ca_file{};
     std::filesystem::path crl_file{};
     bool ocsp_fail_closed{};
-    // Handshake budget after accept; zero uses the library default (10s).
+    /// Handshake budget after accept; zero uses the library default (10s).
     std::uint32_t handshake_timeout_ms{10'000};
 
     [[nodiscard]] auto requested() const noexcept -> bool {
@@ -41,15 +45,15 @@ struct TlsConfig {
 
 [[nodiscard]] auto validate_tls_config(const TlsConfig& config) -> Status;
 
-// Client-side TLS connect settings (ADR 0020). Empty paths mean "not configured".
-// When enable is true, hostname/SNI verification is on unless insecure_skip_verify
-// (lab escape only). Optional certificate_file+private_key_file enable mTLS.
+/// Client-side TLS connect settings (ADR 0020). Empty paths mean "not configured".
+/// When enable is true, hostname/SNI verification is on unless insecure_skip_verify
+/// (lab escape only). Optional certificate_file+private_key_file enable mTLS.
 struct ClientTlsConfig {
     bool enable{false};
     std::filesystem::path ca_file{};
     std::filesystem::path certificate_file{};
     std::filesystem::path private_key_file{};
-    // SNI / hostname verification name. Empty uses the TCP peer host string.
+    /// SNI / hostname verification name. Empty uses the TCP peer host string.
     std::string server_name{};
     bool insecure_skip_verify{false};
     std::uint32_t handshake_timeout_ms{10'000};
@@ -71,6 +75,9 @@ struct ClientTlsConfig {
 
 [[nodiscard]] auto tls_backend_name() -> std::string;
 
+/**
+ * @brief Nonblocking TLS progress; want_read/want_write may differ from the application operation direction.
+ */
 enum class TlsIoKind {
     ok,
     // Deprecated umbrella: treat as needing both directions (safe for older callers).
@@ -80,6 +87,9 @@ enum class TlsIoKind {
     closed,
 };
 
+/**
+ * @brief Nonblocking TLS progress: kind selects readiness/closure state and bytes reports completed transfer.
+ */
 struct TlsIoResult {
     TlsIoKind kind{TlsIoKind::ok};
     std::size_t bytes{};
@@ -95,7 +105,7 @@ struct TlsIoResult {
 
 class TlsSession;
 
-// Process-wide TLS context: certificates, protocol policy (TLS 1.3+), optional client CA.
+/// Process-wide TLS context: certificates, protocol policy (TLS 1.3+), optional client CA.
 class TlsContext final {
   public:
     [[nodiscard]] static auto create(const TlsConfig& config) -> Result<std::shared_ptr<TlsContext>>;
@@ -108,15 +118,15 @@ class TlsContext final {
     TlsContext(TlsContext&&) = delete;
     auto operator=(TlsContext&&) -> TlsContext& = delete;
 
-    // Performs a server handshake on an already-accepted, non-blocking socket.
-    // On success the session owns the TLS state; the caller retains SocketHandle ownership.
+    /// Performs a server handshake on an already-accepted, non-blocking socket.
+    /// On success the session owns the TLS state; the caller retains SocketHandle ownership.
     [[nodiscard]] auto accept_socket(int descriptor) const -> Result<std::unique_ptr<TlsSession>>;
-    // Allocate TLS state without waiting for peer progress. The Reactor drives
-    // TlsSession::accept_handshake from its poller and owns the deadline/slot.
+    /// Allocate TLS state without waiting for peer progress. The Reactor drives
+    /// TlsSession::accept_handshake from its poller and owns the deadline/slot.
     [[nodiscard]] auto begin_accept_socket(int descriptor) const -> Result<std::unique_ptr<TlsSession>>;
 
-    // Performs a client handshake on an already-connected, non-blocking socket.
-    // server_name is used for SNI and hostname verification (unless insecure).
+    /// Performs a client handshake on an already-connected, non-blocking socket.
+    /// server_name is used for SNI and hostname verification (unless insecure).
     [[nodiscard]] auto connect_socket(int descriptor, std::string_view server_name) const
         -> Result<std::unique_ptr<TlsSession>>;
 
@@ -145,11 +155,15 @@ class TlsContext final {
     bool crl_enabled_{};
     bool ocsp_fail_closed_{};
     bool client_mode_{};
-    // Backend-only state also exists in TLS-off builds of this public type.
+    /// Backend-only state also exists in TLS-off builds of this public type.
     [[maybe_unused]] bool insecure_skip_verify_{};
     [[maybe_unused]] std::uint32_t handshake_timeout_ms_{10'000};
 };
 
+/**
+ * @brief Move-only TLS state borrowing a live socket descriptor. The socket must outlive the session and
+ * calls need owner serialization.
+ */
 class TlsSession final {
   public:
     TlsSession() = default;
@@ -161,14 +175,24 @@ class TlsSession final {
     auto operator=(TlsSession&& other) noexcept -> TlsSession&;
 
     [[nodiscard]] auto valid() const noexcept -> bool;
-    // Stable mTLS principal (URI SAN → DNS SAN → CN). Empty when mTLS was not
-    // required or the peer certificate had no usable identity.
+    /// Stable mTLS principal (URI SAN → DNS SAN → CN). Empty when mTLS was not
+    /// required or the peer certificate had no usable identity.
     [[nodiscard]] auto peer_principal() const noexcept -> std::string_view;
-    // Bytes already decrypted and waiting in OpenSSL (SSL_pending). Used to decide
-    // post-accept drains when the poller will not see a fresh readable edge.
+    /// Bytes already decrypted and waiting in OpenSSL (SSL_pending). Used to decide
+    /// post-accept drains when the poller will not see a fresh readable edge.
     [[nodiscard]] auto pending() const noexcept -> std::size_t;
+    /**
+     * @brief Advance a nonblocking server handshake; drive the readiness indicated by the returned kind.
+     */
     [[nodiscard]] auto accept_handshake() -> Result<TlsIoResult>;
+    /**
+     * @brief Decrypt into caller storage; readiness/closure is reported separately from transferred bytes.
+     */
     [[nodiscard]] auto read(std::byte* data, std::size_t size) -> Result<TlsIoResult>;
+    /**
+     * @brief Advance encryption of borrowed bytes; on blocked progress retain the retry buffer required by
+     * the TLS backend.
+     */
     [[nodiscard]] auto write(const std::byte* data, std::size_t size) -> Result<TlsIoResult>;
 
   private:

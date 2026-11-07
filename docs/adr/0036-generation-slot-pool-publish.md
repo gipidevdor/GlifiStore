@@ -135,6 +135,14 @@ prototype/tests that do not link into `glifistored` defaults.
 
 ## Verification
 
+The optional production slot path uses an empty-owner aliasing `shared_ptr` only as an observer
+of pool-owned generations. Creating or mirroring that observer allocates no control block, grants
+no ownership, and does not extend a generation's lifetime. Existing leases, pool pins and quiescence
+remain authoritative. The [allocation-fault regression](../../tests/quality/allocation_fault_client_tests.cpp)
+forbids allocations across observer creation and repeated publication mirroring; the
+[2026-11-07 local campaign](../../engineering/evidence/cpp-correctness-local-2026-11-07.md) records
+the result. This repair does not accept the ADR or enable the flag by default.
+
 All items are **required** before accepting this ADR as *production-implemented*.
 Prototype evidence closes lab gates only; production still uses Alternative A.
 

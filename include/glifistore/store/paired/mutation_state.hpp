@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Mutation lifecycle separating durable knowledge, read publication, and completion.
+ */
 #pragma once
 
 // Typed mutation lifecycle for the paired Writer (behavior-neutral extraction).
@@ -14,12 +18,18 @@
 
 namespace glifistore::store::paired {
 
+/**
+ * @brief Durable authority knowledge independent of acknowledgement and read visibility.
+ */
 enum class CommitKnowledge : std::uint8_t {
     known_not_committed = 0,
     committed = 1,
     indeterminate = 2,
 };
 
+/**
+ * @brief Read-generation publication progress, kept separate from durable commit knowledge.
+ */
 enum class PublicationState : std::uint8_t {
     not_required = 0,
     required = 1,
@@ -28,6 +38,9 @@ enum class PublicationState : std::uint8_t {
     failed = 4,
 };
 
+/**
+ * @brief Checked admission-to-completion progress, including rejection and indeterminate terminal paths.
+ */
 enum class MutationStage : std::uint8_t {
     not_admitted = 0,
     admitted = 1,
@@ -69,6 +82,9 @@ enum class MutationStage : std::uint8_t {
     return DurableMutationOutcome::not_committed;
 }
 
+/**
+ * @brief Durable commit knowledge kept separate from read publication and client completion.
+ */
 struct DurableDecision final {
     CommitKnowledge knowledge{CommitKnowledge::known_not_committed};
     std::optional<Error> error{};
@@ -83,6 +99,9 @@ struct DurableDecision final {
     }
 };
 
+/**
+ * @brief Whether read visibility is required, staged, published, or failed.
+ */
 struct PublicationDecision final {
     PublicationState state{PublicationState::not_required};
 
@@ -95,7 +114,13 @@ struct PublicationDecision final {
     }
 };
 
+/**
+ * @brief Client completion polarity plus required fail-closed/drain actions.
+ */
 struct CompletionDecision final {
+    /**
+     * @brief Decided client completion knowledge; undecided is not a successful acknowledgement.
+     */
     enum class Kind : std::uint8_t {
         undecided = 0,
         success = 1,
@@ -108,11 +133,15 @@ struct CompletionDecision final {
     bool drain_required{};
 };
 
-// Pure characterization of as-implemented completion polarity (mutation-lifecycle.md §4).
-// Does not perform Store I/O or wire encoding.
+/// Pure characterization of as-implemented completion polarity (mutation-lifecycle.md §4).
+/// Does not perform Store I/O or wire encoding.
 [[nodiscard]] auto decide_completion(const DurableDecision& durable,
                                      const PublicationDecision& publication) noexcept -> CompletionDecision;
 
+/**
+ * @brief Checked mutation state transitions. Transition methods return false when illegal; commit,
+ * publication, and completion remain separate authorities.
+ */
 class MutationLifecycle final {
   public:
     [[nodiscard]] auto stage() const noexcept -> MutationStage {
@@ -140,12 +169,12 @@ class MutationLifecycle final {
     [[nodiscard]] auto mark_publication_staged() noexcept -> bool;
     [[nodiscard]] auto mark_published() noexcept -> bool;
     [[nodiscard]] auto mark_publication_failed() noexcept -> bool;
-    // Exception after durable mutate entered but before a DurableMutationResult.
+    /// Exception after durable mutate entered but before a DurableMutationResult.
     [[nodiscard]] auto mark_exception_after_durable_start() noexcept -> bool;
     [[nodiscard]] auto decide(CompletionDecision decision) noexcept -> bool;
     [[nodiscard]] auto mark_completed() noexcept -> bool;
 
-    // Table helper for tests: whether a direct stage jump is legal.
+    /// Table helper for tests: whether a direct stage jump is legal.
     [[nodiscard]] static auto transition_allowed(MutationStage from, MutationStage to) noexcept -> bool;
 
   private:

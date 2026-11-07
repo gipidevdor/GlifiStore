@@ -218,7 +218,8 @@ auto ShardPairRuntime::run_writer_sync_drain(WriterSyncDrainEnv& env) noexcept -
                                                           : detail::StoreAccess::MutationOperation::erase,
                                          .key = *node->key,
                                          .value = node->value,
-                                         .expire_at_ns = node->expire_at_ns});
+                                         .expire_at_ns = node->expire_at_ns,
+                                         .type = node->type});
                     }
                     GS_FAULT_SITE(mutate);
                     inflight_begin = begin;
@@ -665,7 +666,7 @@ auto ShardPairRuntime::run_writer_sync_drain(WriterSyncDrainEnv& env) noexcept -
                     durable_mutate_entered = true;
                     static_cast<void>(life.mark_durable_started());
                     auto result = execute_durable_single(store_, shard, node->kind, key, node->value,
-                                                         node->expire_at_ns);
+                                                         node->expire_at_ns, node->type);
                     if (result.committed()) {
                         durable_committed = true;
                     }

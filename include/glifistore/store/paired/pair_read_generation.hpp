@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Compatibility include for the paired immutable-generation interface.
+ */
 #pragma once
 
 // Compatibility header. The immutable paired read generation moved into

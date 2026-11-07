@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Live durable catalog, pinned reads, mutation commits, and maintenance coordination.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -39,7 +43,8 @@ class DurableFlushCoordinator;
 
 namespace detail {
 class StoreAccess;
-}
+class BlobStorage;
+} // namespace detail
 
 namespace store::paired {
 class ImmutableReadIndex;
@@ -51,24 +56,38 @@ using store::paired::ImmutableReadIndex;
 using store::paired::PairReadGeneration;
 } // namespace server
 
+/**
+ * @brief Commit knowledge independent of read publication; indeterminate must not be interpreted as
+ * rejection.
+ */
 enum class DurableMutationOutcome { committed, not_committed, indeterminate };
+/**
+ * @brief Distinguish a published rewrite, an unchanged catalog, exact no-gain, and restart-required failure.
+ */
 enum class DurableCompactionOutcome { compacted, not_compacted, not_beneficial, recovery_required };
 
+/**
+ * @brief Blob storage, commit/batching policy, resource limits, and exclusive-Writer inputs.
+ */
 struct DurableRuntimeOptions {
+    std::shared_ptr<detail::BlobStorage> blob_storage{};
     SegmentCommitSync commit_sync{SegmentCommitSync::immediate};
     std::uint32_t sync_interval_ms{1000};
     std::optional<DurableGroupConfig> batch{};
     bool strict_ack{false};
     DurableResourceLimits limits{};
-    // Paired exclusive Writer (ADR 0032): ordinary mutate skips the Worker mutex
-    // when no background flusher shares the shard (hot_path_depth). Mutable Index
-    // readers (prepare_get, snapshot_live_keys, snapshot_published_reads,
-    // capture_published_read, compaction Phase A, unread TTL probe,
-    // flush_dirty_segments) arm compaction_commit_active and drain depth before
-    // Index / dirty-file touch.
+    /// Paired exclusive Writer (ADR 0032): ordinary mutate skips the Worker mutex
+    /// when no background flusher shares the shard (hot_path_depth). Mutable Index
+    /// readers (prepare_get, snapshot_live_keys, snapshot_published_reads,
+    /// capture_published_read, compaction Phase A, unread TTL probe,
+    /// flush_dirty_segments) arm compaction_commit_active and drain depth before
+    /// Index / dirty-file touch.
     bool exclusive_writer{false};
 };
 
+/**
+ * @brief Durable authority knowledge plus optional assigned sequence and error.
+ */
 struct DurableMutationResult {
     DurableMutationOutcome outcome{DurableMutationOutcome::not_committed};
     std::optional<SequenceNumber> sequence{};
@@ -79,6 +98,9 @@ struct DurableMutationResult {
     }
 };
 
+/**
+ * @brief Compaction authority outcome, measured work, and optional failure.
+ */
 struct DurableCompactionResult {
     DurableCompactionOutcome outcome{DurableCompactionOutcome::not_compacted};
     DurableCompactionCopyStats stats{};
@@ -89,11 +111,14 @@ struct DurableCompactionResult {
     }
 };
 
+/**
+ * @brief Per-Worker bounded hot-cache admission, occupancy, and eviction observations.
+ */
 struct DurableHotCacheWorkerStats {
     WorkerId worker_id{};
     std::size_t resident_entries{};
-    // External resident key/value bytes. Fixed bucket arrays are reported
-    // separately and are never double-counted here.
+    /// External resident key/value bytes. Fixed bucket arrays are reported
+    /// separately and are never double-counted here.
     std::uint64_t resident_bytes{};
     std::size_t staged_entries{};
     std::uint64_t staged_bytes{};
@@ -109,15 +134,15 @@ struct DurableHotCacheWorkerStats {
     std::uint64_t admission_bypasses{};
     std::uint64_t size_rejected{};
     std::uint64_t expired_gets{};
-    // hits * 10000 / (hits + misses); 0 when no lookups.
+    /// hits * 10000 / (hits + misses); 0 when no lookups.
     std::uint64_t hit_rate_bp{};
     bool enabled{};
     std::uint64_t max_value_bytes{};
 };
 
-// Low-overhead durable GET path telemetry. Totals are nanoseconds summed with
-// relaxed atomics outside the Worker critical section whenever possible; counters
-// under the lock stay plain Worker-local integers.
+/// Low-overhead durable GET path telemetry. Totals are nanoseconds summed with
+/// relaxed atomics outside the Worker critical section whenever possible; counters
+/// under the lock stay plain Worker-local integers.
 struct DurableGetPathWorkerStats {
     WorkerId worker_id{};
     std::uint64_t prepare_calls{};
@@ -140,6 +165,9 @@ struct DurableGetPathWorkerStats {
     std::uint64_t hot_resident_bytes{};
 };
 
+/**
+ * @brief Per-Worker durable grouping and synchronization observations.
+ */
 struct DurableBatchWorkerStats {
     WorkerId worker_id{};
     bool enabled{};
@@ -161,10 +189,10 @@ struct DurableBatchWorkerStats {
     std::uint64_t deadline_closes{};
 };
 
-// Internal materialization of one recovered durable Store. It keeps the
-// directory lock for its complete lifetime. Mutable Segment handles remain
-// Worker-owned; immutable generation pins keep cold-read handles alive across
-// catalog publication and Segment retirement.
+/// Internal materialization of one recovered durable Store. It keeps the
+/// directory lock for its complete lifetime. Mutable Segment handles remain
+/// Worker-owned; immutable generation pins keep cold-read handles alive across
+/// catalog publication and Segment retirement.
 class DurableRuntimeCatalog final {
     struct PendingGroupMutation;
     struct RuntimeWorker;
@@ -172,9 +200,9 @@ class DurableRuntimeCatalog final {
     struct ExclusiveIndexQuiesce;
 
   public:
-    // Copyable ownership token for one immutable on-disk Segment generation.
-    // Read indexes retain one token per distinct generation instead of one
-    // shared_ptr and duplicate key per record.
+    /// Copyable ownership token for one immutable on-disk Segment generation.
+    /// Read indexes retain one token per distinct generation instead of one
+    /// shared_ptr and duplicate key per record.
     class PublishedReadPin final {
       public:
         PublishedReadPin(const PublishedReadPin&) = default;
@@ -203,9 +231,9 @@ class DurableRuntimeCatalog final {
         friend class DurableRuntimeCatalog;
     };
 
-    // Immutable logical record captured together with the exact on-disk
-    // Segment generation that owns its RecordRef. Copies retain the file pin;
-    // the reference is therefore never observable without lifetime ownership.
+    /// Immutable logical record captured together with the exact on-disk
+    /// Segment generation that owns its RecordRef. Copies retain the file pin;
+    /// the reference is therefore never observable without lifetime ownership.
     class PublishedReadRecord final {
       public:
         PublishedReadRecord(const PublishedReadRecord&) = default;
@@ -251,9 +279,9 @@ class DurableRuntimeCatalog final {
         friend class DurableRuntimeCatalog;
     };
 
-    // Non-owning view into one immutable paired ReadGeneration. Its key and
-    // pin remain valid only while the Reader holds the corresponding epoch
-    // lease. This type never escapes the paired cold-read task protocol.
+    /// Non-owning view into one immutable paired ReadGeneration. Its key and
+    /// pin remain valid only while the Reader holds the corresponding epoch
+    /// lease. This type never escapes the paired cold-read task protocol.
     class PublishedReadView final {
       public:
         [[nodiscard]] auto key() const noexcept -> std::string_view {
@@ -277,9 +305,9 @@ class DurableRuntimeCatalog final {
         }
 
       private:
-        // Only immutable paired-generation builders may create a borrowed
-        // view. Callers can transport it but cannot manufacture a lifetime
-        // claim from an arbitrary pin reference.
+        /// Only immutable paired-generation builders may create a borrowed
+        /// view. Callers can transport it but cannot manufacture a lifetime
+        /// claim from an arbitrary pin reference.
         [[nodiscard]] static auto borrow(std::string_view key, std::uint64_t key_hash, RecordRef reference,
                                          const PublishedReadPin& pin) noexcept -> PublishedReadView {
             return PublishedReadView{key, key_hash, reference, &pin};
@@ -302,11 +330,17 @@ class DurableRuntimeCatalog final {
     static_assert(std::is_trivially_copyable_v<PublishedReadView>);
     static_assert(sizeof(PublishedReadView) <= 72);
 
+    /**
+     * @brief Owning pinned Records captured with one consistent catalog revision.
+     */
     struct PublishedReadSnapshot final {
         std::vector<PublishedReadRecord> records;
         std::uint64_t catalog_revision{};
     };
 
+    /**
+     * @brief Move-only cold-read state owning its key and exact Segment generation pin across disk I/O.
+     */
     class PinnedRead final {
       public:
         PinnedRead(PinnedRead&&) noexcept = default;
@@ -328,15 +362,19 @@ class DurableRuntimeCatalog final {
         std::size_t worker_index_{};
         RecordRef reference_;
         std::shared_ptr<const RuntimeSegmentGeneration> generation_;
-        // True when an immutable Reader generation, rather than the mutable
-        // Worker Index, is the GET linearization authority. Such reads need no
-        // post-I/O Worker/catalog revalidation.
+        /// True when an immutable Reader generation, rather than the mutable
+        /// Worker Index, is the GET linearization authority. Such reads need no
+        /// post-I/O Worker/catalog revalidation.
         bool generation_linearized_{};
 
         friend class DurableRuntimeCatalog;
         friend class detail::StoreAccess;
     };
 
+    /**
+     * @brief Move-only cold-read view borrowing key/generation; an external immutable-generation lease must
+     * outlive its use.
+     */
     class BorrowedPinnedRead final {
       public:
         BorrowedPinnedRead(BorrowedPinnedRead&&) noexcept = default;
@@ -362,6 +400,10 @@ class DurableRuntimeCatalog final {
         friend class detail::StoreAccess;
     };
 
+    /**
+     * @brief Prepared read alternatives: an owning hot value, an owning cold pin, or a cold view protected by
+     * an external lease.
+     */
     struct PreparedRead final {
         std::optional<OwnedValue> value{};
         std::optional<PinnedRead> cold{};
@@ -401,31 +443,34 @@ class DurableRuntimeCatalog final {
     }
 
     [[nodiscard]] auto manifest() const -> Manifest;
+    [[nodiscard]] auto allocate_blob_id() -> Result<BlobId>;
+    [[nodiscard]] auto blob_roots() -> Result<std::vector<BlobId>>;
     [[nodiscard]] auto namespace_audit() const -> NamespaceAuditReport;
     [[nodiscard]] auto recovery_stats() const noexcept -> const DurableRecoveryStats&;
     [[nodiscard]] auto hot_cache_stats() const -> std::vector<DurableHotCacheWorkerStats>;
     [[nodiscard]] auto get_path_stats() const -> std::vector<DurableGetPathWorkerStats>;
     [[nodiscard]] auto batch_stats() const -> std::vector<DurableBatchWorkerStats>;
     [[nodiscard]] auto rotation_stats() const noexcept -> DurableRotationStats;
+    [[nodiscard]] auto compaction_stats() const noexcept -> DurableCompactionMetrics;
     [[nodiscard]] auto next_sequence(std::size_t worker_index) const -> Result<SequenceNumber>;
     [[nodiscard]] auto active_segment(std::size_t worker_index) const -> Result<SegmentId>;
     [[nodiscard]] auto next_compaction_worker(std::size_t start_worker) const
         -> Result<std::optional<std::size_t>>;
-    // Catalog-level sealed/free snapshot and exact candidate live/dead byte counters.
-    // Optional unread TTL probe reads sealed source Records for the candidate only.
+    /// Catalog-level sealed/free snapshot and exact candidate live/dead byte counters.
+    /// Optional unread TTL probe reads sealed source Records for the candidate only.
     [[nodiscard]] auto maintenance_observation(std::size_t start_worker = 0, std::uint64_t now_ns = 0,
                                                bool probe_unread_expired_ttl = false)
         -> Result<MaintenanceObservation>;
     [[nodiscard]] auto compact_worker(std::size_t worker_index, std::uint64_t now_ns,
                                       std::uint64_t max_copy_bytes = 0,
                                       std::uint64_t max_copy_bytes_per_second = 0) -> DurableCompactionResult;
-    // Lexicographically sorted live Index keys. Intended for offline tools (migrate).
+    /// Lexicographically sorted live Index keys. Intended for offline tools (migrate).
     [[nodiscard]] auto snapshot_live_keys() -> Result<std::vector<std::string>>;
     [[nodiscard]] auto verify_index() -> Status;
     [[nodiscard]] auto flush() -> Status;
-    // Online catalog backup: caller must fence Store admissions. Copies Manifest + Segments into an
-    // empty destination while holding the catalog exclusive lock (writers already paused).
-    // Destination verify is performed by Store::backup_to after admissions resume.
+    /// Online catalog backup: caller must fence Store admissions. Copies Manifest + Segments into an
+    /// empty destination while holding the catalog exclusive lock (writers already paused).
+    /// Destination verify is performed by Store::backup_to after admissions resume.
     [[nodiscard]] auto backup_to(const std::filesystem::path& destination, bool scan_records = true,
                                  const DurableResourceLimits& limits = {})
         -> Result<DurableStoreBackupReport>;
@@ -451,10 +496,10 @@ class DurableRuntimeCatalog final {
                               std::unique_lock<std::mutex>& lock);
     [[nodiscard]] auto commit_writer_batch(std::size_t worker_index) -> Status;
     [[nodiscard]] auto writer_batch_config() const noexcept -> std::optional<DurableGroupConfig>;
-    // Highest sequence whose index publication has been applied for this Writer
-    // (advanced in flush_worker_batch / non-strict Index paths). Used to distinguish
-    // flushed siblings from abandoned unflushed pending after a later-item sticky
-    // failure. Takes the Worker mutex (happens-before with Index publishers).
+    /// Highest sequence whose index publication has been applied for this Writer
+    /// (advanced in flush_worker_batch / non-strict Index paths). Used to distinguish
+    /// flushed siblings from abandoned unflushed pending after a later-item sticky
+    /// failure. Takes the Worker mutex (happens-before with Index publishers).
     [[nodiscard]] auto writer_durable_through(std::size_t worker_index) const noexcept -> SequenceNumber;
     [[nodiscard]] auto fail_closed(Error error) -> Unexpected;
     [[nodiscard]] auto mutate(std::span<const std::byte> key, std::span<const std::byte> value, Opcode opcode,
@@ -464,21 +509,21 @@ class DurableRuntimeCatalog final {
         -> DurableMutationResult;
     void record_rotation_final_commit(std::uint64_t duration_ns, bool committed) noexcept;
     [[nodiscard]] auto prepare_get(const HashedKey& key, std::uint64_t now_ns) -> Result<PreparedRead>;
-    // Writer-side publication helpers. Both capture methods may take runtime
-    // locks but never perform file I/O. The returned records are immutable and
-    // retain exact Segment-generation pins for lock-free Reader lookup.
-    // allow_fail_closed: one-shot drain after sticky failure so committed siblings
-    // can still enter the published generation when durable already marked itself
-    // unhealthy (pair Writer sync/async recovery publish only).
+    /// Writer-side publication helpers. Both capture methods may take runtime
+    /// locks but never perform file I/O. The returned records are immutable and
+    /// retain exact Segment-generation pins for lock-free Reader lookup.
+    /// allow_fail_closed: one-shot drain after sticky failure so committed siblings
+    /// can still enter the published generation when durable already marked itself
+    /// unhealthy (pair Writer sync/async recovery publish only).
     [[nodiscard]] auto snapshot_published_reads(std::size_t worker_index, bool allow_fail_closed = false)
         -> Result<PublishedReadSnapshot>;
     [[nodiscard]] auto read_catalog_revision(std::size_t worker_index) const noexcept -> std::uint64_t;
     [[nodiscard]] static auto advance_read_catalog_revision(RuntimeWorker& worker) noexcept -> bool;
     [[nodiscard]] auto capture_published_read(std::size_t worker_index, const HashedKey& key)
         -> Result<PublishedReadRecord>;
-    // Immutable published GETs: pin/identity only. Servable after sticky fail-closed so
-    // drain-snapshot success-ACKs remain RAW via Store::get / reactor prepare_published.
-    // Mutable Index prepare_get still rejects when !healthy().
+    /// Immutable published GETs: pin/identity only. Servable after sticky fail-closed so
+    /// drain-snapshot success-ACKs remain RAW via Store::get / reactor prepare_published.
+    /// Mutable Index prepare_get still rejects when !healthy().
     [[nodiscard]] auto prepare_published_get(PublishedReadRecord read, std::uint64_t now_ns)
         -> Result<PreparedRead>;
     [[nodiscard]] auto prepare_published_get(PublishedReadView read, std::uint64_t now_ns)
@@ -495,23 +540,23 @@ class DurableRuntimeCatalog final {
                                                const RuntimeSegmentGeneration& generation,
                                                const detail::ColdReadCancellation* cancellation,
                                                std::vector<std::byte>* scratch) -> Result<OwnedValue>;
-    // Build SegmentId → catalog/pin slot mapping before a persistent publication.
-    // The prepared vector is installed with a non-allocating move after commit.
+    /// Build SegmentId → catalog/pin slot mapping before a persistent publication.
+    /// The prepared vector is installed with a non-allocating move after commit.
     [[nodiscard]] static auto prepare_pin_slot_index(const Manifest& manifest)
         -> Result<std::vector<std::uint32_t>>;
     [[nodiscard]] auto catalog_index_for_segment(SegmentId segment_id) const noexcept
         -> std::optional<std::size_t>;
 
-    // Declared first so cached Segment handles are destroyed before the lock
-    // and anchored directory descriptor.
+    /// Declared first so cached Segment handles are destroyed before the lock
+    /// and anchored directory descriptor.
     DataDirectory directory_;
     WorkerRoutingState worker_routing_{};
     Manifest manifest_;
     NamespaceAuditReport namespace_audit_;
     std::vector<RecoveredSegmentState> segments_;
     std::vector<std::shared_ptr<const RuntimeSegmentGeneration>> generation_pins_;
-    // Dense SegmentId → catalog index. Absent/retired ids store UINT32_MAX.
-    // Keeps GET pin resolution O(1) without changing RecordRef identity.
+    /// Dense SegmentId → catalog index. Absent/retired ids store UINT32_MAX.
+    /// Keeps GET pin resolution O(1) without changing RecordRef identity.
     std::vector<std::uint32_t> pin_slot_by_segment_id_;
     std::vector<std::unique_ptr<RuntimeWorker>> workers_;
     DurableRecoveryStats recovery_stats_;
@@ -520,8 +565,8 @@ class DurableRuntimeCatalog final {
     bool dedicated_commit_executor_{};
     std::atomic_bool healthy_{true};
     std::atomic_bool closed_{false};
-    // Even values expose a complete rotation telemetry publication; odd means
-    // the short atomic update block is in progress.
+    /// Even values expose a complete rotation telemetry publication; odd means
+    /// the short atomic update block is in progress.
     mutable std::atomic_uint64_t rotation_stats_version_{};
     std::atomic_uint64_t rotation_attempts_{};
     std::atomic_uint64_t rotations_committed_{};
@@ -546,15 +591,23 @@ class DurableRuntimeCatalog final {
     std::atomic_uint64_t last_rotation_total_ns_{};
     std::atomic_uint64_t total_rotation_ns_{};
     std::atomic_uint64_t maximum_rotation_total_ns_{};
+    std::atomic_uint64_t compaction_attempts_{};
+    std::atomic_uint64_t compactions_completed_{};
+    std::atomic_uint64_t compaction_delta_overflows_{};
+    std::atomic_uint64_t compaction_manifest_conflicts_{};
+    std::atomic_uint64_t compaction_abandoned_copy_bytes_{};
+    std::atomic_uint64_t compaction_replayed_records_{};
+    std::atomic_uint64_t maximum_compaction_snapshot_ns_{};
+    std::atomic_uint64_t maximum_compaction_commit_gate_ns_{};
     std::atomic_uint64_t last_rotation_final_record_commit_ns_{};
     std::atomic_uint64_t total_rotation_final_record_commit_ns_{};
     std::atomic_uint64_t maximum_rotation_final_record_commit_ns_{};
     std::mutex close_mutex_;
     std::optional<Error> close_error_;
-    // Guarded by manifest_publication_mutex_. A compaction lease excludes
-    // manifest-changing rotations without keeping the serializer locked while
-    // replacement Records are scanned and copied. Rotations wait for the lease
-    // and then rebuild from the newly published authority.
+    /// Guarded by manifest_publication_mutex_. A compaction lease excludes
+    /// manifest-changing rotations without keeping the serializer locked while
+    /// replacement Records are scanned and copied. Rotations wait for the lease
+    /// and then rebuild from the newly published authority.
     bool compaction_publication_active_{};
     bool rotation_publication_active_{};
     std::mutex manifest_publication_mutex_;

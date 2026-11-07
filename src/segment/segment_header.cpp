@@ -36,6 +36,9 @@ auto checksum_with_zeroed_field(std::span<const std::byte> bytes, std::size_t ch
 }
 
 auto validate_identity(const SegmentHeaderIdentity& identity) -> Status {
+    if (identity.format_version != 1 && identity.format_version != 2) {
+        return fail(ErrorCode::invalid_argument, "unsupported Segment header version");
+    }
     if (all_zero(identity.store_id)) {
         return fail(ErrorCode::invalid_argument, "segment store id cannot be all zero");
     }
@@ -154,10 +157,10 @@ auto encode_segment_header(const std::span<std::byte> out, const SegmentHeader& 
 
     std::array<std::byte, kSegmentHeaderReservedBytes> encoded{};
     put_u32(encoded, 0, kSegmentHeaderMagic);
-    put_u16(encoded, 4, kSegmentHeaderFormatVersion);
+    put_u16(encoded, 4, header.identity.format_version);
     put_u16(encoded, 6, static_cast<std::uint16_t>(kSegmentImmutableHeaderBytes));
     put_u16(encoded, 8, kSegmentFormatVersion);
-    put_u16(encoded, 10, kRecordFormatVersion);
+    put_u16(encoded, 10, header.identity.format_version);
     put_u32(encoded, 12, static_cast<std::uint32_t>(kSegmentHeaderReservedBytes));
     std::memcpy(encoded.data() + 16, header.identity.store_id.data(), header.identity.store_id.size());
     put_u64(encoded, 32, header.identity.segment_id.value);
@@ -188,9 +191,10 @@ auto decode_segment_header(const std::span<const std::byte> bytes) -> Result<Dec
         return fail(ErrorCode::invalid_record, "segment header is truncated");
     }
     const auto encoded = bytes.first(kSegmentHeaderReservedBytes);
-    if (get_u32(encoded, 0) != kSegmentHeaderMagic || get_u16(encoded, 4) != kSegmentHeaderFormatVersion ||
+    if (get_u32(encoded, 0) != kSegmentHeaderMagic ||
+        (get_u16(encoded, 4) != 1 && get_u16(encoded, 4) != 2) ||
         get_u16(encoded, 6) != kSegmentImmutableHeaderBytes || get_u16(encoded, 8) != kSegmentFormatVersion ||
-        get_u16(encoded, 10) != kRecordFormatVersion || get_u32(encoded, 12) != kSegmentHeaderReservedBytes ||
+        get_u16(encoded, 10) != get_u16(encoded, 4) || get_u32(encoded, 12) != kSegmentHeaderReservedBytes ||
         get_u32(encoded, 48) != 0 || !all_zero(encoded.subspan(56, kSegmentImmutableHeaderBytes - 56)) ||
         !all_zero(
             encoded.subspan(kSegmentCommitSlotsOffset + kSegmentCommitSlotCount * kSegmentCommitSlotBytes))) {
@@ -201,7 +205,7 @@ auto decode_segment_header(const std::span<const std::byte> bytes) -> Result<Dec
         return fail(ErrorCode::checksum_mismatch, "segment identity checksum mismatch");
     }
 
-    SegmentHeaderIdentity identity{};
+    SegmentHeaderIdentity identity{.format_version = get_u16(encoded, 4)};
     std::memcpy(identity.store_id.data(), encoded.data() + 16, identity.store_id.size());
     identity.segment_id = SegmentId{get_u64(encoded, 32)};
     identity.generation = GenerationId{get_u32(encoded, 40)};

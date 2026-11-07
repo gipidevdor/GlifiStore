@@ -67,6 +67,8 @@ alternatives, decision, consequences, compatibility impact, verification, and re
 | [0039](0039-pre-intent-staged-compaction-output.md) | Stage and verify compaction output before the v1 publication lease | accepted | amends 0015/0023; amended by 0040; no persistent-format change |
 | [0040](0040-pre-intent-compaction-write-pacing.md) | Pace bounded private compaction writes before durable authority | accepted | amends 0023/0039; no persistent-format change |
 | [0041](0041-bounded-network-security-lifecycles.md) | Bounded TLS/output lifetimes, denied-attempt quotas and audit emission | accepted | amends 0012/0019/0020/0022; preserves v1/v2 and Store ACK points |
+| [0042](0042-large-blob-storage.md) | Immutable external blobs up to 64 MiB behind an opt-in persistence v2 boundary | accepted | Blob File v1; opt-in embedded persistence v2; wire unchanged |
+| [0043](0043-bounded-compaction-delta.md) | Bounded concurrent delta for whole-Worker compaction | accepted | Persistence v1; exact old/next authority; bounded replay |
 
 Official TCP client error taxonomy, automatic retries, and deadline behavior are governed by
 [ADR 0019](0019-client-error-retry-timeout.md) and [client semantics v1](../spec/client-semantics-v1.md).

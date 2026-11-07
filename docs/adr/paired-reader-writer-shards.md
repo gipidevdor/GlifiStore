@@ -620,3 +620,9 @@ gate. Litmus test e stress non sostituiscono la prova di ownership documentata.
 - [ADR 0018](0018-bounded-durable-mutation-lanes.md)
 - [ADR 0030](0030-keyed-worker-routing.md)
 - [Persistence v1](../spec/persistence-v1.md)
+
+## Blob-profile amendment (2026-11-07)
+
+[ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
+Blob payload I/O remains outside the Reader and Writer. The existing owner serializes the typed descriptor; transfer/Reader roots and compaction publication are coordinated with conservative blob GC.
+Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.

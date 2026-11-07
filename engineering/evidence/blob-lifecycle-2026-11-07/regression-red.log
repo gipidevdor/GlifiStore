@@ -1,0 +1,19 @@
+blob staged abort: exit=1
+[RUN] blob staged abort and destruction remove files and return quota without GC
+[FAIL] blob staged abort and destruction remove files and return quota without GC: /Users/gpicchiarelli/Documents/GlifiStore/tests/unit/blob_lifecycle_tests.cpp:93 requirement failed: lifecycle_file_count(directory.path) == 0
+1 tests, 1 failures
+
+blob failed chunk: exit=1
+[RUN] blob failed chunk dispatch is terminal cleans staging and returns credits
+[FAIL] blob failed chunk dispatch is terminal cleans staging and returns credits: /Users/gpicchiarelli/Documents/GlifiStore/tests/unit/blob_lifecycle_tests.cpp:122 requirement failed: lifecycle_file_count(directory.path) == 0
+1 tests, 1 failures
+
+blob quota reserves: exit=1
+[RUN] blob quota reserves the peak staging extent before creating a file
+[FAIL] blob quota reserves the peak staging extent before creating a file: /Users/gpicchiarelli/Documents/GlifiStore/tests/unit/blob_lifecycle_tests.cpp:136 requirement failed: !written
+1 tests, 1 failures
+
+blob parent directory sync: exit=1
+[RUN] blob parent directory sync retains configured syscall fault hooks
+[FAIL] blob parent directory sync retains configured syscall fault hooks: /Users/gpicchiarelli/Documents/GlifiStore/tests/unit/blob_lifecycle_tests.cpp:164 requirement failed: !synced
+1 tests, 1 failures

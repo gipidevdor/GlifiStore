@@ -1,0 +1,51 @@
+gates:
+- id: GATE-BLOB-EMBEDDED
+  titolo: Opt-in embedded blob storage preserves format, commit, recovery and lifetime contracts
+  sezione: durability_recovery
+  livello_rilascio: prototype
+  requisiti:
+  - GS-PERSIST-BLOB-001
+  - GS-PERSIST-BLOB-002
+  - GS-RECOVERY-BLOB-001
+  - GS-CONCUR-BLOB-001
+  - GS-CORE-BLOB-001
+  - GS-OPS-BLOB-001
+  - GS-PERF-BLOB-001
+  prove:
+  - tests/unit/blob_lifecycle_tests.cpp
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  evidenze:
+  - path: engineering/evidence/blob-lifecycle-local-2026-11-07.md
+    note: Partial local lifecycle regression evidence; no CI or release acceptance
+  stato: SPECIFICATA
+  rischio_residuo: >-
+    ADR 0042 is accepted for implementation. Blob implementation and partial local
+    lifecycle regressions exist; they do not establish the complete acceptance matrix.
+    Native durability, overload and inline performance budgets remain unproven;
+    E3/E4 certification stays open.
+  riapertura:
+  - Change to descriptor versions, file identity, key/value bounds or required-version refusal
+  - Change to ACK ordering, periodic dependency, GC roots, backup closure or streaming lifetime
+  - Relaxation of resource or inline performance budgets without reviewed evidence
+  narrative: >-
+    The accepted specification defines field layouts, state transitions, admission,
+    compatibility and an acceptance matrix. SPECIFICATA remains open until complete
+    proofs and retained CI/platform evidence justify promotion; local fixes alone do not.
+- id: GATE-BLOB-WIRE
+  titolo: Negotiated bounded blob transfers and official-client outcomes
+  sezione: public_contract
+  livello_rilascio: beta
+  requisiti: [GS-PROTO-BLOB-001]
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  evidenze: []
+  stato: NON_INIZIATA
+  rischio_residuo: >-
+    No accepted capability/opcode, streaming flow-control, persistent retry-resolution,
+    C ABI or SDK contract exists. Existing daemon/wire v2 capabilities are unchanged.
+  riapertura:
+  - Enabling blob-capable daemon Stores before the negotiated client contract and proofs
+  - Treating embedded handle-local idempotence as durable reconnect deduplication
+  narrative: >-
+    Deliberately deferred until the embedded gate and a separate wire/SDK ADR are ready;
+    no new opcode, frame size or client retry promise is allocated by ADR 0042.

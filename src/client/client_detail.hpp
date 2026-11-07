@@ -18,6 +18,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <new>
 #include <optional>
 #include <poll.h>
 #include <ranges>
@@ -102,12 +103,16 @@ using ExchangeResult = std::variant<OwnedResponse, ExchangeFailure>;
     return {code, std::string{operation} + ": " + error_message(error_number)};
 }
 
+[[nodiscard]] inline auto request_timeout_error() -> Error {
+    return {.code = ErrorCode::unavailable, .message = "TCP operation timed out", .category = "transport"};
+}
+
 [[nodiscard]] inline auto wait_for(const int descriptor, const short events, const Clock::time_point deadline)
     -> Status {
     for (;;) {
         const auto now = Clock::now();
         if (now >= deadline) {
-            return fail(ErrorCode::unavailable, "TCP operation timed out");
+            return unexpected(request_timeout_error());
         }
         const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
         const auto bounded_timeout =
@@ -122,7 +127,7 @@ using ExchangeResult = std::variant<OwnedResponse, ExchangeFailure>;
             return fail(ErrorCode::io_error, "TCP connection closed while waiting for I/O");
         }
         if (result == 0) {
-            return fail(ErrorCode::unavailable, "TCP operation timed out");
+            return unexpected(request_timeout_error());
         }
         if (errno != EINTR) {
             return unexpected(system_error(ErrorCode::io_error, "poll"));
@@ -258,50 +263,61 @@ struct WorkerConnection {
                                      const Clock::time_point deadline)
     -> std::variant<std::size_t, ExchangeFailure> {
     std::size_t sent{};
-    while (sent < frame.size()) {
-        if (connection.tls) {
-            auto written = connection.tls->write(frame.data() + sent, frame.size() - sent);
-            if (!written) {
-                return ExchangeFailure{written.error(), sent};
+    try {
+        while (sent < frame.size()) {
+            if (Clock::now() >= deadline) {
+                return ExchangeFailure{request_timeout_error(), sent};
             }
-            if (written->kind == server::TlsIoKind::would_block ||
-                written->kind == server::TlsIoKind::want_read ||
-                written->kind == server::TlsIoKind::want_write) {
-                auto ready =
-                    wait_for(connection.socket.get(), static_cast<short>(POLLIN | POLLOUT), deadline);
+            if (connection.tls) {
+                auto written = connection.tls->write(frame.data() + sent, frame.size() - sent);
+                if (!written) {
+                    return ExchangeFailure{written.error(), sent};
+                }
+                if (written->kind == server::TlsIoKind::would_block ||
+                    written->kind == server::TlsIoKind::want_read ||
+                    written->kind == server::TlsIoKind::want_write) {
+                    auto ready =
+                        wait_for(connection.socket.get(), static_cast<short>(POLLIN | POLLOUT), deadline);
+                    if (ready) {
+                        continue;
+                    }
+                    return ExchangeFailure{ready.error(), sent};
+                }
+                if (written->kind == server::TlsIoKind::closed) {
+                    return ExchangeFailure{{ErrorCode::io_error, "server closed the TLS connection"}, sent};
+                }
+                sent += written->bytes;
+                continue;
+            }
+#if defined(MSG_NOSIGNAL)
+            constexpr int send_flags = MSG_NOSIGNAL;
+#else
+            constexpr int send_flags = 0;
+#endif
+            const auto count =
+                ::send(connection.socket.get(), frame.data() + sent, frame.size() - sent, send_flags);
+            if (count > 0) {
+                sent += static_cast<std::size_t>(count);
+                continue;
+            }
+            if (count < 0 && errno == EINTR) {
+                continue;
+            }
+            if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                auto ready = wait_for(connection.socket.get(), POLLOUT, deadline);
                 if (ready) {
                     continue;
                 }
                 return ExchangeFailure{ready.error(), sent};
             }
-            if (written->kind == server::TlsIoKind::closed) {
-                return ExchangeFailure{{ErrorCode::io_error, "server closed the TLS connection"}, sent};
-            }
-            sent += written->bytes;
-            continue;
+            return ExchangeFailure{system_error(ErrorCode::io_error, "send"), sent};
         }
-#if defined(MSG_NOSIGNAL)
-        constexpr int send_flags = MSG_NOSIGNAL;
-#else
-        constexpr int send_flags = 0;
-#endif
-        const auto count =
-            ::send(connection.socket.get(), frame.data() + sent, frame.size() - sent, send_flags);
-        if (count > 0) {
-            sent += static_cast<std::size_t>(count);
-            continue;
+        if (Clock::now() >= deadline) {
+            return ExchangeFailure{request_timeout_error(), sent};
         }
-        if (count < 0 && errno == EINTR) {
-            continue;
-        }
-        if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            auto ready = wait_for(connection.socket.get(), POLLOUT, deadline);
-            if (ready) {
-                continue;
-            }
-            return ExchangeFailure{ready.error(), sent};
-        }
-        return ExchangeFailure{system_error(ErrorCode::io_error, "send"), sent};
+    } catch (const std::bad_alloc&) {
+        // Keep exact progress even when constructing a transport/TLS error fails.
+        return ExchangeFailure{{ErrorCode::resource_exhausted, {}}, sent};
     }
     return sent;
 }
@@ -310,6 +326,9 @@ struct WorkerConnection {
                                         const Clock::time_point deadline) -> Status {
     std::size_t received{};
     while (received < output.size()) {
+        if (Clock::now() >= deadline) {
+            return unexpected(request_timeout_error());
+        }
         if (connection.tls) {
             auto read = connection.tls->read(output.data() + received, output.size() - received);
             if (!read) {
@@ -351,6 +370,9 @@ struct WorkerConnection {
         }
         return unexpected(system_error(ErrorCode::io_error, "receive"));
     }
+    if (Clock::now() >= deadline) {
+        return unexpected(request_timeout_error());
+    }
     return {};
 }
 
@@ -378,12 +400,16 @@ struct WorkerConnection {
         return ExchangeFailure{{ErrorCode::corrupted_data, "server returned an invalid response frame"},
                                request_bytes_sent};
     }
-    return OwnedResponse{.status = decoded->frame.status,
-                         .request_id = decoded->frame.request_id,
-                         .owner_worker = decoded->frame.owner_worker,
-                         .worker_count = decoded->frame.worker_count,
-                         .routing_epoch = decoded->frame.routing_epoch,
-                         .value = {decoded->frame.value.begin(), decoded->frame.value.end()}};
+    OwnedResponse response{.status = decoded->frame.status,
+                           .request_id = decoded->frame.request_id,
+                           .owner_worker = decoded->frame.owner_worker,
+                           .worker_count = decoded->frame.worker_count,
+                           .routing_epoch = decoded->frame.routing_epoch,
+                           .value = {decoded->frame.value.begin(), decoded->frame.value.end()}};
+    if (Clock::now() >= deadline) {
+        return ExchangeFailure{request_timeout_error(), request_bytes_sent};
+    }
+    return response;
 }
 
 [[nodiscard]] inline auto exchange(WorkerConnection& connection, const std::span<const std::byte> request,
@@ -394,7 +420,11 @@ struct WorkerConnection {
         return *failure;
     }
     const auto request_bytes_sent = std::get<std::size_t>(sent);
-    return receive_response(connection, config, deadline, request_bytes_sent);
+    try {
+        return receive_response(connection, config, deadline, request_bytes_sent);
+    } catch (const std::bad_alloc&) {
+        return ExchangeFailure{{ErrorCode::resource_exhausted, {}}, request_bytes_sent};
+    }
 }
 
 [[nodiscard]] inline auto exchange(WorkerConnection& connection, const std::span<const std::byte> request,
@@ -424,7 +454,7 @@ struct WorkerConnection {
     }
 }
 
-[[nodiscard]] auto
+[[nodiscard]] inline auto
 enrich_error(Error error, const std::string_view operation, const std::optional<std::uint64_t> request_id,
              const std::optional<std::uint32_t> worker, const std::optional<std::uint64_t> routing_epoch,
              const std::size_t bytes_sent = 0, const std::optional<std::uint16_t> wire_status = std::nullopt,
@@ -450,6 +480,31 @@ enrich_error(Error error, const std::string_view operation, const std::optional<
         error.retryability = portable_retryability(error.category, false, false);
     }
     return error;
+}
+
+// Prepare both outcomes before network I/O. Taking either error after an
+// allocation failure only moves strings and preserves the observed send count.
+struct AllocationFailureErrors final {
+    Error unsent;
+    Error sent;
+
+    [[nodiscard]] auto take(const std::size_t bytes_sent) noexcept -> Error {
+        auto error = bytes_sent == 0 ? std::move(unsent) : std::move(sent);
+        error.bytes_sent = bytes_sent;
+        return error;
+    }
+};
+
+[[nodiscard]] inline auto
+allocation_failure_errors(const std::string_view operation, const std::uint64_t request_id,
+                          const std::uint32_t worker, const std::uint64_t routing_epoch, const bool mutation)
+    -> AllocationFailureErrors {
+    return {
+        .unsent = enrich_error({ErrorCode::resource_exhausted, "client OOM"}, operation, request_id, worker,
+                               routing_epoch, 0, std::nullopt, mutation, false),
+        .sent = enrich_error({ErrorCode::resource_exhausted, "client OOM"}, operation, request_id, worker,
+                             routing_epoch, 1, std::nullopt, mutation, mutation),
+    };
 }
 
 [[nodiscard]] inline auto response_error(const server::ResponseStatus status) -> Error {
@@ -522,6 +577,9 @@ enrich_error(Error error, const std::string_view operation, const std::optional<
                                                     const Clock::time_point deadline,
                                                     const std::size_t request_bytes_sent) -> ExchangeResult {
     for (;;) {
+        if (Clock::now() >= deadline) {
+            return ExchangeFailure{request_timeout_error(), request_bytes_sent};
+        }
         const auto available = connection.input.size() - connection.input_offset;
         if (available >= sizeof(std::uint32_t)) {
             const std::span<const std::byte> pending{connection.input.data() + connection.input_offset,
@@ -545,6 +603,9 @@ enrich_error(Error error, const std::string_view operation, const std::optional<
                                        .worker_count = decoded->frame.worker_count,
                                        .routing_epoch = decoded->frame.routing_epoch,
                                        .value = {decoded->frame.value.begin(), decoded->frame.value.end()}};
+                if (Clock::now() >= deadline) {
+                    return ExchangeFailure{request_timeout_error(), request_bytes_sent};
+                }
                 connection.input_offset += frame_size;
                 if (connection.input_offset == connection.input.size()) {
                     connection.input.clear();

@@ -41,3 +41,9 @@ accepted residual risks do not imply production readiness.
 | `HAZ-032` | Debito di merge paired concentrato in una pausa terminale o overload spurio | alta | media | alta | mitigato | `GS-CONCUR-PAIR-001`, `GS-CONCUR-COMBINE-001` |
 | `HAZ-033` | Compaction I/O causa jitter foreground o il rate gate affama candidati grandi | alta | alta | alta | mitigato | `GS-OPS-CONFIG-001`, `GS-OPS-DEBT-001`, `GS-PERSIST-AMP-001` |
 | `HAZ-034` | Pacchetto dichiarato provato oltre le prove effettivamente eseguite | alta | media | alta | mitigato | `GS-RELEASE-PACKAGE-001`, `GS-RELEASE-UPGRADE-001`, `GS-RELEASE-ARTIFACT-001` |
+| `HAZ-035` | Committed blob descriptor refers to an incomplete or missing payload | catastrofica | media | media | aperto | `GS-PERSIST-BLOB-001`, `GS-PERSIST-BLOB-002`, `GS-RECOVERY-BLOB-001` |
+| `HAZ-036` | Blob reclaimed while recovery, Reader or backup still needs it | catastrofica | media | bassa | aperto | `GS-RECOVERY-BLOB-001`, `GS-CONCUR-BLOB-001`, `GS-OPS-BLOB-001` |
+| `HAZ-037` | Blob transfers exhaust memory, files, disk or shard progress | alta | alta | alta | aperto | `GS-CORE-BLOB-001`, `GS-PERF-BLOB-001`, `GS-PROTO-BLOB-001` |
+| `HAZ-038` | Blob backup omits payloads referenced by copied committed history | catastrofica | media | media | aperto | `GS-OPS-BLOB-001` |
+| `HAZ-039` | Legacy engine or client interprets BlobRef bytes as application data | catastrofica | media | bassa | aperto | `GS-PERSIST-BLOB-001`, `GS-RECOVERY-BLOB-001`, `GS-PROTO-BLOB-001` |
+| `HAZ-040` | Compaction installs a stale Index or resurrects erased state after concurrent mutations | catastrofica | media | media | aperto | `GS-PERSIST-DELTA-001` |

@@ -1,7 +1,7 @@
 Status: normative for official GlifiStore TCP clients
 Applies to: wire protocol v2 clients (C++, Python, Perl, Go, Erlang, Ruby)
 Owner: networking maintainers
-Last reviewed: 2026-09-15
+Last reviewed: 2026-11-07
 
 # Client semantics v1 — errors, retry, and timeouts
 
@@ -37,7 +37,7 @@ this closed set for client-visible failures:
 | --- | --- |
 | `invalid_argument` | Local validation failed, or the server returned `INVALID_REQUEST` / `UNSUPPORTED`. |
 | `not_found` | Server returned `NOT_FOUND`. |
-| `overloaded` | Server returned `OVERLOADED`, or a local admission/resource limit equivalent was hit before send. |
+| `overloaded` | Server returned `OVERLOADED`, or a local admission/resource failure occurred. A local allocation failure after send does not prove rejection; mutation outcome takes precedence. |
 | `permission_denied` | Server returned `PERMISSION_DENIED` (secure-profile authz). |
 | `unavailable` | Client closed, routing metadata changed, bootstrap/reconnect cannot proceed, or `NOT_BOUND` while the session is considered unusable. |
 | `transport` | Socket I/O, connect failure after dial, peer EOF, or **request deadline expired** while waiting on the socket. |
@@ -87,6 +87,12 @@ fields must not change category/outcome rules when added.
 
 Unknown status codes: treat as error, preserve TCP framing sync, category `protocol` or `internal`;
 for mutations prefer `indeterminate` if any request bytes were written, else `rejected`.
+
+Local allocation failures must retain observed send progress. Before send they are known unsent;
+after positive request bytes, an unresolved mutation is `indeterminate` / `reconcile_first`, even
+when the local error category is `overloaded`. Reset the affected connection so a partially consumed
+response cannot become the next operation's response. The C++ implementation prepares fallback
+errors before I/O. This does not alter the known-rejection meaning of a decoded wire `OVERLOADED`.
 
 ## 4. Retryability
 
@@ -169,6 +175,10 @@ deadline:
 - **must not** be left unread on a reused connection (hence §6.1 connection reset);
 - for mutations with `bytes_sent > 0`, leaves the application in `indeterminate` (reconcile via read
   or application idempotency).
+
+Check the absolute deadline even when send/read can make immediate progress or a complete response
+is already buffered. Response materialization and validation are inside the same budget; resuming
+after descheduling must not turn an elapsed request into success.
 
 Daemon policy for work already admitted on the server is defined by the server model (admitted
 durable mutations are not cancelled by client disconnect **or** by daemon

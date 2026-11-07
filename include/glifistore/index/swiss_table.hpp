@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Flat open-addressing Index with inline keys and bounded-capacity preparation.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -20,10 +24,10 @@ inline constexpr std::uint8_t kSwissDeleted = 0xFE;
 inline constexpr float kSwissMaxLoadFactor = 7.0f / 8.0f;
 inline constexpr std::size_t kSwissInlineKeyBytes = 24;
 
-// Production Index partition: flat open-addressing table in the SwissTable layout.
+/// Production Index partition: flat open-addressing table in the SwissTable layout.
 class SwissTableIndex final {
   public:
-    // Uses process Index hash seed (ADR 0026) unless an explicit seed is passed.
+    /// Uses process Index hash seed (ADR 0026) unless an explicit seed is passed.
     explicit SwissTableIndex(std::uint64_t seed = get_index_hash_seed());
     SwissTableIndex(WorkerRoutingState routing, std::uint64_t seed = get_index_hash_seed());
 
@@ -31,22 +35,50 @@ class SwissTableIndex final {
         return seed_;
     }
 
+    /**
+     * @brief Look up an exact binary key without taking a lock; the owner supplies serialization.
+     */
     [[nodiscard]] auto find(std::string_view key) const -> std::optional<RecordRef>;
+    /**
+     * @brief Look up an exact binary key without taking a lock; the owner supplies serialization.
+     */
     [[nodiscard]] auto find(const HashedKey& key) const -> std::optional<RecordRef>;
+    /**
+     * @brief Publish a physical reference and return any displaced reference; no Segment pin is created.
+     */
     [[nodiscard]] auto insert_or_assign(std::string_view key, RecordRef ref) -> Result<IndexMutationResult>;
+    /**
+     * @brief Publish a physical reference and return any displaced reference; no Segment pin is created.
+     */
     [[nodiscard]] auto insert_or_assign(const HashedKey& key, RecordRef ref) -> Result<IndexMutationResult>;
+    /**
+     * @brief Remove an Index entry and return its former reference, if present.
+     */
     auto erase(std::string_view key) -> IndexMutationResult;
+    /**
+     * @brief Remove an Index entry and return its former reference, if present.
+     */
     auto erase(const HashedKey& key) -> IndexMutationResult;
+    /**
+     * @brief Erase without rebuilding table/arena storage, for allocation-prepared replay.
+     */
     auto erase_no_compact(const HashedKey& key) -> IndexMutationResult;
+    /**
+     * @brief Reserve table capacity for count entries; capacity/allocation errors remain explicit.
+     */
     [[nodiscard]] auto reserve(std::size_t count) -> Status;
-    // Prepares every allocation needed to insert this key. With external
-    // serialization, the subsequent insert_or_assign cannot grow the table or
-    // the heap-key arena.
+    /// Prepares every allocation needed to insert this key. With external
+    /// serialization, the subsequent insert_or_assign cannot grow the table or
+    /// the heap-key arena.
     [[nodiscard]] auto prepare_insert(const HashedKey& key) -> Status;
-    // Reserves the aggregate table and heap-key capacity required by staged
-    // inserts that will be published later as one externally serialized batch.
+    /// Reserves the aggregate table and heap-key capacity required by staged
+    /// inserts that will be published later as one externally serialized batch.
     [[nodiscard]] auto prepare_batch_insert(std::size_t additional_entries,
                                             std::size_t additional_heap_key_bytes) -> Status;
+    /**
+     * @brief Allocate an owning key/reference snapshot; references still require independent Segment lifetime
+     * ownership.
+     */
     [[nodiscard]] auto entries() const -> std::vector<IndexEntry>;
     [[nodiscard]] auto stats() const noexcept -> IndexStats;
     [[nodiscard]] auto clone_empty() const -> SwissTableIndex;

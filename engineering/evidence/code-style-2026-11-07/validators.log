@@ -1,0 +1,24 @@
+$ actionlint .github/workflows/static-analysis.yml
+exit=0
+$ bash -n scripts/dev.sh scripts/bootstrap-macos.sh
+exit=0
+$ .tools/venv/bin/python engineering/tools/validate_actions_pins.py
+Actions pin validation OK (221 SHA-pinned uses across 27 workflows)
+Dependabot discipline is present
+exit=0
+$ .tools/venv/bin/python engineering/tools/validate_assurance.py --write-generated
+Wrote docs/production-readiness.md, docs/assurance/gates.md, docs/assurance/hazards.md
+Assurance validation OK (45 requirements, 40 hazards, 33 gates, 3 waivers; 0 warning(s))
+exit=0
+$ .tools/venv/bin/python engineering/tools/validate_assurance.py
+Assurance validation OK (45 requirements, 40 hazards, 33 gates, 3 waivers; 0 warning(s))
+exit=0
+$ .tools/venv/bin/python engineering/tools/validate_structure_debt.py
+Structure debt validation OK (max_lines=1600, files=377, waivers=3)
+exit=0
+$ .tools/venv/bin/python engineering/tools/validate_documentation.py
+Documentation validation OK (281 Markdown files, 1204 local links)
+exit=0
+$ git diff --check
+exit=0
+New style documents: 17 local links; 0 issues

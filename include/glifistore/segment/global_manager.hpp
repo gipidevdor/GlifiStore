@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Shared registry and allocation of Segment identities across Worker owners.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -13,7 +17,7 @@
 
 namespace glifistore {
 
-// Global Segment Manager: live catalog, deterministic snapshots, and retirement accounting.
+/// Global Segment Manager: live catalog, deterministic snapshots, and retirement accounting.
 class GlobalSegmentManager final {
   public:
     explicit GlobalSegmentManager(SegmentId first_id = SegmentId{1});

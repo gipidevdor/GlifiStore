@@ -59,3 +59,14 @@ python3 engineering/tools/validate_assurance.py --write-generated
 Use Conventional Commits. Prefer one purpose per commit. Update requirements/gates/hazards when
 behavior or evidence changes. Keep README status as architectural prototype until gates justify
 otherwise.
+
+## C++ code style — every change
+
+Follow [`docs/development/code-style.md`](docs/development/code-style.md) for all new or modified
+native code. `.clang-format` is the layout authority; `.clang-format-version` pins the exact tool.
+Run `./scripts/dev.sh format` and `./scripts/dev.sh format-check` before handoff. The same checker
+runs in CI and covers tracked and untracked native sources, including C ABI consumers, tools and
+probes. Keep descriptive names with units, explicit ownership/error contracts, braced control flow
+and direct includes. Comments explain invariants and reasons. Do not add blanket lint suppressions,
+enable every analyzer check indiscriminately, or use cosmetic work to change runtime semantics.
+Keep mechanical formatting separate from behavior changes and retain appropriate verification.

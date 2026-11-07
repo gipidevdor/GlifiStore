@@ -387,6 +387,9 @@ auto migrate_durable_store(const std::filesystem::path& source, const std::files
         return unexpected(source_verification.error());
     }
     report.source_verification = std::move(*source_verification);
+    if (report.source_verification.manifest.format_version == 2) {
+        return fail(ErrorCode::invalid_argument, "v2 blob migration is unsupported");
+    }
     report.source_worker_count = report.source_verification.manifest.worker_count;
 
     const auto source_store_id = report.source_verification.manifest.store_id;

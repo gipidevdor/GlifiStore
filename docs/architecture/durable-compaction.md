@@ -174,19 +174,25 @@ mutex-elided exclusive Writer path, Phase A arms the Worker-local `compaction_co
 waits for `hot_path_depth == 0` before enumerating the Index (shared catalog lock alone does not
 serialize exclusive mutates that skip `worker.mutex`); the gate is cleared before Phase B so ordinary
 mutations continue during the unlocked build. Reads and ordinary mutations continue on that Worker
-during Phase B. A mutation wins publication: sequence/batch drift
-causes a finite `sequence_conflict`, durable removal of replacement files and intent under the still
+during Phase B. ADR 0043 records post-snapshot Index changes in a bounded, preallocated delta.
+Overflow, a pending/closing group, or changed Manifest/source identity causes a finite `sequence_conflict`, durable removal of replacement files and intent under the still
 authoritative old manifest, and no fail-close unless rollback itself becomes uncertain. Publication
 uses a non-waiting Worker try-lock and the catalog-exclusive lock only to validate and prepare
 already-reserved vectors. It then installs a Worker-local logical commit gate and releases every
 physical mutex before quiesce waits and the durable manifest write, sync, rename, and directory
 sync. On the mutex-elided exclusive Writer path it waits for `hot_path_depth == 0` (and otherwise
 for `!mutation_io_active`) only after that unlock, then reacquires the locks and revalidates
-sequence / batch / source pins; drift aborts with finite `sequence_conflict` and rolls back
+batch / Manifest / source pins; conflict aborts with finite `sequence_conflict` and rolls back
 replacements under the old authority — holding catalog across the depth wait would deadlock a
 mutate that already entered the hot path and needs shared catalog after append. Reads continue
 through the old Index and pinned sources. Mutations on that Worker receive a finite
 `sequence_conflict`; flush paths wait on a condition variable that releases the Worker mutex.
+Before Manifest I/O, the drained Worker freezes TTL Index housekeeping and detaches the delta.
+The private replacement Index has worst-case replay capacity reserved before intent publication.
+Replay runs without Worker/catalog mutexes; it applies recorded references/erasures in order and
+updates active/sealed live byte counts independently of copy bytes. Expired GETs still miss while
+housekeeping is deferred. See [ADR 0043](../adr/0043-bounded-compaction-delta.md) for ownership,
+entry/key limits, telemetry and abort obligations.
 After durable publication, the runtime reacquires the locks, refreshes retained commit metadata
 that other Workers may have advanced, performs the allocation-free in-memory switch, and clears
 the gate. Source retirement and final audit also run unlocked.

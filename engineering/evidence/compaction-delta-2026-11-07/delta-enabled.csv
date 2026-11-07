@@ -1,0 +1,18 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=-dirty
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.4.1.1)
+# benchmark_warmup=0
+# benchmark_repeats=3
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=mixed
+# threads=2;operations=10000;keys=128;value_bytes=4096;reclaim_value_bytes=262144;put_percent=10;cooldown_ms=0
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=0;seed_operations=1024;seed_flush=true;compaction_delta_entries=4096
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,generation_backpressure_retries,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_no_gain_scans_suppressed,maintenance_no_gain_retry_after_ns,maintenance_pacing_delay_ms,maintenance_pacing_sleep_count,maintenance_pacing_burst_bytes,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after,p999_us,get_p999_us,put_p999_us,compaction_replayed_records,compaction_delta_overflow_aborts,compaction_manifest_conflict_aborts,compaction_abandoned_copy_bytes,compaction_maximum_snapshot_ns,compaction_maximum_commit_gate_ns,compaction_conflict_retries
+cooperative,1,10000,8994,1006,0,0.537445,18606.556543,53.333000,131.041000,1148.958000,6434.000000,53.291000,122.167000,139.209000,1155.334000,82.500000,1707.416000,2898.833000,6434.000000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3,2898.833000,472.791000,5851.791000,1006,0,0,0,87292,109430709,0
+cooperative,2,10000,8994,1006,0,0.435942,22938.833522,53.208000,124.417000,174.708000,4184.000000,53.167000,119.208000,132.083000,225.875000,70.750000,314.333000,2603.708000,4184.000000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3,2603.708000,175.041000,4087.208000,1006,0,0,0,90458,16129958,0
+cooperative,3,10000,8994,1006,0,0.461794,21654.686947,53.125000,124.042000,191.209000,6871.708000,53.083000,119.292000,131.584000,200.041000,70.917000,767.292000,3040.750000,6871.708000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3,3040.750000,143.917000,6331.292000,1006,0,0,0,88583,59649875,0

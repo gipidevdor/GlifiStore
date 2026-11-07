@@ -85,6 +85,10 @@ class CiWorkflowTests(unittest.TestCase):
             "bugprone-use-after-move",
             "clang-analyzer-deadcode.DeadStores",
             "readability-inconsistent-declaration-parameter-name",
+            "readability-braces-around-statements",
+            "readability-duplicate-include",
+            "modernize-use-nullptr",
+            "modernize-use-override",
         ):
             self.assertIn(check, gate)
         self.assertIn(
@@ -101,10 +105,10 @@ class CiWorkflowTests(unittest.TestCase):
         self.assertIn("(bounded, required)", workflow)
         self.assertIn('timeout 480 "./engineering/formal/${{ matrix.model }}/run-tlc.sh"', workflow)
         self.assertIn(
-            "011267fca25d0752cf18894dd585cd28b96960c112ea8a20b823ea770e7e10cd",
+            "e1f11b75c4b5bc4478ba0ac5cb6ae28e40a01b0016bc33e0aa97da22dfdbcd7f",
             workflow,
         )
-        self.assertIn("releases/assets/692577622", workflow)
+        self.assertIn("releases/assets/718777374", workflow)
         self.assertIn("Accept: application/octet-stream", workflow)
         self.assertIn("sha256sum -c -", workflow)
         self.assertNotIn("best-effort", workflow)

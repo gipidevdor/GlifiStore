@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Connection slot plus generation identity for rejecting stale completions.
+ */
 #pragma once
 
 #include <cstdint>
@@ -5,6 +9,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Slot plus nonwrapping generation identity; compare both before accepting asynchronous completion.
+ */
 struct ConnectionToken {
     std::uint32_t slot{};
     std::uint32_t generation{};
@@ -19,10 +26,10 @@ struct ConnectionToken {
     }
 };
 
-// A generation value is published to pollers and asynchronous completion
-// queues, so wrapping it would make a sufficiently old token valid again.
-// Permanently retire the individual slot at exhaustion instead of reusing an
-// identity that concurrent observers may still hold.
+/// A generation value is published to pollers and asynchronous completion
+/// queues, so wrapping it would make a sufficiently old token valid again.
+/// Permanently retire the individual slot at exhaustion instead of reusing an
+/// identity that concurrent observers may still hold.
 [[nodiscard]] inline constexpr auto advance_connection_generation(std::uint32_t& generation) noexcept
     -> bool {
     if (generation == 0U) {

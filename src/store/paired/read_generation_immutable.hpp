@@ -104,7 +104,8 @@ class ImmutableReadIndex final {
         if (decoded->expired(now_ns)) {
             return fail(ErrorCode::not_found, "key not found");
         }
-        return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns);
+        return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns,
+                                      decoded->type);
     }
 
     [[nodiscard]] auto prepare_durable(const HashedKey& key) const

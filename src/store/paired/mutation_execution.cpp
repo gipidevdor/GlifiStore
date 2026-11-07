@@ -36,11 +36,11 @@ auto classify_volatile_mutation_error(Error error, bool& sticky_indeterminate) n
 
 auto execute_durable_single(Store& store, const std::size_t shard, const MutationKind kind,
                             const HashedKey& key, const std::span<const std::byte> value,
-                            const std::uint64_t expire_at_ns) -> DurableMutationResult {
+                            const std::uint64_t expire_at_ns, const ValueType type) -> DurableMutationResult {
     DurableMutationResult result;
     for (unsigned attempt = 0; attempt < 2; ++attempt) {
         result = kind == MutationKind::put
-                     ? detail::StoreAccess::put_durable(store, shard, key, value, expire_at_ns)
+                     ? detail::StoreAccess::put_durable(store, shard, key, value, expire_at_ns, type)
                      : detail::StoreAccess::erase_durable(store, shard, key);
         if (!detail::StoreAccess::should_retry_durable_mutation(result, attempt)) {
             break;

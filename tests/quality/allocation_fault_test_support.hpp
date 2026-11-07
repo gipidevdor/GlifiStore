@@ -102,6 +102,9 @@ struct WriteBoundaryObserver {
         case glifistore::FilesystemOperation::remove_compaction_segment:
         case glifistore::FilesystemOperation::copy_backup_segment:
         case glifistore::FilesystemOperation::copy_backup_manifest:
+        case glifistore::FilesystemOperation::write_blob_chunk:
+        case glifistore::FilesystemOperation::install_blob_file:
+        case glifistore::FilesystemOperation::link_blob_file:
             return true;
         case glifistore::FilesystemOperation::sync_parent_directory:
         case glifistore::FilesystemOperation::sync_manifest:
@@ -112,6 +115,8 @@ struct WriteBoundaryObserver {
         case glifistore::FilesystemOperation::sync_bootstrap:
         case glifistore::FilesystemOperation::sync_compaction_intent:
         case glifistore::FilesystemOperation::sync_backup_destination:
+        case glifistore::FilesystemOperation::sync_blob_file:
+        case glifistore::FilesystemOperation::sync_blob_directory:
             return false;
         }
         return false;

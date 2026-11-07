@@ -628,8 +628,8 @@ void ShardPairRuntime::wait_sync_done(SyncMutation& node) noexcept {
 }
 
 auto ShardPairRuntime::mutate(const std::size_t shard, const MutationKind kind, const HashedKey& key,
-                              const std::span<const std::byte> value, const std::uint64_t expire_at_ns)
-    -> Status {
+                              const std::span<const std::byte> value, const std::uint64_t expire_at_ns,
+                              const ValueType type) -> Status {
     if (shard >= lanes_.size()) {
         return fail(ErrorCode::invalid_argument, "paired mutation shard is out of range");
     }
@@ -657,7 +657,7 @@ auto ShardPairRuntime::mutate(const std::size_t shard, const MutationKind kind, 
         return fail(ErrorCode::unavailable, "paired runtime is fail-closed");
     }
 
-    SyncMutation node{.kind = kind, .key = &key, .value = value, .expire_at_ns = expire_at_ns};
+    SyncMutation node{.kind = kind, .type = type, .key = &key, .value = value, .expire_at_ns = expire_at_ns};
     auto& lane = *lanes_[shard];
     GS_FAULT_SITE(enqueue);
     {

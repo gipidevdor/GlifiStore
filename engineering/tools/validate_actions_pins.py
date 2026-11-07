@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail if any GitHub Actions workflow uses a mutable tag instead of a commit SHA."""
+"""Require immutable Action pins and one consistent CodeQL Action revision."""
 
 from __future__ import annotations
 
@@ -45,6 +45,7 @@ def main() -> int:
     workflows = sorted((root / ".github" / "workflows").glob("*.yml"))
     errors: list[str] = []
     pinned = 0
+    codeql_refs: dict[str, list[str]] = {}
     for path in workflows:
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             match = USES_RE.match(line)
@@ -59,11 +60,24 @@ def main() -> int:
             name, ref = action.rsplit("@", 1)
             if SHA_RE.fullmatch(ref):
                 pinned += 1
+                if name.startswith("github/codeql-action/"):
+                    codeql_refs.setdefault(ref, []).append(
+                        f"{path.relative_to(root)}:{lineno}"
+                    )
                 continue
             errors.append(
                 f"{path.relative_to(root)}:{lineno}: mutable Action ref "
                 f"{name}@{ref} (require 40-char commit SHA)"
             )
+    if len(codeql_refs) > 1:
+        revisions = "; ".join(
+            f"{ref} at {', '.join(locations)}"
+            for ref, locations in sorted(codeql_refs.items())
+        )
+        errors.append(
+            "github/codeql-action steps must use the same commit SHA across "
+            f"all workflows: {revisions}"
+        )
     validate_dependabot(root, errors)
     if errors:
         for err in errors:

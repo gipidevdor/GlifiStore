@@ -121,6 +121,10 @@ auto DurableSegmentFile::append_record(const std::span<const std::byte> encoded_
     if (!record) {
         return commit_failure(SegmentCommitOutcome::not_committed, record.error());
     }
+    if (record->format_version != identity_.format_version) {
+        return commit_failure(SegmentCommitOutcome::not_committed,
+                              Error{ErrorCode::invalid_record, "Record/Segment version mismatch"});
+    }
     if (record->sequence.value == 0 || (selected_.commit.record_count != 0 &&
                                         record->sequence.value <= selected_.commit.last_sequence.value)) {
         return commit_failure(
@@ -281,6 +285,9 @@ auto DurableSegmentFile::visit_committed_records(void* context, const CommittedR
         if (!record) {
             return unexpected(record.error());
         }
+        if (record->format_version != identity_.format_version) {
+            return fail(ErrorCode::invalid_record, "Record/Segment version mismatch");
+        }
         if (record->sequence.value == 0 ||
             (previous.value != 0 && record->sequence.value <= previous.value)) {
             return fail(ErrorCode::corrupted_data,
@@ -356,6 +363,9 @@ auto DurableSegmentFile::read_record_into_extent(const RecordRef& reference, con
     const auto decoded = decode_record(bytes);
     if (!decoded) {
         return unexpected(decoded.error());
+    }
+    if (decoded->format_version != identity_.format_version) {
+        return fail(ErrorCode::invalid_record, "Record/Segment version mismatch");
     }
     if (decoded->sequence != reference.sequence || decoded->encoded_size != reference.size.value) {
         return fail(ErrorCode::invalid_reference, "Record reference metadata does not match encoded data");

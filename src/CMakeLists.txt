@@ -13,6 +13,10 @@ glifistore_enable_hardening(glifistore_cli_support)
 set_target_properties(glifistore_cli_support PROPERTIES FOLDER "Libraries/Internal")
 
 set(GLIFISTORE_CORE_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/persistence/blob_codec.cpp
+    ${CMAKE_SOURCE_DIR}/src/persistence/blob_storage.cpp
+    ${CMAKE_SOURCE_DIR}/src/persistence/blob_recovery.cpp
+    ${CMAKE_SOURCE_DIR}/src/store/store_blob.cpp
     ${CMAKE_SOURCE_DIR}/src/core/fault_injection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/hot_path_phases.cpp
     ${CMAKE_SOURCE_DIR}/src/core/worker_routing.cpp
@@ -39,6 +43,7 @@ set(GLIFISTORE_CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/persistence/recovery/recovery_scanner.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/resource_limits.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/runtime_catalog.cpp
+    ${CMAKE_SOURCE_DIR}/src/persistence/runtime_catalog_blobs.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/runtime_catalog_batch.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/runtime_catalog_detail.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/runtime_catalog_read_ops.cpp

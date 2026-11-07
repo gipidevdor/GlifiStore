@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief SwissTable control-byte matching without reading key payloads.
+ */
 #pragma once
 
 #include "glifistore/index/swiss_table.hpp"

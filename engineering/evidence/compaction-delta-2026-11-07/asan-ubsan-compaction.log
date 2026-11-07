@@ -1,0 +1,143 @@
+[RUN] compaction intent v1 matches its independent golden fixture
+[PASS] compaction intent v1 matches its independent golden fixture
+[RUN] compaction intent rejects truncation trailing bytes and checksum corruption
+[PASS] compaction intent rejects truncation trailing bytes and checksum corruption
+[RUN] compaction intent binds its header to canonical old and next manifests
+[PASS] compaction intent binds its header to canonical old and next manifests
+[RUN] compaction intent fails closed for unknown versions and nonzero reserved bytes
+[PASS] compaction intent fails closed for unknown versions and nonzero reserved bytes
+[RUN] durable compaction output sizing accounts for reserved Segment headers
+[PASS] durable compaction output sizing accounts for reserved Segment headers
+[RUN] durable compaction exact layout accounts for Record boundary fragmentation
+[PASS] durable compaction exact layout accounts for Record boundary fragmentation
+[RUN] durable compaction replaces a complete Worker sealed set in one manifest
+[PASS] durable compaction replaces a complete Worker sealed set in one manifest
+[RUN] empty durable compaction can retire an entirely obsolete sealed history
+[PASS] empty durable compaction can retire an entirely obsolete sealed history
+[RUN] durable compaction rejects unsafe identity and non-reclaiming plans
+[PASS] durable compaction rejects unsafe identity and non-reclaiming plans
+[RUN] durable compaction enforces temporary peak and amplification budgets
+[PASS] durable compaction enforces temporary peak and amplification budgets
+[RUN] foreground p99 suspends normal compaction and pressure bypasses latency fairness
+[PASS] foreground p99 suspends normal compaction and pressure bypasses latency fairness
+[RUN] namespace audit distinguishes compaction temporary from durable recovery intent
+[PASS] namespace audit distinguishes compaction temporary from durable recovery intent
+[RUN] compaction intent publication reads and removes one exact transaction
+[PASS] compaction intent publication reads and removes one exact transaction
+[RUN] compaction intent prepublication fault matrix leaves no authority
+[PASS] compaction intent prepublication fault matrix leaves no authority
+[RUN] compaction intent post-rename sync failure is reopenable and indeterminate
+[PASS] compaction intent post-rename sync failure is reopenable and indeterminate
+[RUN] compaction intent removal sync failure is indeterminate after unlink
+[PASS] compaction intent removal sync failure is indeterminate after unlink
+[RUN] compaction intent removal fault before unlink preserves the authority
+[PASS] compaction intent removal fault before unlink preserves the authority
+[RUN] fenced backup concurrent with mutation and compaction keeps source healthy
+[PASS] fenced backup concurrent with mutation and compaction keeps source healthy
+[RUN] durable compaction builder copies exact visible Records and preserves v1 sequences
+[PASS] durable compaction builder copies exact visible Records and preserves v1 sequences
+[RUN] durable compaction builder prepares zero-output retirement without fabricating Records
+[PASS] durable compaction builder prepares zero-output retirement without fabricating Records
+[RUN] durable compaction rejected intent gate leaves the namespace untouched
+[PASS] durable compaction rejected intent gate leaves the namespace untouched
+[RUN] durable compaction staged copy failure remains pre-intent and cleans its temporary
+[PASS] durable compaction staged copy failure remains pre-intent and cleans its temporary
+[RUN] durable compaction promotion failure after intent is rolled back on reopen
+[PASS] durable compaction promotion failure after intent is rolled back on reopen
+[RUN] durable runtime installs and retires one Worker compaction atomically
+[PASS] durable runtime installs and retires one Worker compaction atomically
+[RUN] durable runtime builds two compaction outputs and reopens every maximum Record
+[PASS] durable runtime builds two compaction outputs and reopens every maximum Record
+[RUN] multi-seed durable compaction histories match their models before and after reopen
+[PASS] multi-seed durable compaction histories match their models before and after reopen
+[RUN] durable runtime fails closed when online compaction requires recovery
+[PASS] durable runtime fails closed when online compaction requires recovery
+[RUN] ordinary recovery cleans a pre-intent staged compaction temporary
+[PASS] ordinary recovery cleans a pre-intent staged compaction temporary
+[RUN] online compaction preserves another Worker's cached Segment after catalog compaction
+[PASS] online compaction preserves another Worker's cached Segment after catalog compaction
+[RUN] public Store compaction scheduler advances one Worker per call
+[PASS] public Store compaction scheduler advances one Worker per call
+[RUN] compaction temporary-space budget rejects before intent without residue
+[PASS] compaction temporary-space budget rejects before intent without residue
+[RUN] compaction write-amplification budget rejects before intent without residue
+[PASS] compaction write-amplification budget rejects before intent without residue
+[RUN] compaction recovery rolls back exact replacements when the old manifest wins
+[PASS] compaction recovery rolls back exact replacements when the old manifest wins
+[RUN] compaction recovery retires exact sources when the next manifest wins
+[PASS] compaction recovery retires exact sources when the next manifest wins
+[RUN] multi-output compaction rollback resumes after a partial replacement unlink
+[PASS] multi-output compaction rollback resumes after a partial replacement unlink
+[RUN] multi-output compaction rollback removes a partially created second replacement
+[PASS] multi-output compaction rollback removes a partially created second replacement
+[RUN] multi-output compaction retirement resumes after a partial source unlink
+[PASS] multi-output compaction retirement resumes after a partial source unlink
+[RUN] compaction recovery rejects a manifest outside both intent authorities
+[PASS] compaction recovery rejects a manifest outside both intent authorities
+[RUN] compaction recovery rejects an unrelated unlisted Segment
+[PASS] compaction recovery rejects an unrelated unlisted Segment
+[RUN] compaction recovery preserves all files when retirement fails before its first unlink
+[PASS] compaction recovery preserves all files when retirement fails before its first unlink
+[RUN] compaction recovery resumes an indeterminate partially retired source set
+[PASS] compaction recovery resumes an indeterminate partially retired source set
+[RUN] compaction recovery resumes after retirement directory sync is indeterminate
+[PASS] compaction recovery resumes after retirement directory sync is indeterminate
+[RUN] compaction recovery resumes when intent removal fails before unlink
+[PASS] compaction recovery resumes when intent removal fails before unlink
+[RUN] compaction recovery reopens ordinarily after intent removal sync is indeterminate
+[PASS] compaction recovery reopens ordinarily after intent removal sync is indeterminate
+[RUN] blocked durable compaction build permits same-Worker reads and mutations
+[PASS] blocked durable compaction build permits same-Worker reads and mutations
+[RUN] blocked pre-intent compaction copy lets an unrelated rotation commit
+[PASS] blocked pre-intent compaction copy lets an unrelated rotation commit
+[RUN] rotation waiting on compaction intent does not block its Worker queue
+[PASS] rotation waiting on compaction intent does not block its Worker queue
+[RUN] compaction manifest sync holds no Worker or catalog mutex
+[PASS] compaction manifest sync holds no Worker or catalog mutex
+[RUN] close during a blocked compaction build rolls back the old authority
+[PASS] close during a blocked compaction build rolls back the old authority
+[RUN] online compaction filesystem fault matrix reopens one clean authority
+[PASS] online compaction filesystem fault matrix reopens one clean authority
+[RUN] online compaction storage_exhausted fault matrix reopens one clean authority
+[PASS] online compaction storage_exhausted fault matrix reopens one clean authority
+[RUN] paced compaction write_record fault leaves Mold without intent
+[PASS] paced compaction write_record fault leaves Mold without intent
+[RUN] compaction delta preserves overwrite erase restore active and TTL across durable modes
+[PASS] compaction delta preserves overwrite erase restore active and TTL across durable modes
+[RUN] compaction delta replay uses reserved tables and key arena across repeated erase reinsert
+[PASS] compaction delta replay uses reserved tables and key arena across repeated erase reinsert
+[RUN] compaction delta publishes concurrent acknowledged writes through paired Store generations
+[PASS] compaction delta publishes concurrent acknowledged writes through paired Store generations
+[RUN] compaction delta budgets abort maintenance while foreground commits and retry succeeds
+[PASS] compaction delta budgets abort maintenance while foreground commits and retry succeeds
+[RUN] compaction delta acknowledged mutations survive publication and retirement I/O faults
+[PASS] compaction delta acknowledged mutations survive publication and retirement I/O faults
+[RUN] compaction delta acknowledged mutations survive process kill at persistent transitions
+[PASS] compaction delta acknowledged mutations survive process kill at persistent transitions
+[RUN] online compaction enumerates every reached filesystem failure point
+[PASS] online compaction enumerates every reached filesystem failure point
+[RUN] online compaction staging retries EINTR and short writes before intent
+[PASS] online compaction staging retries EINTR and short writes before intent
+[RUN] online compaction staging retries sync EINTR before intent
+[PASS] online compaction staging retries sync EINTR before intent
+[RUN] online compaction FileIoHooks capacity faults reject before intent
+[PASS] online compaction FileIoHooks capacity faults reject before intent
+[RUN] online compaction FileIoHooks write EIO and EROFS reject before intent
+[PASS] online compaction FileIoHooks write EIO and EROFS reject before intent
+[RUN] online compaction FileIoHooks sync EIO rejects before intent
+[PASS] online compaction FileIoHooks sync EIO rejects before intent
+[RUN] online compaction FileIoHooks intent write and sync faults reject cleanly
+[PASS] online compaction FileIoHooks intent write and sync faults reject cleanly
+[RUN] online compaction FileIoHooks promotion manifest faults recover cleanly
+[PASS] online compaction FileIoHooks promotion manifest faults recover cleanly
+[RUN] exclusive Writer with flusher does not deadlock rotation on compaction depth
+[PASS] exclusive Writer with flusher does not deadlock rotation on compaction depth
+[RUN] exclusive Writer capture_published_read takes Worker mutex under compaction
+[PASS] exclusive Writer capture_published_read takes Worker mutex under compaction
+[RUN] paired Writer preserves same-shard FIFO while compaction publication is active
+[PASS] paired Writer preserves same-shard FIFO while compaction publication is active
+[RUN] deep mutation pipeline keeps input compaction linear
+[PASS] deep mutation pipeline keeps input compaction linear
+[RUN] Store compaction is explicit maintenance and no-ops without sealed history
+[PASS] Store compaction is explicit maintenance and no-ops without sealed history
+71 tests, 0 failures

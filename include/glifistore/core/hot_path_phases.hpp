@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Optional per-phase instrumentation of mutation and publication work.
+ */
 #pragma once
 
 // Optional hot-path phase attribution for lab measurements.
@@ -14,6 +18,9 @@
 
 namespace glifistore::hot_path {
 
+/**
+ * @brief Read instrumentation phases; count is a sizing sentinel, not a measurement.
+ */
 enum class GetPhase : std::uint8_t {
     admit = 0,
     hash,
@@ -25,6 +32,9 @@ enum class GetPhase : std::uint8_t {
     count,
 };
 
+/**
+ * @brief Mutation/publication instrumentation phases; count is a sizing sentinel.
+ */
 enum class PutPhase : std::uint8_t {
     admit = 0,
     encode_copy,
@@ -54,6 +64,9 @@ enum class PutPhase : std::uint8_t {
     count,
 };
 
+/**
+ * @brief Wire I/O instrumentation phases and progress-event counters.
+ */
 enum class TcpPhase : std::uint8_t {
     decode = 0,
     route,
@@ -176,11 +189,17 @@ enum class TcpPhase : std::uint8_t {
     return "unknown";
 }
 
+/**
+ * @brief Preallocated atomic duration/sample observations; these counters do not synchronize mutations.
+ */
 struct alignas(64) PhaseBucket final {
     std::atomic<std::uint64_t> total_ns{};
     std::atomic<std::uint64_t> samples{};
 };
 
+/**
+ * @brief Copied phase duration in nanoseconds and sample count.
+ */
 struct PhaseSnapshot final {
     std::uint64_t total_ns{};
     std::uint64_t samples{};

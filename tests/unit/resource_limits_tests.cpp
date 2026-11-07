@@ -78,6 +78,12 @@ GLIFI_TEST("durable resource limit configuration rejects every invalid boundary"
     require_invalid(limits);
     limits.max_write_amplification = 65;
     require_invalid(limits);
+    limits = {};
+    limits.max_compaction_delta_entries = 65'537;
+    require_invalid(limits);
+    limits = {};
+    limits.max_compaction_delta_key_bytes = 64ULL * 1024ULL * 1024ULL + 1;
+    require_invalid(limits);
 }
 
 GLIFI_TEST("durable bootstrap and rotation budgets account for peak namespace bytes") {

@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Pure connection-drain decisions that preserve pending mutation output.
+ */
 #pragma once
 
 // Connection / input lifecycle decisions (behavior-neutral extraction).
@@ -8,6 +12,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Connection output/drain lifecycle, independent of input EOF state.
+ */
 enum class ConnectionLifecycle : std::uint8_t {
     open,
     peer_half_closed,
@@ -17,6 +24,9 @@ enum class ConnectionLifecycle : std::uint8_t {
     closed,
 };
 
+/**
+ * @brief Whether further input is accepted, incomplete, stopped, or ended.
+ */
 enum class InputLifecycle : std::uint8_t {
     accepting,
     partial_frame,
@@ -24,6 +34,9 @@ enum class InputLifecycle : std::uint8_t {
     eof,
 };
 
+/**
+ * @brief Pure close/drain/admission decision derived from outstanding work.
+ */
 enum class ConnectionAction : std::uint8_t {
     none,
     close_now,
@@ -31,7 +44,7 @@ enum class ConnectionAction : std::uint8_t {
     refuse_new_frames,
 };
 
-// Snapshot of the flags / occupancy predicates used by Reactor close paths.
+/// Snapshot of the flags / occupancy predicates used by Reactor close paths.
 struct ConnectionDrainSnapshot final {
     bool peer_read_closed{};
     bool close_after_flush{};
@@ -72,7 +85,7 @@ struct ConnectionDrainSnapshot final {
     return InputLifecycle::accepting;
 }
 
-// Single close/drain decision used by read_ready / write_ready / hangup / timeouts.
+/// Single close/drain decision used by read_ready / write_ready / hangup / timeouts.
 [[nodiscard]] constexpr auto decide_connection_action(const ConnectionDrainSnapshot s) noexcept
     -> ConnectionAction {
     if (s.forced_close && !s.has_pending_output && !s.request_in_flight) {
@@ -93,7 +106,7 @@ struct ConnectionDrainSnapshot final {
     return ConnectionAction::none;
 }
 
-// Typed view of decided bytes still owed to the peer (contiguous + optional lease).
+/// Typed view of decided bytes still owed to the peer (contiguous + optional lease).
 struct DecidedOutput final {
     std::size_t contiguous_bytes{};
     std::size_t lease_header_remaining{};

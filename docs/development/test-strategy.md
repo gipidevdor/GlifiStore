@@ -42,7 +42,10 @@ Protocol changes cover exact headers, partial frames, multiple pipelined frames,
 - Fuzzing: record, manifest, Segment header, intent, and protocol decoders.
 - Warnings-as-errors and formatting: every supported compiler profile. A compile-database pass over
   production sources treats unchecked optional access, use-after-move, analyzer dead stores, and
-  declaration/definition parameter drift as hard failures. The broader all-target clang-tidy build
+  declaration/definition parameter drift, unbraced bodies, duplicate includes, obsolete null constants
+  and missing `override` as hard failures. The [native code style](code-style.md) fixes the exact
+  formatter version and shares one complete source inventory between local checks and CI.
+  The broader all-target clang-tidy build
   remains visible for triage without conflating known test-macro/toolchain noise with a closed gate.
 - Documentation: every tracked Markdown file is UTF-8 and its repository-local links resolve with
   exact path case; network-dependent links remain a separate scheduled check.

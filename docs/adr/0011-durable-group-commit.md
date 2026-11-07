@@ -102,3 +102,9 @@ first boundary.
 
 Normative ordering rules are specified in
 [`durability-recovery.md`](../architecture/durability-recovery.md).
+
+## Blob-profile amendment (2026-11-07)
+
+[ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
+Strict blob groups batch small typed descriptors after every payload dependency is durable; payload buffers are never inserted into the Writer mutation lane.
+Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.

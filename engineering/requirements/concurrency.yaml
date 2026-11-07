@@ -38,6 +38,7 @@ requirements:
   - tests/unit/shard_combining_executor_tests.cpp
   - tests/unit/pair_read_generation_tests.cpp
   - tests/unit/generation_slot_pool_production_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
   - tests/integration/server_reactor_paired_tests.cpp
   - tests/integration/server_reactor_server_tests.cpp
   - tests/integration/server_reactor_durable_lifecycle_tests.cpp
@@ -51,6 +52,8 @@ requirements:
   - path: engineering/evidence/paired-generation-admission-local-2026-08-27.md
   - path: benchmarks/results/local-macos-2026-08-27-read-generation-memory/README.md
   - path: engineering/evidence/adr0036-production-slot-local-2026-08-27.md
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Allocation-free slot-pool observer/mirror regression; local only
   rischio_residuo:
   - legacy_mutex remains temporary until 0.2 (GS-CONCUR-LEGACY-001); multi-shard composition relies on
     routing independence; embedded catalog refresh may defer until a combiner turn; ADR 0036

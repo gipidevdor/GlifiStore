@@ -14,3 +14,8 @@ CMakeLists.txt text
 
 # Preserve vendored theme assets byte-for-byte, including upstream whitespace.
 docs/doxygen/theme/** -whitespace
+
+# Preserve retained campaign bytes and patch context covered by artifact checksums.
+engineering/evidence/code-style-2026-11-07/build.log -whitespace
+engineering/evidence/compaction-delta-2026-11-07/validated-v1.patch -whitespace
+engineering/evidence/cpp-correctness-2026-11-07/asan-tests.log -whitespace

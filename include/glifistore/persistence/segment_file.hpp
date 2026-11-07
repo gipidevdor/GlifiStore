@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Durable Segment file lifecycle and alternating commit-slot publication.
+ */
 #pragma once
 
 #include "glifistore/persistence/filesystem.hpp"
@@ -16,9 +20,21 @@ namespace glifistore {
 
 struct RecordView;
 
+/**
+ * @brief Knowledge of Segment-name publication and its directory durability.
+ */
 enum class SegmentFileCreationOutcome { durable, not_published, indeterminate };
+/**
+ * @brief Knowledge of the requested Segment commit boundary; indeterminate can require fail-closed recovery.
+ */
 enum class SegmentCommitOutcome { committed, not_committed, indeterminate };
+/**
+ * @brief Read-only inspection versus runtime write access.
+ */
 enum class SegmentFileOpenMode { read_only, read_write };
+/**
+ * @brief Whether to synchronize the commit immediately or defer the required boundary to coordination.
+ */
 enum class SegmentCommitSync { immediate, deferred };
 using CommittedRecordVisitor = Status (*)(void* context, const RecordRef& reference,
                                           const RecordView& record);
@@ -26,16 +42,22 @@ using RecordVisitor = Status (*)(void* context, const RecordView& record);
 
 struct SegmentFileCreationResult;
 
+/**
+ * @brief Observed file size, identity, and selected durable commit metadata.
+ */
 struct DurableSegmentInspectReport {
     std::filesystem::path path{};
     SegmentHeaderIdentity identity{};
     SelectedSegmentCommit selected{};
     std::uint64_t scanned_records{};
-    // Set when the basename parses as a canonical Segment name; true iff it
-    // matches header identity. Unset when the basename is not canonical.
+    /// Set when the basename parses as a canonical Segment name; true iff it
+    /// matches header identity. Unset when the basename is not canonical.
     std::optional<bool> filename_matches_identity{};
 };
 
+/**
+ * @brief Explicit commit knowledge with an optional error; indeterminate must not be treated as rollback.
+ */
 struct SegmentCommitResult {
     SegmentCommitOutcome outcome{SegmentCommitOutcome::not_committed};
     std::optional<Error> error;
@@ -45,25 +67,28 @@ struct SegmentCommitResult {
     }
 };
 
-// Optional single-owner pacing seam for private maintenance output. The
-// callback may wait and returns the maximum number of bytes allowed for the
-// next physical write. It must return a value in [1, requested_bytes]. The
-// normal mutation path leaves this empty and therefore retains one contiguous
-// Record write.
+/// Optional single-owner pacing seam for private maintenance output. The
+/// callback may wait and returns the maximum number of bytes allowed for the
+/// next physical write. It must return a value in [1, requested_bytes]. The
+/// normal mutation path leaves this empty and therefore retains one contiguous
+/// Record write.
 struct SegmentRecordWritePacing final {
     void* context{};
     auto (*acquire)(void* context, std::size_t requested_bytes) -> Result<std::size_t>{};
 };
 
+/**
+ * @brief Move-only Segment descriptor with explicit encoded identity and alternating commit-slot updates.
+ */
 class DurableSegmentFile final {
   public:
     [[nodiscard]] static auto create(DataDirectory& directory, const SegmentHeaderIdentity& identity)
         -> SegmentFileCreationResult;
-    // Compaction-only pre-intent staging. The private temporary name is not
-    // authoritative and is deliberately not synchronized into the directory.
-    // seal() makes the file contents durable; promote_staged() later promotes
-    // the planned names and synchronizes the directory once, after the
-    // compaction intent is durable.
+    /// Compaction-only pre-intent staging. The private temporary name is not
+    /// authoritative and is deliberately not synchronized into the directory.
+    /// seal() makes the file contents durable; promote_staged() later promotes
+    /// the planned names and synchronizes the directory once, after the
+    /// compaction intent is durable.
     [[nodiscard]] static auto create_staged(DataDirectory& directory, const SegmentHeaderIdentity& identity)
         -> Result<DurableSegmentFile>;
     [[nodiscard]] static auto open_staged(DataDirectory& directory,
@@ -76,8 +101,8 @@ class DurableSegmentFile final {
     [[nodiscard]] static auto open(DataDirectory& directory, const SegmentHeaderIdentity& expected_identity,
                                    SegmentFileOpenMode mode = SegmentFileOpenMode::read_write)
         -> Result<DurableSegmentFile>;
-    // Read-only open of an absolute or relative Segment path without a data-directory
-    // lock. Used by offline inspection; never opens writable.
+    /// Read-only open of an absolute or relative Segment path without a data-directory
+    /// lock. Used by offline inspection; never opens writable.
     [[nodiscard]] static auto open_path(const std::filesystem::path& path) -> Result<DurableSegmentFile>;
 
     DurableSegmentFile(const DurableSegmentFile&) = delete;
@@ -104,22 +129,22 @@ class DurableSegmentFile final {
     [[nodiscard]] auto visit_committed_records(void* context, CommittedRecordVisitor visitor) const -> Status;
     [[nodiscard]] auto scan_committed() const -> Result<std::vector<RecordRef>>;
     [[nodiscard]] auto read_record(const RecordRef& reference) const -> Result<std::vector<std::byte>>;
-    // The RecordView is valid only for the synchronous visitor invocation.
+    /// The RecordView is valid only for the synchronous visitor invocation.
     [[nodiscard]] auto visit_record(const RecordRef& reference, void* context, RecordVisitor visitor) const
         -> Status;
-    // Reuses caller-owned storage across verified reads. The scratch bytes and
-    // RecordView remain valid only for the synchronous visitor invocation.
+    /// Reuses caller-owned storage across verified reads. The scratch bytes and
+    /// RecordView remain valid only for the synchronous visitor invocation.
     [[nodiscard]] auto visit_record(const RecordRef& reference, std::vector<std::byte>& scratch,
                                     void* context, RecordVisitor visitor) const -> Status;
-    // Runtime-only path for a RecordRef already obtained from the authoritative
-    // Worker Index together with an exact generation pin. Unlike visit_record,
-    // this permits a reference committed after this read-only handle's opening
-    // boundary; the caller must revalidate Index and pin identity after I/O.
+    /// Runtime-only path for a RecordRef already obtained from the authoritative
+    /// Worker Index together with an exact generation pin. Unlike visit_record,
+    /// this permits a reference committed after this read-only handle's opening
+    /// boundary; the caller must revalidate Index and pin identity after I/O.
     [[nodiscard]] auto visit_runtime_record(const RecordRef& reference, void* context,
                                             RecordVisitor visitor) const -> Status;
-    // Reuses lane-owned storage on the asynchronous durable GET path. Exactly
-    // one I/O consumer may use a scratch buffer at a time; the RecordView never
-    // escapes the synchronous visitor invocation.
+    /// Reuses lane-owned storage on the asynchronous durable GET path. Exactly
+    /// one I/O consumer may use a scratch buffer at a time; the RecordView never
+    /// escapes the synchronous visitor invocation.
     [[nodiscard]] auto visit_runtime_record(const RecordRef& reference, std::vector<std::byte>& scratch,
                                             void* context, RecordVisitor visitor) const -> Status;
 
@@ -167,6 +192,9 @@ class DurableSegmentFile final {
     std::uint64_t pending_bytes_{0};
 };
 
+/**
+ * @brief Creation/publication knowledge and an optional usable Segment file.
+ */
 struct SegmentFileCreationResult {
     SegmentFileCreationOutcome outcome{SegmentFileCreationOutcome::not_published};
     std::optional<DurableSegmentFile> file;
@@ -179,9 +207,9 @@ struct SegmentFileCreationResult {
 
 [[nodiscard]] auto segment_filename(const SegmentHeaderIdentity& identity) -> std::string;
 
-// Read-only validation of one Segment file: private regular file, exact size,
-// header/commit decode, optional committed-extent CRC scan. Fail-closed on any
-// disagreement; does not modify the file or take a Store lock.
+/// Read-only validation of one Segment file: private regular file, exact size,
+/// header/commit decode, optional committed-extent CRC scan. Fail-closed on any
+/// disagreement; does not modify the file or take a Store lock.
 [[nodiscard]] auto inspect_durable_segment(const std::filesystem::path& path, bool scan_records = true)
     -> Result<DurableSegmentInspectReport>;
 

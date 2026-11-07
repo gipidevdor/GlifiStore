@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Capability policy and peer/principal authorization for wire operations.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -14,6 +18,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Composable principal permissions; none grants no operation.
+ */
 enum class Capability : std::uint8_t {
     none = 0,
     read = 1 << 0,
@@ -45,13 +52,17 @@ enum class Capability : std::uint8_t {
 [[nodiscard]] auto parse_capability_token(std::string_view token) -> Result<Capability>;
 [[nodiscard]] auto capability_name(Capability capability) noexcept -> std::string_view;
 
-// Phase 8 first slice: optional key-prefix scope per principal (ADR 0022 amendment / ADR 0025).
-// Empty key_prefix means unrestricted keyspace for that principal's capabilities.
+/// Phase 8 first slice: optional key-prefix scope per principal (ADR 0022 amendment / ADR 0025).
+/// Empty key_prefix means unrestricted keyspace for that principal's capabilities.
 struct AuthzGrant final {
     Capability capabilities{Capability::none};
     std::string key_prefix{};
 };
 
+/**
+ * @brief Principal capability/prefix policy loaded before serving requests; grants are read without
+ * per-request parsing.
+ */
 class AuthzPolicy final {
   public:
     AuthzPolicy() = default;
@@ -97,8 +108,8 @@ class AuthzPolicy final {
 };
 
 [[nodiscard]] auto required_capability(RequestOpcode opcode) noexcept -> Capability;
-// When key_prefix is non-empty (prefix-scoped principal), STATS requires admin
-// (ADR 0027 / Phase 8 STATS isolation). Pass empty prefix for unrestricted principals.
+/// When key_prefix is non-empty (prefix-scoped principal), STATS requires admin
+/// (ADR 0027 / Phase 8 STATS isolation). Pass empty prefix for unrestricted principals.
 [[nodiscard]] auto required_capability(RequestOpcode opcode, std::string_view key_prefix) noexcept
     -> Capability;
 [[nodiscard]] auto opcode_requires_key_prefix_check(RequestOpcode opcode) noexcept -> bool;

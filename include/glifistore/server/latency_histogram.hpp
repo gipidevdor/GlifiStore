@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Server-facing latency histogram compatibility aliases.
+ */
 #pragma once
 
 // Compatibility shim: LatencyHistogram lives in glifistore_core so paired Store

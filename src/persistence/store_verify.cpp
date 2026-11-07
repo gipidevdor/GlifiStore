@@ -1,6 +1,7 @@
 #include "glifistore/persistence/store_verify.hpp"
 
 #include "glifistore/persistence/segment_file.hpp"
+#include "persistence/blob_storage.hpp"
 
 #include <utility>
 
@@ -53,12 +54,11 @@ auto verify_durable_store(DataDirectory& directory, const bool scan_records,
     report.segments.reserve(report.manifest.segments.size());
 
     for (const auto& entry : report.manifest.segments) {
-        const SegmentHeaderIdentity identity{
-            .store_id = report.manifest.store_id,
-            .segment_id = entry.segment_id,
-            .generation = entry.generation,
-            .owner_worker = entry.owner_worker,
-        };
+        const SegmentHeaderIdentity identity{.store_id = report.manifest.store_id,
+                                             .segment_id = entry.segment_id,
+                                             .generation = entry.generation,
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = report.manifest.format_version};
         auto opened = DurableSegmentFile::open(directory, identity, SegmentFileOpenMode::read_only);
         if (!opened) {
             return unexpected(opened.error());
@@ -94,6 +94,16 @@ auto verify_durable_store(DataDirectory& directory, const bool scan_records,
             ++report.active_requires_rotation_count;
         }
         report.segments.push_back(verified);
+    }
+    if (report.manifest.format_version == 2) {
+        auto blobs = detail::BlobStorage::open(directory, report.manifest, {}, 0);
+        if (!blobs) {
+            return unexpected(blobs.error());
+        }
+        auto roots = detail::verify_blob_closure(directory, report.manifest, **blobs);
+        if (!roots) {
+            return unexpected(roots.error());
+        }
     }
     return report;
 }

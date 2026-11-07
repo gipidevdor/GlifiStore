@@ -1,0 +1,23 @@
+gates:
+- id: GATE-COMPACTION-DELTA
+  titolo: Concurrent whole-Worker compaction preserves v1 authority and bounded foreground work
+  sezione: durability_recovery
+  livello_rilascio: prototype
+  requisiti: [GS-PERSIST-DELTA-001]
+  prove:
+  - tests/integration/persistence_compaction_delta_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
+  - tests/quality/allocation_fault_compaction_delta_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  evidenze:
+  - path: engineering/evidence/compaction-delta-local-2026-11-07.md
+    note: Local macOS v1 scope only; no hosted or cross-platform promotion
+  stato: PROVATA_LOCALMENTE
+  rischio_residuo: Linux/BSD, combined-workspace integration and controlled tail-latency campaigns pending; no release acceptance
+  riapertura:
+  - Missing Index publication hook, changed journal ownership or weakened overflow rejection
+  - Changed authority, tombstone domain, acknowledgement or recovery ordering
+  - Concurrent rotation rebase, asynchronous cleanup or persistent/partial MVCC introduction
+  narrative: Bounded in-memory reconciliation retains exact persistence v1 transitions and existing Reader pins.

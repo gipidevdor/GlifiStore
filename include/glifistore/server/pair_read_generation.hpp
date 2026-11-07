@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Server aliases for immutable paired read generations.
+ */
 #pragma once
 
 // Compatibility header. The immutable paired read generation moved into

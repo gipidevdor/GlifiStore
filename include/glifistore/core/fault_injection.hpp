@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Deterministic failure seams for allocation and exception campaigns.
+ */
 #pragma once
 
 // Debug-only adverse scheduling hooks for concurrency stress (Phase B1).
@@ -11,6 +15,10 @@
 
 namespace glifistore::fault {
 
+/**
+ * @brief Named deterministic failure sites; instrumentation is enabled only in the corresponding build
+ * profile.
+ */
 enum class Site : std::uint8_t {
     enqueue = 1,
     mutate = 2,

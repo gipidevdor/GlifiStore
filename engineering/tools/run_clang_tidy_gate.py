@@ -19,6 +19,10 @@ HIGH_SIGNAL_CHECKS = (
     "bugprone-use-after-move",
     "clang-analyzer-deadcode.DeadStores",
     "readability-inconsistent-declaration-parameter-name",
+    "readability-braces-around-statements",
+    "readability-duplicate-include",
+    "modernize-use-nullptr",
+    "modernize-use-override",
 )
 
 

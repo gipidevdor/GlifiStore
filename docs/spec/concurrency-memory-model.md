@@ -162,6 +162,13 @@ Memory orders are chosen for a specific publication relation:
   sequence loads until they see the same even value. No census field may be used to authorize
   reclamation, visibility, admission, or dereference;
 - queue cell sequence numbers use release publication and acquire consumption; enqueue/dequeue positions may use relaxed arithmetic because cell sequence is the handoff barrier;
+- the bounded compaction journal has one serialized Index publisher. Its sticky overflow flag uses
+  release/acquire to report exhaustion; the commit gate must separately drain publishers before
+  reading non-atomic journal entries or replaying them. The publisher's relaxed overflow check does
+  not grant the compactor access to those entries;
+- owning blob reads reserve a self-contained aggregate byte charge with atomic compare/exchange
+  before allocating a materialized value. The initial relaxed load is only a reservation candidate;
+  the counter does not publish value bytes or replace the Store admission/lifetime protocol;
 - counters used only as statistics, high-water marks, or scheduling hints may be relaxed and must never be used to publish object contents.
 
 Changing an atomic's role from telemetry to correctness requires revisiting its memory order and this specification. `volatile` is not a synchronization primitive.

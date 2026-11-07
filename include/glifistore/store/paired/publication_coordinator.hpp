@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Generation admission and installation decisions before visible publication.
+ */
 #pragma once
 
 // Read-generation publication helpers (behavior-neutral extraction).
@@ -19,10 +23,10 @@
 
 namespace glifistore::store::paired {
 
-// A mutation may enter Store only when its resulting read publication has a
-// bounded ownership slot and the current incremental generation can absorb the
-// whole publication batch. This decision is deliberately independent from the
-// execution path (dedicated Writer, combiner, sync or async).
+/// A mutation may enter Store only when its resulting read publication has a
+/// bounded ownership slot and the current incremental generation can absorb the
+/// whole publication batch. This decision is deliberately independent from the
+/// execution path (dedicated Writer, combiner, sync or async).
 enum class GenerationAdmissionDecision : std::uint8_t {
     admitted,
     reader_quiescence_required,
@@ -55,7 +59,7 @@ enum class GenerationAdmissionDecision : std::uint8_t {
     return "";
 }
 
-// Release-publish the raw generation pointer Readers acquire.
+/// Release-publish the raw generation pointer Readers acquire.
 inline void publish_read_generation(std::atomic<const PairReadGeneration*>& published,
                                     const PairReadGeneration* generation) noexcept {
     GS_PHASE_PUT(generation_publish);
@@ -63,8 +67,8 @@ inline void publish_read_generation(std::atomic<const PairReadGeneration*>& publ
     published.store(generation, std::memory_order_release);
 }
 
-// Release-publish the ADR 0036 slot token and mirror the generation pointer for
-// GET/ReadLease compatibility while Wave 1 dual-publishes both authorities.
+/// Release-publish the ADR 0036 slot token and mirror the generation pointer for
+/// GET/ReadLease compatibility while Wave 1 dual-publishes both authorities.
 inline void publish_read_generation_token(std::atomic<std::uint64_t>& published_token,
                                           std::atomic<const PairReadGeneration*>& published,
                                           const GenerationPublicationToken token,
@@ -75,8 +79,8 @@ inline void publish_read_generation_token(std::atomic<std::uint64_t>& published_
     published_token.store(token.raw, std::memory_order_release);
 }
 
-// Retire previous writer generation and install next after a successful incremental
-// or snapshot publish. Caller owns reclaim / merge flags.
+/// Retire previous writer generation and install next after a successful incremental
+/// or snapshot publish. Caller owns reclaim / merge flags.
 struct GenerationInstall final {
     std::shared_ptr<const PairReadGeneration> previous{};
     std::shared_ptr<const PairReadGeneration> next{};

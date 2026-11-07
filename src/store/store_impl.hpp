@@ -18,6 +18,7 @@
 #include "glifistore/worker/pool.hpp"
 #include "glifistore/worker/topology.hpp"
 #include "glifistore/worker/worker.hpp"
+#include "persistence/blob_storage.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -48,7 +49,7 @@ namespace store_detail {
 }
 
 [[nodiscard]] inline auto copy_value(const RecordView& record) -> OwnedValue {
-    return OwnedValue::from_bytes(record.value, record.sequence.value, record.expire_at_ns);
+    return OwnedValue::from_bytes(record.value, record.sequence.value, record.expire_at_ns, record.type);
 }
 
 inline auto durable_status(DurableMutationResult result) -> Status {
@@ -80,6 +81,11 @@ inline auto public_compaction_result(const std::size_t worker_index, DurableComp
             .pacing_sleep_count = result.stats.pacing_sleep_count,
             .pacing_burst_bytes = result.stats.pacing_burst_bytes,
             .transient_metadata_lower_bound_bytes = result.stats.transient_metadata_lower_bound_bytes,
+            .snapshot_duration_ns = result.stats.snapshot_duration_ns,
+            .commit_gate_duration_ns = result.stats.commit_gate_duration_ns,
+            .delta_replay_duration_ns = result.stats.delta_replay_duration_ns,
+            .delta_records = result.stats.delta_records,
+            .delta_key_bytes = result.stats.delta_key_bytes,
         };
     }
     if (!result.compacted()) {
@@ -104,6 +110,11 @@ inline auto public_compaction_result(const std::size_t worker_index, DurableComp
         .pacing_sleep_count = result.stats.pacing_sleep_count,
         .pacing_burst_bytes = result.stats.pacing_burst_bytes,
         .transient_metadata_lower_bound_bytes = result.stats.transient_metadata_lower_bound_bytes,
+        .snapshot_duration_ns = result.stats.snapshot_duration_ns,
+        .commit_gate_duration_ns = result.stats.commit_gate_duration_ns,
+        .delta_replay_duration_ns = result.stats.delta_replay_duration_ns,
+        .delta_records = result.stats.delta_records,
+        .delta_key_bytes = result.stats.delta_key_bytes,
     };
 }
 
@@ -509,6 +520,8 @@ struct Store::Impl {
     std::unique_ptr<ActiveOperationCounter[]> active_operations;
     std::unique_ptr<VolatileStoreRuntime> volatile_runtime;
     std::unique_ptr<DurableRuntimeCatalog> durable_runtime;
+    std::shared_ptr<detail::BlobStorage> blobs;
+    std::atomic_uint64_t blob_materializing_bytes{};
     std::unique_ptr<store::paired::ShardPairRuntime> pair_runtime;
     std::shared_ptr<const StoreClock> clock;
     std::atomic<std::uint64_t> latest_now_ns{};

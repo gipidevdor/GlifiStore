@@ -38,3 +38,9 @@ The detailed normative behavior and crash-state rules are in
 [`durability-recovery.md`](../architecture/durability-recovery.md). The exact v1 byte layouts are in
 the [manifest format](../architecture/manifest-format.md) and
 [Segment format](../architecture/segment-format.md) specifications.
+
+## Blob-profile amendment (2026-11-07)
+
+[ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
+The opt-in v2 profile installs and synchronizes an immutable blob before admitting its typed descriptor; legacy v1 acknowledgement points remain unchanged.
+Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.

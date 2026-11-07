@@ -55,6 +55,7 @@ path = [
   ".lychee.toml",
   ".gitleaks.toml",
   ".clang-format",
+  ".clang-format-version",
   ".clang-tidy",
   ".cmake-format.yaml",
   ".editorconfig",

@@ -215,8 +215,8 @@ GLIFI_TEST("exclusive Writer compact unlocks before hot_path_depth wait") {
     compactor.join();
 
     GLIFI_REQUIRE(mutating.committed());
-    GLIFI_REQUIRE(compaction.error.has_value());
-    GLIFI_REQUIRE(compaction.error->code == glifistore::ErrorCode::sequence_conflict);
+    GLIFI_REQUIRE(compaction.compacted());
+    GLIFI_REQUIRE(compaction.stats.delta_records == 1);
     GLIFI_REQUIRE((*runtime)->healthy());
     const auto sealed = (*runtime)->get(sealed_key);
     GLIFI_REQUIRE(sealed.has_value());

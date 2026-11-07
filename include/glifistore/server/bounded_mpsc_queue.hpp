@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Fixed-capacity multiple-producer, single-consumer queue for server handoffs.
+ */
 #pragma once
 
 #include <algorithm>
@@ -23,9 +27,9 @@ inline constexpr auto kMaximumCapacity = std::size_t{1} << (std::numeric_limits<
     return std::bit_ceil(std::max(std::size_t{2}, requested));
 }
 
-// Unsigned modular ordering. A sequence behind position has a distance in the
-// upper half of size_t; keeping capacity below half range makes the relation
-// unambiguous without implementation-defined casts or signed overflow.
+/// Unsigned modular ordering. A sequence behind position has a distance in the
+/// upper half of size_t; keeping capacity below half range makes the relation
+/// unambiguous without implementation-defined casts or signed overflow.
 [[nodiscard]] inline constexpr auto sequence_precedes_position(const std::size_t sequence,
                                                                const std::size_t position) noexcept -> bool {
     return sequence - position > std::numeric_limits<std::size_t>::max() / 2U;
@@ -33,9 +37,9 @@ inline constexpr auto kMaximumCapacity = std::size_t{1} << (std::numeric_limits<
 
 } // namespace mpsc_detail
 
-// Bounded multi-producer/single-consumer ring. Producers reserve cells with an
-// atomic sequence; the sole consumer owns dequeue_position_. No allocation is
-// performed after construction.
+/// Bounded multi-producer/single-consumer ring. Producers reserve cells with an
+/// atomic sequence; the sole consumer owns dequeue_position_. No allocation is
+/// of ring storage is performed after construction; T operations retain their own behavior.
 template <typename T> class BoundedMpscQueue final {
   public:
     explicit BoundedMpscQueue(const std::size_t requested_capacity)
@@ -55,6 +59,11 @@ template <typename T> class BoundedMpscQueue final {
         return capacity_;
     }
 
+    /**
+     * @brief Reserve and release-publish one value; false leaves the rvalue reference unmoved.
+     * @note T construction/move must not throw after a producer reserves its sequence;
+     * this implementation does not roll a reserved cell back on an exception.
+     */
     [[nodiscard]] auto try_push(T&& value) -> bool {
         auto position = enqueue_position_.load(std::memory_order_relaxed);
         Cell* cell = nullptr;
@@ -79,6 +88,9 @@ template <typename T> class BoundedMpscQueue final {
         return true;
     }
 
+    /**
+     * @brief Sole-consumer acquire/move; nullopt can include a producer reservation not yet published.
+     */
     [[nodiscard]] auto try_pop() -> std::optional<T> {
         auto& cell = cells_[dequeue_position_ & mask_];
         const auto sequence = cell.sequence.load(std::memory_order_acquire);

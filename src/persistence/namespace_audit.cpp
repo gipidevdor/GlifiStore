@@ -95,7 +95,8 @@ auto canonical_segment_name(const Manifest& manifest, const ManifestSegmentEntry
     return segment_filename({.store_id = manifest.store_id,
                              .segment_id = entry.segment_id,
                              .generation = entry.generation,
-                             .owner_worker = entry.owner_worker});
+                             .owner_worker = entry.owner_worker,
+                             .format_version = manifest.format_version});
 }
 
 auto append_issue(NamespaceAuditReport& report, NamespaceIssue issue) -> Status {
@@ -208,6 +209,16 @@ auto audit_data_directory(DataDirectory& directory, const Manifest& manifest)
                         "data-directory namespace exceeds the manifest-relative entry limit");
         }
 
+        if (name == "blobs" && manifest.format_version == 2) {
+            auto status = status_at(directory_descriptor, name);
+            if (!status) {
+                return unexpected(status.error());
+            }
+            if (!S_ISDIR(status->st_mode) || status->st_uid != ::geteuid() || (status->st_mode & 077) != 0) {
+                return fail(ErrorCode::corrupted_data, "unsafe blob directory");
+            }
+            continue;
+        }
         if (name == kManifestFilename || name == kStoreLockFilename || name == kManifestTemporaryFilename ||
             name == kCompactionIntentFilename || name == kCompactionTemporaryFilename) {
             const auto status = status_at(directory_descriptor, name);

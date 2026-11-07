@@ -1,0 +1,42 @@
+requirements:
+- id: GS-PERSIST-DELTA-001
+  titolo: Bounded concurrent Index reconciliation for durable whole-Worker compaction
+  categoria: persistence
+  criticita: critica
+  stato: implementato
+  descrizione: >-
+    Compaction records every post-snapshot Index publication, including group commits and TTL
+    removal, in preallocated entry/key budgets. Foreground outcomes never depend on journal
+    capacity. Quiesced replay preserves latest values, erases and exact live counters; overflow,
+    changed Manifest/source identities or pending groups abort safely. Persistence v1 authority,
+    acknowledgement, Reader pin lifetime and recovery ordering remain unchanged.
+  autorita:
+  - docs/adr/0043-bounded-compaction-delta.md
+  - docs/architecture/durable-compaction.md
+  implementazione:
+  - src/persistence/compaction_delta.hpp
+  - src/persistence/runtime_catalog_compact.cpp
+  - src/persistence/runtime_catalog_mutate_ops.cpp
+  - src/persistence/runtime_catalog_batch.cpp
+  - src/persistence/runtime_catalog.cpp
+  - benchmarks/maintenance_benchmark.cpp
+  prove:
+  - tests/integration/persistence_compaction_delta_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
+  - tests/unit/resource_limits_tests.cpp
+  - tests/quality/allocation_fault_compaction_delta_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/compaction-delta-local-2026-11-07.md
+    note: Isolated persistence-v1 macOS prototype campaign; native, sanitizers, allocation and process-kill controls
+  rischio_residuo:
+  - Initial full Index enumeration is O(N) under synchronization
+  - Sustained mutations can overflow the bounded journal and starve reclaim progress
+  - Any concurrent rotation still invalidates the exact Manifest snapshot
+  - Global intent through cleanup lease and platform filesystem latency remain
+  - No transactional snapshot API, partial sealed-set compaction or E3/E4 certification
+  hazards: [HAZ-040]
+  gates: [GATE-COMPACTION-DELTA]

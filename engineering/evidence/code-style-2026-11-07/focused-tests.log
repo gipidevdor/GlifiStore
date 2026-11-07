@@ -1,0 +1,28 @@
+test_check_is_read_only_and_write_is_idempotent (scripts.tests.test_code_format.CodeFormatTests.test_check_is_read_only_and_write_is_idempotent) ... ok
+test_discovery_covers_consumers_tools_probes_and_untracked_files (scripts.tests.test_code_format.CodeFormatTests.test_discovery_covers_consumers_tools_probes_and_untracked_files) ... ok
+test_formatter_failure_preserves_the_original_file (scripts.tests.test_code_format.CodeFormatTests.test_formatter_failure_preserves_the_original_file) ... ok
+test_new_sources_cannot_turn_a_partial_inventory_into_a_pass (scripts.tests.test_code_format.CodeFormatTests.test_new_sources_cannot_turn_a_partial_inventory_into_a_pass) ... ok
+test_symlinks_and_empty_selection_fail_closed (scripts.tests.test_code_format.CodeFormatTests.test_symlinks_and_empty_selection_fail_closed) ... ok
+test_write_refuses_to_replace_a_newer_editor_save (scripts.tests.test_code_format.CodeFormatTests.test_write_refuses_to_replace_a_newer_editor_save) ... ok
+test_wrong_formatter_version_cannot_edit_sources (scripts.tests.test_code_format.CodeFormatTests.test_wrong_formatter_version_cannot_edit_sources) ... ok
+test_shell_syntax_error_stops_verification_before_python_checks (scripts.tests.test_dev_verify.DevVerifyTests.test_shell_syntax_error_stops_verification_before_python_checks) ... ok
+test_macos_environment_discovers_sdk_root (scripts.tests.test_clang_tidy_gate.ClangTidyGateTests.test_macos_environment_discovers_sdk_root) ... ok
+test_reports_only_failed_clang_tidy_invocations (scripts.tests.test_clang_tidy_gate.ClangTidyGateTests.test_reports_only_failed_clang_tidy_invocations) ... ok
+test_selects_unique_compiled_production_sources (scripts.tests.test_clang_tidy_gate.ClangTidyGateTests.test_selects_unique_compiled_production_sources) ... ok
+test_clang_pgo_keeps_partial_profile_diagnostics_non_fatal (scripts.tests.test_ci_workflow.CiWorkflowTests.test_clang_pgo_keeps_partial_profile_diagnostics_non_fatal) ... ok
+test_clang_tidy_fails_closed_on_high_signal_diagnostics (scripts.tests.test_ci_workflow.CiWorkflowTests.test_clang_tidy_fails_closed_on_high_signal_diagnostics) ... ok
+test_diagnostic_coverage_runs_only_the_built_test_target (scripts.tests.test_ci_workflow.CiWorkflowTests.test_diagnostic_coverage_runs_only_the_built_test_target) ... ok
+test_e3_artifact_validator_rejects_unconfirmed_pass (scripts.tests.test_ci_workflow.CiWorkflowTests.test_e3_artifact_validator_rejects_unconfirmed_pass) ... ok
+test_e3_worker_pause_and_dm_fault_matrix_are_fail_closed (scripts.tests.test_ci_workflow.CiWorkflowTests.test_e3_worker_pause_and_dm_fault_matrix_are_fail_closed) ... ok
+test_formal_models_are_required_and_supply_chain_pinned (scripts.tests.test_ci_workflow.CiWorkflowTests.test_formal_models_are_required_and_supply_chain_pinned) ... ok
+test_installed_cpp_smoke_cannot_resolve_a_build_tree_package (scripts.tests.test_ci_workflow.CiWorkflowTests.test_installed_cpp_smoke_cannot_resolve_a_build_tree_package) ... ok
+test_lto_package_propagates_compatible_link_requirements (scripts.tests.test_ci_workflow.CiWorkflowTests.test_lto_package_propagates_compatible_link_requirements) ... ok
+test_manpage_job_installs_the_authoritative_runtime_component (scripts.tests.test_ci_workflow.CiWorkflowTests.test_manpage_job_installs_the_authoritative_runtime_component) ... ok
+test_random_crash_campaign_is_bounded_reproducible_e2_evidence (scripts.tests.test_ci_workflow.CiWorkflowTests.test_random_crash_campaign_is_bounded_reproducible_e2_evidence) ... ok
+test_sanitizers_cancel_only_obsolete_runs_for_the_same_branch (scripts.tests.test_ci_workflow.CiWorkflowTests.test_sanitizers_cancel_only_obsolete_runs_for_the_same_branch) ... ok
+test_supply_chain_retains_primary_archives_for_cross_builder_diagnostics (scripts.tests.test_ci_workflow.CiWorkflowTests.test_supply_chain_retains_primary_archives_for_cross_builder_diagnostics) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 1.506s
+
+OK

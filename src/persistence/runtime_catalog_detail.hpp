@@ -3,6 +3,7 @@
 #include "glifistore/index/index.hpp"
 #include "glifistore/persistence/runtime_catalog.hpp"
 #include "persistence/adaptive_batch_sizer.hpp"
+#include "persistence/compaction_delta.hpp"
 #include "persistence/hot_record_table.hpp"
 
 #include <atomic>
@@ -387,6 +388,17 @@ struct DurableRuntimeCatalog::RuntimeWorker {
     // Worker mutex (`exclusive_writer &&` no background flusher). Flusher paths
     // never bump this.
     std::atomic_uint32_t hot_path_depth{};
+    // Protected by Index ownership (mutex, or exclusive Writer depth). The
+    // compactor detaches only after quiescing that owner. Never owns the journal.
+    runtime_catalog_detail::CompactionDelta* compaction_delta{};
+    // Final publication defers TTL housekeeping; expired GETs still miss.
+    bool compaction_index_frozen{};
+
+    void record_compaction_change(const HashedKey& key, const std::optional<RecordRef>& reference) noexcept {
+        if (compaction_delta != nullptr) {
+            compaction_delta->record(key, reference);
+        }
+    }
 
     [[nodiscard]] auto hot_cache_total_bytes() const noexcept -> std::uint64_t;
     void erase_hot_record(std::string_view key, std::uint64_t key_hash) noexcept;

@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Move-only cold-read pin ownership and generation-based cancellation.
+ */
 #pragma once
 
 #include <array>
@@ -9,10 +13,10 @@ namespace glifistore::detail {
 
 class StoreAccess;
 
-// Allocation-free cancellation token for an asynchronous cold read. The
-// pointed epoch belongs to a stable Reactor connection slot and outlives every
-// disk-read lane. Reusing a slot increments the epoch instead of resetting a
-// boolean, so an older request can never become uncancelled again.
+/// Allocation-free cancellation token for an asynchronous cold read. The
+/// pointed epoch belongs to a stable Reactor connection slot and outlives every
+/// disk-read lane. Reusing a slot increments the epoch instead of resetting a
+/// boolean, so an older request can never become uncancelled again.
 struct ColdReadCancellation final {
     const std::atomic_uint64_t* epoch{};
     std::uint64_t expected{};
@@ -22,10 +26,10 @@ struct ColdReadCancellation final {
     }
 };
 
-// Opaque, move-only ownership of the exact durable RecordRef and immutable
-// Segment generation needed by one cold read. The state is stored inline so
-// queue admission never allocates a pImpl; only StoreAccess can construct or
-// consume it. Server queues merely transport the lifetime token.
+/// Opaque, move-only ownership of the exact durable RecordRef and immutable
+/// Segment generation needed by one cold read. The state is stored inline so
+/// queue admission never allocates a pImpl; only StoreAccess can construct or
+/// consume it. Server queues merely transport the lifetime token.
 class PreparedColdRead final {
   public:
     PreparedColdRead(PreparedColdRead&&) noexcept;

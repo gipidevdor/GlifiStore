@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded cold-read execution carrying immutable Record lifetime tokens.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -17,6 +21,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Owning cold-read result tagged with connection identity, request id, and adopted generation epoch.
+ */
 struct DiskReadCompletion final {
     ConnectionToken connection{};
     std::uint64_t request_id{};
@@ -25,6 +32,9 @@ struct DiskReadCompletion final {
     std::optional<Error> error{};
 };
 
+/**
+ * @brief Move-only cold-read pin and borrowed completion/wakeup endpoints that must outlive task execution.
+ */
 struct DiskReadTask final {
     ConnectionToken connection{};
     std::uint64_t request_id{};
@@ -37,9 +47,9 @@ struct DiskReadTask final {
     Wakeup* wakeup{};
 };
 
-// One bounded cold-read lane per ShardPair. Each Reader is the sole producer
-// of its SPSC lane and one persistent I/O worker is the sole consumer; durable
-// GET submission therefore has no process-wide mutex or condition variable.
+/// One bounded cold-read lane per ShardPair. Each Reader is the sole producer
+/// of its SPSC lane and one persistent I/O worker is the sole consumer; durable
+/// GET submission therefore has no process-wide mutex or condition variable.
 class DiskReadExecutor final {
   public:
     [[nodiscard]] static auto create(Store& store, std::size_t worker_count, std::size_t capacity_per_worker)
@@ -52,6 +62,11 @@ class DiskReadExecutor final {
     auto operator=(DiskReadExecutor&&) -> DiskReadExecutor& = delete;
 
     [[nodiscard]] auto start() -> Status;
+    /**
+     * @brief Attempt bounded cold-read admission without waiting for I/O.
+     * @param task Ownership of the read pin is passed by value; completion endpoints must remain alive.
+     * @return Whether the task was queued. On rejection the local task and its pin are destroyed.
+     */
     [[nodiscard]] auto try_submit(DiskReadTask task) -> bool;
     void stop() noexcept;
 

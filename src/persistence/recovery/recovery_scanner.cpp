@@ -114,12 +114,11 @@ auto RecoveryScanner::scan_worker(const WorkerId worker, const std::span<const s
 
     for (const auto catalog_index : catalog_indices) {
         const auto& entry = manifest_.segments[catalog_index];
-        const SegmentHeaderIdentity expected{
-            .store_id = manifest_.store_id,
-            .segment_id = entry.segment_id,
-            .generation = entry.generation,
-            .owner_worker = entry.owner_worker,
-        };
+        const SegmentHeaderIdentity expected{.store_id = manifest_.store_id,
+                                             .segment_id = entry.segment_id,
+                                             .generation = entry.generation,
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = manifest_.format_version};
         auto file = DurableSegmentFile::open(directory_, expected, SegmentFileOpenMode::read_only);
         if (!file) {
             return segment_error(entry, file.error());

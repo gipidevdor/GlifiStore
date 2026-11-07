@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Fixed-storage SPSC transport with acquire/release publication.
+ */
 #pragma once
 
 #include <algorithm>
@@ -25,14 +29,19 @@ inline constexpr auto kMaximumCapacity = std::size_t{1} << (std::numeric_limits<
 
 } // namespace spsc_detail
 
-// Runtime-sized, preallocated SPSC ring. Exactly one producer owns head and
-// exactly one consumer owns tail. The acquire/release edge transfers ownership
-// of a fully constructed cell; no allocation or compare/exchange occurs in the
-// steady-state queue path.
+/// Runtime-sized, preallocated SPSC ring. Exactly one producer owns head and
+/// exactly one consumer owns tail. The acquire/release edge transfers ownership
+/// of a fully constructed cell; the queue itself performs no allocation or
+/// compare/exchange in steady state. T operations retain their own behavior.
 template <typename T> class BoundedSpscQueue final {
     static_assert(std::is_nothrow_move_constructible_v<T>);
 
   public:
+    /**
+     * @brief Preallocate a power-of-two ring, with capacity at least two.
+     * @throws std::invalid_argument Requested capacity exceeds the modular cursor bound.
+     * @throws std::bad_alloc Backing cell allocation fails.
+     */
     explicit BoundedSpscQueue(const std::size_t requested_capacity)
         : capacity_(spsc_detail::normalized_capacity(requested_capacity)), mask_(capacity_ - 1U),
           cells_(std::make_unique<std::optional<T>[]>(capacity_)) {}
@@ -46,6 +55,11 @@ template <typename T> class BoundedSpscQueue final {
         return capacity_;
     }
 
+    /**
+     * @brief Producer-only attempt to release-publish one moved value.
+     * @return false if full. The by-value argument is destroyed on rejection, so this
+     * call does not preserve caller ownership of an rvalue submitted to a full queue.
+     */
     [[nodiscard]] auto try_push(T value) noexcept -> bool {
         const auto head = producer_.head.load(std::memory_order_relaxed);
         if (head - producer_.cached_tail == capacity_) {
@@ -59,6 +73,9 @@ template <typename T> class BoundedSpscQueue final {
         return true;
     }
 
+    /**
+     * @brief Consumer-only acquire/move of the next cell; nullopt means no published value was observed.
+     */
     [[nodiscard]] auto try_pop() noexcept -> std::optional<T> {
         const auto tail = consumer_.tail.load(std::memory_order_relaxed);
         if (consumer_.cached_head == tail) {
@@ -73,6 +90,10 @@ template <typename T> class BoundedSpscQueue final {
         return value;
     }
 
+    /**
+     * @brief Observe cursor distance; concurrent sampling is not an admission reservation or a coherent
+     * snapshot.
+     */
     [[nodiscard]] auto size() const noexcept -> std::size_t {
         const auto head = producer_.head.load(std::memory_order_acquire);
         const auto tail = consumer_.tail.load(std::memory_order_acquire);

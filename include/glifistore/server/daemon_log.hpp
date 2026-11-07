@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Structured daemon lifecycle logging and readiness-loss reasons.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -10,6 +14,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Human or structured JSON lifecycle output.
+ */
 enum class DaemonLogFormat : std::uint8_t {
     human,
     json,
@@ -21,6 +28,9 @@ enum class DaemonLogFormat : std::uint8_t {
 
 [[nodiscard]] auto daemon_error_code_name(ErrorCode code) noexcept -> std::string_view;
 
+/**
+ * @brief Programmatic reason for readiness loss in lifecycle reports.
+ */
 enum class ReadyLossReason : std::uint8_t {
     none,
     not_live,
@@ -36,8 +46,8 @@ enum class ReadyLossReason : std::uint8_t {
 
 [[nodiscard]] auto classify_ready_loss(const Server& server) noexcept -> ReadyLossReason;
 
-// Fail-closed structured daemon lifecycle logging. Human format is a no-op here;
-// daemon_main keeps legacy stdout/stderr lines for human mode.
+/// Fail-closed structured daemon lifecycle logging. Human format is a no-op here;
+/// daemon_main keeps legacy stdout/stderr lines for human mode.
 class DaemonLog final {
   public:
     DaemonLog(DaemonLogFormat format, std::string_view program, bool quiet) noexcept;

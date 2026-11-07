@@ -1,0 +1,37 @@
+[RUN] blob SHA256 matches independent empty abc and million-a vectors
+[PASS] blob SHA256 matches independent empty abc and million-a vectors
+[RUN] blob codec bounds and metadata corruption reject before payload allocation
+[PASS] blob codec bounds and metadata corruption reject before payload allocation
+[RUN] blob logical boundary sizes use typed placement and survive reopen
+[PASS] blob logical boundary sizes use typed placement and survive reopen
+[RUN] blob streaming stores and reads exactly 64 MiB with bounded chunks
+[PASS] blob streaming stores and reads exactly 64 MiB with bounded chunks
+[RUN] blob stream pins old version through overwrite erase and collection
+[PASS] blob stream pins old version through overwrite erase and collection
+[RUN] blob transfer quotas abort and terminal commit return credits
+[PASS] blob transfer quotas abort and terminal commit return credits
+[RUN] blob install failure before descriptor commit leaves reclaimable orphan
+[PASS] blob install failure before descriptor commit leaves reclaimable orphan
+[RUN] blob corruption in overwritten committed history fails closed on recovery
+[PASS] blob corruption in overwritten committed history fails closed on recovery
+[RUN] blob fenced backup retains historical descriptor closure and restores values
+[PASS] blob fenced backup retains historical descriptor closure and restores values
+[RUN] blob v2 descriptor compaction reclaims without a Segment-count gain
+[PASS] blob v2 descriptor compaction reclaims without a Segment-count gain
+[RUN] blob strict group and periodic commits retain typed values after flush
+[PASS] blob strict group and periodic commits retain typed values after flush
+[RUN] blob staged abort and destruction remove files and return quota without GC
+[PASS] blob staged abort and destruction remove files and return quota without GC
+[RUN] blob failed chunk dispatch is terminal cleans staging and returns credits
+[PASS] blob failed chunk dispatch is terminal cleans staging and returns credits
+[RUN] blob quota reserves the peak staging extent before creating a file
+[PASS] blob quota reserves the peak staging extent before creating a file
+[RUN] blob parent directory sync retains configured syscall fault hooks
+[PASS] blob parent directory sync retains configured syscall fault hooks
+[RUN] blob exact peak staging quota permits commit and survives reopen
+[PASS] blob exact peak staging quota permits commit and survives reopen
+[RUN] blob close aborts active staging before revoking retained handles
+[PASS] blob close aborts active staging before revoking retained handles
+[RUN] blob concurrent commit cannot publish an upload after its chunk throws
+[PASS] blob concurrent commit cannot publish an upload after its chunk throws
+18 tests, 0 failures

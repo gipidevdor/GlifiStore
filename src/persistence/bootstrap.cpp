@@ -30,7 +30,8 @@ auto new_store_id() -> Result<StoreId> {
     return id;
 }
 
-auto initial_manifest(const std::size_t worker_count, const WorkerRoutingState routing) -> Result<Manifest> {
+auto initial_manifest(const std::size_t worker_count, const WorkerRoutingState routing,
+                      const bool enable_blobs) -> Result<Manifest> {
     if (worker_count == 0 || worker_count > kMaximumWorkerCount ||
         worker_count >= std::numeric_limits<std::uint32_t>::max()) {
         return fail(ErrorCode::invalid_argument, "bootstrap Worker count is outside supported bounds");
@@ -52,6 +53,7 @@ auto initial_manifest(const std::size_t worker_count, const WorkerRoutingState r
         .next_segment_id = SegmentId{worker_count + 1U},
         .next_segment_generation = GenerationId{1},
     };
+    manifest.format_version = enable_blobs ? 2 : 1;
     manifest.segments.reserve(worker_count);
     for (std::size_t worker = 0; worker < worker_count; ++worker) {
         manifest.segments.push_back({.segment_id = SegmentId{worker + 1U},
@@ -136,7 +138,8 @@ auto complete_bootstrap(DataDirectory& directory, const Manifest& intent,
         const SegmentHeaderIdentity identity{.store_id = intent.store_id,
                                              .segment_id = entry.segment_id,
                                              .generation = entry.generation,
-                                             .owner_worker = entry.owner_worker};
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = intent.format_version};
         auto existing = DurableSegmentFile::open(directory, identity, SegmentFileOpenMode::read_only);
         if (existing) {
             const auto& commit = existing->selected_commit().commit;
@@ -188,7 +191,8 @@ auto complete_bootstrap(DataDirectory& directory, const Manifest& intent,
         const SegmentHeaderIdentity identity{.store_id = intent.store_id,
                                              .segment_id = entry.segment_id,
                                              .generation = entry.generation,
-                                             .owner_worker = entry.owner_worker};
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = intent.format_version};
         auto created = DurableSegmentFile::create(directory, identity);
         if (!created.durable()) {
             return unexpected(
@@ -203,8 +207,8 @@ auto complete_bootstrap(DataDirectory& directory, const Manifest& intent,
 auto prepare_durable_store(DataDirectory& directory, const DurableOpenMode mode,
                            const std::size_t creation_worker_count,
                            const std::optional<std::size_t> required_worker_count,
-                           const DurableResourceLimits& limits, const WorkerRoutingConfig& creation_routing)
-    -> Status {
+                           const DurableResourceLimits& limits, const WorkerRoutingConfig& creation_routing,
+                           const bool enable_blobs) -> Status {
     if (auto valid = validate_durable_resource_limits(limits); !valid) {
         return valid;
     }
@@ -213,6 +217,9 @@ auto prepare_durable_store(DataDirectory& directory, const DurableOpenMode mode,
     }
     auto intent = directory.read_bootstrap_intent(limits.max_manifest_bytes);
     if (intent) {
+        if ((intent->format_version == 2) != enable_blobs) {
+            return fail(ErrorCode::invalid_argument, "Store format requires matching enable_blobs");
+        }
         return complete_bootstrap(directory, *intent, required_worker_count, limits, creation_routing);
     }
     if (intent.error().code != ErrorCode::not_found) {
@@ -221,6 +228,9 @@ auto prepare_durable_store(DataDirectory& directory, const DurableOpenMode mode,
 
     auto manifest = directory.read_manifest(limits.max_manifest_bytes);
     if (manifest) {
+        if ((manifest->format_version == 2) != enable_blobs) {
+            return fail(ErrorCode::invalid_argument, "Store format requires matching enable_blobs");
+        }
         if (auto resources = validate_durable_manifest_resources(*manifest, limits); !resources) {
             return resources;
         }
@@ -245,7 +255,7 @@ auto prepare_durable_store(DataDirectory& directory, const DurableOpenMode mode,
     if (!*pristine) {
         return fail(ErrorCode::invalid_argument, "refusing to initialize a non-empty data directory");
     }
-    auto created = initial_manifest(creation_worker_count, creation_routing.state());
+    auto created = initial_manifest(creation_worker_count, creation_routing.state(), enable_blobs);
     if (!created) {
         return unexpected(created.error());
     }

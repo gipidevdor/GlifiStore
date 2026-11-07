@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief RAII poller wakeup source for cross-thread notifications.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -5,6 +9,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Owning nonblocking notification endpoints; successful notifications may be coalesced before drain.
+ */
 class Wakeup final {
   public:
     [[nodiscard]] static auto create() -> Result<Wakeup>;

@@ -4,11 +4,22 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cmake="${CMAKE:-$root/.tools/venv/bin/cmake}"
 ctest="${CTEST:-$root/.tools/venv/bin/ctest}"
+python="${PYTHON:-$root/.tools/venv/bin/python}"
 export PATH="$root/.tools/venv/bin:$PATH"
 
 require_tools() {
     if [[ ! -x "$cmake" ]]; then
         echo "Local CMake is missing. Run ./scripts/bootstrap-macos.sh first." >&2
+        exit 1
+    fi
+}
+
+require_python() {
+    if [[ ! -x "$python" ]]; then
+        python="$(command -v python3 || true)"
+    fi
+    if [[ -z "$python" ]]; then
+        echo "python3 not found; run ./scripts/bootstrap-macos.sh first." >&2
         exit 1
     fi
 }
@@ -122,40 +133,19 @@ case "${1:-help}" in
         "$ctest" --preset xcode-debug
         ;;
     format)
-        formatter="$(command -v clang-format || true)"
-        if [[ -z "$formatter" && -x "$root/.tools/venv/bin/clang-format" ]]; then
-            formatter="$root/.tools/venv/bin/clang-format"
-        fi
-        if [[ -z "$formatter" ]]; then
-            echo "clang-format not found; install LLVM with MacPorts or Homebrew." >&2
-            exit 1
-        fi
-        find "$root/include" "$root/src" "$root/tests" "$root/benchmarks" "$root/fuzz" \
-            -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 "$formatter" -i
+        require_python
+        "$python" "$root/engineering/tools/format_code.py" --write "${@:2}"
+        ;;
+    format-check)
+        require_python
+        "$python" "$root/engineering/tools/format_code.py" --check "${@:2}"
         ;;
     verify)
-        formatter="$(command -v clang-format || true)"
-        if [[ -z "$formatter" && -x "$root/.tools/venv/bin/clang-format" ]]; then
-            formatter="$root/.tools/venv/bin/clang-format"
-        fi
-        if [[ -z "$formatter" ]]; then
-            echo "clang-format not found; run ./scripts/bootstrap-macos.sh first." >&2
-            exit 1
-        fi
-        python="${PYTHON:-$root/.tools/venv/bin/python}"
-        if [[ ! -x "$python" ]]; then
-            python="$(command -v python3 || true)"
-        fi
-        if [[ -z "$python" ]]; then
-            echo "python3 not found; run ./scripts/bootstrap-macos.sh first." >&2
-            exit 1
-        fi
-        find "$root/include" "$root/src" "$root/tests" "$root/benchmarks" "$root/fuzz" \
-            -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
-            | xargs -0 "$formatter" --dry-run --Werror
         while IFS= read -r -d '' script; do
             bash -n "$script"
         done < <(find "$root/scripts" -type f -name '*.sh' -print0)
+        require_python
+        "$python" "$root/engineering/tools/format_code.py" --check
         "$python" "$root/engineering/tools/validate_assurance.py"
         "$python" "$root/engineering/tools/validate_documentation.py"
         "$python" "$root/engineering/tools/validate_cmake_deps.py"
@@ -176,7 +166,7 @@ case "${1:-help}" in
         "$cmake" -E rm -rf "$root/build"
         ;;
     *)
-        echo "usage: $0 {configure|build|test|asan|tsan|correctness|test-lto|benchmark|benchmark-durable|benchmark-compaction|benchmark-maintenance|benchmark-server|benchmark-lto|benchmark-pgo|pgo-generate|pgo-train|pgo-use|fuzz-build|fuzz-run|xcode-build|format|verify|clean} [benchmark args]"
+        echo "usage: $0 {configure|build|test|asan|tsan|correctness|test-lto|benchmark|benchmark-durable|benchmark-compaction|benchmark-maintenance|benchmark-server|benchmark-lto|benchmark-pgo|pgo-generate|pgo-train|pgo-use|fuzz-build|fuzz-run|xcode-build|format|format-check|verify|clean} [command args]"
         echo "PGO: pgo-generate builds instrumented benchmarks; pgo-train runs volatile + durable workloads; pgo-use rebuilds optimized benchmarks."
         echo "Fuzz: fuzz-build configures macos-fuzz; fuzz-run executes targets (GLIFISTORE_FUZZ_SECONDS, GLIFISTORE_FUZZ_BUILD_DIR)."
         echo "Correctness: complete local matrix with strict builds, hardening, sanitizers, static analysis, and explicit optional-tool gaps."

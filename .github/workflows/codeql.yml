@@ -36,7 +36,7 @@ jobs:
           cmake --preset unix-debug
           cmake --build --preset unix-debug
       - name: Analyze
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:c-cpp"
           output: codeql-results-cpp
@@ -52,7 +52,7 @@ jobs:
       - name: Upload SARIF (opt-in)
         if: ${{ always() && vars.GLIFISTORE_UPLOAD_SARIF == 'true' }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: codeql-results-cpp
           category: codeql-cpp
@@ -67,7 +67,7 @@ jobs:
           languages: python
           build-mode: none
       - name: Analyze
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:python"
           output: codeql-results-python
@@ -83,7 +83,7 @@ jobs:
       - name: Upload SARIF (opt-in)
         if: ${{ always() && vars.GLIFISTORE_UPLOAD_SARIF == 'true' }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: codeql-results-python
           category: codeql-python
@@ -106,7 +106,7 @@ jobs:
           cd sdk/go
           go build ./...
       - name: Analyze
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:go"
           output: codeql-results-go
@@ -122,7 +122,7 @@ jobs:
       - name: Upload SARIF (opt-in)
         if: ${{ always() && vars.GLIFISTORE_UPLOAD_SARIF == 'true' }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: codeql-results-go
           category: codeql-go
@@ -137,7 +137,7 @@ jobs:
           languages: actions
           build-mode: none
       - name: Analyze
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:actions"
           output: codeql-results-actions
@@ -153,7 +153,7 @@ jobs:
       - name: Upload SARIF (opt-in)
         if: ${{ always() && vars.GLIFISTORE_UPLOAD_SARIF == 'true' }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: codeql-results-actions
           category: codeql-actions

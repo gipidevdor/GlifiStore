@@ -216,7 +216,8 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
     const SegmentHeaderIdentity old_identity{.store_id = manifest_.store_id,
                                              .segment_id = old_entry.segment_id,
                                              .generation = old_entry.generation,
-                                             .owner_worker = old_entry.owner_worker};
+                                             .owner_worker = old_entry.owner_worker,
+                                             .format_version = manifest_.format_version};
     if (old_index >= generation_pins_.size() || !generation_pins_[old_index] ||
         generation_pins_[old_index]->identity != old_identity) {
         abandon_pending_batches();
@@ -233,12 +234,11 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
     worker.cached_file.reset();
     worker.cached_writable = false;
     const auto& replacement_entry = next_manifest->segments.back();
-    const SegmentHeaderIdentity replacement_identity{
-        .store_id = manifest_.store_id,
-        .segment_id = replacement_entry.segment_id,
-        .generation = replacement_entry.generation,
-        .owner_worker = replacement_entry.owner_worker,
-    };
+    const SegmentHeaderIdentity replacement_identity{.store_id = manifest_.store_id,
+                                                     .segment_id = replacement_entry.segment_id,
+                                                     .generation = replacement_entry.generation,
+                                                     .owner_worker = replacement_entry.owner_worker,
+                                                     .format_version = manifest_.format_version};
     worker.mutation_io_active = true;
     catalog_lock.unlock();
     if (worker_lock.owns_lock()) {

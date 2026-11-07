@@ -1,7 +1,7 @@
 Status: normative for CI workflow composition
 Applies to: `.github/workflows/*.yml` third-party Actions
 Owner: maintainers
-Last reviewed: 2026-08-27
+Last reviewed: 2026-11-07
 
 # GitHub Actions commit pinning
 
@@ -20,6 +20,12 @@ a floating tag must be rewritten to a SHA before merge. `validate_actions_pins.p
 [`.github/dependabot.yml`](../../.github/dependabot.yml) declares `package-ecosystem: github-actions`
 and carries an explicit SHA / 40-character / floating-tag discipline comment. Dependabot also
 watches `pip` (`/sdk/python`) and `gomod` (`/sdk/go`); GitHub Actions updates remain SHA-pinned.
+
+All `github/codeql-action/*` steps must use the same commit SHA across workflows: updating
+`init` alone leaves `analyze` incompatible with its generated configuration. The validator rejects
+mixed revisions. Dependabot's `codeql` and `codeql-security` groups update `init`, `analyze`, and
+`upload-sarif` together for version and security updates respectively, using
+[dependency groups](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#groups).
 
 Least-privilege and CI overlap notes (Wave 5 honesty):
 

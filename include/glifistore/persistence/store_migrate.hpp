@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Offline logical resharding into a separate destination with resumable checkpoints.
+ */
 #pragma once
 
 #include "glifistore/persistence/store_verify.hpp"
@@ -9,6 +13,9 @@
 
 namespace glifistore {
 
+/**
+ * @brief Offline logical rewrite progress, checkpoint identity, and source/destination verification.
+ */
 struct DurableStoreMigrateReport {
     std::filesystem::path source;
     std::filesystem::path destination;

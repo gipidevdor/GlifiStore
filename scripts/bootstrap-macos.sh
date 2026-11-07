@@ -26,8 +26,9 @@ if [[ ! -x "$venv/bin/python" ]]; then
 fi
 
 "$venv/bin/python" -m pip install --disable-pip-version-check --upgrade pip
+formatter_version="$(<"$root/.clang-format-version")"
 "$venv/bin/python" -m pip install --disable-pip-version-check \
-    "cmake>=3.25,<5" "ninja>=1.11,<2" "clang-format==21.1.8"
+    "cmake>=3.25,<5" "ninja>=1.11,<2" "clang-format==$formatter_version"
 
 "$root/scripts/generate-xcode.sh" >/dev/null
 

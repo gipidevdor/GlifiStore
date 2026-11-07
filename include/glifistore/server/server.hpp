@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Daemon listener/executor lifecycle and aggregate operational observations.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -23,6 +27,9 @@ namespace glifistore::server {
 
 struct ServerRuntime;
 
+/**
+ * @brief Aggregated input/output compaction counts and physical bytes moved.
+ */
 struct ReactorBufferStats final {
     std::uint64_t input_compactions{};
     std::uint64_t input_bytes_moved{};
@@ -30,11 +37,14 @@ struct ReactorBufferStats final {
     std::uint64_t output_bytes_moved{};
 };
 
+/**
+ * @brief Owning daemon runtime coordinating Store, listeners, Reactors, Writers, and cold-I/O shutdown.
+ */
 class Server final {
   public:
-    // A missing Store shard count inherits ReactorConfig::worker_count. An
-    // explicit count must match because each ShardPair owns one Reader/Reactor
-    // and one Writer.
+    /// A missing Store shard count inherits ReactorConfig::worker_count. An
+    /// explicit count must match because each ShardPair owns one Reader/Reactor
+    /// and one Writer.
     [[nodiscard]] static auto create(const ReactorConfig& config = {}, StoreConfig store_config = {})
         -> Result<std::unique_ptr<Server>>;
     ~Server();
@@ -48,7 +58,7 @@ class Server final {
     void request_stop() noexcept;
     [[nodiscard]] auto join() -> Status;
 
-    // Primary port for callers: cleartext when listening cleartext, else TLS.
+    /// Primary port for callers: cleartext when listening cleartext, else TLS.
     [[nodiscard]] auto port() const noexcept -> std::uint16_t;
     [[nodiscard]] auto cleartext_port() const noexcept -> std::uint16_t;
     [[nodiscard]] auto tls_port() const noexcept -> std::uint16_t;
@@ -61,7 +71,7 @@ class Server final {
     [[nodiscard]] auto adopted_connections_per_executor() const -> std::vector<std::size_t>;
     [[nodiscard]] auto active_connections_per_executor() const -> std::vector<std::size_t>;
     [[nodiscard]] auto executor_affinity_results() const -> std::vector<ExecutorAffinityResult>;
-    // Aggregate copy pressure from sliding input/output buffers across all Reactors.
+    /// Aggregate copy pressure from sliding input/output buffers across all Reactors.
     [[nodiscard]] auto reactor_buffer_stats() const noexcept -> ReactorBufferStats;
     [[nodiscard]] auto pair_writer_stats() const -> std::vector<PairWriterStats>;
     [[nodiscard]] auto durable_batch_stats() const -> std::vector<DurableBatchWorkerStats>;
@@ -70,8 +80,8 @@ class Server final {
         return !failed_.load(std::memory_order_acquire) && pair_writers_healthy();
     }
 
-    // Paired Writer pool sticky health (READY / classify_ready_loss). Independent of
-    // process liveness (`live`) and of durable catalog `store_operational`.
+    /// Paired Writer pool sticky health (READY / classify_ready_loss). Independent of
+    /// process liveness (`live`) and of durable catalog `store_operational`.
     [[nodiscard]] auto pair_writers_healthy() const noexcept -> bool {
         return pair_writers_ != nullptr && pair_writers_->healthy();
     }
@@ -84,21 +94,21 @@ class Server final {
         return shutdown_drain_timed_out_.load(std::memory_order_acquire);
     }
 
-    // Process liveness: started and no executor failure has been recorded.
+    /// Process liveness: started and no executor failure has been recorded.
     [[nodiscard]] auto live() const noexcept -> bool;
-    // Traffic readiness: live, not shutting down, pair Writers healthy, Store admission open,
-    // durable catalog healthy, and maintenance is not in emergency or a sticky faulted state.
+    /// Traffic readiness: live, not shutting down, pair Writers healthy, Store admission open,
+    /// durable catalog healthy, and maintenance is not in emergency or a sticky faulted state.
     [[nodiscard]] auto ready() const noexcept -> bool;
     [[nodiscard]] auto store_operational() const noexcept -> bool;
-    // False while online backup (or close) has closed begin_operation admissions.
+    /// False while online backup (or close) has closed begin_operation admissions.
     [[nodiscard]] auto admissions_open() const noexcept -> bool;
     [[nodiscard]] auto maintenance_snapshot() const -> MaintenanceSnapshot;
     [[nodiscard]] auto first_failure() const -> std::optional<Error>;
-    // Bounded ASCII admin report (version, live/ready, connections, lane/batch, maintenance).
-    // Read-only; fails closed when not live or when the report would exceed the size budget.
+    /// Bounded ASCII admin report (version, live/ready, connections, lane/batch, maintenance).
+    /// Read-only; fails closed when not live or when the report would exceed the size budget.
     [[nodiscard]] auto stats_report() const -> Result<std::string>;
-    // Online durable backup while this Server holds the Store. Fences Store admissions during the
-    // copy window (see Store::backup_to). Destination must be an empty new data directory path.
+    /// Online durable backup while this Server holds the Store. Fences Store admissions during the
+    /// copy window (see Store::backup_to). Destination must be an empty new data directory path.
     [[nodiscard]] auto backup_to(const std::filesystem::path& destination, bool scan_records = true)
         -> Result<DurableStoreBackupReport>;
 

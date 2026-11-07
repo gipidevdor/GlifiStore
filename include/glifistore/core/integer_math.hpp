@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Saturating counters and portable overflow-safe basis-point arithmetic.
+ */
 #pragma once
 
 #include <algorithm>
@@ -6,6 +10,9 @@
 
 namespace glifistore {
 
+/**
+ * @brief Add counters, clamping at UINT64_MAX instead of wrapping.
+ */
 [[nodiscard]] constexpr auto saturating_add(const std::uint64_t left, const std::uint64_t right) noexcept
     -> std::uint64_t {
     return right > std::numeric_limits<std::uint64_t>::max() - left
@@ -13,9 +20,12 @@ namespace glifistore {
                : left + right;
 }
 
-// Exact floor(numerator * 10'000 / denominator) for the bounded ratio [0, 1].
-// The quotient/remainder doubling avoids a wider non-standard integer and never
-// forms the potentially overflowing product.
+/// Exact floor(numerator * 10'000 / denominator) for the bounded ratio [0, 1].
+/// The quotient/remainder doubling avoids a wider non-standard integer and never
+/// forms the potentially overflowing product.
+/**
+ * @return Zero for a zero denominator, 10,000 for numerator >= denominator, otherwise the floored ratio.
+ */
 [[nodiscard]] constexpr auto basis_points(const std::uint64_t numerator,
                                           const std::uint64_t denominator) noexcept -> std::uint32_t {
     constexpr std::uint32_t kScale{10'000};

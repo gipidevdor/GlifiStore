@@ -1,0 +1,23 @@
+Test project /Users/gpicchiarelli/Documents/GlifiStore/build/macos-asan
+    Start 22: glifistore_allocation_fault_tests
+    Start  2: glifistore_c_abi_durable_tests
+1/5 Test  #2: glifistore_c_abi_durable_tests ......   Passed    3.01 sec
+    Start  1: glifistore_c_abi_tests
+2/5 Test  #1: glifistore_c_abi_tests ..............   Passed    0.17 sec
+    Start 10: glifistore_installed_cpp_interop
+3/5 Test #10: glifistore_installed_cpp_interop ....   Passed    6.25 sec
+    Start 11: glifistore_tests
+4/5 Test #22: glifistore_allocation_fault_tests ...   Passed   68.39 sec
+5/5 Test #11: glifistore_tests ....................   Passed  263.01 sec
+
+100% tests passed out of 5
+
+Label Time Summary:
+abi                =   3.18 sec*proc (2 tests)
+durability         =   3.01 sec*proc (1 test)
+fault-injection    =  68.39 sec*proc (1 test)
+install            =   6.25 sec*proc (1 test)
+packaging          =   6.25 sec*proc (1 test)
+sdk                =   6.25 sec*proc (1 test)
+
+Total Test time (real) = 272.46 sec

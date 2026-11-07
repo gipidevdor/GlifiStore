@@ -11,8 +11,10 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <map>
 #include <optional>
 #include <ranges>
+#include <set>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -38,6 +40,7 @@ struct VerifiedRecordContext {
     WorkerId worker_id{};
     std::uint64_t now_ns{};
     bool expired{};
+    std::optional<BlobRef> blob{};
 };
 
 auto verify_indexed_put(void* opaque, const RecordView& record) -> Status {
@@ -49,6 +52,13 @@ auto verify_indexed_put(void* opaque, const RecordView& record) -> Status {
                     "durable compaction Index entry disagrees with its source Record");
     }
     context.expired = record.expired(context.now_ns);
+    if (record.type == ValueType::blob_ref) {
+        auto ref = decode_blob_ref(record.value);
+        if (!ref) {
+            return unexpected(ref.error());
+        }
+        context.blob = *ref;
+    }
     return {};
 }
 
@@ -129,7 +139,8 @@ auto segment_identity(const Manifest& manifest, const ManifestSegmentEntry& entr
     return {.store_id = manifest.store_id,
             .segment_id = entry.segment_id,
             .generation = entry.generation,
-            .owner_worker = entry.owner_worker};
+            .owner_worker = entry.owner_worker,
+            .format_version = manifest.format_version};
 }
 
 auto find_catalog_entry(const Manifest& manifest, const SegmentId segment_id) -> const ManifestSegmentEntry* {
@@ -248,6 +259,8 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             return failure(Error{ErrorCode::not_found, "durable Worker has no sealed Segments to compact"});
         }
 
+        std::map<BlobId, std::uint64_t> source_blobs;
+        std::set<BlobId> retained_blobs;
         std::vector<SelectedSegmentCommit> source_commits;
         source_commits.reserve(sources.size());
         for (const auto& source : sources) {
@@ -258,6 +271,25 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             }
             if (opened->selected_commit().commit.state != PersistedSegmentState::sealed) {
                 return failure(Error{ErrorCode::corrupted_data, "durable compaction source is not sealed"});
+            }
+            if (current.format_version == 2) {
+                auto count = [](void* context, const RecordRef&, const RecordView& record) -> Status {
+                    if (record.type == ValueType::blob_ref) {
+                        auto ref = decode_blob_ref(record.value);
+                        if (!ref) {
+                            return unexpected(ref.error());
+                        }
+                        auto& blobs = *static_cast<std::map<BlobId, std::uint64_t>*>(context);
+                        if (blobs.size() >= 1'000'000) {
+                            return fail(ErrorCode::resource_exhausted, "blob compaction metadata bound");
+                        }
+                        blobs.try_emplace(ref->id, blob_file_bytes(ref->logical_size));
+                    }
+                    return {};
+                };
+                if (auto scanned = opened->visit_committed_records(&source_blobs, count); !scanned) {
+                    return failure(scanned.error());
+                }
             }
             source_commits.push_back(opened->selected_commit());
         }
@@ -368,6 +400,9 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 ++copy_stats.expired_records_dropped;
                 continue;
             }
+            if (context.blob) {
+                retained_blobs.insert(context.blob->id);
+            }
             auto placement = layout.add_record(entry.record.size.value);
             if (!placement) {
                 return failure(placement.error());
@@ -378,7 +413,18 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
         open_source.reset();
         open_source_index.reset();
 
-        if (layout.segment_count() >= sources.size()) {
+        std::uint64_t blob_reclaim_bytes{};
+        for (const auto& [id, bytes] : source_blobs) {
+            if (!retained_blobs.contains(id)) {
+                if (bytes > std::numeric_limits<std::uint64_t>::max() - blob_reclaim_bytes) {
+                    return failure(Error{ErrorCode::arithmetic_overflow, "blob reclaim overflow"});
+                }
+                blob_reclaim_bytes += bytes;
+            }
+        }
+        const bool blob_gain = current.format_version == 2 && blob_reclaim_bytes != 0;
+        if (layout.segment_count() > sources.size() ||
+            (layout.segment_count() == sources.size() && !blob_gain)) {
             copy_stats.pre_intent_duration_ns = elapsed_ns(build_started);
             return build_failure(
                 DurableCompactionBuildOutcome::not_beneficial,
@@ -386,7 +432,8 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 copy_stats);
         }
 
-        auto plan = plan_durable_worker_compaction(current, worker_id, layout.segment_count(), limits);
+        auto plan = plan_durable_worker_compaction(current, worker_id, layout.segment_count(), limits,
+                                                   blob_reclaim_bytes);
         if (!plan) {
             return failure(plan.error());
         }
@@ -570,7 +617,6 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 Error{ErrorCode::internal_error, "durable compaction replacement build is incomplete"});
         }
 
-        const auto index_stats = prepared_index.stats();
         if (auto accounted = add_capacity_bytes(copy_stats.transient_metadata_lower_bound_bytes,
                                                 source_entries.capacity(), sizeof(IndexEntry));
             !accounted) {
@@ -586,9 +632,16 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             !accounted) {
             return failure(accounted.error());
         }
-        auto accounted_index = checked_add(static_cast<std::uint64_t>(index_stats.table_allocated_bytes),
-                                           static_cast<std::uint64_t>(index_stats.arena_allocated_bytes),
-                                           "durable compaction transient Index accounting overflow");
+        if (intent_gate.prepare_index != nullptr) {
+            if (auto reserved = intent_gate.prepare_index(intent_gate.context, prepared_index); !reserved) {
+                return failure(reserved.error());
+            }
+        }
+        const auto replay_index_stats = prepared_index.stats();
+        auto accounted_index =
+            checked_add(static_cast<std::uint64_t>(replay_index_stats.table_allocated_bytes),
+                        static_cast<std::uint64_t>(replay_index_stats.arena_allocated_bytes),
+                        "durable compaction transient Index accounting overflow");
         if (!accounted_index) {
             return failure(accounted_index.error());
         }

@@ -87,7 +87,8 @@ auto copy_verified_value(void* opaque, const RecordView& record) -> Status {
         context.crc_value_copy_ns = timing_elapsed_ns(copy_started);
         return fail(ErrorCode::not_found, "key has expired");
     }
-    context.value = OwnedValue::from_bytes(record.value, record.sequence.value, record.expire_at_ns);
+    context.value =
+        OwnedValue::from_bytes(record.value, record.sequence.value, record.expire_at_ns, record.type);
     context.crc_value_copy_ns = timing_elapsed_ns(copy_started);
     return {};
 }
@@ -243,7 +244,8 @@ auto complete_interrupted_rotation(DataDirectory& directory, const DurableResour
         const SegmentHeaderIdentity identity{.store_id = manifest->store_id,
                                              .segment_id = entry.segment_id,
                                              .generation = entry.generation,
-                                             .owner_worker = entry.owner_worker};
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = manifest->format_version};
         auto file = DurableSegmentFile::open(directory, identity, SegmentFileOpenMode::read_only);
         if (!file) {
             return unexpected(file.error());
@@ -264,12 +266,11 @@ auto complete_interrupted_rotation(DataDirectory& directory, const DurableResour
         return {};
     }
 
-    const SegmentHeaderIdentity replacement_identity{
-        .store_id = manifest->store_id,
-        .segment_id = manifest->next_segment_id,
-        .generation = manifest->next_segment_generation,
-        .owner_worker = sealed_active->owner_worker,
-    };
+    const SegmentHeaderIdentity replacement_identity{.store_id = manifest->store_id,
+                                                     .segment_id = manifest->next_segment_id,
+                                                     .generation = manifest->next_segment_generation,
+                                                     .owner_worker = sealed_active->owner_worker,
+                                                     .format_version = manifest->format_version};
     auto next = rotation_manifest(*manifest, *sealed_active, limits);
     if (!next) {
         return unexpected(next.error());
@@ -372,7 +373,8 @@ auto resolve_interrupted_compaction(DataDirectory& directory, const std::uint64_
         const SegmentHeaderIdentity identity{.store_id = obsolete_manifest.store_id,
                                              .segment_id = entry.segment_id,
                                              .generation = entry.generation,
-                                             .owner_worker = entry.owner_worker};
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = obsolete_manifest.format_version};
         auto file = DurableSegmentFile::open(directory, identity, SegmentFileOpenMode::read_only);
         if (!file && file.error().code != ErrorCode::not_found) {
             return unexpected(file.error());

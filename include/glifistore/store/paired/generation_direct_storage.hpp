@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Direct generation construction over pre-reserved immutable storage.
+ */
 #pragma once
 
 // Writer-only fixed shell storage for one PairReadGenerationEnableShared.
@@ -14,6 +18,9 @@ namespace glifistore::store::paired {
 class PairReadGeneration;
 class GenerationSlotPool;
 
+/**
+ * @brief Preallocated backing ownership for a directly constructed generation without a shared control block.
+ */
 class GenerationDirectStorage final {
   public:
     static constexpr std::size_t kBytes = 512U;

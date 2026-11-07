@@ -65,6 +65,8 @@ requirements:
   prove:
   - tests/fixtures/error_taxonomy_v1.json
   - tests/unit/client_error_taxonomy_tests.cpp
+  - tests/unit/client_transport_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
   - sdk/python/tests/test_error_taxonomy.py
   - sdk/go/client/error_taxonomy_test.go
   - sdk/perl/t/03-error-taxonomy.t
@@ -77,9 +79,11 @@ requirements:
   evidenze:
   - workflow: ci.yml
     note: sdk-clients job runs taxonomy conformance
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Local C++ OOM polarity and elapsed-deadline regressions; not hosted CI
   rischio_residuo:
-  - Transport / deadline / local-validation vectors beyond the shared fixture remain
-    client-semantics narrative coverage
+  - The new C++ allocation/deadline regressions have local macOS evidence; cross-platform
+    sanitizer campaigns and equivalent post-send allocation vectors in other SDKs remain open
   hazards:
   - HAZ-005
   - HAZ-010

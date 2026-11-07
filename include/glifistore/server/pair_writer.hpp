@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded Reader-to-Writer mutation handoff and completion transport.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -20,8 +24,14 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Daemon mutation kind translated to the Store-owned paired runtime.
+ */
 enum class MutationKind : std::uint8_t { put = 0, erase = 1 };
 
+/**
+ * @brief Writer result tagged for one Reactor connection/request and its payload accounting release.
+ */
 struct MutationCompletion final {
     ConnectionToken connection{};
     std::uint64_t request_id{};
@@ -31,6 +41,9 @@ struct MutationCompletion final {
     std::optional<Error> error{};
 };
 
+/**
+ * @brief Daemon-facing copy of one Store-owned paired shard observation.
+ */
 struct PairWriterStats final {
     std::size_t worker_index{};
     std::uint64_t reader_safe_epoch{};
@@ -104,6 +117,9 @@ struct PairWriterStats final {
     LatencyHistogram service_histogram{};
 };
 
+/**
+ * @brief Borrowed mutation inputs and completion destinations handed to the Store-owned paired runtime.
+ */
 struct MutationRequest final {
     ConnectionToken connection{};
     std::uint64_t request_id{};
@@ -117,15 +133,18 @@ struct MutationRequest final {
     Wakeup* wakeup{};
 };
 
+/**
+ * @brief Bounds for initial delta merging, post-cut capacity, and incremental slot work.
+ */
 struct PairReadMergeConfig final {
     std::size_t delta_entries{8'192};
     std::size_t maximum_post_entries{32'736};
     std::size_t quantum_slots{4'096};
 };
 
-// Thin daemon adapter over Store-owned ShardPairRuntime (ADR 0032). Generation
-// authority and Writer threads live in the Store; this type only maps Reactor
-// ConnectionToken/Wakeup completions onto the shared runtime.
+/// Thin daemon adapter over Store-owned ShardPairRuntime (ADR 0032). Generation
+/// authority and Writer threads live in the Store; this type only maps Reactor
+/// ConnectionToken/Wakeup completions onto the shared runtime.
 class PairWriterPool final {
   public:
     static constexpr std::size_t kMaximumRetiredReadGenerations =
@@ -161,8 +180,8 @@ class PairWriterPool final {
         -> const PairReadGeneration*;
     void request_read_refresh(std::size_t worker_index) noexcept;
     [[nodiscard]] auto healthy() const noexcept -> bool;
-    // Drain-deadline path: abandon pre-Store queued work as resource_exhausted so
-    // Reactors can flush OVERLOADED before close_all_connections.
+    /// Drain-deadline path: abandon pre-Store queued work as resource_exhausted so
+    /// Reactors can flush OVERLOADED before close_all_connections.
     void abandon_queued_mutations() noexcept;
 
     [[nodiscard]] auto expire_remaining_armed() const noexcept -> bool {

@@ -26,3 +26,9 @@ This design makes safe ownership the default while retaining a defined route to 
 It also removes public access paths that currently bypass Worker synchronization or permit Segment
 corruption. The detailed target contract and migration rules are in
 [`public-api-contract.md`](../architecture/public-api-contract.md).
+
+## Blob-profile amendment (2026-11-07)
+
+[ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
+Owning GET keeps its existing lifetime, including materialized blob values. New streaming handles are Store-scoped and are revoked safely by close.
+Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.

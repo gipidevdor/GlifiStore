@@ -1,0 +1,38 @@
+{
+  "evidence_class": "local",
+  "date": "2026-11-07",
+  "base_revision": "8c841cb623a1e49e23cc519270c9b2e34c29f727",
+  "formatter_version": "21.1.8",
+  "formatted_inventory": 414,
+  "tidy_sources": 112,
+  "tidy_checks": 8,
+  "python_tests": 446,
+  "final_focused_tests": 23,
+  "native_syntax_checks": 9,
+  "full_build": "not completed: concurrent blob_recovery/blob_storage call private DataDirectory::sync_directory",
+  "policy_sha256": {
+    ".clang-format": "4e8929ce11180450a0d4455cc15738908d375f75a9c9a22ee723053a9a550be8",
+    ".clang-format-version": "2aa7a88c6265f7d12bbbda0d91c617c37977ebba04971007a6ba09f16130f58c",
+    ".clang-tidy": "4f56d15a5ed4d29d8ac940708eb8772aeb5301ac542aeeef7e36cf94285fa702",
+    ".editorconfig": "9696b99dadfe52ac0cd41cde33e4cbf76e8925e8acbd37c9789e451942df49bd",
+    "AGENTS.md": "c5973277f34f5a6e6bc04776361414c87d52f446dd303bdb7f3e00dc062b831f",
+    "engineering/tools/format_code.py": "9ddba4ad5d4b890a874e3e05757496a328268a5054c0bfc661e37e0af8091720",
+    "engineering/tools/run_clang_tidy_gate.py": "feadb1b99a81f9a67be7bffc7f17777662d43b308bc9a674a93b9eaa5a8ef58b",
+    "scripts/dev.sh": "04d7f77799f6b89fef52319cbf6af7415db5abfb54cb2a7876b44b734a081be1",
+    "scripts/bootstrap-macos.sh": "638dcfddb0bc53be49cd29d35093e8aa41a60e5497ecf8da9d111bd12964d2e3",
+    ".github/workflows/static-analysis.yml": "c9d9bcf985d2dd8537a47e78978e66cf80a231791840debea6d42629014f36c6",
+    "scripts/tests/test_code_format.py": "2fa813a771023e125162f94628598f6a5a3e92bf3e2ddee52b977dcb87984057",
+    "docs/development/code-style.md": "c949ba7eccc62e54ad4da5c6540bdad13b1c9a54a77cf143645effa98fef6d3f"
+  },
+  "logs_sha256": {
+    "format-check.log": "edaa79ff2007a6254de25cfa0277c6a83953ac68a5d85265d60268a7ecbb5d87",
+    "format-write.log": "42e622a5e75821ef89de54a4ba58492ffc1649d7a07ec620983a32e744b61554",
+    "clang-tidy.log": "bca48e0e74f1d363a123cdcd9c3798f6e412ee76f8b842840d152bb7f5d95b87",
+    "python-tests.log": "ef975b0f2662afd28c9ca38c3bedd390bc5f23934f1755f29c9b87be6278f77d",
+    "focused-tests.log": "df44e4dc52081a08ade1b2a2676facebc0edc1dcbceadf86b4cc4e8c0acee220",
+    "native-syntax.log": "3056870f8b02e952de3fa6dc5c083dd70a7b4eb6006f9edc3e449153319db740",
+    "build.log": "f6791e13359f89b94d5940a00b1ccef5cc82a692e8e6e8ea88569cafdff252f3",
+    "validators.log": "811facb8b09738f32613d40beea8f69401ea01c81e96a324c2dd9c4cd3ff3f21"
+  },
+  "tidy_scope": "112 production sources present at the successful check; later concurrent blob sources not covered"
+}

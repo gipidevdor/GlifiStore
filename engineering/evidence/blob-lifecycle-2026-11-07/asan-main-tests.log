@@ -1,0 +1,1506 @@
+[RUN] compaction intent v1 matches its independent golden fixture
+[PASS] compaction intent v1 matches its independent golden fixture
+[RUN] compaction intent rejects truncation trailing bytes and checksum corruption
+[PASS] compaction intent rejects truncation trailing bytes and checksum corruption
+[RUN] compaction intent binds its header to canonical old and next manifests
+[PASS] compaction intent binds its header to canonical old and next manifests
+[RUN] compaction intent fails closed for unknown versions and nonzero reserved bytes
+[PASS] compaction intent fails closed for unknown versions and nonzero reserved bytes
+[RUN] durable compaction output sizing accounts for reserved Segment headers
+[PASS] durable compaction output sizing accounts for reserved Segment headers
+[RUN] durable compaction exact layout accounts for Record boundary fragmentation
+[PASS] durable compaction exact layout accounts for Record boundary fragmentation
+[RUN] durable compaction replaces a complete Worker sealed set in one manifest
+[PASS] durable compaction replaces a complete Worker sealed set in one manifest
+[RUN] empty durable compaction can retire an entirely obsolete sealed history
+[PASS] empty durable compaction can retire an entirely obsolete sealed history
+[RUN] durable compaction rejects unsafe identity and non-reclaiming plans
+[PASS] durable compaction rejects unsafe identity and non-reclaiming plans
+[RUN] durable compaction enforces temporary peak and amplification budgets
+[PASS] durable compaction enforces temporary peak and amplification budgets
+[RUN] bounded byte rate limiter derives a ten millisecond capped burst
+[PASS] bounded byte rate limiter derives a ten millisecond capped burst
+[RUN] bounded byte rate limiter spaces requests after one immediate burst
+[PASS] bounded byte rate limiter spaces requests after one immediate burst
+[RUN] disabled byte rate limiter grants the complete request without debt
+[PASS] disabled byte rate limiter grants the complete request without debt
+[RUN] adaptive batch target contracts to deadline occupancy
+[PASS] adaptive batch target contracts to deadline occupancy
+[RUN] adaptive batch target grows to admitted burst within bounds
+[PASS] adaptive batch target grows to admitted burst within bounds
+[RUN] index inserts replaces finds erases and iterates
+[PASS] index inserts replaces finds erases and iterates
+[RUN] index preserves keys larger than 16-bit lengths
+[PASS] index preserves keys larger than 16-bit lengths
+[RUN] index grows and rejects impossible reserve sizes
+[PASS] index grows and rejects impossible reserve sizes
+[RUN] index resolves complete-hash collisions by full key bytes
+[PASS] index resolves complete-hash collisions by full key bytes
+[RUN] index preflights long-key publication before a durable commit
+[PASS] index preflights long-key publication before a durable commit
+[RUN] index tracks and reuses deleted slots without changing capacity
+[PASS] index tracks and reuses deleted slots without changing capacity
+[RUN] index rebuilds tombstones transactionally at the same capacity
+[PASS] index rebuilds tombstones transactionally at the same capacity
+[RUN] index bounds full collision probing across table wraparound
+[PASS] index bounds full collision probing across table wraparound
+[RUN] index grows only after reaching seven eighths live occupancy
+[PASS] index grows only after reaching seven eighths live occupancy
+[RUN] selected Swiss control matcher equals scalar masks
+[PASS] selected Swiss control matcher equals scalar masks
+[RUN] index keeps inline and heap keys stable through prolonged churn
+[PASS] index keeps inline and heap keys stable through prolonged churn
+[RUN] index hash seed defaults to published Index v1 constant
+[PASS] index hash seed defaults to published Index v1 constant
+[RUN] index hash seed is stable within process for identical tables
+[PASS] index hash seed is stable within process for identical tables
+[RUN] different index hash seeds diverge placement for the same keys
+[PASS] different index hash seeds diverge placement for the same keys
+[RUN] siphash24 matches Aumasson/Bernstein paper vectors for key 00..0f
+[PASS] siphash24 matches Aumasson/Bernstein paper vectors for key 00..0f
+[RUN] Index constructor captures process seed
+[PASS] Index constructor captures process seed
+[RUN] worker routing defaults to fnv1a64-v1 with zero seed
+[PASS] worker routing defaults to fnv1a64-v1 with zero seed
+[RUN] worker routing seed is stable within a process
+[PASS] worker routing seed is stable within a process
+[RUN] worker routing publishes algorithm and seed as one coherent revision
+[PASS] worker routing publishes algorithm and seed as one coherent revision
+[RUN] different worker routing seeds select different owners
+[PASS] different worker routing seeds select different owners
+[RUN] INIT identity stays plain for FNV and extends for SipHash
+[PASS] INIT identity stays plain for FNV and extends for SipHash
+[RUN] durable Store persists worker hash seed and refuses mismatch
+[PASS] durable Store persists worker hash seed and refuses mismatch
+[RUN] manifest round-trip preserves siphash worker hash seed
+[PASS] manifest round-trip preserves siphash worker hash seed
+[RUN] hot record inline representation is derived from value size
+[PASS] hot record inline representation is derived from value size
+[RUN] hot record table inserts finds replaces and erases with control fingerprints
+[PASS] hot record table inserts finds replaces and erases with control fingerprints
+[RUN] hot record accounting charges bucket storage exactly once
+[PASS] hot record accounting charges bucket storage exactly once
+[RUN] hot record table resolves same-H2 collisions by full key bytes
+[PASS] hot record table resolves same-H2 collisions by full key bytes
+[RUN] hot record table erase_if and clear drop resident entries
+[PASS] hot record table erase_if and clear drop resident entries
+[RUN] hot record table control matcher agrees with scalar masks
+[PASS] hot record table control matcher agrees with scalar masks
+[RUN] hot record reserve plan grows geometrically at load 0.75
+[PASS] hot record reserve plan grows geometrically at load 0.75
+[RUN] hot record replacement at occupancy boundary does not grow
+[PASS] hot record replacement at occupancy boundary does not grow
+[RUN] paired SPSC ring preserves order through concurrent wraparound
+[PASS] paired SPSC ring preserves order through concurrent wraparound
+[RUN] paired volatile publication makes acknowledged PUT visible without GET queue traffic
+[PASS] paired volatile publication makes acknowledged PUT visible without GET queue traffic
+[RUN] paired volatile admission reserves bounded completion capacity
+[PASS] paired volatile admission reserves bounded completion capacity
+[RUN] paired volatile merge keeps two-level visibility and TTL semantics
+[PASS] paired volatile merge keeps two-level visibility and TTL semantics
+[RUN] paired delta capacity covers one full batch beyond a small merge threshold
+[PASS] paired delta capacity covers one full batch beyond a small merge threshold
+[RUN] paired QSBR retires generations only across Reader turn boundaries
+[PASS] paired QSBR retires generations only across Reader turn boundaries
+[RUN] paired large delta copies only touched persistent directory blocks
+[PASS] paired large delta copies only touched persistent directory blocks
+[RUN] paired Writer batch policy validates bounds and supports zero-wait batch one
+[PASS] paired Writer batch policy validates bounds and supports zero-wait batch one
+[RUN] ADR 0036 V1 prototype: adopt publishes one immutable generation atomically
+[PASS] ADR 0036 V1 prototype: adopt publishes one immutable generation atomically
+[RUN] ADR 0036 V1 prototype: slot reincarnation token prevents descriptor ABA
+[PASS] ADR 0036 V1 prototype: slot reincarnation token prevents descriptor ABA
+[RUN] ADR 0036 V3 prototype: pinned generation bytes survive publish and retire races
+[PASS] ADR 0036 V3 prototype: pinned generation bytes survive publish and retire races
+[RUN] ADR 0036 V9 prototype: slot-pool starvation increments publication backpressure
+[PASS] ADR 0036 V9 prototype: slot-pool starvation increments publication backpressure
+[RUN] ADR 0036 V6 prototype: rejected publication never makes mutations visible
+[PASS] ADR 0036 V6 prototype: rejected publication never makes mutations visible
+[RUN] ADR 0036 V2 prototype: reclaim never frees a pinned or pre-quiescent generation
+[PASS] ADR 0036 V2 prototype: reclaim never frees a pinned or pre-quiescent generation
+[RUN] ADR 0036 V7 prototype: delta merge under pin slot pressure keeps committed keys
+[PASS] ADR 0036 V7 prototype: delta merge under pin slot pressure keeps committed keys
+[RUN] ADR 0036 V13 prototype: pin adopt merge reclaim stress
+[PASS] ADR 0036 V13 prototype: pin adopt merge reclaim stress
+[RUN] paired slow-output pin delays generation retirement across Reader turns
+[PASS] paired slow-output pin delays generation retirement across Reader turns
+[RUN] paired volatile shutdown drains submission and closes admission
+[PASS] paired volatile shutdown drains submission and closes admission
+[RUN] ADR 0036 V8 candidate bounds slots and recovers after Reader adoption
+[PASS] ADR 0036 V8 candidate bounds slots and recovers after Reader adoption
+[RUN] ADR 0036 V9 candidate applies the official retire-debt capacity formula
+[PASS] ADR 0036 V9 candidate applies the official retire-debt capacity formula
+[RUN] ADR 0036 V8 candidate cold borrow holds the exact retired epoch
+[PASS] ADR 0036 V8 candidate cold borrow holds the exact retired epoch
+[RUN] ADR 0036 V8 candidate rejects a late regressing borrow frontier
+[PASS] ADR 0036 V8 candidate rejects a late regressing borrow frontier
+[RUN] ADR 0036 V6 candidate reserves before mutation and fail-closes abandoned authority
+[PASS] ADR 0036 V6 candidate reserves before mutation and fail-closes abandoned authority
+[RUN] ADR 0036 V5 candidate drains admitted reservations and rejects late admission
+[PASS] ADR 0036 V5 candidate drains admitted reservations and rejects late admission
+[RUN] ADR 0036 V5 candidate holds a slow borrow until terminal Reader quiescence
+[PASS] ADR 0036 V5 candidate holds a slow borrow until terminal Reader quiescence
+[RUN] ADR 0036 V5 candidate fail-closes a linearized reservation abandoned by shutdown
+[PASS] ADR 0036 V5 candidate fail-closes a linearized reservation abandoned by shutdown
+[RUN] ADR 0036 V13 candidate publish adopt reclaim stress is race free
+[PASS] ADR 0036 V13 candidate publish adopt reclaim stress is race free
+[RUN] ADR 0036 shell slot reuses one real generation allocation after weak retirement
+[PASS] ADR 0036 shell slot reuses one real generation allocation after weak retirement
+[RUN] ADR 0036 shell slot backing storage outlives its external owner
+[PASS] ADR 0036 shell slot backing storage outlives its external owner
+[RUN] ADR 0036 real generation pool reserves and reuses its matching shell slot
+[PASS] ADR 0036 real generation pool reserves and reuses its matching shell slot
+[RUN] ADR 0036 inline slot owner publishes without shared backing ownership
+[PASS] ADR 0036 inline slot owner publishes without shared backing ownership
+[RUN] ADR 0036 inline slot owner fail-closes a rejected post-linearization build
+[PASS] ADR 0036 inline slot owner fail-closes a rejected post-linearization build
+[RUN] ADR 0036 inline slot owner publish adopt reclaim stress is race free
+[PASS] ADR 0036 inline slot owner publish adopt reclaim stress is race free
+[RUN] ADR 0036 direct generation ring matches official incremental publication
+[PASS] ADR 0036 direct generation ring matches official incremental publication
+[RUN] ADR 0036 direct generation ring preserves current after rejected build
+[PASS] ADR 0036 direct generation ring preserves current after rejected build
+[RUN] ADR 0036 direct slot pool bounds debt and reuses reclaimed object storage
+[PASS] ADR 0036 direct slot pool bounds debt and reuses reclaimed object storage
+[RUN] ADR 0036 direct slot pool holds a cold borrow frontier
+[PASS] ADR 0036 direct slot pool holds a cold borrow frontier
+[RUN] ADR 0036 direct slot pool fail-closes a rejected linearized build
+[PASS] ADR 0036 direct slot pool fail-closes a rejected linearized build
+[RUN] ADR 0036 direct slot pool shutdown rejects late admission and revokes adoption
+[PASS] ADR 0036 direct slot pool shutdown rejects late admission and revokes adoption
+[RUN] ADR 0036 direct slot pool publish adopt reclaim stress is race free
+[PASS] ADR 0036 direct slot pool publish adopt reclaim stress is race free
+[RUN] ADR 0036 production slot V1 token adopt and reincarnation
+[PASS] ADR 0036 production slot V1 token adopt and reincarnation
+[RUN] ADR 0036 production slot V6 reserve-before-mutate fail-closed
+[PASS] ADR 0036 production slot V6 reserve-before-mutate fail-closed
+[RUN] ADR 0036 production slot V9 exhaustion backpressure
+[PASS] ADR 0036 production slot V9 exhaustion backpressure
+[RUN] ADR 0036 production slot epoch overflow and token width
+[PASS] ADR 0036 production slot epoch overflow and token width
+[RUN] paired read generation overlays delta on base with tombstones and TTL
+[PASS] paired read generation overlays delta on base with tombstones and TTL
+[RUN] paired read generation owns the exact Segment generation pin
+[PASS] paired read generation owns the exact Segment generation pin
+[RUN] paired Delta arena retains immutable overwrite versions in fixed record blocks
+[PASS] paired Delta arena retains immutable overwrite versions in fixed record blocks
+[RUN] paired compact base preserves inline boundary and multi-block keys
+[PASS] paired compact base preserves inline boundary and multi-block keys
+[RUN] paired incremental merge preserves cut and post-cut visibility with two levels
+[PASS] paired incremental merge preserves cut and post-cut visibility with two levels
+[RUN] paired incremental merge applies bounded post-cut backpressure before publication
+[PASS] paired incremental merge applies bounded post-cut backpressure before publication
+[RUN] paired incremental merge budget amortizes debt across remaining post capacity
+[PASS] paired incremental merge budget amortizes debt across remaining post capacity
+[RUN] paired incremental merge rejects publication from another generation lineage
+[PASS] paired incremental merge rejects publication from another generation lineage
+[RUN] manifest v1 matches its golden little-endian fixture
+[PASS] manifest v1 matches its golden little-endian fixture
+[RUN] manifest decoder rejects truncation trailing bytes and checksum corruption
+[PASS] manifest decoder rejects truncation trailing bytes and checksum corruption
+[RUN] manifest encoder enforces canonical catalog and active ownership
+[PASS] manifest encoder enforces canonical catalog and active ownership
+[RUN] manifest decoder distinguishes structural and semantic corruption
+[PASS] manifest decoder distinguishes structural and semantic corruption
+[RUN] manifest decoder fails closed for supported-checksum unknown versions
+[PASS] manifest decoder fails closed for supported-checksum unknown versions
+[RUN] manifest publication selection uses generation and rejects ambiguity
+[PASS] manifest publication selection uses generation and rejects ambiguity
+[RUN] mutation slot pool copies borrowed payload into one stable preallocated slot
+[PASS] mutation slot pool copies borrowed payload into one stable preallocated slot
+[RUN] mutation slot pool keeps wrapped payload contiguous without overwriting live FIFO slots
+[PASS] mutation slot pool keeps wrapped payload contiguous without overwriting live FIFO slots
+[RUN] mutation slot pool rejects out-of-order release and rolls back unpublished tail
+[PASS] mutation slot pool rejects out-of-order release and rolls back unpublished tail
+[RUN] mutation slot pool distinguishes slot byte and payload bounds
+[PASS] mutation slot pool distinguishes slot byte and payload bounds
+[RUN] mutation_state CommitKnowledge aliases DurableMutationOutcome
+[PASS] mutation_state CommitKnowledge aliases DurableMutationOutcome
+[RUN] mutation_state illegal transitions are rejected by table
+[PASS] mutation_state illegal transitions are rejected by table
+[RUN] mutation_state happy durable path reaches completed success
+[PASS] mutation_state happy durable path reaches completed success
+[RUN] mutation_state known-not-committed never becomes success
+[PASS] mutation_state known-not-committed never becomes success
+[RUN] mutation_state committed cannot decide known_not_committed
+[PASS] mutation_state committed cannot decide known_not_committed
+[RUN] mutation_state completion_decided cannot change outcome
+[PASS] mutation_state completion_decided cannot change outcome
+[RUN] mutation_state exception after durable_started is indeterminate
+[PASS] mutation_state exception after durable_started is indeterminate
+[RUN] mutation_state decide_completion characterization table
+[PASS] mutation_state decide_completion characterization table
+[RUN] completion_policy wire codes match taxonomy
+[PASS] completion_policy wire codes match taxonomy
+[RUN] completion_policy status_from_completion polarities
+[PASS] completion_policy status_from_completion polarities
+[RUN] mutation_recovery sync durable exception: never entered
+[PASS] mutation_recovery sync durable exception: never entered
+[RUN] mutation_recovery sync durable exception: entered unpublished
+[PASS] mutation_recovery sync durable exception: entered unpublished
+[RUN] mutation_recovery sync durable exception: published committed keeps success
+[PASS] mutation_recovery sync durable exception: published committed keeps success
+[RUN] mutation_recovery sync durable exception: status_resolved sticks
+[PASS] mutation_recovery sync durable exception: status_resolved sticks
+[RUN] mutation_batch durable_subbatch_end stops before duplicate keys
+[PASS] mutation_batch durable_subbatch_end stops before duplicate keys
+[RUN] mutation_execution rewrite preserves reject polarity and maps INTERNAL_ERROR bucket
+[PASS] mutation_execution rewrite preserves reject polarity and maps INTERNAL_ERROR bucket
+[RUN] FailClosedScope and lane wake views are distinct
+[PASS] FailClosedScope and lane wake views are distinct
+[RUN] connection_lifecycle decide close_now only when drained
+[PASS] connection_lifecycle decide close_now only when drained
+[RUN] connection token generation retires a slot instead of wrapping into an ABA identity
+[PASS] connection token generation retires a slot instead of wrapping into an ABA identity
+[RUN] property OVERLOADED wire code iff known_not_committed completion
+[PASS] property OVERLOADED wire code iff known_not_committed completion
+[RUN] property decided completion cannot change outcome
+[PASS] property decided completion cannot change outcome
+[RUN] lane_state aggregates keep cache-line alignment contracts
+[PASS] lane_state aggregates keep cache-line alignment contracts
+[RUN] execution token CAS grants sole ownership
+[PASS] execution token CAS grants sole ownership
+[RUN] execution token lost-wakeup reacquire when pending
+[PASS] execution token lost-wakeup reacquire when pending
+[RUN] execution token serializes concurrent acquirers
+[PASS] execution token serializes concurrent acquirers
+[RUN] embedded volatile combining omits dedicated Writer threads
+[PASS] embedded volatile combining omits dedicated Writer threads
+[RUN] embedded volatile combining preserves same-key FIFO under contention
+[PASS] embedded volatile combining preserves same-key FIFO under contention
+[RUN] embedded durable_sync combining omits dedicated Writer and keeps RAW
+[PASS] embedded durable_sync combining omits dedicated Writer and keeps RAW
+[RUN] embedded durable_sync combining preserves same-key FIFO under token contention
+[PASS] embedded durable_sync combining preserves same-key FIFO under token contention
+[RUN] embedded durable_sync put_batch coalesces until RAW without early ACK
+[PASS] embedded durable_sync put_batch coalesces until RAW without early ACK
+[RUN] embedded volatile hot-key does not starve sibling shard progress
+[PASS] embedded volatile hot-key does not starve sibling shard progress
+[RUN] mutation window visibility barrier enforces RAW epoch
+[PASS] mutation window visibility barrier enforces RAW epoch
+[RUN] validate maintenance config rejects inverted intervals
+[PASS] validate maintenance config rejects inverted intervals
+[RUN] maintenance integer ratios and pressure thresholds do not overflow
+[PASS] maintenance integer ratios and pressure thresholds do not overflow
+[RUN] reclaim_threshold skip advances to a reclaimable peer Worker
+[PASS] reclaim_threshold skip advances to a reclaimable peer Worker
+[RUN] normal dead-byte threshold is inclusive and pressure bypasses it
+[PASS] normal dead-byte threshold is inclusive and pressure bypasses it
+[RUN] normal copy budget preflights one candidate and pressure bypasses it
+[PASS] normal copy budget preflights one candidate and pressure bypasses it
+[RUN] normal rate and cpu budgets suspend and pressure bypasses them
+[PASS] normal rate and cpu budgets suspend and pressure bypasses them
+[RUN] foreground p99 suspends normal compaction and pressure bypasses latency fairness
+[PASS] foreground p99 suspends normal compaction and pressure bypasses latency fairness
+[RUN] foreground latency guard requires a representative sample window
+[PASS] foreground latency guard requires a representative sample window
+[RUN] foreground latency guard uses hysteresis and bounded reclaim debt
+[PASS] foreground latency guard uses hysteresis and bounded reclaim debt
+[RUN] maintenance telemetry counts sequence conflicts
+[PASS] maintenance telemetry counts sequence conflicts
+[RUN] cooperative store starts no maintenance thread
+[PASS] cooperative store starts no maintenance thread
+[RUN] disabled store starts no maintenance thread
+[PASS] disabled store starts no maintenance thread
+[RUN] background store phase1 auto-compacts and reports no_gain on empty volatile
+[PASS] background store phase1 auto-compacts and reports no_gain on empty volatile
+[RUN] background auto-compact can be disabled for observation-only eval
+[PASS] background auto-compact can be disabled for observation-only eval
+[RUN] manual compact races background controller without queuing
+[PASS] manual compact races background controller without queuing
+[RUN] normal policy respects max_no_gain budget backoff
+[PASS] normal policy respects max_no_gain budget backoff
+[RUN] close joins maintenance after draining admitted operations
+[PASS] close joins maintenance after draining admitted operations
+[RUN] classify_maintenance_pressure detects segment and free-space watermarks
+[PASS] classify_maintenance_pressure detects segment and free-space watermarks
+[RUN] pressure policy continues compacting despite no-gain budget
+[PASS] pressure policy continues compacting despite no-gain budget
+[RUN] unchanged no-gain candidate suppresses rescan until change or pressure
+[PASS] unchanged no-gain candidate suppresses rescan until change or pressure
+[RUN] no-gain memo expires at the bounded maximum evaluation interval
+[PASS] no-gain memo expires at the bounded maximum evaluation interval
+[RUN] pressure observes no_candidate when durable sealed set is empty
+[PASS] pressure observes no_candidate when durable sealed set is empty
+[RUN] background start evaluates promptly without request_evaluate
+[PASS] background start evaluates promptly without request_evaluate
+[RUN] join after stop leaves mutations_rejected cleared
+[PASS] join after stop leaves mutations_rejected cleared
+[RUN] maintenance snapshot records expired_records_dropped from compact
+[PASS] maintenance snapshot records expired_records_dropped from compact
+[RUN] maintenance snapshot records no-gain planning scan counters
+[PASS] maintenance snapshot records no-gain planning scan counters
+[RUN] pressure evaluation requests unread TTL probe when enabled
+[PASS] pressure evaluation requests unread TTL probe when enabled
+[RUN] normal evaluation skips unread TTL probe
+[PASS] normal evaluation skips unread TTL probe
+[RUN] normal unread TTL scheduling probes and lowers reclaim threshold
+[PASS] normal unread TTL scheduling probes and lowers reclaim threshold
+[RUN] normal unread TTL scheduling disabled keeps conservative threshold
+[PASS] normal unread TTL scheduling disabled keeps conservative threshold
+[RUN] max_copy_bytes_per_sec budget refreshes after the one-second window
+[PASS] max_copy_bytes_per_sec budget refreshes after the one-second window
+[RUN] emergency rejects put and erase with storage_exhausted
+[PASS] emergency rejects put and erase with storage_exhausted
+[RUN] caller_holds_guard still rejects maintenance emergency
+[PASS] caller_holds_guard still rejects maintenance emergency
+[RUN] mutate_durable_batch rejects under maintenance emergency
+[PASS] mutate_durable_batch rejects under maintenance emergency
+[RUN] mutate_durable_batch mid-batch TOCTOU rejects later siblings
+[PASS] mutate_durable_batch mid-batch TOCTOU rejects later siblings
+[RUN] put_batch rejects under maintenance emergency
+[PASS] put_batch rejects under maintenance emergency
+[RUN] put_batch mid-batch TOCTOU rejects later siblings
+[PASS] put_batch mid-batch TOCTOU rejects later siblings
+[RUN] erase_batch rejects under maintenance emergency
+[PASS] erase_batch rejects under maintenance emergency
+[RUN] erase_batch mid-batch TOCTOU rejects later siblings
+[PASS] erase_batch mid-batch TOCTOU rejects later siblings
+[RUN] emergency rejects mutations even when auto-compact is disabled
+[PASS] emergency rejects mutations even when auto-compact is disabled
+[RUN] emergency gate survives compact fault
+[PASS] emergency gate survives compact fault
+[RUN] close under emergency clears mutations_rejected and stops thread
+[PASS] close under emergency clears mutations_rejected and stops thread
+[RUN] flush succeeds while emergency rejects put
+[PASS] flush succeeds while emergency rejects put
+[RUN] emergency compact fault keeps reclaim attempts while gate is armed
+[PASS] emergency compact fault keeps reclaim attempts while gate is armed
+[RUN] Segment filename parser accepts only exact lowercase non-zero identities
+[PASS] Segment filename parser accepts only exact lowercase non-zero identities
+[RUN] namespace audit is repeatable and tolerates only canonical crash temporaries
+[PASS] namespace audit is repeatable and tolerates only canonical crash temporaries
+[RUN] namespace audit distinguishes compaction temporary from durable recovery intent
+[PASS] namespace audit distinguishes compaction temporary from durable recovery intent
+[RUN] namespace audit deterministically rejects unlisted malformed and unknown entries
+[PASS] namespace audit deterministically rejects unlisted malformed and unknown entries
+[RUN] namespace audit reports canonical symlinks and hard links as unsafe
+[PASS] namespace audit reports canonical symlinks and hard links as unsafe
+[RUN] namespace audit reports missing catalog files and bounds hostile enumeration
+[PASS] namespace audit reports missing catalog files and bounds hostile enumeration
+[RUN] positional file IO completes exact extents and rejects offset overflow
+[PASS] positional file IO completes exact extents and rejects offset overflow
+[RUN] positional file IO retries EINTR and completes deterministic short transfers
+[PASS] positional file IO retries EINTR and completes deterministic short transfers
+[RUN] positional write faults preserve native resource categories
+[PASS] positional write faults preserve native resource categories
+[RUN] positional IO fault matrix covers EINTR short IO and capacity errno classes
+[PASS] positional IO fault matrix covers EINTR short IO and capacity errno classes
+[RUN] data directory holds one process lock and rejects a symlink root
+[PASS] data directory holds one process lock and rejects a symlink root
+[RUN] data directory creation faults distinguish mkdir from parent synchronization
+[PASS] data directory creation faults distinguish mkdir from parent synchronization
+[RUN] data directory available-space preflight preserves the configured reserve
+[PASS] data directory available-space preflight preserves the configured reserve
+[RUN] durable bootstrap rejects insufficient space before publishing intent
+[PASS] durable bootstrap rejects insufficient space before publishing intent
+[RUN] manifest publication atomically replaces and reads a complete generation
+[PASS] manifest publication atomically replaces and reads a complete generation
+[RUN] manifest publication and reopen tolerate EINTR and fragmented positional IO
+[PASS] manifest publication and reopen tolerate EINTR and fragmented positional IO
+[RUN] pre-rename failure preserves the old manifest and keeps the directory usable
+[PASS] pre-rename failure preserves the old manifest and keeps the directory usable
+[RUN] manifest prepublication fault matrix preserves the durable generation
+[PASS] manifest prepublication fault matrix preserves the durable generation
+[RUN] post-rename sync failure is indeterminate and poisons the directory instance
+[PASS] post-rename sync failure is indeterminate and poisons the directory instance
+[RUN] invalid manifest fails before creating a publication
+[PASS] invalid manifest fails before creating a publication
+[RUN] bootstrap intent publication cleans pre-rename failures
+[PASS] bootstrap intent publication cleans pre-rename failures
+[RUN] bootstrap intent prepublication fault matrix leaves a pristine namespace
+[PASS] bootstrap intent prepublication fault matrix leaves a pristine namespace
+[RUN] bootstrap intent post-rename sync failure reopens as a complete intent
+[PASS] bootstrap intent post-rename sync failure reopens as a complete intent
+[RUN] compaction intent publication reads and removes one exact transaction
+[PASS] compaction intent publication reads and removes one exact transaction
+[RUN] compaction intent prepublication fault matrix leaves no authority
+[PASS] compaction intent prepublication fault matrix leaves no authority
+[RUN] compaction intent post-rename sync failure is reopenable and indeterminate
+[PASS] compaction intent post-rename sync failure is reopenable and indeterminate
+[RUN] compaction intent removal sync failure is indeterminate after unlink
+[PASS] compaction intent removal sync failure is indeterminate after unlink
+[RUN] compaction intent removal fault before unlink preserves the authority
+[PASS] compaction intent removal fault before unlink preserves the authority
+[RUN] Segment filenames are fixed-width lowercase and generation-specific
+[PASS] Segment filenames are fixed-width lowercase and generation-specific
+[RUN] durable Segment creation preallocates exact size and reopens verified identity
+[PASS] durable Segment creation preallocates exact size and reopens verified identity
+[RUN] staged Segment stays private until sealed promotion
+[PASS] staged Segment stays private until sealed promotion
+[RUN] paced Segment append bounds each physical Record write
+[PASS] paced Segment append bounds each physical Record write
+[RUN] staged Segment discard removes private output without poisoning authority
+[PASS] staged Segment discard removes private output without poisoning authority
+[RUN] staged Segment creation never replaces an existing private owner
+[PASS] staged Segment creation never replaces an existing private owner
+[RUN] Segment append synchronizes data before alternating commit slots and scans Records
+[PASS] Segment append synchronizes data before alternating commit slots and scans Records
+[RUN] generation-pinned runtime read accepts a Record committed after handle open
+[PASS] generation-pinned runtime read accepts a Record committed after handle open
+[RUN] preallocation failure publishes no Segment and keeps directory healthy
+[PASS] preallocation failure publishes no Segment and keeps directory healthy
+[RUN] Segment creation fault matrix distinguishes pre and post rename failures
+[PASS] Segment creation fault matrix distinguishes pre and post rename failures
+[RUN] fault boundaries distinguish uncommitted Record tails from indeterminate slots
+[PASS] fault boundaries distinguish uncommitted Record tails from indeterminate slots
+[RUN] committed Record corruption is detected by recovery scan
+[PASS] committed Record corruption is detected by recovery scan
+[RUN] Segment handles fail closed when their data directory lifetime ends
+[PASS] Segment handles fail closed when their data directory lifetime ends
+[RUN] deferred append defers synchronization until sync_file
+[PASS] deferred append defers synchronization until sync_file
+[RUN] batched append_record defers commit slot until flush_pending_commit
+[PASS] batched append_record defers commit slot until flush_pending_commit
+[RUN] inspect_durable_segment validates a sealed path without a directory lock
+[PASS] inspect_durable_segment validates a sealed path without a directory lock
+[RUN] inspect_durable_segment fails closed on committed Record corruption
+[PASS] inspect_durable_segment fails closed on committed Record corruption
+[RUN] inspect_durable_segment rejects filename identity disagreement
+[PASS] inspect_durable_segment rejects filename identity disagreement
+[RUN] verify_durable_store accepts a locked catalog with a valid active Segment
+[PASS] verify_durable_store accepts a locked catalog with a valid active Segment
+[RUN] verify_durable_store --no-scan skips committed Record corruption
+[PASS] verify_durable_store --no-scan skips committed Record corruption
+[RUN] verify_durable_store fails on unlisted Segment files
+[PASS] verify_durable_store fails on unlisted Segment files
+[RUN] verify_durable_store reports sealed-active Segments as active_requires_rotation
+[PASS] verify_durable_store reports sealed-active Segments as active_requires_rotation
+[RUN] verify_durable_store fails when the data directory is already locked
+[PASS] verify_durable_store fails when the data directory is already locked
+[RUN] backup_durable_store copies a verified Store and restores committed keys
+[PASS] backup_durable_store copies a verified Store and restores committed keys
+[RUN] backup_durable_store fails closed when the source is locked
+[PASS] backup_durable_store fails closed when the source is locked
+[RUN] backup_durable_store refuses a non-empty destination
+[PASS] backup_durable_store refuses a non-empty destination
+[RUN] Store::backup_to copies while the Store remains open under writer fence
+[PASS] Store::backup_to copies while the Store remains open under writer fence
+[RUN] concurrent Store::backup_to retains its counted admission fence while waiting
+[PASS] concurrent Store::backup_to retains its counted admission fence while waiting
+[RUN] Server::backup_to copies a live durable daemon catalog
+[PASS] Server::backup_to copies a live durable daemon catalog
+[RUN] Server READY fails while online backup fences admissions
+[PASS] Server READY fails while online backup fences admissions
+[RUN] Client::backup copies a live durable daemon catalog
+[PASS] Client::backup copies a live durable daemon catalog
+[RUN] backup_durable_store copies multi-Worker catalogs with parallel Segment workers
+[PASS] backup_durable_store copies multi-Worker catalogs with parallel Segment workers
+[RUN] incomplete backup destination fails verify and leaves source healthy (HAZ-021)
+[PASS] incomplete backup destination fails verify and leaves source healthy (HAZ-021)
+[RUN] failed online backup leaves the live Store usable (HAZ-021)
+[PASS] failed online backup leaves the live Store usable (HAZ-021)
+[RUN] future Manifest version fails closed on verify restore and open (HAZ-022)
+[PASS] future Manifest version fails closed on verify restore and open (HAZ-022)
+[RUN] future pinned Record version in Manifest fails closed (HAZ-022)
+[PASS] future pinned Record version in Manifest fails closed (HAZ-022)
+[RUN] truncated Manifest backup refuses restore and open (HAZ-022)
+[PASS] truncated Manifest backup refuses restore and open (HAZ-022)
+[RUN] restored Store refuses mismatched Worker count (HAZ-022)
+[PASS] restored Store refuses mismatched Worker count (HAZ-022)
+[RUN] online backup storage_exhausted matrix leaves incomplete dest and healthy source
+[PASS] online backup storage_exhausted matrix leaves incomplete dest and healthy source
+[RUN] fenced backup concurrent with mutation and compaction keeps source healthy
+[PASS] fenced backup concurrent with mutation and compaction keeps source healthy
+[RUN] online backup copy loop retries EINTR and short writes via FileIoHooks
+[PASS] online backup copy loop retries EINTR and short writes via FileIoHooks
+[RUN] online backup FileIoHooks sync EINTR retries leave verified dest
+[PASS] online backup FileIoHooks sync EINTR retries leave verified dest
+[RUN] online backup FileIoHooks capacity faults leave source healthy
+[PASS] online backup FileIoHooks capacity faults leave source healthy
+[RUN] online backup FileIoHooks write EIO and EROFS leave source healthy
+[PASS] online backup FileIoHooks write EIO and EROFS leave source healthy
+[RUN] online backup FileIoHooks sync EIO leaves source healthy
+[PASS] online backup FileIoHooks sync EIO leaves source healthy
+[RUN] migrate_durable_store reshards live keys from 1 to 4 Workers
+[PASS] migrate_durable_store reshards live keys from 1 to 4 Workers
+[RUN] migrate_durable_store resumes from a sibling checkpoint
+[PASS] migrate_durable_store resumes from a sibling checkpoint
+[RUN] migrate_durable_store refuses a locked source and occupied destination
+[PASS] migrate_durable_store refuses a locked source and occupied destination
+[RUN] migrate_durable_store downscales from 4 to 1 Workers
+[PASS] migrate_durable_store downscales from 4 to 1 Workers
+[RUN] migrate_durable_store resumes after an injected mid-copy interrupt
+[PASS] migrate_durable_store resumes after an injected mid-copy interrupt
+[RUN] migrate_durable_store refuses corrupt mismatched or noncanonical checkpoints
+[PASS] migrate_durable_store refuses corrupt mismatched or noncanonical checkpoints
+[RUN] repair_durable_store quarantines unlisted Segment and opens a clean store
+[PASS] repair_durable_store quarantines unlisted Segment and opens a clean store
+[RUN] repair_durable_store refuses unsafe symlink entries
+[PASS] repair_durable_store refuses unsafe symlink entries
+[RUN] repair_durable_store refuses a non-empty workspace
+[PASS] repair_durable_store refuses a non-empty workspace
+[RUN] repair_durable_store refuses a missing catalog Segment
+[PASS] repair_durable_store refuses a missing catalog Segment
+[RUN] cli parses long short inline and positional arguments
+[PASS] cli parses long short inline and positional arguments
+[RUN] cli option delimiter preserves dash-prefixed positional arguments
+[PASS] cli option delimiter preserves dash-prefixed positional arguments
+[RUN] cli rejects duplicates unknown options and missing values
+[PASS] cli rejects duplicates unknown options and missing values
+[RUN] cli numeric parser enforces complete input and bounds
+[PASS] cli numeric parser enforces complete input and bounds
+[RUN] cli byte-size parser supports decimal and binary suffixes
+[PASS] cli byte-size parser supports decimal and binary suffixes
+[RUN] cli executable name strips unix and windows directories
+[PASS] cli executable name strips unix and windows directories
+[RUN] daemon config environment names mirror long options
+[PASS] daemon config environment names mirror long options
+[RUN] daemon config CLI keeps workers distinct from maximum connections
+[PASS] daemon config CLI keeps workers distinct from maximum connections
+[RUN] daemon config canonicalizes shard pairs and the workers compatibility alias
+[PASS] daemon config canonicalizes shard pairs and the workers compatibility alias
+[RUN] daemon config file rejects unknown keys and duplicates
+[PASS] daemon config file rejects unknown keys and duplicates
+[RUN] daemon config rejects unknown deployment profiles before listen
+[PASS] daemon config rejects unknown deployment profiles before listen
+[RUN] daemon config deployment profile precedence is profile then file then env then CLI
+[PASS] daemon config deployment profile precedence is profile then file then env then CLI
+[RUN] daemon config embedded profile applies constrained durable defaults
+[PASS] daemon config embedded profile applies constrained durable defaults
+[RUN] daemon config production profile paces maintenance and explicit CLI overrides it
+[PASS] daemon config production profile paces maintenance and explicit CLI overrides it
+[RUN] daemon config dev profile disables maintenance and keeps volatile storage
+[PASS] daemon config dev profile disables maintenance and keeps volatile storage
+[RUN] daemon config precedence is file then env then CLI
+[PASS] daemon config precedence is file then env then CLI
+[RUN] daemon config resolves finite normal maintenance copy budget
+[PASS] daemon config resolves finite normal maintenance copy budget
+[RUN] daemon config CLI overrides env durable settings
+[PASS] daemon config CLI overrides env durable settings
+[RUN] daemon config env can clear a file flag
+[PASS] daemon config env can clear a file flag
+[RUN] daemon config GLIFISTORE_CONFIG selects the file
+[PASS] daemon config GLIFISTORE_CONFIG selects the file
+[RUN] daemon config resolves log-format from CLI env and file
+[PASS] daemon config resolves log-format from CLI env and file
+[RUN] daemon dump-config prints resolved effective settings
+[PASS] daemon dump-config prints resolved effective settings
+[RUN] daemon close-drain-deadline-ms sets StoreConfig optional bound
+[PASS] daemon close-drain-deadline-ms sets StoreConfig optional bound
+[RUN] daemon config production profile requires data-dir for durable storage
+[PASS] daemon config production profile requires data-dir for durable storage
+[RUN] daemon dump-config cannot be set from a config file
+[PASS] daemon dump-config cannot be set from a config file
+[RUN] daemon config maintenance rate budgets and secure-profile fail closed
+[PASS] daemon config maintenance rate budgets and secure-profile fail closed
+[RUN] daemon config Phase 5 abuse limits parse and dump
+[PASS] daemon config Phase 5 abuse limits parse and dump
+[RUN] daemon config secure-profile refuses explicit Phase 5 zero
+[PASS] daemon config secure-profile refuses explicit Phase 5 zero
+[RUN] daemon config authz-map enables default-deny policy
+[PASS] daemon config authz-map enables default-deny policy
+[RUN] daemon config authz-map prefix scope is loaded and dumped
+[PASS] daemon config authz-map prefix scope is loaded and dumped
+[RUN] daemon config index-hash-seed is parsed and dumped
+[PASS] daemon config index-hash-seed is parsed and dumped
+[RUN] daemon config worker-hash-seed selects siphash24-v1
+[PASS] daemon config worker-hash-seed selects siphash24-v1
+[RUN] daemon config unix-socket and peercred flags
+[PASS] daemon config unix-socket and peercred flags
+[RUN] daemon config secure-profile requires peercred with unix-socket
+[PASS] daemon config secure-profile requires peercred with unix-socket
+[RUN] daemon config CRL and OCSP fail-closed flags
+[PASS] daemon config CRL and OCSP fail-closed flags
+[RUN] daemon log format parsing rejects unknown values
+[PASS] daemon log format parsing rejects unknown values
+[RUN] daemon log format parsing accepts human and json
+[PASS] daemon log format parsing accepts human and json
+[RUN] daemon log json emits bounded lifecycle events
+[PASS] daemon log json emits bounded lifecycle events
+[RUN] daemon log quiet suppresses start listen and stopped json events
+[PASS] daemon log quiet suppresses start listen and stopped json events
+[RUN] daemon log human format emits no structured lines
+[PASS] daemon log human format emits no structured lines
+[RUN] daemon log json escapes control characters and truncates long fields
+[PASS] daemon log json escapes control characters and truncates long fields
+[RUN] daemon ready loss classification names are stable
+[PASS] daemon ready loss classification names are stable
+[RUN] security audit counts accept deny authz and tls decisions
+[PASS] security audit counts accept deny authz and tls decisions
+[RUN] security audit quiet suppresses accept events only
+[PASS] security audit quiet suppresses accept events only
+[RUN] security audit disabled emits no lines but still counts
+[PASS] security audit disabled emits no lines but still counts
+[RUN] security audit concurrent deny storm keeps counters coherent
+[PASS] security audit concurrent deny storm keeps counters coherent
+[RUN] openbsd sandbox promises are stable
+[PASS] openbsd sandbox promises are stable
+[RUN] openbsd sandbox support matches host
+[PASS] openbsd sandbox support matches host
+[RUN] openbsd sandbox plan is no-op off OpenBSD
+[PASS] openbsd sandbox plan is no-op off OpenBSD
+[RUN] apply openbsd sandbox is success no-op off OpenBSD
+[PASS] apply openbsd sandbox is success no-op off OpenBSD
+[RUN] authz write implies read and admin implies write
+[PASS] authz write implies read and admin implies write
+[RUN] authz map parses principals and default-denies unknowns
+[PASS] authz map parses principals and default-denies unknowns
+[RUN] authz map rejects unknown capability and duplicates
+[PASS] authz map rejects unknown capability and duplicates
+[RUN] authz disabled policy allows all opcodes
+[PASS] authz disabled policy allows all opcodes
+[RUN] authz map parses optional key prefix and rejects empty prefix
+[PASS] authz map parses optional key prefix and rejects empty prefix
+[RUN] authz key prefix denies cross-tenant GET PUT ERASE and allows in-prefix
+[PASS] authz key prefix denies cross-tenant GET PUT ERASE and allows in-prefix
+[RUN] authz unrestricted principal keeps whole-keyspace access
+[PASS] authz unrestricted principal keeps whole-keyspace access
+[RUN] authz prefix-scoped STATS requires admin capability
+[PASS] authz prefix-scoped STATS requires admin capability
+[RUN] peercred principal uses unix:uid= prefix
+[PASS] peercred principal uses unix:uid= prefix
+[RUN] peercred supported matches known Unix platforms
+[PASS] peercred supported matches known Unix platforms
+[RUN] unix listener accept yields peer credentials for local connector
+[PASS] unix listener accept yields peer credentials for local connector
+[RUN] abuse controller admits within accept and request windows
+[PASS] abuse controller admits within accept and request windows
+[RUN] abuse controller windows reset after one second
+[PASS] abuse controller windows reset after one second
+[RUN] abuse controller charges oversized responses and zero byte followups
+[PASS] abuse controller charges oversized responses and zero byte followups
+[RUN] secure profile abuse defaults are non-zero
+[PASS] secure profile abuse defaults are non-zero
+[RUN] abuse controller principal quotas are process-wide under concurrency
+[PASS] abuse controller principal quotas are process-wide under concurrency
+[RUN] bounded MPSC queue reports capacity without losing values
+[PASS] bounded MPSC queue reports capacity without losing values
+[RUN] bounded MPSC modular sequence ordering is defined across size_t wrap
+[PASS] bounded MPSC modular sequence ordering is defined across size_t wrap
+[RUN] bounded MPSC queue serializes concurrent producers
+[PASS] bounded MPSC queue serializes concurrent producers
+[RUN] bounded SPSC queue preserves FIFO order across concurrent wraparound
+[PASS] bounded SPSC queue preserves FIFO order across concurrent wraparound
+[RUN] bounded SPSC queue rejects a capacity that makes modular cursors ambiguous
+[PASS] bounded SPSC queue rejects a capacity that makes modular cursors ambiguous
+[RUN] bounded SPSC queue applies backpressure when full under hot producer
+[PASS] bounded SPSC queue applies backpressure when full under hot producer
+[RUN] bounded SPSC queue stays fair under slow consumer with bursty hot key
+[PASS] bounded SPSC queue stays fair under slow consumer with bursty hot key
+[RUN] connection handoff mesh is bounded and preserves binding state
+[PASS] connection handoff mesh is bounded and preserves binding state
+[RUN] connection handoff mesh stop_accepting refuses new transfers
+[PASS] connection handoff mesh stop_accepting refuses new transfers
+[RUN] connection handoff mesh preserves buffered state exactly once
+[PASS] connection handoff mesh preserves buffered state exactly once
+[RUN] connection handoff mesh concurrent producers preserve exactly-once delivery
+[PASS] connection handoff mesh concurrent producers preserve exactly-once delivery
+[RUN] C++ client bootstraps every worker and handles binary cache operations
+[PASS] C++ client bootstraps every worker and handles binary cache operations
+[RUN] C++ client erase of absent key is rejected
+[PASS] C++ client erase of absent key is rejected
+[RUN] C++ client pipeline erase of absent key is failed rejected
+[PASS] C++ client pipeline erase of absent key is failed rejected
+[RUN] C++ client batch erase of absent key is failed rejected
+[PASS] C++ client batch erase of absent key is failed rejected
+[RUN] C++ client worker pipelines erase of absent key is failed rejected
+[PASS] C++ client worker pipelines erase of absent key is failed rejected
+[RUN] C++ client maps OVERLOADED mutations to rejected with retryability never
+[PASS] C++ client maps OVERLOADED mutations to rejected with retryability never
+[RUN] C++ client safely shares worker-bound connections between threads
+[PASS] C++ client safely shares worker-bound connections between threads
+[RUN] C++ client pipeline preserves order and enforces one Worker
+[PASS] C++ client pipeline preserves order and enforces one Worker
+[RUN] C++ client batch groups Workers and restores caller order
+[PASS] C++ client batch groups Workers and restores caller order
+[RUN] C++ client execute_worker_pipelines fans out pre-sharded Worker vectors
+[PASS] C++ client execute_worker_pipelines fans out pre-sharded Worker vectors
+[RUN] C++ client pipeline preserves indeterminate mutation outcomes after disconnect
+[PASS] C++ client pipeline preserves indeterminate mutation outcomes after disconnect
+[RUN] C++ client does not blind-retry BACKUP after request bytes were sent
+[PASS] C++ client does not blind-retry BACKUP after request bytes were sent
+[RUN] C++ client treats BACKUP INTERNAL_ERROR as reconcile_first
+[PASS] C++ client treats BACKUP INTERNAL_ERROR as reconcile_first
+[RUN] C++ client treats BACKUP validate failure as reconcile_first
+[PASS] C++ client treats BACKUP validate failure as reconcile_first
+[RUN] C++ client rejects non-positive request timeout override
+[PASS] C++ client rejects non-positive request timeout override
+[RUN] C++ client rejects invalid configuration before network I/O
+[PASS] C++ client rejects invalid configuration before network I/O
+[RUN] C++ client exposes HEALTH READY STATS and routing state
+[PASS] C++ client exposes HEALTH READY STATS and routing state
+[RUN] authz-enabled server emits wire permission_denied status 8
+[PASS] authz-enabled server emits wire permission_denied status 8
+[RUN] error taxonomy maps wire status to category and retryability
+[PASS] error taxonomy maps wire status to category and retryability
+[RUN] C++ client expired deadline prevents sending on a writable socket
+[PASS] C++ client expired deadline prevents sending on a writable socket
+[RUN] C++ client expired deadline rejects a response already readable on the socket
+[PASS] C++ client expired deadline rejects a response already readable on the socket
+[RUN] C++ client expired pipeline deadline rejects an already buffered response
+[PASS] C++ client expired pipeline deadline rejects an already buffered response
+[RUN] client tls options fail closed when TLS is unavailable or incomplete
+[PASS] client tls options fail closed when TLS is unavailable or incomplete
+[RUN] client connect over TLS can ping
+[PASS] client connect over TLS can ping
+[RUN] benchmark decimal size parser accepts complete representable values
+[PASS] benchmark decimal size parser accepts complete representable values
+[RUN] benchmark decimal size parser rejects partial signed and overflowing input
+[PASS] benchmark decimal size parser rejects partial signed and overflowing input
+[RUN] durable flush coordinator executes an exact requested deadline
+[PASS] durable flush coordinator executes an exact requested deadline
+[RUN] blocking durable flush runs on the coordinator and propagates failure
+[PASS] blocking durable flush runs on the coordinator and propagates failure
+[RUN] durable flush coordinator translates callback exceptions and stops
+[PASS] durable flush coordinator translates callback exceptions and stops
+[RUN] durable flush coordinator rejects exhausted flush generations without invoking callback
+[PASS] durable flush coordinator rejects exhausted flush generations without invoking callback
+[RUN] concurrent coordinator stop releases a blocking flush without deadlock
+[PASS] concurrent coordinator stop releases a blocking flush without deadlock
+[RUN] latency histogram buckets and approximate percentiles
+[PASS] latency histogram buckets and approximate percentiles
+[RUN] empty latency histogram exports zeros
+[PASS] empty latency histogram exports zeros
+[RUN] failed void Result exposes its error
+[PASS] failed void Result exposes its error
+[RUN] successful void Result rejects error access without undefined behavior
+[PASS] successful void Result rejects error access without undefined behavior
+[RUN] OwnedBytes assigns aliased subranges across inline and heap storage
+[PASS] OwnedBytes assigns aliased subranges across inline and heap storage
+[RUN] OwnedBytes assigns an aliased heap subrange without losing its bytes
+[PASS] OwnedBytes assigns an aliased heap subrange without losing its bytes
+[RUN] PreparedColdRead transfers live pins through move construction and replacement
+[PASS] PreparedColdRead transfers live pins through move construction and replacement
+[RUN] record v1 matches its golden binary-key fixture
+[PASS] record v1 matches its golden binary-key fixture
+[RUN] record codec round-trips explicit little-endian fields
+[PASS] record codec round-trips explicit little-endian fields
+[RUN] record codec rejects truncation and checksum corruption
+[PASS] record codec rejects truncation and checksum corruption
+[RUN] record codec rejects total size smaller than its header
+[PASS] record codec rejects total size smaller than its header
+[RUN] record codec rejects unknown opcode and value type on encode
+[PASS] record codec rejects unknown opcode and value type on encode
+[RUN] record codec supports empty key and value without unsafe extents
+[PASS] record codec supports empty key and value without unsafe extents
+[RUN] record encode with precomputed size matches encoded_record_size path
+[PASS] record encode with precomputed size matches encoded_record_size path
+[RUN] crc32c matches the standard Castagnoli test vector
+[PASS] crc32c matches the standard Castagnoli test vector
+[RUN] record encode zeroes alignment padding in destination buffers
+[PASS] record encode zeroes alignment padding in destination buffers
+[RUN] durable resource limit configuration rejects every invalid boundary
+[PASS] durable resource limit configuration rejects every invalid boundary
+[RUN] durable bootstrap and rotation budgets account for peak namespace bytes
+[PASS] durable bootstrap and rotation budgets account for peak namespace bytes
+[RUN] manifest descriptor and live-key budgets fail with stable categories
+[PASS] manifest descriptor and live-key budgets fail with stable categories
+[RUN] live-key partitions exactly preserve the configured global limit
+[PASS] live-key partitions exactly preserve the configured global limit
+[RUN] persistence errno mapping preserves resource failure categories
+[PASS] persistence errno mapping preserves resource failure categories
+[RUN] server protocol request round trips and handles partial frames
+[PASS] server protocol request round trips and handles partial frames
+[RUN] server protocol encodes requests into caller-owned storage
+[PASS] server protocol encodes requests into caller-owned storage
+[RUN] server protocol rejects noncanonical flags and reserved fields
+[PASS] server protocol rejects noncanonical flags and reserved fields
+[RUN] server protocol rejects inconsistent and oversized request frames
+[PASS] server protocol rejects inconsistent and oversized request frames
+[RUN] server protocol response round trips
+[PASS] server protocol response round trips
+[RUN] server protocol scatter header matches contiguous response encoding
+[PASS] server protocol scatter header matches contiguous response encoding
+[RUN] server protocol rejects noncanonical opcode-specific fields
+[PASS] server protocol rejects noncanonical opcode-specific fields
+[RUN] wire protocol v2 matches independent canonical request fixtures
+[PASS] wire protocol v2 matches independent canonical request fixtures
+[RUN] wire protocol v2 matches independent canonical response fixtures
+[PASS] wire protocol v2 matches independent canonical response fixtures
+[RUN] reactor maps unavailable to INTERNAL_ERROR not OVERLOADED
+[PASS] reactor maps unavailable to INTERNAL_ERROR not OVERLOADED
+[RUN] segment is exactly 64 MiB and provides positional record access
+[PASS] segment is exactly 64 MiB and provides positional record access
+[RUN] segment seal forbids future append
+[PASS] segment seal forbids future append
+[RUN] segment generation protects against stale RecordRef
+[PASS] segment generation protects against stale RecordRef
+[RUN] segment liveness permits retirement only after all live records die
+[PASS] segment liveness permits retirement only after all live records die
+[RUN] segment header v1 matches its golden little-endian fixture
+[PASS] segment header v1 matches its golden little-endian fixture
+[RUN] segment header rejects truncation and immutable identity corruption
+[PASS] segment header rejects truncation and immutable identity corruption
+[RUN] segment header recovers through the older slot when the newer slot is corrupt
+[PASS] segment header recovers through the older slot when the newer slot is corrupt
+[RUN] segment header selects by generation rather than physical slot order
+[PASS] segment header selects by generation rather than physical slot order
+[RUN] segment header fails closed for conflicting equal commit generations
+[PASS] segment header fails closed for conflicting equal commit generations
+[RUN] segment commit codec rejects invalid metadata and isolates unknown slot versions
+[PASS] segment commit codec rejects invalid metadata and isolates unknown slot versions
+[RUN] segment header without a valid commit cannot define a recovery boundary
+[PASS] segment header without a valid commit cannot define a recovery boundary
+[RUN] segment catalog lookup and snapshot order survive rotation
+[PASS] segment catalog lookup and snapshot order survive rotation
+[RUN] segment catalog releases ownership of retired segments
+[PASS] segment catalog releases ownership of retired segments
+[RUN] tls config validation fails closed without cert and key
+[PASS] tls config validation fails closed without cert and key
+[RUN] dual listen rejects identical cleartext and tls ports
+[PASS] dual listen rejects identical cleartext and tls ports
+[RUN] tls_port without TLS certificate configuration fails closed
+[PASS] tls_port without TLS certificate configuration fails closed
+[RUN] tls build reports backend availability
+[PASS] tls build reports backend availability
+[RUN] tls server accepts handshake and serves protocol ping
+[PASS] tls server accepts handshake and serves protocol ping
+[RUN] tls post-accept drain serves coalesced INIT without a second client kick
+[PASS] tls post-accept drain serves coalesced INIT without a second client kick
+[RUN] tls WANT_READ during response flush still delivers PUT OK
+[PASS] tls WANT_READ during response flush still delivers PUT OK
+[RUN] tls WANT_WRITE during response flush still delivers PUT OK
+[PASS] tls WANT_WRITE during response flush still delivers PUT OK
+[RUN] tls server create rejects missing certificate files
+[PASS] tls server create rejects missing certificate files
+[RUN] dual cleartext and TLS listeners serve protocol independently
+[PASS] dual cleartext and TLS listeners serve protocol independently
+[RUN] tls CRL config fails closed without mTLS and rejects empty CRL
+[PASS] tls CRL config fails closed without mTLS and rejects empty CRL
+[RUN] tls CRL rejects revoked mTLS client certificate
+{"ts":1794069141,"event":"auth","decision":"deny","reason":"tls_handshake_failed"}
+[PASS] tls CRL rejects revoked mTLS client certificate
+[RUN] tls stalled handshake leaves established sessions responsive
+[PASS] tls stalled handshake leaves established sessions responsive
+[RUN] tls pending handshake has bounded slots deadline and shutdown
+[PASS] tls pending handshake has bounded slots deadline and shutdown
+[RUN] security bounds closing denied stream yields despite continued input
+[PASS] security bounds closing denied stream yields despite continued input
+[RUN] security bounds capability prefix and stats denials share principal quota
+[PASS] security bounds capability prefix and stats denials share principal quota
+[RUN] security bounds denied requests and denied probes consume attempt quota
+[PASS] security bounds denied requests and denied probes consume attempt quota
+[RUN] security bounds stalled output expires and releases connection slot
+[PASS] security bounds stalled output expires and releases connection slot
+[RUN] active resident segment is not trusted
+[PASS] active resident segment is not trusted
+[RUN] sealed resident segment is trusted for read_trusted gate
+[PASS] sealed resident segment is trusted for read_trusted gate
+[RUN] verified read detects corruption read_trusted skips checksum on sealed segment
+[PASS] verified read detects corruption read_trusted skips checksum on sealed segment
+[RUN] vacuum planner excludes active and high live ratio segments
+[PASS] vacuum planner excludes active and high live ratio segments
+[RUN] vacuum planner ranks lowest live ratio first and respects per run limit
+[PASS] vacuum planner ranks lowest live ratio first and respects per run limit
+[RUN] vacuum planner ignores empty sealed segments
+[PASS] vacuum planner ignores empty sealed segments
+[RUN] worker sizing respects physical cores reservation and memory
+[PASS] worker sizing respects physical cores reservation and memory
+[RUN] worker sizing always returns at least one and honors explicit override
+[PASS] worker sizing always returns at least one and honors explicit override
+[RUN] format fixtures decode independently without encoder round-trip
+[PASS] format fixtures decode independently without encoder round-trip
+[RUN] durable store artifact survives simulated upgrade reopen
+[PASS] durable store artifact survives simulated upgrade reopen
+[RUN] segment container header fixture matches on-disk durable segment prefix
+[PASS] segment container header fixture matches on-disk durable segment prefix
+[RUN] released artifact harness decodes every labeled fixture tree
+[PASS] released artifact harness decodes every labeled fixture tree
+[RUN] durable compaction builder copies exact visible Records and preserves v1 sequences
+[PASS] durable compaction builder copies exact visible Records and preserves v1 sequences
+[RUN] durable compaction builder prepares zero-output retirement without fabricating Records
+[PASS] durable compaction builder prepares zero-output retirement without fabricating Records
+[RUN] durable compaction rejected intent gate leaves the namespace untouched
+[PASS] durable compaction rejected intent gate leaves the namespace untouched
+[RUN] durable compaction staged copy failure remains pre-intent and cleans its temporary
+[PASS] durable compaction staged copy failure remains pre-intent and cleans its temporary
+[RUN] durable compaction promotion failure after intent is rolled back on reopen
+[PASS] durable compaction promotion failure after intent is rolled back on reopen
+[RUN] durable runtime installs and retires one Worker compaction atomically
+[PASS] durable runtime installs and retires one Worker compaction atomically
+[RUN] durable runtime rechecks the inclusive maintenance copy budget at snapshot
+[PASS] durable runtime rechecks the inclusive maintenance copy budget at snapshot
+[RUN] durable runtime builds two compaction outputs and reopens every maximum Record
+[PASS] durable runtime builds two compaction outputs and reopens every maximum Record
+[RUN] multi-seed durable compaction histories match their models before and after reopen
+[PASS] multi-seed durable compaction histories match their models before and after reopen
+[RUN] durable runtime fails closed when online compaction requires recovery
+[PASS] durable runtime fails closed when online compaction requires recovery
+[RUN] ordinary recovery cleans a pre-intent staged compaction temporary
+[PASS] ordinary recovery cleans a pre-intent staged compaction temporary
+[RUN] online compaction preserves another Worker's cached Segment after catalog compaction
+[PASS] online compaction preserves another Worker's cached Segment after catalog compaction
+[RUN] public Store compact drops sealed Index-resident expired puts
+[PASS] public Store compact drops sealed Index-resident expired puts
+[RUN] maintenance observation counts unread expired sealed TTL puts
+[PASS] maintenance observation counts unread expired sealed TTL puts
+[RUN] public Store compacts one scheduled Worker and preserves restart visibility
+[PASS] public Store compacts one scheduled Worker and preserves restart visibility
+[RUN] public Store compaction scheduler advances one Worker per call
+[PASS] public Store compaction scheduler advances one Worker per call
+[RUN] background reclaim_threshold skip advances past live-only Worker to reclaimable peer
+[PASS] background reclaim_threshold skip advances past live-only Worker to reclaimable peer
+[RUN] compaction temporary-space budget rejects before intent without residue
+[PASS] compaction temporary-space budget rejects before intent without residue
+[RUN] compaction write-amplification budget rejects before intent without residue
+[PASS] compaction write-amplification budget rejects before intent without residue
+[RUN] compaction recovery rolls back exact replacements when the old manifest wins
+[PASS] compaction recovery rolls back exact replacements when the old manifest wins
+[RUN] compaction recovery retires exact sources when the next manifest wins
+[PASS] compaction recovery retires exact sources when the next manifest wins
+[RUN] multi-output compaction rollback resumes after a partial replacement unlink
+[PASS] multi-output compaction rollback resumes after a partial replacement unlink
+[RUN] multi-output compaction rollback removes a partially created second replacement
+[PASS] multi-output compaction rollback removes a partially created second replacement
+[RUN] multi-output compaction retirement resumes after a partial source unlink
+[PASS] multi-output compaction retirement resumes after a partial source unlink
+[RUN] compaction recovery rejects a manifest outside both intent authorities
+[PASS] compaction recovery rejects a manifest outside both intent authorities
+[RUN] compaction recovery rejects an unrelated unlisted Segment
+[PASS] compaction recovery rejects an unrelated unlisted Segment
+[RUN] compaction recovery preserves all files when retirement fails before its first unlink
+[PASS] compaction recovery preserves all files when retirement fails before its first unlink
+[RUN] compaction recovery resumes an indeterminate partially retired source set
+[PASS] compaction recovery resumes an indeterminate partially retired source set
+[RUN] compaction recovery resumes after retirement directory sync is indeterminate
+[PASS] compaction recovery resumes after retirement directory sync is indeterminate
+[RUN] compaction recovery resumes when intent removal fails before unlink
+[PASS] compaction recovery resumes when intent removal fails before unlink
+[RUN] compaction recovery reopens ordinarily after intent removal sync is indeterminate
+[PASS] compaction recovery reopens ordinarily after intent removal sync is indeterminate
+[RUN] concurrent store puts on distinct routed keys preserve all values
+[PASS] concurrent store puts on distinct routed keys preserve all values
+[RUN] concurrent store read after write on one key serializes updates
+[PASS] concurrent store read after write on one key serializes updates
+[RUN] concurrent store verify index succeeds under mixed traffic
+[PASS] concurrent store verify index succeeds under mixed traffic
+[RUN] paired and legacy_mutex agree on sequential volatile outcomes
+[PASS] paired and legacy_mutex agree on sequential volatile outcomes
+[RUN] paired and legacy_mutex agree on concurrent distinct-key finals
+[PASS] paired and legacy_mutex agree on concurrent distinct-key finals
+[RUN] paired and legacy_mutex agree on close-drain acknowledged values
+[PASS] paired and legacy_mutex agree on close-drain acknowledged values
+[RUN] hot record capacity grows geometrically instead of rehashing every insert
+[PASS] hot record capacity grows geometrically instead of rehashing every insert
+[RUN] index heap key arena survives erase churn and rehash
+[PASS] index heap key arena survives erase churn and rehash
+[RUN] index heap arena reclaims memory after insert erase churn
+[PASS] index heap arena reclaims memory after insert erase churn
+[RUN] index heap arena waits for geometric fragmentation before reclaim
+[PASS] index heap arena waits for geometric fragmentation before reclaim
+[RUN] index swiss table probe path matches under mixed inline and heap keys
+[PASS] index swiss table probe path matches under mixed inline and heap keys
+[RUN] hashed key path preserves single hash lookup
+[PASS] hashed key path preserves single hash lookup
+[RUN] store get verifies checksum after mutable segment corruption
+[PASS] store get verifies checksum after mutable segment corruption
+[RUN] worker local segment catalog resolves records across rotation
+[PASS] worker local segment catalog resolves records across rotation
+[RUN] volatile overwrite churn releases fully dead segment storage
+[PASS] volatile overwrite churn releases fully dead segment storage
+[RUN] volatile vacuum consolidates sparse sealed segments and preserves visibility
+[PASS] volatile vacuum consolidates sparse sealed segments and preserves visibility
+[RUN] paired Store read-after-write and close drain
+[PASS] paired Store read-after-write and close drain
+[RUN] paired Store concurrent GET and PUT on one key stay linearized
+[PASS] paired Store concurrent GET and PUT on one key stay linearized
+[RUN] paired Store concurrent read-after-write keeps adopted generations alive
+[PASS] paired Store concurrent read-after-write keeps adopted generations alive
+[RUN] paired durable group threshold requires final commit-slot synchronization
+[PASS] paired durable group threshold requires final commit-slot synchronization
+[RUN] ADR 0036 V5 production shutdown finalization rejects a live Reader lease
+[PASS] ADR 0036 V5 production shutdown finalization rejects a live Reader lease
+[RUN] ADR 0036 V5 Store close owns terminal Reader generation finalization
+[PASS] ADR 0036 V5 Store close owns terminal Reader generation finalization
+[RUN] paired generation admission rejects embedded sync before Store at retire bound
+[PASS] paired generation admission rejects embedded sync before Store at retire bound
+[RUN] paired generation admission rejects dedicated Writer sync before Store at retire bound
+[PASS] paired generation admission rejects dedicated Writer sync before Store at retire bound
+[RUN] paired generation admission performs no durable write at retire bound
+[PASS] paired generation admission performs no durable write at retire bound
+[RUN] paired generation admission rejects every durable group batch item before Store
+[PASS] paired generation admission rejects every durable group batch item before Store
+[RUN] paired Store concurrent GET observes live generation under overwrite storm
+[PASS] paired Store concurrent GET observes live generation under overwrite storm
+[RUN] paired Store put_batch publishes once per shard and keeps RAW
+[PASS] paired Store put_batch publishes once per shard and keeps RAW
+[RUN] paired Store put_batch preserves same-key FIFO within one batch
+[PASS] paired Store put_batch preserves same-key FIFO within one batch
+[RUN] paired embedded merge pays bounded debt before exhausting a tiny post delta
+[PASS] paired embedded merge pays bounded debt before exhausting a tiny post delta
+[RUN] paired dedicated Writer merge pays bounded debt before exhausting a tiny post delta
+[PASS] paired dedicated Writer merge pays bounded debt before exhausting a tiny post delta
+[RUN] ADR 0036 production slot V7 embedded merge publishes post-cut under slot pressure
+[PASS] ADR 0036 production slot V7 embedded merge publishes post-cut under slot pressure
+[RUN] ADR 0036 production slot V7 dedicated Writer merge publishes post-cut under slot pressure
+[PASS] ADR 0036 production slot V7 dedicated Writer merge publishes post-cut under slot pressure
+[RUN] paired durable Writer fail-closes when mutate throws after durable I/O begins
+[PASS] paired durable Writer fail-closes when mutate throws after durable I/O begins
+[RUN] paired durable sync Writer does not success-ACK abandoned unflushed batch siblings
+[PASS] paired durable sync Writer does not success-ACK abandoned unflushed batch siblings
+[RUN] paired durable sync Writer keeps flushed siblings through orphan commit fail
+[PASS] paired durable sync Writer keeps flushed siblings through orphan commit fail
+[RUN] paired durable sync Writer snapshot-publishes committed sibling after later known-not-committed
+[PASS] paired durable sync Writer snapshot-publishes committed sibling after later known-not-committed
+[RUN] paired durable sync Writer does not success-ACK unprocessed batch items after drain
+[PASS] paired durable sync Writer does not success-ACK unprocessed batch items after drain
+[RUN] paired durable sync single-op keeps known-not-committed after record write poison
+[PASS] paired durable sync single-op keeps known-not-committed after record write poison
+[RUN] durable before-hook throw before write_record is known not committed
+[PASS] durable before-hook throw before write_record is known not committed
+[RUN] paired durable_group pre-mutate batch alloc stays known not committed
+[PASS] paired durable_group pre-mutate batch alloc stays known not committed
+[RUN] paired durable_group post-mutate catch keeps Store-entered siblings unavailable
+[PASS] paired durable_group post-mutate catch keeps Store-entered siblings unavailable
+[RUN] paired durable sync catch drain does not success-ACK put-hit on pre-existing key
+[PASS] paired durable sync catch drain does not success-ACK put-hit on pre-existing key
+[RUN] paired volatile pre-append rotation failure is known not committed
+[PASS] paired volatile pre-append rotation failure is known not committed
+[RUN] paired durable pre-write rotation failure is known not committed
+[PASS] paired durable pre-write rotation failure is known not committed
+[RUN] paired durable post-seal rotation reader-open is sticky indeterminate
+[PASS] paired durable post-seal rotation reader-open is sticky indeterminate
+[RUN] paired durable post-seal rotation create reject is sticky indeterminate
+[PASS] paired durable post-seal rotation create reject is sticky indeterminate
+[RUN] paired durable pre-append segment open failure is known not committed
+[PASS] paired durable pre-append segment open failure is known not committed
+[RUN] paired volatile post-append index failure stays indeterminate
+[PASS] paired volatile post-append index failure stays indeterminate
+[RUN] paired volatile exclusive compact gates Index publish
+[PASS] paired volatile exclusive compact gates Index publish
+[RUN] ADR 0036 production slot V5 shutdown finalization rejects a live Reader lease
+[PASS] ADR 0036 production slot V5 shutdown finalization rejects a live Reader lease
+[RUN] paired shutdown reclamation torture leaves every bounded resource terminal
+[PASS] paired shutdown reclamation torture leaves every bounded resource terminal
+[RUN] ADR 0036 production slot V10 put_batch preserves same-key FIFO within one batch
+[PASS] ADR 0036 production slot V10 put_batch preserves same-key FIFO within one batch
+[RUN] paired durable_sync erase_batch persists tombstones across reopen
+[PASS] paired durable_sync erase_batch persists tombstones across reopen
+[RUN] paired durable_group erase_batch persists tombstones across reopen
+[PASS] paired durable_group erase_batch persists tombstones across reopen
+[RUN] paired durable_sync Writer-path erase_batch persists tombstones across reopen
+[PASS] paired durable_sync Writer-path erase_batch persists tombstones across reopen
+[RUN] paired durable_periodic erase_batch persists tombstones across reopen
+[PASS] paired durable_periodic erase_batch persists tombstones across reopen
+[RUN] paired durable_periodic Writer-path erase_batch persists tombstones across reopen
+[PASS] paired durable_periodic Writer-path erase_batch persists tombstones across reopen
+[RUN] paired Store erase_batch removes keys and keeps RAW visibility
+[PASS] paired Store erase_batch removes keys and keeps RAW visibility
+[RUN] paired Store erase_batch preserves same-key FIFO within one batch
+[PASS] paired Store erase_batch preserves same-key FIFO within one batch
+[RUN] legacy_mutex Store erase_batch removes keys and preserves same-key FIFO
+[PASS] legacy_mutex Store erase_batch removes keys and preserves same-key FIFO
+[RUN] durable recovery rebuilds partitioned visibility and Worker sequences
+[PASS] durable recovery rebuilds partitioned visibility and Worker sequences
+[RUN] recovery cleans crash temporaries but rejects unlisted Segments without adoption
+[PASS] recovery cleans crash temporaries but rejects unlisted Segments without adoption
+[RUN] recovery accepts only the documented sealed-active rotation transition
+[PASS] recovery accepts only the documented sealed-active rotation transition
+[RUN] recovery rejects missing and identity-mismatched manifest Segments
+[PASS] recovery rejects missing and identity-mismatched manifest Segments
+[RUN] recovery validates persisted key hashes and Worker routing
+[PASS] recovery validates persisted key hashes and Worker routing
+[RUN] recovery rejects equal winning sequences and exhausted Worker sequence space
+[PASS] recovery rejects equal winning sequences and exhausted Worker sequence space
+[RUN] recovery rejects overlapping sequence ranges across Worker Segments
+[PASS] recovery rejects overlapping sequence ranges across Worker Segments
+[RUN] durable runtime materializes recovered Indexes with bounded concurrent reads
+[PASS] durable runtime materializes recovered Indexes with bounded concurrent reads
+[RUN] blocked durable cold read does not block a mutation on the same Worker
+[PASS] blocked durable cold read does not block a mutation on the same Worker
+[RUN] durable cold read pin survives concurrent source retirement and relinearizes
+[PASS] durable cold read pin survives concurrent source retirement and relinearizes
+[RUN] blocked durable compaction build permits same-Worker reads and mutations
+[PASS] blocked durable compaction build permits same-Worker reads and mutations
+[RUN] blocked pre-intent compaction copy lets an unrelated rotation commit
+[PASS] blocked pre-intent compaction copy lets an unrelated rotation commit
+[RUN] rotation waiting on compaction intent does not block its Worker queue
+[PASS] rotation waiting on compaction intent does not block its Worker queue
+[RUN] compaction manifest sync holds no Worker or catalog mutex
+[PASS] compaction manifest sync holds no Worker or catalog mutex
+[RUN] close during a blocked compaction build rolls back the old authority
+[PASS] close during a blocked compaction build rolls back the old authority
+[RUN] online compaction filesystem fault matrix reopens one clean authority
+[PASS] online compaction filesystem fault matrix reopens one clean authority
+[RUN] online compaction storage_exhausted fault matrix reopens one clean authority
+[PASS] online compaction storage_exhausted fault matrix reopens one clean authority
+[RUN] paced compaction write_record fault leaves Mold without intent
+[PASS] paced compaction write_record fault leaves Mold without intent
+[RUN] compaction delta preserves overwrite erase restore active and TTL across durable modes
+[PASS] compaction delta preserves overwrite erase restore active and TTL across durable modes
+[RUN] compaction delta replay uses reserved tables and key arena across repeated erase reinsert
+[PASS] compaction delta replay uses reserved tables and key arena across repeated erase reinsert
+[RUN] compaction delta publishes concurrent acknowledged writes through paired Store generations
+[PASS] compaction delta publishes concurrent acknowledged writes through paired Store generations
+[RUN] compaction delta budgets abort maintenance while foreground commits and retry succeeds
+[PASS] compaction delta budgets abort maintenance while foreground commits and retry succeeds
+[RUN] compaction delta acknowledged mutations survive publication and retirement I/O faults
+[PASS] compaction delta acknowledged mutations survive publication and retirement I/O faults
+[RUN] compaction delta acknowledged mutations survive process kill at persistent transitions
+[PASS] compaction delta acknowledged mutations survive process kill at persistent transitions
+[RUN] online compaction enumerates every reached filesystem failure point
+[PASS] online compaction enumerates every reached filesystem failure point
+[RUN] online compaction staging retries EINTR and short writes before intent
+[PASS] online compaction staging retries EINTR and short writes before intent
+[RUN] online compaction staging retries sync EINTR before intent
+[PASS] online compaction staging retries sync EINTR before intent
+[RUN] online compaction FileIoHooks capacity faults reject before intent
+[PASS] online compaction FileIoHooks capacity faults reject before intent
+[RUN] online compaction FileIoHooks write EIO and EROFS reject before intent
+[PASS] online compaction FileIoHooks write EIO and EROFS reject before intent
+[RUN] online compaction FileIoHooks sync EIO rejects before intent
+[PASS] online compaction FileIoHooks sync EIO rejects before intent
+[RUN] online compaction FileIoHooks intent write and sync faults reject cleanly
+[PASS] online compaction FileIoHooks intent write and sync faults reject cleanly
+[RUN] online compaction FileIoHooks promotion manifest faults recover cleanly
+[PASS] online compaction FileIoHooks promotion manifest faults recover cleanly
+[RUN] exclusive Writer with flusher does not deadlock rotation on compaction depth
+[PASS] exclusive Writer with flusher does not deadlock rotation on compaction depth
+[RUN] exclusive Writer compact unlocks before hot_path_depth wait
+[PASS] exclusive Writer compact unlocks before hot_path_depth wait
+[RUN] exclusive Writer compact Phase A drains hot_path_depth before Index snapshot
+[PASS] exclusive Writer compact Phase A drains hot_path_depth before Index snapshot
+[RUN] exclusive Writer unread TTL probe drains hot_path_depth before Index walk
+[PASS] exclusive Writer unread TTL probe drains hot_path_depth before Index walk
+[RUN] exclusive Writer capture_published_read takes Worker mutex under compaction
+[PASS] exclusive Writer capture_published_read takes Worker mutex under compaction
+[RUN] exclusive Writer prepare_get drains hot_path_depth before Index find
+[PASS] exclusive Writer prepare_get drains hot_path_depth before Index find
+[RUN] exclusive Writer flush drains hot_path_depth before dirty sync
+[PASS] exclusive Writer flush drains hot_path_depth before dirty sync
+[RUN] exclusive Writer with flusher re-locks Worker after rotation I/O
+[PASS] exclusive Writer with flusher re-locks Worker after rotation I/O
+[RUN] durable runtime detects post-recovery Record corruption and remains fail-closed
+[PASS] durable runtime detects post-recovery Record corruption and remains fail-closed
+[RUN] durable runtime completes a sealed-active interrupted rotation
+[PASS] durable runtime completes a sealed-active interrupted rotation
+[RUN] durable runtime adopts only the exact pristine prepared rotation Segment
+[PASS] durable runtime adopts only the exact pristine prepared rotation Segment
+[RUN] durable runtime commits puts replacements erases and recovers them
+[PASS] durable runtime commits puts replacements erases and recovers them
+[RUN] zero hot-cache budget falls back to pinned active-Segment reads for all value sizes
+[PASS] zero hot-cache budget falls back to pinned active-Segment reads for all value sizes
+[RUN] deferred TTL reclaim allows reinsert after an expired GET
+[PASS] deferred TTL reclaim allows reinsert after an expired GET
+[RUN] get path telemetry records hot hits and prepare hold without behavioral change
+[PASS] get path telemetry records hot hits and prepare hold without behavioral change
+[RUN] hot-cache rejects oversized values and can be disabled without correctness loss
+[PASS] hot-cache rejects oversized values and can be disabled without correctness loss
+[RUN] hot-cache accounting remains bounded across hit overwrite and erase
+[PASS] hot-cache accounting remains bounded across hit overwrite and erase
+[RUN] concurrent GET PUT DELETE on one Worker keep linearized values
+[PASS] concurrent GET PUT DELETE on one Worker keep linearized values
+[RUN] stale hot entry is dropped after overwrite bypass and cold GET sees new value
+[PASS] stale hot entry is dropped after overwrite bypass and cold GET sees new value
+[RUN] flat hot-cache full-key compare rejects colliding probe neighbors
+[PASS] flat hot-cache full-key compare rejects colliding probe neighbors
+[RUN] durable runtime commits different Worker mutations concurrently
+[PASS] durable runtime commits different Worker mutations concurrently
+[RUN] rotation space preflight fails before sealing the active Segment
+[PASS] rotation space preflight fails before sealing the active Segment
+[RUN] active rotation retires old-generation hot-cache accounting
+[PASS] active rotation retires old-generation hot-cache accounting
+[RUN] durable runtime rotates a full active Segment before committing the Record
+[PASS] durable runtime rotates a full active Segment before committing the Record
+[RUN] durable group closes a pending batch before rotating a full Segment
+[PASS] durable group closes a pending batch before rotating a full Segment
+[RUN] one-Worker durable group commits on the dedicated commit executor
+[PASS] one-Worker durable group commits on the dedicated commit executor
+[RUN] one-Worker commit executor bounds admission at the batch record limit
+[PASS] one-Worker commit executor bounds admission at the batch record limit
+[RUN] explicit flush completes a partial sequenced durable group
+[PASS] explicit flush completes a partial sequenced durable group
+[RUN] durable runtime reports an indeterminate slot sync and recovery resolves one boundary
+[PASS] durable runtime reports an indeterminate slot sync and recovery resolves one boundary
+[RUN] durable mutation fault matrix preserves pre and post commit recovery oracles
+[PASS] durable mutation fault matrix preserves pre and post commit recovery oracles
+[RUN] durable group flush failure wakes every batch waiter fail-closed
+[PASS] durable group flush failure wakes every batch waiter fail-closed
+[RUN] durable runtime close returns a sticky final flush failure
+[PASS] durable runtime close returns a sticky final flush failure
+[RUN] blocked durable append holds no Worker or catalog mutex
+[PASS] blocked durable append holds no Worker or catalog mutex
+[RUN] blocked group commit holds no Worker or catalog mutex
+[PASS] blocked group commit holds no Worker or catalog mutex
+[RUN] blocked deferred dirty sync holds no Worker or catalog mutex
+[PASS] blocked deferred dirty sync holds no Worker or catalog mutex
+[RUN] blocked rotation seal holds no Worker or catalog mutex
+[PASS] blocked rotation seal holds no Worker or catalog mutex
+[RUN] paired experimental Reactor serves TCP GET PUT ERASE with read-after-write
+[PASS] paired experimental Reactor serves TCP GET PUT ERASE with read-after-write
+[RUN] paired experimental Reactor preserves ordered owner-bound TCP pipeline
+[PASS] paired experimental Reactor preserves ordered owner-bound TCP pipeline
+[RUN] paired experimental Reactor pins a generation only across slow socket output
+[PASS] paired experimental Reactor pins a generation only across slow socket output
+[RUN] rebuild chooses highest sequence independent of segment order and hash collision
+[PASS] rebuild chooses highest sequence independent of segment order and hash collision
+[RUN] rebuild applies tombstone and expiration semantics
+[PASS] rebuild applies tombstone and expiration semantics
+[RUN] vacuum copies exactly visible records and leaves source immutable
+[PASS] vacuum copies exactly visible records and leaves source immutable
+[RUN] selective vacuum preserves references outside its candidate set
+[PASS] selective vacuum preserves references outside its candidate set
+[RUN] selective vacuum drops expired candidates without allocating output
+[PASS] selective vacuum drops expired candidates without allocating output
+[RUN] durable daemon retries only a proven non-committed first-attempt sequence conflict
+[PASS] durable daemon retries only a proven non-committed first-attempt sequence conflict
+[RUN] dedicated paired Writer gives admitted async work a turn within one large sync batch
+[PASS] dedicated paired Writer gives admitted async work a turn within one large sync batch
+[RUN] paired Writer completes incremental read merge in bounded quanta
+[PASS] paired Writer completes incremental read merge in bounded quanta
+[RUN] paired Writer validates merge bounds and aligns payload credits with ring capacity
+[PASS] paired Writer validates merge bounds and aligns payload credits with ring capacity
+[RUN] paired async Writer rejects retire pressure through completion before Store
+[PASS] paired async Writer rejects retire pressure through completion before Store
+[RUN] paired Writer feeds one bounded maintenance latency window
+[PASS] paired Writer feeds one bounded maintenance latency window
+[RUN] paired Writer preserves same-shard FIFO while compaction publication is active
+[PASS] paired Writer preserves same-shard FIFO while compaction publication is active
+[RUN] paired Reader refreshes compacted durable pins and retires the old generation
+[PASS] paired Reader refreshes compacted durable pins and retires the old generation
+[RUN] ADR 0036 V8 candidate preserves durable cold pin across compacted slot refresh
+[PASS] ADR 0036 V8 candidate preserves durable cold pin across compacted slot refresh
+[RUN] ADR 0036 V8 candidate publishes a Writer-owned rotation as one slot generation
+[PASS] ADR 0036 V8 candidate publishes a Writer-owned rotation as one slot generation
+[RUN] ADR 0036 V5 candidate shutdown retires a real durable generation after Reader drain
+[PASS] ADR 0036 V5 candidate shutdown retires a real durable generation after Reader drain
+[RUN] ADR 0036 V6 candidate fail-closes a committed mutation then snapshot-drains authority
+[PASS] ADR 0036 V6 candidate fail-closes a committed mutation then snapshot-drains authority
+[RUN] paired Reader refreshes durable pins after a Writer-owned rotation
+[PASS] paired Reader refreshes durable pins after a Writer-owned rotation
+[RUN] durable read catalog refresh is isolated to the compacted shard pair
+[PASS] durable read catalog refresh is isolated to the compacted shard pair
+[RUN] server rejects unsupported worker counts and undersized protocol buffers
+[PASS] server rejects unsupported worker counts and undersized protocol buffers
+[RUN] server StoreConfig persists acknowledged wire writes across restart
+[PASS] server StoreConfig persists acknowledged wire writes across restart
+[RUN] wire BACKUP before INIT returns NOT_BOUND and creates no destination
+[PASS] wire BACKUP before INIT returns NOT_BOUND and creates no destination
+[RUN] wire BACKUP copies a live durable Server catalog into an empty destination
+[PASS] wire BACKUP copies a live durable Server catalog into an empty destination
+[RUN] wire BACKUP refuses before fence when OK report cannot fit output budget
+[PASS] wire BACKUP refuses before fence when OK report cannot fit output budget
+[RUN] wire BACKUP keeps OK after report formatting fails post-commit
+[PASS] wire BACKUP keeps OK after report formatting fails post-commit
+[RUN] blocked durable mutation leaves its Reactor responsive with bounded FIFO admission
+[PASS] blocked durable mutation leaves its Reactor responsive with bounded FIFO admission
+[RUN] mutation completion resumes a bounded pipeline without reordering decided responses
+[PASS] mutation completion resumes a bounded pipeline without reordering decided responses
+[RUN] volatile large GET pipeline uses bounded scatter leases in response order
+[PASS] volatile large GET pipeline uses bounded scatter leases in response order
+[RUN] pending output stops mutation completion pipeline resume until socket drain
+[PASS] pending output stops mutation completion pipeline resume until socket drain
+[RUN] mutation payload arena applies byte backpressure independently of queue slots
+[PASS] mutation payload arena applies byte backpressure independently of queue slots
+[RUN] durable mutation queue deadline rejects only before Store execution
+[PASS] durable mutation queue deadline rejects only before Store execution
+[RUN] volatile pair sticky fails READY with pair_fail_closed reason
+[PASS] volatile pair sticky fails READY with pair_fail_closed reason
+[RUN] volatile mutation window PUT then GET sees RAW values in FIFO order
+[PASS] volatile mutation window PUT then GET sees RAW values in FIFO order
+[RUN] volatile mutation window ERASE then GET observes tombstone after barrier
+[PASS] volatile mutation window ERASE then GET observes tombstone after barrier
+[RUN] volatile mutation window admits more than 32 contiguous PUTs across resumes
+[PASS] volatile mutation window admits more than 32 contiguous PUTs across resumes
+[RUN] durable_sync GET barrier waits for open mutation window before response
+[PASS] durable_sync GET barrier waits for open mutation window before response
+[RUN] durable_sync PING drains open mutation window like GET barrier
+[PASS] durable_sync PING drains open mutation window like GET barrier
+[RUN] server request timeout closes socket without cancelling admitted durable mutation
+[PASS] server request timeout closes socket without cancelling admitted durable mutation
+[RUN] server shutdown drains an admitted durable mutation before Store close
+[PASS] server shutdown drains an admitted durable mutation before Store close
+[RUN] server shutdown drain deadline abandons queued durable mutations
+[PASS] server shutdown drain deadline abandons queued durable mutations
+[RUN] server shutdown drain deadline abandons durable_group coalescing hold
+[PASS] server shutdown drain deadline abandons durable_group coalescing hold
+[RUN] durable_group coalescing obeys the oldest mutation queue deadline
+[PASS] durable_group coalescing obeys the oldest mutation queue deadline
+[RUN] server HEALTH and READY succeed while operational
+[PASS] server HEALTH and READY succeed while operational
+[RUN] server READY fails during shutdown while live stays true
+[PASS] server READY fails during shutdown while live stays true
+[RUN] server READY fails under maintenance emergency
+[PASS] server READY fails under maintenance emergency
+[RUN] server rejects durable PUT and ERASE under maintenance emergency on wire
+[PASS] server rejects durable PUT and ERASE under maintenance emergency on wire
+[RUN] durable wire ERASE persists through reopen
+[PASS] durable wire ERASE persists through reopen
+[RUN] server shutdown stops accepting and closes idle connections
+[PASS] server shutdown stops accepting and closes idle connections
+[RUN] server shutdown drains in-flight durable response before closing connection
+[PASS] server shutdown drains in-flight durable response before closing connection
+[RUN] paired Writer closes strict durable groups without concurrent shard mutators
+[PASS] paired Writer closes strict durable groups without concurrent shard mutators
+[RUN] paired Writer preserves same-key order across strict durable group boundaries
+[PASS] paired Writer preserves same-key order across strict durable group boundaries
+[RUN] blocked durable cold GET leaves its Reactor responsive and applies bounded admission
+[PASS] blocked durable cold GET leaves its Reactor responsive and applies bounded admission
+[RUN] durable cold GET keeps one bounded scatter lease across partial socket writes
+[PASS] durable cold GET keeps one bounded scatter lease across partial socket writes
+[RUN] BIND_WORKER handoff saturation returns overloaded then closes
+[PASS] BIND_WORKER handoff saturation returns overloaded then closes
+[RUN] shutdown force-close rejects pending BIND handoff with OVERLOADED
+[PASS] shutdown force-close rejects pending BIND handoff with OVERLOADED
+[RUN] BIND_WORKER destination slot exhaustion returns overloaded then closes
+[PASS] BIND_WORKER destination slot exhaustion returns overloaded then closes
+[RUN] BIND_WORKER poller remove failure returns overloaded without dual registration
+[PASS] BIND_WORKER poller remove failure returns overloaded without dual registration
+[RUN] sticky post-commit Writer failure is INTERNAL_ERROR on the wire
+[PASS] sticky post-commit Writer failure is INTERNAL_ERROR on the wire
+[RUN] pre-Store sibling after sticky capture is wire OVERLOADED not INTERNAL_ERROR
+[PASS] pre-Store sibling after sticky capture is wire OVERLOADED not INTERNAL_ERROR
+[RUN] response queue allocation failure closes connection without daemon fail-stop
+[PASS] response queue allocation failure closes connection without daemon fail-stop
+[RUN] INIT identity allocation failure returns OVERLOADED without daemon fail-stop
+[PASS] INIT identity allocation failure returns OVERLOADED without daemon fail-stop
+[RUN] BIND_WORKER OK is flushed before pipelined decode failure closes
+[PASS] BIND_WORKER OK is flushed before pipelined decode failure closes
+[RUN] durable segment_full surfaces as wire OVERLOADED not INTERNAL_ERROR
+[PASS] durable segment_full surfaces as wire OVERLOADED not INTERNAL_ERROR
+[RUN] durable not-committed io_error surfaces as wire OVERLOADED not INTERNAL_ERROR
+[PASS] durable not-committed io_error surfaces as wire OVERLOADED not INTERNAL_ERROR
+[RUN] durable not-committed INTERNAL_ERROR-bucket codes surface as wire OVERLOADED
+[PASS] durable not-committed INTERNAL_ERROR-bucket codes surface as wire OVERLOADED
+[RUN] durable cold GET pipeline remains contiguous to preserve read overlap
+[PASS] durable cold GET pipeline remains contiguous to preserve read overlap
+[RUN] deep mutation pipeline keeps input compaction linear
+[PASS] deep mutation pipeline keeps input compaction linear
+[RUN] partial output appends compact only when retained capacity is exhausted
+[PASS] partial output appends compact only when retained capacity is exhausted
+[RUN] late cold-read completion cannot target a reused connection slot
+[PASS] late cold-read completion cannot target a reused connection slot
+[RUN] server shutdown drains an in-flight pinned cold read before Store close
+[PASS] server shutdown drains an in-flight pinned cold read before Store close
+[RUN] TCP reactor handles partial and pipelined protocol frames
+[PASS] TCP reactor handles partial and pipelined protocol frames
+[RUN] half-close drains pipelined mutations before teardown
+[PASS] half-close drains pipelined mutations before teardown
+[RUN] bound Reactor redirects wrong owners without forwarding
+[PASS] bound Reactor redirects wrong owners without forwarding
+[RUN] multi-Reactor executors distribute connections and share one Store
+[PASS] multi-Reactor executors distribute connections and share one Store
+[RUN] server connection rate limit returns overloaded
+[PASS] server connection rate limit returns overloaded
+[RUN] connection rate limit OVERLOADED survives trailing decode failure
+[PASS] connection rate limit OVERLOADED survives trailing decode failure
+[RUN] server idle timeout closes quiet connections
+[PASS] server idle timeout closes quiet connections
+[RUN] server request timeout closes in-flight cold read and cancels
+[PASS] server request timeout closes in-flight cold read and cancels
+[RUN] server request timeout closes partial request frames
+[PASS] server request timeout closes partial request frames
+[RUN] partial request timeout preserves prior response while peer drains within budget
+[PASS] partial request timeout preserves prior response while peer drains within budget
+[RUN] half-close with pending large response drains before poller teardown
+[PASS] half-close with pending large response drains before poller teardown
+[RUN] input buffer allocation failure drains decided response without daemon fail-stop
+[PASS] input buffer allocation failure drains decided response without daemon fail-stop
+[RUN] server accept rate limit drops excess handshakes
+[PASS] server accept rate limit drops excess handshakes
+[RUN] client RST hard-close releases reactor connection slot
+[PASS] client RST hard-close releases reactor connection slot
+[RUN] connection rate limit reconnect after window reset admits again
+[PASS] connection rate limit reconnect after window reset admits again
+[RUN] key routing is deterministic and stable across worker counts
+[PASS] key routing is deterministic and stable across worker counts
+[RUN] store put get round trip preserves value
+[PASS] store put get round trip preserves value
+[RUN] simultaneous Stores keep independent Worker routing
+[PASS] simultaneous Stores keep independent Worker routing
+[RUN] store replace updates visible value and sequence
+[PASS] store replace updates visible value and sequence
+[RUN] store erase removes key and rejects subsequent reads
+[PASS] store erase removes key and rejects subsequent reads
+[RUN] store get hides expired keys
+[PASS] store get hides expired keys
+[RUN] store clock never moves backward within one Store instance
+[PASS] store clock never moves backward within one Store instance
+[RUN] store clock handles maximum timestamp and no-expiration sentinel
+[PASS] store clock handles maximum timestamp and no-expiration sentinel
+[RUN] default Store clock expires timestamps in the Unix epoch past
+[PASS] default Store clock expires timestamps in the Unix epoch past
+[RUN] store keeps partitioned keys on routed workers only
+[PASS] store keeps partitioned keys on routed workers only
+[RUN] store routes keys to distinct worker partitions
+[PASS] store routes keys to distinct worker partitions
+[RUN] store verify index matches segment scan rebuild
+[PASS] store verify index matches segment scan rebuild
+[RUN] store round trips a key larger than 16-bit lengths
+[PASS] store round trips a key larger than 16-bit lengths
+[RUN] owned store reads survive replacement and store destruction
+[PASS] owned store reads survive replacement and store destruction
+[RUN] store byte key API preserves embedded zeros and empty keys
+[PASS] store byte key API preserves embedded zeros and empty keys
+[RUN] durable Store requires an explicit data directory
+[PASS] durable Store requires an explicit data directory
+[RUN] Store validates durable-only resource policy before initialization
+[PASS] Store validates durable-only resource policy before initialization
+[RUN] default durable budget rejects 256 Worker reservation before bootstrap
+[PASS] default durable budget rejects 256 Worker reservation before bootstrap
+[RUN] durable live-key budget is reusable after erase
+[PASS] durable live-key budget is reusable after erase
+[RUN] durable recovery memory and live-key budgets fail before service
+[PASS] durable recovery memory and live-key budgets fail before service
+[RUN] durable Store recovery and reads share the injected clock
+[PASS] durable Store recovery and reads share the injected clock
+[RUN] durable get lazily reclaims expired Index entries on hot and cold paths
+[PASS] durable get lazily reclaims expired Index entries on hot and cold paths
+[RUN] Store rejects legacy recovery timestamp overrides
+[PASS] Store rejects legacy recovery timestamp overrides
+[RUN] public durable Store creates commits reopens and enforces persisted Worker count
+[PASS] public durable Store creates commits reopens and enforces persisted Worker count
+[RUN] public durable Store completes an interrupted bootstrap intent
+[PASS] public durable Store completes an interrupted bootstrap intent
+[RUN] durable open-or-create initializes only a pristine directory
+[PASS] durable open-or-create initializes only a pristine directory
+[RUN] store rejects invalid public worker configuration
+[PASS] store rejects invalid public worker configuration
+[RUN] durable_periodic rejects zero sync interval
+[PASS] durable_periodic rejects zero sync interval
+[RUN] durable_periodic read after write is visible before flush
+[PASS] durable_periodic read after write is visible before flush
+[RUN] durable_periodic flush makes writes restart durable
+[PASS] durable_periodic flush makes writes restart durable
+[RUN] durable_periodic shutdown flush makes background writes restart durable
+[PASS] durable_periodic shutdown flush makes background writes restart durable
+[RUN] Store close is idempotent and rejects operations after releasing volatile resources
+[PASS] Store close is idempotent and rejects operations after releasing volatile resources
+[RUN] Store compaction is explicit maintenance and no-ops without sealed history
+[PASS] Store compaction is explicit maintenance and no-ops without sealed history
+[RUN] durable periodic close flushes and releases the directory lock before destruction
+[PASS] durable periodic close flushes and releases the directory lock before destruction
+[RUN] Store close forces a partial strict group and releases its producer
+[PASS] Store close forces a partial strict group and releases its producer
+[RUN] concurrent Store flush and close calls complete without deadlock
+[PASS] concurrent Store flush and close calls complete without deadlock
+[RUN] durable_group rejects invalid batch configuration
+[PASS] durable_group rejects invalid batch configuration
+[RUN] durable_group concurrent puts batch and survive reopen
+[PASS] durable_group concurrent puts batch and survive reopen
+[RUN] durable_group preserves explicitly ordered same-key put and erase
+[PASS] durable_group preserves explicitly ordered same-key put and erase
+[RUN] durable_group single put flushes within max_wait_ms
+[PASS] durable_group single put flushes within max_wait_ms
+[RUN] durable catalog observation enters emergency and rejects put until close
+[PASS] durable catalog observation enters emergency and rejects put until close
+[RUN] close during blocked background compact drains then joins
+[PASS] close during blocked background compact drains then joins
+[RUN] generated histories rebuild to their sequential final state
+[PASS] generated histories rebuild to their sequential final state
+[RUN] durable Store state machine matches reference model across reopen
+[PASS] durable Store state machine matches reference model across reopen
+[RUN] linearizability checker accepts a sequential put-get history
+[PASS] linearizability checker accepts a sequential put-get history
+[RUN] linearizability checker rejects a non-linearizable read
+[PASS] linearizability checker rejects a non-linearizable read
+[RUN] linearizability checker models TTL expiry on get
+[PASS] linearizability checker models TTL expiry on get
+[RUN] linearizability checker rejects unmodeled errors
+[PASS] linearizability checker rejects unmodeled errors
+[RUN] linearizability checker models missing and successful erase distinctly
+[PASS] linearizability checker models missing and successful erase distinctly
+[RUN] linearizability minimizer preserves any value-producing write for successful erase
+[PASS] linearizability minimizer preserves any value-producing write for successful erase
+[RUN] linearizability checker models explicit pre-Store rejection as no-op
+[PASS] linearizability checker models explicit pre-Store rejection as no-op
+[RUN] paired Store concurrent histories stay linearizable (seeded)
+[PASS] paired Store concurrent histories stay linearizable (seeded)
+[RUN] paired Store TTL put-get stays linearizable under fixed clock
+[PASS] paired Store TTL put-get stays linearizable under fixed clock
+[RUN] paired Store close_drain_deadline_ms is honored when idle
+[PASS] paired Store close_drain_deadline_ms is honored when idle
+[RUN] paired Store close linearizes against late mutations
+[PASS] paired Store close linearizes against late mutations
+752 tests, 0 failures

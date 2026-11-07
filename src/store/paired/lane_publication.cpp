@@ -13,7 +13,8 @@ namespace {
 
 [[nodiscard]] auto non_owning_generation_view(const PairReadGeneration* generation) noexcept
     -> std::shared_ptr<const PairReadGeneration> {
-    return std::shared_ptr<const PairReadGeneration>(generation, [](const PairReadGeneration*) {});
+    // The pool owns the generation. An empty-owner alias needs no control block.
+    return {std::shared_ptr<const PairReadGeneration>{}, generation};
 }
 
 } // namespace

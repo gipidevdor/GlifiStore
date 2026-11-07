@@ -19,6 +19,13 @@ using le::put_u32;
 using le::put_u64;
 
 [[nodiscard]] auto validate_record_input(const RecordInput& input) -> Status {
+    if (input.format_version != 1 && input.format_version != 2) {
+        return fail(ErrorCode::invalid_argument, "unsupported Record version");
+    }
+    if (input.type == ValueType::blob_ref && (input.format_version != 2 || input.opcode != Opcode::put ||
+                                              input.value.size() != 80 || input.flags != 0)) {
+        return fail(ErrorCode::invalid_argument, "invalid typed blob Record");
+    }
     const auto opcode_raw = static_cast<std::uint16_t>(input.opcode);
     if (opcode_raw != static_cast<std::uint16_t>(Opcode::put) &&
         opcode_raw != static_cast<std::uint16_t>(Opcode::erase)) {
@@ -26,7 +33,8 @@ using le::put_u64;
     }
     const auto type_raw = static_cast<std::uint16_t>(input.type);
     if (type_raw < static_cast<std::uint16_t>(ValueType::bytes) ||
-        type_raw > static_cast<std::uint16_t>(ValueType::lease)) {
+        type_raw >
+            static_cast<std::uint16_t>(input.format_version == 2 ? ValueType::blob_ref : ValueType::lease)) {
         return fail(ErrorCode::invalid_argument, "unknown record value type");
     }
     if (input.key.size() > std::numeric_limits<std::uint32_t>::max() ||
@@ -94,7 +102,7 @@ auto encode_record(const std::span<std::byte> out, const RecordInput& input, con
     const auto type_raw = static_cast<std::uint16_t>(input.type);
     const auto encoded = out.first(encoded_size);
     put_u32(encoded, 0, kRecordMagic);
-    put_u16(encoded, 4, kRecordFormatVersion);
+    put_u16(encoded, 4, input.format_version);
     put_u16(encoded, 6, kEncodedRecordHeaderSize);
     put_u32(encoded, 8, static_cast<std::uint32_t>(encoded_size));
     put_u32(encoded, 12, static_cast<std::uint32_t>(input.key.size()));
@@ -145,7 +153,7 @@ auto decode_record(const std::span<const std::byte> bytes, const bool verify_che
     if (bytes.size() < kEncodedRecordHeaderSize) {
         return fail(ErrorCode::invalid_record, "record is shorter than the encoded header");
     }
-    if (get_u32(bytes, 0) != kRecordMagic || get_u16(bytes, 4) != kRecordFormatVersion ||
+    if (get_u32(bytes, 0) != kRecordMagic || (get_u16(bytes, 4) != 1 && get_u16(bytes, 4) != 2) ||
         get_u16(bytes, 6) != kEncodedRecordHeaderSize) {
         return fail(ErrorCode::invalid_record, "record magic, version, or header size is invalid");
     }
@@ -179,8 +187,13 @@ auto decode_record(const std::span<const std::byte> bytes, const bool verify_che
     }
     const auto type_raw = get_u16(bytes, 50);
     if (type_raw < static_cast<std::uint16_t>(ValueType::bytes) ||
-        type_raw > static_cast<std::uint16_t>(ValueType::lease)) {
+        type_raw >
+            static_cast<std::uint16_t>(get_u16(bytes, 4) == 2 ? ValueType::blob_ref : ValueType::lease)) {
         return fail(ErrorCode::invalid_record, "unknown record value type");
+    }
+    if (type_raw == 5 &&
+        (get_u16(bytes, 4) != 2 || opcode_raw != 1 || value_size != 80 || get_u32(bytes, 52) != 0)) {
+        return fail(ErrorCode::invalid_record, "invalid typed blob Record");
     }
     const auto key_begin = static_cast<std::size_t>(kEncodedRecordHeaderSize);
     const auto payload_end = key_begin + *payload_size;
@@ -198,6 +211,7 @@ auto decode_record(const std::span<const std::byte> bytes, const bool verify_che
         .key = encoded.subspan(key_begin, key_size),
         .value = encoded.subspan(key_begin + key_size, value_size),
         .encoded_size = total_size,
+        .format_version = get_u16(bytes, 4),
     };
 }
 

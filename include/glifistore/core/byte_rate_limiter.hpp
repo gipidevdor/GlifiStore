@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded byte pacing with an explicit burst and monotonic-time decisions.
+ */
 #pragma once
 
 #include <algorithm>
@@ -6,16 +10,19 @@
 
 namespace glifistore {
 
-// Allocation-free, single-owner byte-rate schedule. The caller performs the
-// returned sleep before consuming `granted_bytes`. One bounded burst may run
-// immediately; subsequent grants are spaced by the configured byte rate.
-//
-// This object deliberately owns no clock or thread primitive, which keeps its
-// arithmetic deterministic in unit tests and lets storage callers use their
-// platform monotonic clock/sleep implementation. It is not thread-safe: one
-// maintenance job owns it for its complete lifetime.
+/// Allocation-free, single-owner byte-rate schedule. The caller performs the
+/// returned sleep before consuming `granted_bytes`. One bounded burst may run
+/// immediately; subsequent grants are spaced by the configured byte rate.
+///
+/// This object deliberately owns no clock or thread primitive, which keeps its
+/// arithmetic deterministic in unit tests and lets storage callers use their
+/// platform monotonic clock/sleep implementation. It is not thread-safe: one
+/// maintenance job owns it for its complete lifetime.
 class BoundedByteRateLimiter final {
   public:
+    /**
+     * @brief Grant and required pre-consumption delay; the caller implements the sleep.
+     */
     struct Decision final {
         std::uint64_t granted_bytes{};
         std::uint64_t sleep_ns{};

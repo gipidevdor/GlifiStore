@@ -7,11 +7,15 @@ on:
       - ".github/workflows/**"
       - ".github/actionlint*"
       - ".github/actionlint.yaml"
+      - ".github/dependabot.yml"
+      - "engineering/tools/validate_actions_pins.py"
   pull_request:
     paths:
       - ".github/workflows/**"
       - ".github/actionlint*"
       - ".github/actionlint.yaml"
+      - ".github/dependabot.yml"
+      - "engineering/tools/validate_actions_pins.py"
   workflow_dispatch:
 
 permissions:

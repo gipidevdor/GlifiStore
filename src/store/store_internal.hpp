@@ -32,6 +32,7 @@ class StoreAccess final {
         HashedKey key{};
         std::span<const std::byte> value{};
         std::uint64_t expire_at_ns{};
+        ValueType type{ValueType::bytes};
     };
 
     struct DurableWriterBatchResult final {
@@ -99,8 +100,8 @@ class StoreAccess final {
     // indeterminate classification. This is required for a bounded internal
     // retry without inferring safety from a portable ErrorCode alone.
     [[nodiscard]] static auto put_durable(Store& store, std::size_t worker_index, const HashedKey& key,
-                                          std::span<const std::byte> value, std::uint64_t expire_at_ns)
-        -> DurableMutationResult;
+                                          std::span<const std::byte> value, std::uint64_t expire_at_ns,
+                                          ValueType type = ValueType::bytes) -> DurableMutationResult;
     [[nodiscard]] static auto erase_durable(Store& store, std::size_t worker_index, const HashedKey& key)
         -> DurableMutationResult;
     [[nodiscard]] static auto durable_writer_batch_config(const Store& store) noexcept

@@ -33,7 +33,11 @@ namespace {
 } // namespace
 
 auto validate_compaction_write_amplification(const std::size_t source_count, const std::size_t output_count,
-                                             const DurableResourceLimits& limits) -> Status {
+                                             const DurableResourceLimits& limits,
+                                             const std::uint64_t blob_reclaim_bytes) -> Status {
+    if (output_count > source_count) {
+        return fail(ErrorCode::invalid_argument, "compaction output exceeds sources");
+    }
     const auto temporary = segment_bytes(output_count, "compaction temporary byte count overflow");
     if (!temporary) {
         return unexpected(temporary.error());
@@ -43,14 +47,19 @@ auto validate_compaction_write_amplification(const std::size_t source_count, con
     if (!reclaimed) {
         return unexpected(reclaimed.error());
     }
+    const auto total_reclaimed =
+        checked_add(*reclaimed, blob_reclaim_bytes, "compaction blob reclaim overflow");
+    if (!total_reclaimed) {
+        return unexpected(total_reclaimed.error());
+    }
     if (*temporary == 0) {
         return {};
     }
-    if (*reclaimed == 0) {
+    if (*total_reclaimed == 0) {
         return fail(ErrorCode::storage_exhausted, "durable compaction would not reclaim a physical Segment");
     }
-    if (*reclaimed <= std::numeric_limits<std::uint64_t>::max() / limits.max_write_amplification &&
-        *temporary > *reclaimed * limits.max_write_amplification) {
+    if (*total_reclaimed <= std::numeric_limits<std::uint64_t>::max() / limits.max_write_amplification &&
+        *temporary > *total_reclaimed * limits.max_write_amplification) {
         return fail(ErrorCode::storage_exhausted,
                     "durable compaction exceeds the configured write-amplification limit");
     }

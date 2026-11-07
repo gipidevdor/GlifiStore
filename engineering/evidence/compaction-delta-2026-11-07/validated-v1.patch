@@ -1,0 +1,1674 @@
+--- /dev/null
++++ b/src/persistence/compaction_delta.hpp
+@@ -0,0 +1,115 @@
++#pragma once
++
++#include "glifistore/core/key_hash.hpp"
++#include "glifistore/index/index.hpp"
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <limits>
++#include <optional>
++#include <vector>
++
++namespace glifistore::runtime_catalog_detail {
++
++// One compaction owns this preallocated journal. Index publishers append under
++// the same ownership as the mutable Index; the compactor reads only after its
++// commit gate has drained the exclusive Writer. Overflow abandons maintenance,
++// never the foreground mutation. Values are not copied into this journal.
++class CompactionDelta final {
++    struct Entry {
++        std::size_t offset{};
++        std::size_t size{};
++        std::uint64_t hash{};
++        std::optional<RecordRef> reference;
++    };
++
++  public:
++    CompactionDelta(const std::size_t entries, const std::size_t key_bytes)
++        : entries_(entries), keys_(key_bytes) {}
++
++    void record(const HashedKey& key, const std::optional<RecordRef>& reference) noexcept {
++        if (overflow_.load(std::memory_order_relaxed)) {
++            return;
++        }
++        if (size_ == entries_.size() || key.key.size() > keys_.size() - key_bytes_) {
++            overflow_.store(true, std::memory_order_release);
++            return;
++        }
++        if (!key.key.empty()) {
++            std::memcpy(keys_.data() + key_bytes_, key.key.data(), key.key.size());
++        }
++        entries_[size_++] = {
++            .offset = key_bytes_, .size = key.key.size(), .hash = key.hash, .reference = reference};
++        key_bytes_ += key.key.size();
++    }
++
++    [[nodiscard]] auto overflowed() const noexcept -> bool {
++        return overflow_.load(std::memory_order_acquire);
++    }
++
++    [[nodiscard]] auto size() const noexcept -> std::size_t {
++        return size_;
++    }
++
++    [[nodiscard]] auto key_bytes() const noexcept -> std::size_t {
++        return key_bytes_;
++    }
++
++    [[nodiscard]] auto metadata_bytes() const noexcept -> std::uint64_t {
++        return entries_.capacity() * sizeof(Entry) + keys_.capacity();
++    }
++
++    // Reserve the worst-case replay before intent publication. Erases never
++    // compact the table, and total inserted key bytes cannot exceed this arena.
++    [[nodiscard]] auto prepare(Index& index) const -> Status {
++        return index.prepare_batch_insert(entries_.size(), keys_.size());
++    }
++
++    [[nodiscard]] auto replay(Index& index, const SegmentId active_segment, std::uint64_t& active_bytes,
++                              std::uint64_t& sealed_bytes) const -> Status {
++        if (overflowed()) {
++            return fail(ErrorCode::sequence_conflict, "compaction delta budget exhausted");
++        }
++        for (std::size_t cursor = 0; cursor < size_; ++cursor) {
++            const auto& entry = entries_[cursor];
++            const auto key_view = keys_.empty() ? std::string_view{}
++                                                : std::string_view{keys_.data() + entry.offset, entry.size};
++            const HashedKey key{.key = key_view, .hash = entry.hash};
++            const auto previous = index.find(key);
++            if (previous) {
++                auto& bytes = previous->segment_id == active_segment ? active_bytes : sealed_bytes;
++                if (bytes < previous->size.value) {
++                    return fail(ErrorCode::corrupted_data, "compaction delta live bytes underflow");
++                }
++                bytes -= previous->size.value;
++            }
++            if (entry.reference) {
++                if (entry.reference->segment_id != active_segment) {
++                    return fail(ErrorCode::sequence_conflict, "compaction delta changed active identity");
++                }
++                if (entry.reference->size.value > std::numeric_limits<std::uint64_t>::max() - active_bytes) {
++                    return fail(ErrorCode::arithmetic_overflow, "compaction delta live bytes overflow");
++                }
++                auto inserted = index.insert_or_assign(key, *entry.reference);
++                if (!inserted) {
++                    return unexpected(inserted.error());
++                }
++                active_bytes += entry.reference->size.value;
++            } else {
++                static_cast<void>(index.erase_no_compact(key));
++            }
++        }
++        return {};
++    }
++
++  private:
++    std::vector<Entry> entries_;
++    std::vector<char> keys_;
++    std::size_t size_{};
++    std::size_t key_bytes_{};
++    std::atomic_bool overflow_{};
++};
++
++} // namespace glifistore::runtime_catalog_detail
+--- a/src/persistence/runtime_catalog_detail.hpp
++++ b/src/persistence/runtime_catalog_detail.hpp
+@@ -3,6 +3,7 @@
+ #include "glifistore/index/index.hpp"
+ #include "glifistore/persistence/runtime_catalog.hpp"
+ #include "persistence/adaptive_batch_sizer.hpp"
++#include "persistence/compaction_delta.hpp"
+ #include "persistence/hot_record_table.hpp"
+ 
+ #include <atomic>
+@@ -75,9 +76,11 @@
+ template <typename Callback> class ScopeExit final {
+   public:
+     explicit ScopeExit(Callback callback) noexcept : callback_(std::move(callback)) {}
++
+     ~ScopeExit() noexcept {
+         callback_();
+     }
++
+     ScopeExit(const ScopeExit&) = delete;
+     auto operator=(const ScopeExit&) -> ScopeExit& = delete;
+ 
+@@ -92,15 +95,18 @@
+ class PreparedHotRecord final {
+   public:
+     PreparedHotRecord() = default;
++
+     PreparedHotRecord(std::string key, const std::uint64_t key_hash, HotRecordEntry entry,
+                       std::uint64_t* staged_bytes, std::size_t* staged_entries,
+                       const std::uint64_t staged_charge, const std::uint64_t resident_charge) noexcept
+         : key_(std::move(key)), key_hash_(key_hash), entry_(std::move(entry)), staged_bytes_(staged_bytes),
+           staged_entries_(staged_entries), staged_charge_(staged_charge), resident_charge_(resident_charge),
+           active_(true) {}
++
+     ~PreparedHotRecord() {
+         release_stage();
+     }
++
+     PreparedHotRecord(PreparedHotRecord&& other) noexcept
+         : key_(std::move(other.key_)), key_hash_(std::exchange(other.key_hash_, 0)),
+           entry_(std::move(other.entry_)), staged_bytes_(std::exchange(other.staged_bytes_, nullptr)),
+@@ -108,6 +114,7 @@
+           staged_charge_(std::exchange(other.staged_charge_, 0)),
+           resident_charge_(std::exchange(other.resident_charge_, 0)),
+           active_(std::exchange(other.active_, false)) {}
++
+     auto operator=(PreparedHotRecord&& other) noexcept -> PreparedHotRecord& {
+         if (this != &other) {
+             release_stage();
+@@ -122,27 +129,34 @@
+         }
+         return *this;
+     }
++
+     PreparedHotRecord(const PreparedHotRecord&) = delete;
+     auto operator=(const PreparedHotRecord&) -> PreparedHotRecord& = delete;
+ 
+     [[nodiscard]] auto empty() const noexcept -> bool {
+         return !active_;
+     }
++
+     [[nodiscard]] auto key() const -> const std::string& {
+         return key_;
+     }
++
+     [[nodiscard]] auto take_key() noexcept -> std::string {
+         return std::move(key_);
+     }
++
+     [[nodiscard]] auto key_hash() const noexcept -> std::uint64_t {
+         return key_hash_;
+     }
++
+     [[nodiscard]] auto mapped() -> HotRecordEntry& {
+         return entry_;
+     }
++
+     [[nodiscard]] auto resident_charge() const noexcept -> std::uint64_t {
+         return resident_charge_;
+     }
++
+     [[nodiscard]] auto take_entry() -> HotRecordEntry {
+         release_stage();
+         active_ = false;
+@@ -361,23 +375,38 @@
+             compaction_commit_active.store(true, std::memory_order_release);
+         }
+     }
++
+     void disarm_index_quiesce_gate() noexcept {
+         if (compaction_commit_holders.fetch_sub(1U, std::memory_order_acq_rel) == 1U) {
+             compaction_commit_active.store(false, std::memory_order_release);
+             compaction_commit_finished.notify_all();
+         }
+     }
++
+     // Nested exclusive-Writer hot-path depth. Compaction / exclusive Index readers
+     // wait for zero before touching the Index when exclusive_writer elides the
+     // Worker mutex (`exclusive_writer &&` no background flusher). Flusher paths
+     // never bump this.
+     std::atomic_uint32_t hot_path_depth{};
++    // Protected by Index ownership (mutex, or exclusive Writer depth). The
++    // compactor detaches only after quiescing that owner. Never owns the journal.
++    runtime_catalog_detail::CompactionDelta* compaction_delta{};
++    // Final publication defers TTL housekeeping; expired GETs still miss.
++    bool compaction_index_frozen{};
++
++    void record_compaction_change(const HashedKey& key, const std::optional<RecordRef>& reference) noexcept {
++        if (compaction_delta != nullptr) {
++            compaction_delta->record(key, reference);
++        }
++    }
+ 
+     [[nodiscard]] auto hot_cache_total_bytes() const noexcept -> std::uint64_t;
+     void erase_hot_record(std::string_view key, std::uint64_t key_hash) noexcept;
++
+     void erase_hot_record(const HashedKey& key) noexcept {
+         erase_hot_record(key.key, key.hash);
+     }
++
+     // Drain up to `limit` deferred TTL reclamations. Verifies exact RecordRef
+     // before erase so a reinsert/update is never deleted. Caller holds mutex.
+     [[nodiscard]] auto drain_deferred_ttl(std::size_t limit) -> Status;
+@@ -418,6 +447,7 @@
+             worker.hot_path_depth.wait(depth, std::memory_order_acquire);
+         }
+     }
++
+     void clear() noexcept {
+         if (!armed) {
+             return;
+@@ -425,9 +455,11 @@
+         armed = false;
+         worker.disarm_index_quiesce_gate();
+     }
++
+     ~ExclusiveIndexQuiesce() {
+         clear();
+     }
++
+     ExclusiveIndexQuiesce(const ExclusiveIndexQuiesce&) = delete;
+     auto operator=(const ExclusiveIndexQuiesce&) -> ExclusiveIndexQuiesce& = delete;
+ };
+--- a/src/persistence/runtime_catalog.cpp
++++ b/src/persistence/runtime_catalog.cpp
+@@ -56,6 +56,9 @@
+ }
+ 
+ auto DurableRuntimeCatalog::RuntimeWorker::drain_deferred_ttl(const std::size_t limit) -> Status {
++    if (compaction_index_frozen) {
++        return {};
++    }
+     if (glifistore::fault::consume_fail(glifistore::fault::Site::deferred_ttl)) {
+         return fail(ErrorCode::resource_exhausted, "injected deferred TTL drain failure");
+     }
+@@ -71,6 +74,7 @@
+             continue;
+         }
+         const auto erased = index.erase_no_compact(key);
++        record_compaction_change(key, std::nullopt);
+         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
+             return counted;
+         }
+@@ -88,6 +92,9 @@
+     // served; Index removal may wait for a bounded Worker drain.
+     erase_hot_record(key);
+     get_path_metrics.expired_ttl_gets.fetch_add(1U, std::memory_order_relaxed);
++    if (compaction_index_frozen) {
++        return {};
++    }
+ 
+     if (backlog_limit == 0) {
+         const auto current = index.find(key);
+@@ -96,6 +103,7 @@
+             return {};
+         }
+         const auto erased = index.erase_no_compact(key);
++        record_compaction_change(key, std::nullopt);
+         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
+             return counted;
+         }
+@@ -116,6 +124,7 @@
+             return {};
+         }
+         const auto erased = index.erase_no_compact(key);
++        record_compaction_change(key, std::nullopt);
+         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
+             return counted;
+         }
+--- a/src/persistence/runtime_catalog_compact.cpp
++++ b/src/persistence/runtime_catalog_compact.cpp
+@@ -34,6 +34,21 @@
+     -> DurableCompactionResult {
+     bool recovery_required{};
+     DurableCompactionCopyStats stats{};
++    std::uint64_t snapshot_duration_ns{};
++    std::optional<std::chrono::steady_clock::time_point> commit_gate_started;
++    bool completed{};
++    ScopeExit publish_metrics{[&] {
++        atomic_saturating_add(compaction_attempts_, 1);
++        atomic_saturating_add(compactions_completed_, completed ? 1 : 0);
++        atomic_saturating_add(compaction_delta_overflows_, stats.delta_overflow_aborts);
++        atomic_saturating_add(compaction_manifest_conflicts_, stats.manifest_conflict_aborts);
++        atomic_saturating_add(compaction_abandoned_copy_bytes_, stats.abandoned_copy_bytes);
++        if (completed) {
++            atomic_saturating_add(compaction_replayed_records_, stats.delta_records);
++        }
++        atomic_observe_max(maximum_compaction_snapshot_ns_, snapshot_duration_ns);
++        atomic_observe_max(maximum_compaction_commit_gate_ns_, stats.commit_gate_duration_ns);
++    }};
+     const auto notify_fail_closed = [&] {
+         healthy_.store(false, std::memory_order_release);
+         for (const auto& worker : workers_) {
+@@ -41,6 +56,13 @@
+         }
+     };
+     const auto failure = [&](Error error) {
++        stats.snapshot_duration_ns = snapshot_duration_ns;
++        if (commit_gate_started && stats.commit_gate_duration_ns == 0) {
++            stats.commit_gate_duration_ns = steady_elapsed_ns(*commit_gate_started);
++        }
++        if (!recovery_required) {
++            stats.abandoned_copy_bytes = stats.bytes_copied;
++        }
+         if (recovery_required) {
+             notify_fail_closed();
+         }
+@@ -62,9 +84,19 @@
+ 
+         auto& worker = *workers_[worker_index];
+         Manifest snapshot;
+-        SequenceNumber snapshot_next_sequence{};
+         std::vector<IndexEntry> snapshot_entries;
+         std::vector<std::shared_ptr<const RuntimeSegmentGeneration>> source_pins;
++        CompactionDelta delta{options_.limits.max_compaction_delta_entries,
++                              options_.limits.max_compaction_delta_key_bytes};
++        bool delta_attached{};
++        ScopeExit delta_lifetime{[&] {
++            if (delta_attached) {
++                ExclusiveIndexQuiesce quiesce{worker, options_.exclusive_writer && flusher_ == nullptr};
++                const std::lock_guard lock{worker.mutex};
++                worker.compaction_delta = nullptr;
++            }
++        }};
++        const auto snapshot_started = std::chrono::steady_clock::now();
+ 
+         // Phase A: capture only owning state. No file operation is allowed in
+         // this scope. The complete Index enumeration is currently necessary
+@@ -80,6 +112,10 @@
+             ExclusiveIndexQuiesce snapshot_gate{worker, elide_worker_mutex};
+ 
+             std::unique_lock worker_lock{worker.mutex};
++            if (worker.compaction_delta != nullptr) {
++                return failure(
++                    Error{ErrorCode::sequence_conflict, "another compaction owns the Worker delta"});
++            }
+             if (worker.mutation_io_active) {
+                 return failure(Error{ErrorCode::sequence_conflict,
+                                      "durable compaction conflicts with active mutation I/O"});
+@@ -102,7 +138,6 @@
+                                      "durable compaction candidate exceeds its maintenance copy budget"});
+             }
+             snapshot = manifest_;
+-            snapshot_next_sequence = worker.next_sequence;
+             const auto index_size = worker.index.stats().size;
+             snapshot_entries = worker.index.entries();
+             if (snapshot_entries.size() != index_size || generation_pins_.size() != segments_.size() ||
+@@ -124,9 +159,12 @@
+                 }
+                 source_pins.push_back(pin);
+             }
++            worker.compaction_delta = &delta;
++            delta_attached = true;
+             // Drop the snapshot gate before Phase B so mutates proceed during build.
+             snapshot_gate.clear();
+         }
++        snapshot_duration_ns = steady_elapsed_ns(snapshot_started);
+ 
+         if (source_pins.empty()) {
+             return failure(Error{ErrorCode::not_found, "durable Worker has no sealed Segments to compact"});
+@@ -158,19 +196,29 @@
+             manifest_publication_changed_.notify_all();
+         };
+         ScopeExit publication_lease{release_publication_lease};
++
+         struct IntentGateContext final {
+             DurableRuntimeCatalog& runtime;
+             const Manifest& snapshot;
+             bool& active;
+             std::optional<std::chrono::steady_clock::time_point>& started;
++            CompactionDelta& delta;
++            DurableCompactionCopyStats& stats;
+         } intent_gate_context{.runtime = *this,
+                               .snapshot = snapshot,
+                               .active = publication_lease_active,
+-                              .started = publication_lease_started};
++                              .started = publication_lease_started,
++                              .delta = delta,
++                              .stats = stats};
++
+         const DurableCompactionIntentGate intent_gate{
+             .context = &intent_gate_context,
+             .acquire = [](void* opaque) -> Status {
+                 auto& gate = *static_cast<IntentGateContext*>(opaque);
++                if (gate.delta.overflowed()) {
++                    gate.stats.delta_overflow_aborts = 1;
++                    return fail(ErrorCode::sequence_conflict, "compaction delta budget exhausted");
++                }
+                 std::lock_guard publication_lock{gate.runtime.manifest_publication_mutex_};
+                 if (gate.runtime.compaction_publication_active_ ||
+                     gate.runtime.rotation_publication_active_) {
+@@ -179,6 +227,7 @@
+                 }
+                 const std::shared_lock catalog_lock{gate.runtime.catalog_mutex_};
+                 if (!gate.runtime.healthy() || gate.runtime.manifest_ != gate.snapshot) {
++                    gate.stats.manifest_conflict_aborts = 1;
+                     return fail(ErrorCode::sequence_conflict,
+                                 "manifest changed before compaction intent publication");
+                 }
+@@ -186,13 +235,23 @@
+                 gate.active = true;
+                 gate.started = std::chrono::steady_clock::now();
+                 return {};
++            },
++            .prepare_index = [](void* opaque, Index& index) -> Status {
++                return static_cast<IntentGateContext*>(opaque)->delta.prepare(index);
+             },
+         };
+         auto built = build_durable_worker_compaction(
+             directory_, snapshot, worker.worker_id, std::move(snapshot_entries), now_ns, options_.limits,
+             intent_gate, {.bytes_per_second = max_copy_bytes_per_second});
+         if (!built.succeeded()) {
++            const auto manifest_conflicts = stats.manifest_conflict_aborts;
++            const auto delta_overflows = stats.delta_overflow_aborts;
+             stats = built.stats;
++            stats.manifest_conflict_aborts = manifest_conflicts;
++            stats.delta_overflow_aborts = delta_overflows;
++            stats.snapshot_duration_ns = snapshot_duration_ns;
++            stats.transient_metadata_lower_bound_bytes =
++                saturating_add(stats.transient_metadata_lower_bound_bytes, delta.metadata_bytes());
+             if (built.outcome == DurableCompactionBuildOutcome::not_beneficial) {
+                 return {.outcome = DurableCompactionOutcome::not_beneficial,
+                         .stats = built.stats,
+@@ -209,6 +268,9 @@
+         recovery_required = true;
+         auto prepared = std::move(*built.prepared);
+         stats = prepared.stats;
++        stats.snapshot_duration_ns = snapshot_duration_ns;
++        stats.transient_metadata_lower_bound_bytes =
++            saturating_add(stats.transient_metadata_lower_bound_bytes, delta.metadata_bytes());
+         auto sources = std::move(prepared.plan.sources);
+         const auto abort_prepared = [&](Error reason) -> DurableCompactionResult {
+             auto rolled_back = rollback_prepared_compaction(directory_, snapshot, prepared.plan.replacements,
+@@ -290,8 +352,7 @@
+                                    generation_pins_[catalog_index] == source_pins[source_index];
+         }
+         if (!healthy() || manifest_ != snapshot || segments_.size() != snapshot.segments.size() ||
+-            worker.next_sequence != snapshot_next_sequence || !worker.pending_group_mutations.empty() ||
+-            worker.batch_closing || !sources_still_pinned) {
++            !worker.pending_group_mutations.empty() || worker.batch_closing || !sources_still_pinned) {
+             catalog_lock.unlock();
+             worker_lock.unlock();
+             return abort_prepared(
+@@ -338,26 +399,35 @@
+ 
+         struct WorkerCommitGate final {
+             RuntimeWorker& worker;
++            DurableCompactionCopyStats& stats;
++            std::chrono::steady_clock::time_point started{std::chrono::steady_clock::now()};
+             bool active{true};
+ 
+-            explicit WorkerCommitGate(RuntimeWorker& owner) noexcept : worker(owner) {
++            WorkerCommitGate(RuntimeWorker& owner, DurableCompactionCopyStats& metrics) noexcept
++                : worker(owner), stats(metrics) {
+                 worker.arm_index_quiesce_gate();
+             }
++
+             ~WorkerCommitGate() {
+                 if (!active) {
+                     return;
+                 }
+                 const std::lock_guard lock{worker.mutex};
++                clear_locked();
++            }
++
++            void clear_locked() noexcept {
++                worker.compaction_index_frozen = false;
+                 worker.disarm_index_quiesce_gate();
+-            }
+-            void clear_locked() noexcept {
+-                worker.disarm_index_quiesce_gate();
++                stats.commit_gate_duration_ns = steady_elapsed_ns(started);
+                 active = false;
+             }
+ 
+             WorkerCommitGate(const WorkerCommitGate&) = delete;
+             auto operator=(const WorkerCommitGate&) -> WorkerCommitGate& = delete;
+-        } commit_gate{worker};
++        } commit_gate{worker, stats};
++
++        commit_gate_started = commit_gate.started;
+         // Release every physical mutex before quiesce waits and the durable
+         // manifest write (durable-compaction.md). Holding catalog/worker across
+         // hot_path_depth wait deadlocks the exclusive Writer: mutate already
+@@ -404,16 +474,39 @@
+                                    generation_pins_[catalog_index] == source_pins[source_index];
+         }
+         if (!healthy() || worker.mutation_io_active || manifest_ != snapshot ||
+-            segments_.size() != snapshot.segments.size() || worker.next_sequence != snapshot_next_sequence ||
+-            !worker.pending_group_mutations.empty() || worker.batch_closing || !sources_still_pinned) {
++            segments_.size() != snapshot.segments.size() || !worker.pending_group_mutations.empty() ||
++            worker.batch_closing || !sources_still_pinned) {
+             catalog_lock.unlock();
+             commit_gate.clear_locked();
+             worker_lock.unlock();
+             return abort_prepared(
+                 Error{ErrorCode::sequence_conflict, "runtime state changed during durable compaction"});
+         }
++        stats.delta_records = delta.size();
++        stats.delta_key_bytes = delta.key_bytes();
++        if (delta.overflowed()) {
++            stats.delta_overflow_aborts = 1;
++            catalog_lock.unlock();
++            commit_gate.clear_locked();
++            worker_lock.unlock();
++            return abort_prepared(Error{ErrorCode::sequence_conflict, "compaction delta budget exhausted"});
++        }
++        // The Writer is drained, group publication is empty, and TTL Index
++        // housekeeping is deferred until installation. Replay is allocation-free
++        // thanks to the worst-case pre-intent reservation in the builder.
++        worker.compaction_index_frozen = true;
++        worker.compaction_delta = nullptr;
++        delta_attached = false;
++        auto sealed_live_record_bytes = stats.bytes_copied;
+         catalog_lock.unlock();
+         worker_lock.unlock();
++        const auto replay_started = std::chrono::steady_clock::now();
++        const auto replayed = delta.replay(prepared.index, worker.active_segment,
++                                           prepared.active_live_record_bytes, sealed_live_record_bytes);
++        stats.delta_replay_duration_ns = steady_elapsed_ns(replay_started);
++        if (!replayed) {
++            return abort_prepared(replayed.error());
++        }
+ 
+         const auto published =
+             directory_.publish_manifest(prepared.plan.next_manifest, options_.limits.max_manifest_bytes);
+@@ -440,7 +533,7 @@
+             worker.index = std::move(prepared.index);
+             worker.active_live_record_bytes.store(prepared.active_live_record_bytes,
+                                                   std::memory_order_release);
+-            worker.sealed_live_record_bytes.store(stats.bytes_copied, std::memory_order_release);
++            worker.sealed_live_record_bytes.store(sealed_live_record_bytes, std::memory_order_release);
+             if (!advance_read_catalog_revision(worker)) {
+                 throw std::overflow_error{"durable read catalog revision exhausted"};
+             }
+@@ -483,6 +576,7 @@
+         }
+         recovery_required = false;
+         release_publication_lease();
++        completed = true;
+         return {.outcome = DurableCompactionOutcome::compacted, .stats = stats, .error = std::nullopt};
+     } catch (const std::bad_alloc&) {
+         return failure(Error{ErrorCode::resource_exhausted, {}});
+@@ -491,4 +585,16 @@
+     }
+ }
+ 
++auto DurableRuntimeCatalog::compaction_stats() const noexcept -> DurableCompactionMetrics {
++    return {.attempts = compaction_attempts_.load(std::memory_order_relaxed),
++            .completed = compactions_completed_.load(std::memory_order_relaxed),
++            .delta_overflow_aborts = compaction_delta_overflows_.load(std::memory_order_relaxed),
++            .manifest_conflict_aborts = compaction_manifest_conflicts_.load(std::memory_order_relaxed),
++            .abandoned_copy_bytes = compaction_abandoned_copy_bytes_.load(std::memory_order_relaxed),
++            .replayed_records = compaction_replayed_records_.load(std::memory_order_relaxed),
++            .maximum_snapshot_duration_ns = maximum_compaction_snapshot_ns_.load(std::memory_order_relaxed),
++            .maximum_commit_gate_duration_ns =
++                maximum_compaction_commit_gate_ns_.load(std::memory_order_relaxed)};
++}
++
+ } // namespace glifistore
+--- a/src/persistence/runtime_catalog_mutate_ops.cpp
++++ b/src/persistence/runtime_catalog_mutate_ops.cpp
+@@ -52,6 +52,7 @@
+         std::span<const std::byte>{reinterpret_cast<const std::byte*>(key.key.data()), key.key.size()}, {},
+         Opcode::erase, key.hash, 0, ValueType::bytes, 0);
+ }
++
+ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
+                                    const std::span<const std::byte> value, const Opcode opcode,
+                                    const std::uint64_t key_hash, const std::uint64_t expire_at_ns,
+@@ -74,6 +75,7 @@
+         const auto worker_index = route_worker(key_hash, workers_.size());
+         auto& worker = *workers_[worker_index];
+         const bool strict_batch = options_.batch.has_value() && options_.strict_ack;
++
+         struct GroupAdmission final {
+             std::atomic_size_t* active{};
+ 
+@@ -82,20 +84,24 @@
+                     active->fetch_add(1U, std::memory_order_relaxed);
+                 }
+             }
++
+             ~GroupAdmission() {
+                 if (active) {
+                     active->fetch_sub(1U, std::memory_order_relaxed);
+                 }
+             }
++
+             GroupAdmission(const GroupAdmission&) = delete;
+             auto operator=(const GroupAdmission&) -> GroupAdmission& = delete;
+         } admission{strict_batch ? &worker.active_group_mutations : nullptr};
++
+         // Paired exclusive Writer (no background flusher): skip Worker mutex on the
+         // ordinary mutate hot path. Compaction observes hot_path_depth instead.
+         // Group/periodic paths keep the mutex because the flush coordinator shares
+         // pending-batch and file state with mutate.
+         const bool elide_worker_mutex = options_.exclusive_writer && flusher_ == nullptr;
+         std::unique_lock worker_lock{worker.mutex, std::defer_lock};
++
+         struct ExclusiveHotPathGuard final {
+             RuntimeWorker* worker{};
+ 
+@@ -104,6 +110,7 @@
+                     worker->hot_path_depth.fetch_add(1U, std::memory_order_acq_rel);
+                 }
+             }
++
+             ~ExclusiveHotPathGuard() {
+                 if (worker == nullptr) {
+                     return;
+@@ -112,9 +119,11 @@
+                     worker->hot_path_depth.notify_all();
+                 }
+             }
++
+             ExclusiveHotPathGuard(const ExclusiveHotPathGuard&) = delete;
+             auto operator=(const ExclusiveHotPathGuard&) -> ExclusiveHotPathGuard& = delete;
+         } hot_path{elide_worker_mutex ? &worker : nullptr};
++
+         if (elide_worker_mutex) {
+ #ifndef NDEBUG
+             // Debug: the exclusive Writer must not find the mutex already held by
+@@ -576,6 +585,7 @@
+                             .error = published.error()};
+                 }
+                 // Index authority applied: advance durable_through before secondary work.
++                worker.record_compaction_change(hashed, reference);
+                 worker.durable_through = committed_sequence;
+                 try {
+                     if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
+@@ -615,6 +625,7 @@
+                 }
+             } else {
+                 const auto erased = worker.index.erase_no_compact(hashed);
++                worker.record_compaction_change(hashed, std::nullopt);
+                 worker.durable_through = committed_sequence;
+                 try {
+                     if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
+--- a/src/persistence/runtime_catalog_batch.cpp
++++ b/src/persistence/runtime_catalog_batch.cpp
+@@ -209,6 +209,7 @@
+                 }
+                 // Index authority applied: advance durable_through before secondary work so
+                 // Writer finalize keeps success ACK if count/hot fails after Index publish.
++                worker.record_compaction_change(hashed, mutation.reference);
+                 worker.durable_through = mutation.reference.sequence;
+                 if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
+                     return publication_failed(
+@@ -227,6 +228,7 @@
+                 }
+             } else {
+                 const auto erased = worker.index.erase_no_compact(hashed);
++                worker.record_compaction_change(hashed, std::nullopt);
+                 worker.durable_through = mutation.reference.sequence;
+                 if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
+                     return publication_failed(
+--- a/src/persistence/resource_limits.cpp
++++ b/src/persistence/resource_limits.cpp
+@@ -84,7 +84,9 @@
+         limits.max_temporary_compaction_bytes == 0 ||
+         limits.max_temporary_compaction_bytes > limits.max_store_bytes ||
+         limits.max_write_amplification == 0 || limits.max_write_amplification > 64 ||
+-        limits.max_hot_cache_value_bytes > kMaxNormalRecordSize) {
++        limits.max_hot_cache_value_bytes > kMaxNormalRecordSize ||
++        limits.max_compaction_delta_entries > 65'536 ||
++        limits.max_compaction_delta_key_bytes > 64ULL * 1024ULL * 1024ULL) {
+         return fail(ErrorCode::invalid_argument, "durable resource limits are inconsistent");
+     }
+     return {};
+--- a/src/persistence/compaction_builder.cpp
++++ b/src/persistence/compaction_builder.cpp
+@@ -28,6 +28,7 @@
+     RecordRef output{};
+     std::uint32_t encoded_crc{};
+ };
++
+ static_assert(sizeof(PackedRecord) <= 64, "compaction placement metadata must remain within one cache line");
+ 
+ struct VerifiedRecordContext {
+@@ -155,6 +156,7 @@
+   public:
+     StagedSegmentGuard(DataDirectory& directory, std::span<const SegmentHeaderIdentity> identities) noexcept
+         : directory_(&directory), identities_(identities) {}
++
+     ~StagedSegmentGuard() {
+         if (directory_ != nullptr) {
+             DurableSegmentFile::discard_staged(*directory_, identities_.first(created_count_));
+@@ -568,7 +570,6 @@
+                 Error{ErrorCode::internal_error, "durable compaction replacement build is incomplete"});
+         }
+ 
+-        const auto index_stats = prepared_index.stats();
+         if (auto accounted = add_capacity_bytes(copy_stats.transient_metadata_lower_bound_bytes,
+                                                 source_entries.capacity(), sizeof(IndexEntry));
+             !accounted) {
+@@ -584,9 +585,16 @@
+             !accounted) {
+             return failure(accounted.error());
+         }
+-        auto accounted_index = checked_add(static_cast<std::uint64_t>(index_stats.table_allocated_bytes),
+-                                           static_cast<std::uint64_t>(index_stats.arena_allocated_bytes),
+-                                           "durable compaction transient Index accounting overflow");
++        if (intent_gate.prepare_index != nullptr) {
++            if (auto reserved = intent_gate.prepare_index(intent_gate.context, prepared_index); !reserved) {
++                return failure(reserved.error());
++            }
++        }
++        const auto replay_index_stats = prepared_index.stats();
++        auto accounted_index =
++            checked_add(static_cast<std::uint64_t>(replay_index_stats.table_allocated_bytes),
++                        static_cast<std::uint64_t>(replay_index_stats.arena_allocated_bytes),
++                        "durable compaction transient Index accounting overflow");
+         if (!accounted_index) {
+             return failure(accounted_index.error());
+         }
+--- a/include/glifistore/persistence/compaction_builder.hpp
++++ b/include/glifistore/persistence/compaction_builder.hpp
+@@ -36,6 +36,14 @@
+     // allocator metadata and heap storage owned by copied std::strings are not
+     // included and must be measured separately by an allocation census.
+     std::uint64_t transient_metadata_lower_bound_bytes{};
++    std::uint64_t snapshot_duration_ns{};
++    std::uint64_t commit_gate_duration_ns{};
++    std::uint64_t delta_replay_duration_ns{};
++    std::uint64_t delta_records{};
++    std::uint64_t delta_key_bytes{};
++    std::uint64_t delta_overflow_aborts{};
++    std::uint64_t manifest_conflict_aborts{};
++    std::uint64_t abandoned_copy_bytes{};
+ };
+ 
+ // A successful build leaves the old manifest authoritative, a durable
+@@ -69,6 +77,9 @@
+ struct DurableCompactionIntentGate {
+     void* context{};
+     auto (*acquire)(void* context) -> Status{};
++    // Optional worst-case Index reservation, outside runtime locks and before
++    // the durable intent. The final replay must not grow its tables or arena.
++    auto (*prepare_index)(void* context, Index& index) -> Status{};
+ };
+ 
+ struct DurableCompactionPacing final {
+--- /dev/null
++++ b/tests/integration/persistence_compaction_delta_tests.cpp
+@@ -0,0 +1,360 @@
++#include "glifistore/store/store.hpp"
++#include "persistence/compaction_delta.hpp"
++#include "persistence_recovery_test_support.hpp"
++
++#include <array>
++#include <csignal>
++#include <sys/wait.h>
++#include <thread>
++#include <unistd.h>
++
++namespace {
++
++void seed_delta_store(const std::filesystem::path& path) {
++    const auto store_id = recovery_store_id();
++    std::vector<glifistore::ManifestSegmentEntry> entries;
++    for (std::uint64_t id = 1; id <= 3; ++id) {
++        entries.push_back({.segment_id = glifistore::SegmentId{id},
++                           .generation = glifistore::GenerationId{1},
++                           .owner_worker = glifistore::WorkerId{0},
++                           .role = id == 3 ? glifistore::ManifestSegmentRole::active
++                                           : glifistore::ManifestSegmentRole::sealed});
++    }
++    auto directory = glifistore::DataDirectory::open_and_lock(path);
++    GLIFI_REQUIRE(directory.has_value());
++    auto first = create_segment(*directory, store_id, entries[0]);
++    append_record(first, 1, "changing", "old");
++    append_record(first, 2, "erased", "old");
++    append_record(first, 3, "expiry", "old", glifistore::Opcode::put, 100);
++    append_record(first, 4, "restored", "old");
++    GLIFI_REQUIRE(first.seal().committed());
++    auto second = create_segment(*directory, store_id, entries[1]);
++    append_record(second, 5, "stable", "stable");
++    GLIFI_REQUIRE(second.seal().committed());
++    auto active = create_segment(*directory, store_id, entries[2]);
++    append_record(active, 6, "active", "old");
++    GLIFI_REQUIRE(directory->publish_manifest(recovery_manifest(store_id, 1, entries)).durable());
++}
++
++auto delta_put(glifistore::DurableRuntimeCatalog& runtime, const std::string_view key,
++               const std::string_view value) -> glifistore::DurableMutationResult {
++    return runtime.put(std::as_bytes(std::span{key}), std::as_bytes(std::span{value}));
++}
++
++auto delta_erase(glifistore::DurableRuntimeCatalog& runtime, const std::string_view key)
++    -> glifistore::DurableMutationResult {
++    return runtime.erase(std::as_bytes(std::span{key}));
++}
++
++void require_delta_value(glifistore::DurableRuntimeCatalog& runtime, const std::string_view key,
++                         const std::string_view expected) {
++    const auto value = runtime.get(key);
++    GLIFI_REQUIRE(value.has_value());
++    GLIFI_REQUIRE(owned_text(*value) == expected);
++}
++
++void require_missing(glifistore::DurableRuntimeCatalog& runtime, const std::string_view key) {
++    const auto value = runtime.get(key, 99);
++    GLIFI_REQUIRE(!value.has_value());
++    GLIFI_REQUIRE(value.error().code == glifistore::ErrorCode::not_found);
++}
++
++// Inject acknowledged mutations after output staging but before intent write.
++// The hook runs without Worker/catalog locks; active appends do not rotate.
++struct DeltaCheckpoint {
++    glifistore::DurableRuntimeCatalog* runtime{};
++    glifistore::FilesystemOperation target{};
++    bool injected{};
++    bool fired{};
++    bool crash{};
++
++    static auto before(void* opaque, const glifistore::FilesystemOperation operation) -> glifistore::Status {
++        auto& self = *static_cast<DeltaCheckpoint*>(opaque);
++        if (!self.injected && operation == glifistore::FilesystemOperation::write_compaction_intent) {
++            self.injected = true;
++            if (!delta_put(*self.runtime, "changing", "acknowledged").committed() ||
++                !delta_erase(*self.runtime, "erased").committed()) {
++                return glifistore::fail(glifistore::ErrorCode::io_error, "delta fixture mutation failed");
++            }
++        }
++        if (!self.crash && self.injected && !self.fired && operation == self.target) {
++            self.fired = true;
++            return glifistore::fail(glifistore::ErrorCode::io_error, "delta checkpoint fault");
++        }
++        return {};
++    }
++
++    static void after(void* opaque, const glifistore::FilesystemOperation operation) {
++        auto& self = *static_cast<DeltaCheckpoint*>(opaque);
++        if (self.crash && self.injected && operation == self.target) {
++            static_cast<void>(::kill(::getpid(), SIGKILL));
++        }
++    }
++};
++
++} // namespace
++
++GLIFI_TEST("compaction delta preserves overwrite erase restore active and TTL across durable modes") {
++    for (unsigned mode = 0; mode != 4; ++mode) {
++        RecoveryTemporaryDirectory temporary;
++        seed_delta_store(temporary.path());
++        BlockingRecordRead blocker;
++        auto directory = glifistore::DataDirectory::open_and_lock(
++            temporary.path(),
++            {.file_io = {.context = &blocker, .read_some_at = &BlockingRecordRead::read_some_at}});
++        GLIFI_REQUIRE(directory.has_value());
++        glifistore::DurableRuntimeOptions options;
++        options.exclusive_writer = mode == 1;
++        options.limits.max_deferred_ttl_reclaims_per_worker = 0;
++        if (mode == 2) {
++            options.batch = glifistore::DurableGroupConfig{.max_records = 1};
++            options.strict_ack = true;
++        }
++        if (mode == 3) {
++            options.commit_sync = glifistore::SegmentCommitSync::deferred;
++            options.sync_interval_ms = 10;
++        }
++        auto runtime = glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory), 0, options);
++        GLIFI_REQUIRE(runtime.has_value());
++        blocker.arm();
++        glifistore::DurableCompactionResult compacted;
++        std::thread compactor{[&] { compacted = (*runtime)->compact_worker(0, 0); }};
++        const bool blocked = blocker.wait_until_blocked();
++        bool mutations_ok = blocked;
++        std::string fresh_key(512, 'f');
++        fresh_key[128] = '\0';
++        if (blocked) {
++            mutations_ok = delta_put(**runtime, "changing", "new").committed() &&
++                           delta_erase(**runtime, "erased").committed() &&
++                           delta_erase(**runtime, "restored").committed() &&
++                           delta_put(**runtime, "restored", "restored").committed() &&
++                           delta_put(**runtime, fresh_key, "fresh").committed() &&
++                           delta_put(**runtime, "active", "active").committed();
++            const auto expired = (*runtime)->get("expiry", 100);
++            mutations_ok =
++                mutations_ok && !expired && expired.error().code == glifistore::ErrorCode::not_found;
++        }
++        blocker.release();
++        compactor.join();
++        GLIFI_REQUIRE(mutations_ok);
++        GLIFI_REQUIRE(compacted.compacted());
++        GLIFI_REQUIRE(compacted.stats.delta_records == 7);
++        GLIFI_REQUIRE(compacted.stats.snapshot_duration_ns > 0);
++        GLIFI_REQUIRE(compacted.stats.commit_gate_duration_ns > 0);
++        GLIFI_REQUIRE(compacted.stats.delta_replay_duration_ns > 0);
++        require_delta_value(**runtime, "changing", "new");
++        require_delta_value(**runtime, "stable", "stable");
++        require_delta_value(**runtime, "restored", "restored");
++        require_delta_value(**runtime, fresh_key, "fresh");
++        require_delta_value(**runtime, "active", "active");
++        require_missing(**runtime, "erased");
++        require_missing(**runtime, "expiry");
++        GLIFI_REQUIRE((*runtime)->verify_index().has_value());
++        const auto metrics = (*runtime)->compaction_stats();
++        GLIFI_REQUIRE(metrics.attempts == 1 && metrics.completed == 1 && metrics.replayed_records == 7);
++        GLIFI_REQUIRE((*runtime)->close().has_value());
++        runtime->reset();
++        auto reopened = glifistore::DurableRuntimeCatalog::open_existing(temporary.path(), 100);
++        GLIFI_REQUIRE(reopened.has_value());
++        require_delta_value(**reopened, "changing", "new");
++        require_delta_value(**reopened, "restored", "restored");
++        require_delta_value(**reopened, fresh_key, "fresh");
++        require_delta_value(**reopened, "active", "active");
++        require_missing(**reopened, "erased");
++        require_missing(**reopened, "expiry");
++        GLIFI_REQUIRE((*reopened)->verify_index().has_value());
++    }
++}
++
++GLIFI_TEST("compaction delta replay uses reserved tables and key arena across repeated erase reinsert") {
++    glifistore::Index index;
++    glifistore::runtime_catalog_detail::CompactionDelta delta{200, 256 * 1024};
++    std::string binary_key(1024, 'x');
++    binary_key[128] = '\0';
++    const auto key = glifistore::HashedKey::compute(binary_key);
++    const glifistore::RecordRef original{.segment_id = glifistore::SegmentId{1},
++                                         .offset = glifistore::RecordOffset{4096},
++                                         .size = glifistore::RecordSize{2048},
++                                         .sequence = glifistore::SequenceNumber{1},
++                                         .generation = glifistore::GenerationId{2}};
++    GLIFI_REQUIRE(index.insert_or_assign(key, original).has_value());
++    auto replacement = original;
++    replacement.segment_id = glifistore::SegmentId{3};
++    for (std::uint64_t sequence = 2; sequence < 102; ++sequence) {
++        delta.record(key, std::nullopt);
++        replacement.sequence = glifistore::SequenceNumber{sequence};
++        delta.record(key, replacement);
++    }
++    GLIFI_REQUIRE(!delta.overflowed());
++    GLIFI_REQUIRE(delta.prepare(index).has_value());
++    const auto reserved = index.stats();
++    std::uint64_t active_bytes{};
++    std::uint64_t sealed_bytes{original.size.value};
++    GLIFI_REQUIRE(delta.replay(index, replacement.segment_id, active_bytes, sealed_bytes).has_value());
++    const auto replayed = index.stats();
++    GLIFI_REQUIRE(replayed.table_allocated_bytes == reserved.table_allocated_bytes);
++    GLIFI_REQUIRE(replayed.arena_live_bytes == binary_key.size());
++    GLIFI_REQUIRE(replayed.arena_allocated_bytes <= reserved.arena_allocated_bytes + delta.key_bytes());
++    GLIFI_REQUIRE(index.find(key) == replacement);
++    GLIFI_REQUIRE(active_bytes == replacement.size.value && sealed_bytes == 0);
++}
++
++GLIFI_TEST("compaction delta publishes concurrent acknowledged writes through paired Store generations") {
++    RecoveryTemporaryDirectory temporary;
++    seed_delta_store(temporary.path());
++    BlockingRecordRead blocker;
++    glifistore::StoreConfig config;
++    config.worker_config.explicit_count = 1;
++    config.storage_mode = glifistore::StorageMode::durable_sync;
++    config.data_directory = temporary.path();
++    config.durable_open_mode = glifistore::DurableOpenMode::open_existing;
++    config.filesystem_hooks.file_io = {.context = &blocker,
++                                       .read_some_at = &BlockingRecordRead::read_some_at};
++    auto store = glifistore::Store::open(config);
++    GLIFI_REQUIRE(store.has_value());
++    blocker.arm();
++    std::optional<glifistore::Result<glifistore::CompactionResult>> compacted;
++    std::thread compactor{[&] { compacted.emplace((*store)->compact()); }};
++    const bool blocked = blocker.wait_until_blocked();
++    const std::string_view value{"paired-new"};
++    bool committed = blocked;
++    if (blocked) {
++        committed = (*store)->put("changing", std::as_bytes(std::span{value})).has_value() &&
++                    (*store)->erase("erased").has_value();
++    }
++    blocker.release();
++    compactor.join();
++    GLIFI_REQUIRE(committed);
++    GLIFI_REQUIRE(compacted && *compacted && (**compacted).compacted);
++    GLIFI_REQUIRE((**compacted).delta_records == 2);
++    const auto changed = (*store)->get("changing");
++    GLIFI_REQUIRE(changed.has_value() && owned_text(*changed) == value);
++    const auto erased = (*store)->get("erased");
++    GLIFI_REQUIRE(!erased && erased.error().code == glifistore::ErrorCode::not_found);
++    GLIFI_REQUIRE((*store)->verify_index().has_value());
++    GLIFI_REQUIRE((*store)->maintenance_snapshot().compaction.completed == 1);
++}
++
++GLIFI_TEST("compaction delta budgets abort maintenance while foreground commits and retry succeeds") {
++    for (unsigned budget = 0; budget != 3; ++budget) {
++        RecoveryTemporaryDirectory temporary;
++        seed_delta_store(temporary.path());
++        BlockingRecordRead blocker;
++        auto directory = glifistore::DataDirectory::open_and_lock(
++            temporary.path(),
++            {.file_io = {.context = &blocker, .read_some_at = &BlockingRecordRead::read_some_at}});
++        GLIFI_REQUIRE(directory.has_value());
++        glifistore::DurableRuntimeOptions options;
++        options.limits.max_compaction_delta_entries = budget == 0 ? 2 : budget == 1 ? 8 : 0;
++        options.limits.max_compaction_delta_key_bytes = budget == 1 ? 1 : 1024;
++        auto runtime = glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory), 0, options);
++        GLIFI_REQUIRE(runtime.has_value());
++        blocker.arm();
++        glifistore::DurableCompactionResult compacted;
++        std::thread compactor{[&] { compacted = (*runtime)->compact_worker(0, 0); }};
++        const bool blocked = blocker.wait_until_blocked();
++        bool committed = blocked;
++        if (blocked) {
++            for (unsigned index = 0; index != 3; ++index) {
++                committed = delta_put(**runtime, "changing", "new").committed() && committed;
++            }
++        }
++        blocker.release();
++        compactor.join();
++        GLIFI_REQUIRE(committed);
++        GLIFI_REQUIRE(!compacted.compacted());
++        GLIFI_REQUIRE(compacted.error && compacted.error->code == glifistore::ErrorCode::sequence_conflict);
++        GLIFI_REQUIRE(compacted.stats.delta_overflow_aborts == 1);
++        GLIFI_REQUIRE(compacted.stats.abandoned_copy_bytes == compacted.stats.bytes_copied);
++        GLIFI_REQUIRE(compacted.stats.bytes_copied > 0);
++        GLIFI_REQUIRE((*runtime)->healthy());
++        GLIFI_REQUIRE((*runtime)->manifest().manifest_generation == 1);
++        GLIFI_REQUIRE((*runtime)->compaction_stats().delta_overflow_aborts == 1);
++        require_delta_value(**runtime, "changing", "new");
++        GLIFI_REQUIRE((*runtime)->compact_worker(0, 0).compacted());
++        GLIFI_REQUIRE((*runtime)->verify_index().has_value());
++        runtime->reset();
++        auto reopened = glifistore::DurableRuntimeCatalog::open_existing(temporary.path());
++        GLIFI_REQUIRE(reopened.has_value());
++        require_delta_value(**reopened, "changing", "new");
++        GLIFI_REQUIRE((*reopened)->namespace_audit().clean());
++    }
++}
++
++GLIFI_TEST("compaction delta acknowledged mutations survive publication and retirement I/O faults") {
++    using Op = glifistore::FilesystemOperation;
++    for (const auto operation :
++         {Op::write_compaction_intent, Op::sync_compaction_intent, Op::write_manifest, Op::sync_manifest,
++          Op::rename_manifest, Op::remove_compaction_segment, Op::remove_compaction_intent}) {
++        RecoveryTemporaryDirectory temporary;
++        seed_delta_store(temporary.path());
++        DeltaCheckpoint hook{.target = operation};
++        auto directory = glifistore::DataDirectory::open_and_lock(
++            temporary.path(), {.context = &hook, .before = &DeltaCheckpoint::before});
++        GLIFI_REQUIRE(directory.has_value());
++        auto runtime = glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory));
++        GLIFI_REQUIRE(runtime.has_value());
++        hook.runtime = runtime->get();
++        const auto result = (*runtime)->compact_worker(0, 0);
++        GLIFI_REQUIRE(hook.injected && hook.fired);
++        GLIFI_REQUIRE(!result.compacted());
++        runtime->reset();
++        auto reopened = glifistore::DurableRuntimeCatalog::open_existing(temporary.path());
++        GLIFI_REQUIRE(reopened.has_value());
++        require_delta_value(**reopened, "changing", "acknowledged");
++        require_missing(**reopened, "erased");
++        require_delta_value(**reopened, "stable", "stable");
++        GLIFI_REQUIRE((*reopened)->namespace_audit().clean());
++        GLIFI_REQUIRE((*reopened)->verify_index().has_value());
++    }
++}
++
++GLIFI_TEST("compaction delta acknowledged mutations survive process kill at persistent transitions") {
++    using Op = glifistore::FilesystemOperation;
++    for (const auto operation : {Op::sync_compaction_intent, Op::rename_compaction_intent, Op::rename_segment,
++                                 Op::write_manifest, Op::sync_manifest, Op::rename_manifest,
++                                 Op::remove_compaction_segment, Op::remove_compaction_intent}) {
++        RecoveryTemporaryDirectory temporary;
++        seed_delta_store(temporary.path());
++        const auto child = ::fork();
++        GLIFI_REQUIRE(child >= 0);
++        if (child == 0) {
++            try {
++                DeltaCheckpoint hook{.target = operation, .crash = true};
++                auto directory = glifistore::DataDirectory::open_and_lock(
++                    temporary.path(),
++                    {.context = &hook, .before = &DeltaCheckpoint::before, .after = &DeltaCheckpoint::after});
++                if (!directory) {
++                    ::_exit(81);
++                }
++                auto runtime = glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory));
++                if (!runtime) {
++                    ::_exit(82);
++                }
++                hook.runtime = runtime->get();
++                static_cast<void>((*runtime)->compact_worker(0, 0));
++            } catch (...) {
++                ::_exit(83);
++            }
++            ::_exit(84);
++        }
++        int status{};
++        GLIFI_REQUIRE(::waitpid(child, &status, 0) == child);
++        GLIFI_REQUIRE(WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL);
++        auto reopened = glifistore::DurableRuntimeCatalog::open_existing(temporary.path());
++        GLIFI_REQUIRE(reopened.has_value());
++        require_delta_value(**reopened, "changing", "acknowledged");
++        require_missing(**reopened, "erased");
++        require_delta_value(**reopened, "stable", "stable");
++        GLIFI_REQUIRE((*reopened)->namespace_audit().recovery_safe());
++        GLIFI_REQUIRE((*reopened)->verify_index().has_value());
++        // Intent recovery permits recognized private Manifest temporaries. The
++        // next ordinary recovery must remove them without changing live state.
++        reopened->reset();
++        auto clean = glifistore::DurableRuntimeCatalog::open_existing(temporary.path());
++        GLIFI_REQUIRE(clean.has_value());
++        GLIFI_REQUIRE((*clean)->namespace_audit().clean());
++        require_delta_value(**clean, "changing", "acknowledged");
++        require_missing(**clean, "erased");
++    }
++}
+--- a/tests/integration/persistence_recovery_compaction_tests.cpp
++++ b/tests/integration/persistence_recovery_compaction_tests.cpp
+@@ -117,9 +117,9 @@
+     GLIFI_REQUIRE(mutation.committed());
+     GLIFI_REQUIRE(erased.committed());
+     GLIFI_REQUIRE(ttl_updated.committed());
+-    GLIFI_REQUIRE(compaction.outcome == glifistore::DurableCompactionOutcome::not_compacted);
+-    GLIFI_REQUIRE(compaction.error.has_value());
+-    GLIFI_REQUIRE(compaction.error->code == glifistore::ErrorCode::sequence_conflict);
++    GLIFI_REQUIRE(compaction.compacted());
++    GLIFI_REQUIRE(!compaction.error.has_value());
++    GLIFI_REQUIRE(compaction.stats.delta_records == 3);
+     GLIFI_REQUIRE((*runtime)->healthy());
+     const auto current = (*runtime)->get(key);
+     GLIFI_REQUIRE(current.has_value());
+@@ -133,7 +133,7 @@
+     const auto ttl_expired = (*runtime)->get("ttl-key", 100);
+     GLIFI_REQUIRE(!ttl_expired.has_value());
+     GLIFI_REQUIRE(ttl_expired.error().code == glifistore::ErrorCode::not_found);
+-    GLIFI_REQUIRE((*runtime)->manifest() == recovery_manifest(store_id, 1, entries));
++    GLIFI_REQUIRE((*runtime)->manifest().manifest_generation == 2);
+     GLIFI_REQUIRE((*runtime)->namespace_audit().clean());
+ }
+ 
+@@ -544,6 +544,7 @@
+         glifistore::FilesystemOperation operation;
+         std::size_t occurrence{1};
+     };
++
+     const std::vector<FaultCase> faults{
+         {glifistore::FilesystemOperation::write_compaction_intent},
+         {glifistore::FilesystemOperation::sync_compaction_intent},
+@@ -638,6 +639,7 @@
+         glifistore::FilesystemOperation operation;
+         std::size_t occurrence{1};
+     };
++
+     const std::vector<FaultCase> faults{
+         {glifistore::FilesystemOperation::preallocate_segment},
+         {glifistore::FilesystemOperation::write_segment_header},
+--- a/tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
++++ b/tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
+@@ -187,6 +187,7 @@
+             return BlockingFilesystemOperation::before(&state.intent, operation);
+         }
+     } blocker;
++
+     auto directory = glifistore::DataDirectory::open_and_lock(
+         temporary.path(), {.context = &blocker, .before = &DualBlocker::before});
+     GLIFI_REQUIRE(directory.has_value());
+@@ -214,8 +215,8 @@
+     compactor.join();
+ 
+     GLIFI_REQUIRE(mutating.committed());
+-    GLIFI_REQUIRE(compaction.error.has_value());
+-    GLIFI_REQUIRE(compaction.error->code == glifistore::ErrorCode::sequence_conflict);
++    GLIFI_REQUIRE(compaction.compacted());
++    GLIFI_REQUIRE(compaction.stats.delta_records == 1);
+     GLIFI_REQUIRE((*runtime)->healthy());
+     const auto sealed = (*runtime)->get(sealed_key);
+     GLIFI_REQUIRE(sealed.has_value());
+@@ -278,6 +279,7 @@
+             return BlockingFilesystemOperation::before(&state.intent, operation);
+         }
+     } blocker;
++
+     auto directory = glifistore::DataDirectory::open_and_lock(
+         temporary.path(), {.context = &blocker, .before = &DualBlocker::before});
+     GLIFI_REQUIRE(directory.has_value());
+@@ -485,6 +487,7 @@
+             return BlockingFilesystemOperation::before(&state.intent, operation);
+         }
+     } blocker;
++
+     auto directory = glifistore::DataDirectory::open_and_lock(
+         temporary.path(), {.context = &blocker, .before = &DualBlocker::before});
+     GLIFI_REQUIRE(directory.has_value());
+--- a/tests/unit/resource_limits_tests.cpp
++++ b/tests/unit/resource_limits_tests.cpp
+@@ -78,6 +78,12 @@
+     require_invalid(limits);
+     limits.max_write_amplification = 65;
+     require_invalid(limits);
++    limits = {};
++    limits.max_compaction_delta_entries = 65'537;
++    require_invalid(limits);
++    limits = {};
++    limits.max_compaction_delta_key_bytes = 64ULL * 1024ULL * 1024ULL + 1;
++    require_invalid(limits);
+ }
+ 
+ GLIFI_TEST("durable bootstrap and rotation budgets account for peak namespace bytes") {
+--- /dev/null
++++ b/tests/quality/allocation_fault_compaction_delta_tests.cpp
+@@ -0,0 +1,41 @@
++#include "allocation_fault_harness.hpp"
++#include "allocation_fault_test_support.hpp"
++#include "allocation_fault_tests_decl.hpp"
++#include "persistence/compaction_delta.hpp"
++
++namespace allocation_fault_test {
++
++void run_compaction_delta_without_allocation() {
++    glifistore::Index index;
++    glifistore::runtime_catalog_detail::CompactionDelta delta{200, 256 * 1024};
++    std::string binary_key(1024, 'x');
++    binary_key[128] = '\0';
++    const auto key = glifistore::HashedKey::compute(binary_key);
++    glifistore::RecordRef reference{.segment_id = glifistore::SegmentId{3},
++                                    .offset = glifistore::RecordOffset{4096},
++                                    .size = glifistore::RecordSize{2048},
++                                    .sequence = glifistore::SequenceNumber{1},
++                                    .generation = glifistore::GenerationId{1}};
++    require(delta.prepare(index).has_value(), "delta reservation failed");
++    std::uint64_t active{};
++    std::uint64_t sealed{};
++    allocation_fault::begin_forbid_all();
++    bool replayed{};
++    try {
++        for (std::uint64_t sequence = 1; sequence <= 100; ++sequence) {
++            delta.record(key, std::nullopt);
++            reference.sequence = glifistore::SequenceNumber{sequence};
++            delta.record(key, reference);
++        }
++        replayed = delta.replay(index, reference.segment_id, active, sealed).has_value();
++    } catch (...) {
++        static_cast<void>(allocation_fault::end_forbid_all());
++        throw;
++    }
++    const auto allocated = allocation_fault::end_forbid_all();
++    require(replayed && !allocated, "compaction delta record/replay attempted an allocation");
++    require(index.find(key) == reference && active == reference.size.value && sealed == 0,
++            "allocation-free delta replay lost its final value or accounting");
++}
++
++} // namespace allocation_fault_test
+--- a/benchmarks/maintenance_benchmark.cpp
++++ b/benchmarks/maintenance_benchmark.cpp
+@@ -64,6 +64,8 @@
+     std::size_t put_percent{5};
+     std::size_t maintenance_interval_ms{10};
+     std::size_t maintenance_copy_bytes_per_sec{};
++    std::size_t compaction_delta_entries{4096};
++    bool same_worker{};
+     std::size_t cooldown_ms{250};
+     std::size_t idle_duration_ms{3'000};
+     std::optional<Mode> mode;
+@@ -81,6 +83,7 @@
+     std::uint64_t p50_ns{};
+     std::uint64_t p95_ns{};
+     std::uint64_t p99_ns{};
++    std::uint64_t p999_ns{};
+     std::uint64_t maximum_ns{};
+ };
+ 
+@@ -94,18 +97,27 @@
+ 
+ struct CompactionStartGate {
+     std::latch* start{};
++    std::latch* snapshot_ready{};
+     std::latch* compaction_intent_started{};
+     std::latch* rotation_entered{};
+     std::filesystem::path store;
+     std::thread::id opener_thread;
+     std::atomic_bool claimed{false};
+     std::atomic_bool intent_claimed{false};
++    std::atomic_bool snapshot_released{false};
++
++    void release_snapshot() noexcept {
++        if (snapshot_ready != nullptr && !snapshot_released.exchange(true, std::memory_order_acq_rel)) {
++            snapshot_ready->count_down();
++        }
++    }
+ 
+     static auto available_space_bytes(void* context) -> glifistore::Result<std::uint64_t> {
+         auto& gate = *static_cast<CompactionStartGate*>(context);
+         if (std::this_thread::get_id() != gate.opener_thread &&
+             !gate.claimed.exchange(true, std::memory_order_acq_rel)) {
+             gate.start->wait();
++            gate.release_snapshot();
+         }
+         std::error_code error;
+         const auto space = std::filesystem::space(gate.store, error);
+@@ -134,6 +146,7 @@
+     std::uint64_t puts{};
+     std::uint64_t put_successes{};
+     std::uint64_t generation_backpressure_retries{};
++    std::uint64_t compaction_conflict_retries{};
+     std::uint64_t failures{};
+     std::vector<std::uint64_t> all_latency_ns;
+     std::vector<std::uint64_t> get_latency_ns;
+@@ -148,6 +161,7 @@
+     std::uint64_t gets{};
+     std::uint64_t puts{};
+     std::uint64_t generation_backpressure_retries{};
++    std::uint64_t compaction_conflict_retries{};
+     LatencySummary all_latency;
+     LatencySummary get_latency;
+     LatencySummary put_latency;
+@@ -166,6 +180,7 @@
+     glifistore::MaintenanceSkipReason maintenance_last_skip{};
+     glifistore::MaintenanceObservation maintenance_observation{};
+     glifistore::DurableRotationStats rotation{};
++    glifistore::DurableCompactionMetrics compaction{};
+     std::size_t segments_after{};
+ };
+ 
+@@ -355,6 +370,10 @@
+         } else if (argument == "--repeats" && index + 1 < argc) {
+             options.repeats = parse_size(argv[++index], argument);
+             options.repeats_set = true;
++        } else if (argument == "--compaction-delta-entries" && index + 1 < argc) {
++            options.compaction_delta_entries = parse_size(argv[++index], argument);
++        } else if (argument == "--same-worker") {
++            options.same_worker = true;
+         } else if (argument == "--operations" && index + 1 < argc) {
+             options.operations = parse_size(argv[++index], argument);
+             options.operations_set = true;
+@@ -389,6 +408,7 @@
+                          " [--reclaim-value-bytes N]"
+                          " [--put-percent N] [--maintenance-interval-ms N]"
+                          " [--maintenance-copy-bytes-per-sec N]"
++                         " [--compaction-delta-entries N] [--same-worker]"
+                          " [--cooldown-ms N] [--idle-duration-ms N]"
+                          " [--scenario mixed|forced-rotation|idle|churn]"
+                          " [--mode disabled|cooperative|background]\n";
+@@ -469,6 +489,7 @@
+                 .dead_byte_ratio_bp_normal = 5'000,
+             },
+     };
++    config.durable_limits.max_compaction_delta_entries = options.compaction_delta_entries;
+     if (start_gate != nullptr) {
+         config.filesystem_hooks = {
+             .context = start_gate,
+@@ -546,6 +567,7 @@
+         .p50_ns = percentile(0.50),
+         .p95_ns = percentile(0.95),
+         .p99_ns = percentile(0.99),
++        .p999_ns = percentile(0.999),
+         .maximum_ns = values.back(),
+     };
+ }
+@@ -636,7 +658,8 @@
+     foreground_keys.reserve(options.keys);
+     for (std::size_t index = 0; index < options.keys; ++index) {
+         reclaim_keys.push_back(key_for_worker(0, index, "maintenance-reclaim-"));
+-        foreground_keys.push_back(key_for_worker(1, index, "maintenance-foreground-"));
++        foreground_keys.push_back(
++            key_for_worker(options.same_worker ? 0 : 1, index, "maintenance-foreground-"));
+     }
+ 
+     auto seed_store =
+@@ -660,8 +683,10 @@
+     seed_store.reset();
+ 
+     std::latch start{1};
++    std::latch snapshot_ready{options.same_worker && mode == Mode::cooperative ? 1 : 0};
+     CompactionStartGate start_gate{
+         .start = &start,
++        .snapshot_ready = options.same_worker && mode == Mode::cooperative ? &snapshot_ready : nullptr,
+         .store = directory.store(),
+         .opener_thread = std::this_thread::get_id(),
+     };
+@@ -689,6 +714,7 @@
+             std::vector<std::byte> value(options.value_bytes, std::byte{0xA5});
+             ready.count_down();
+             start.wait();
++            snapshot_ready.wait();
+             for (std::size_t operation = thread_index; operation < options.operations;
+                  operation += options.threads) {
+                 const auto selected = mix(operation);
+@@ -706,11 +732,20 @@
+                             succeeded = true;
+                             break;
+                         }
+-                        if (!is_generation_backpressure(status.error()) || Clock::now() >= retry_deadline) {
++                        const bool compaction_conflict =
++                            options.same_worker &&
++                            status.error().code == glifistore::ErrorCode::sequence_conflict;
++                        if ((!is_generation_backpressure(status.error()) && !compaction_conflict) ||
++                            Clock::now() >= retry_deadline) {
+                             break;
+                         }
+-                        ++stats.generation_backpressure_retries;
+-                        if ((stats.generation_backpressure_retries & 63U) == 0U) {
++                        if (compaction_conflict) {
++                            ++stats.compaction_conflict_retries;
++                        } else {
++                            ++stats.generation_backpressure_retries;
++                        }
++                        if (((stats.generation_backpressure_retries + stats.compaction_conflict_retries) &
++                             63U) == 0U) {
+                             std::this_thread::sleep_for(std::chrono::microseconds{50});
+                         } else {
+                             std::this_thread::yield();
+@@ -739,6 +774,7 @@
+             start.wait();
+             ++cooperative_stats.attempts;
+             const auto compacted = store->compact();
++            start_gate.release_snapshot();
+             if (compacted) {
+                 if (compacted->compacted) {
+                     ++cooperative_stats.useful;
+@@ -769,6 +805,7 @@
+     std::uint64_t puts{};
+     std::uint64_t put_successes{};
+     std::uint64_t generation_backpressure_retries{};
++    std::uint64_t compaction_conflict_retries{};
+     std::uint64_t failures{};
+     for (const auto& stats : thread_stats) {
+         operations += stats.all_latency_ns.size();
+@@ -777,6 +814,7 @@
+         puts += stats.puts;
+         put_successes += stats.put_successes;
+         generation_backpressure_retries += stats.generation_backpressure_retries;
++        compaction_conflict_retries += stats.compaction_conflict_retries;
+         failures += stats.failures;
+     }
+     if (operations != options.operations || get_hits != gets || put_successes != puts || failures != 0 ||
+@@ -824,6 +862,7 @@
+         .gets = gets,
+         .puts = puts,
+         .generation_backpressure_retries = generation_backpressure_retries,
++        .compaction_conflict_retries = compaction_conflict_retries,
+         .all_latency = all_latency,
+         .get_latency = get_latency,
+         .put_latency = put_latency,
+@@ -845,6 +884,7 @@
+         .maintenance_observation =
+             cooperative ? glifistore::MaintenanceObservation{} : maintenance.last_observation,
+         .rotation = maintenance.rotation,
++        .compaction = maintenance.compaction,
+         .segments_after = segments_after,
+     };
+ }
+@@ -1107,7 +1147,14 @@
+               << ',' << microseconds(sample.rotation.total_execution_duration_ns) / 1'000.0 << ','
+               << microseconds(sample.rotation.total_final_record_commit_duration_ns) / 1'000.0 << ','
+               << microseconds(sample.rotation.maximum_total_duration_ns) / 1'000.0 << ','
+-              << sample.segments_after << '\n';
++              << sample.segments_after << ',' << microseconds(sample.all_latency.p999_ns) << ','
++              << microseconds(sample.get_latency.p999_ns) << ',' << microseconds(sample.put_latency.p999_ns)
++              << ',' << sample.compaction.replayed_records << ',' << sample.compaction.delta_overflow_aborts
++              << ',' << sample.compaction.manifest_conflict_aborts << ','
++              << sample.compaction.abandoned_copy_bytes << ','
++              << sample.compaction.maximum_snapshot_duration_ns << ','
++              << sample.compaction.maximum_commit_gate_duration_ns << ','
++              << sample.compaction_conflict_retries << '\n';
+ }
+ 
+ void print_rotation_sample(const RotationSample& sample) {
+@@ -1201,8 +1248,10 @@
+             return 0;
+         }
+ 
+-        std::cout << "# storage_mode=durable-periodic;workers=2;reclaim_worker=0;"
+-                     "foreground_worker=1;seed_operations=1024;seed_flush=true\n";
++        std::cout << "# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker="
++                  << (options.same_worker ? 0 : 1)
++                  << ";seed_operations=1024;seed_flush=true;compaction_delta_entries="
++                  << options.compaction_delta_entries << '\n';
+         std::cout << "# cooperative_policy=one public Store::compact at foreground start\n";
+         std::cout << "# background_policy=min_eval_interval_ms=max_eval_interval_ms="
+                   << options.maintenance_interval_ms
+@@ -1258,7 +1307,11 @@
+                      "rotation_total_seal_ms,rotation_total_create_ms,"
+                      "rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,"
+                      "rotation_total_execution_ms,rotation_total_final_record_commit_ms,"
+-                     "rotation_maximum_total_ms,segments_after\n";
++                     "rotation_maximum_total_ms,segments_after,p999_us,get_p999_us,put_p999_us,"
++                     "compaction_replayed_records,compaction_delta_overflow_aborts,"
++                     "compaction_manifest_conflict_aborts,compaction_abandoned_copy_bytes,"
++                     "compaction_maximum_snapshot_ns,compaction_maximum_commit_gate_ns,"
++                     "compaction_conflict_retries\n";
+ 
+         for (std::size_t warmup = 0; warmup < options.warmups; ++warmup) {
+             const auto offset = warmup % selected.size();
+--- a/include/glifistore/store/config.hpp
++++ b/include/glifistore/store/config.hpp
+@@ -62,6 +62,9 @@
+     // Bounded Index/hot-cache TTL reclaim backlog drained by Worker maintenance
+     // paths (mutate, prepare_get). Zero forces synchronous reclaim on expire.
+     std::size_t max_deferred_ttl_reclaims_per_worker{kDefaultMaximumDeferredTtlReclaimsPerWorker};
++
++    std::size_t max_compaction_delta_entries{4096};
++    std::size_t max_compaction_delta_key_bytes{1024 * 1024};
+ 
+     auto operator==(const DurableResourceLimits&) const -> bool = default;
+ };
+--- a/include/glifistore/store/store.hpp
++++ b/include/glifistore/store/store.hpp
+@@ -35,6 +35,11 @@
+     std::uint64_t pacing_sleep_count{};
+     std::uint64_t pacing_burst_bytes{};
+     std::uint64_t transient_metadata_lower_bound_bytes{};
++    std::uint64_t snapshot_duration_ns{};
++    std::uint64_t commit_gate_duration_ns{};
++    std::uint64_t delta_replay_duration_ns{};
++    std::uint64_t delta_records{};
++    std::uint64_t delta_key_bytes{};
+ };
+ 
+ /**
+--- a/src/store/store_impl.hpp
++++ b/src/store/store_impl.hpp
+@@ -80,6 +80,11 @@
+             .pacing_sleep_count = result.stats.pacing_sleep_count,
+             .pacing_burst_bytes = result.stats.pacing_burst_bytes,
+             .transient_metadata_lower_bound_bytes = result.stats.transient_metadata_lower_bound_bytes,
++            .snapshot_duration_ns = result.stats.snapshot_duration_ns,
++            .commit_gate_duration_ns = result.stats.commit_gate_duration_ns,
++            .delta_replay_duration_ns = result.stats.delta_replay_duration_ns,
++            .delta_records = result.stats.delta_records,
++            .delta_key_bytes = result.stats.delta_key_bytes,
+         };
+     }
+     if (!result.compacted()) {
+@@ -104,6 +109,11 @@
+         .pacing_sleep_count = result.stats.pacing_sleep_count,
+         .pacing_burst_bytes = result.stats.pacing_burst_bytes,
+         .transient_metadata_lower_bound_bytes = result.stats.transient_metadata_lower_bound_bytes,
++        .snapshot_duration_ns = result.stats.snapshot_duration_ns,
++        .commit_gate_duration_ns = result.stats.commit_gate_duration_ns,
++        .delta_replay_duration_ns = result.stats.delta_replay_duration_ns,
++        .delta_records = result.stats.delta_records,
++        .delta_key_bytes = result.stats.delta_key_bytes,
+     };
+ }
+ 
+--- a/src/store/store.cpp
++++ b/src/store/store.cpp
+@@ -846,6 +846,7 @@
+     auto snapshot = impl_->maintenance->snapshot();
+     if (impl_->durable_runtime) {
+         snapshot.rotation = impl_->durable_runtime->rotation_stats();
++        snapshot.compaction = impl_->durable_runtime->compaction_stats();
+     }
+     return snapshot;
+ }
+--- a/include/glifistore/store/maintenance_types.hpp
++++ b/include/glifistore/store/maintenance_types.hpp
+@@ -124,6 +124,17 @@
+     std::uint64_t last_final_record_commit_duration_ns{};
+     std::uint64_t total_final_record_commit_duration_ns{};
+     std::uint64_t maximum_final_record_commit_duration_ns{};
++};
++
++struct DurableCompactionMetrics {
++    std::uint64_t attempts{};
++    std::uint64_t completed{};
++    std::uint64_t delta_overflow_aborts{};
++    std::uint64_t manifest_conflict_aborts{};
++    std::uint64_t abandoned_copy_bytes{};
++    std::uint64_t replayed_records{};
++    std::uint64_t maximum_snapshot_duration_ns{};
++    std::uint64_t maximum_commit_gate_duration_ns{};
+ };
+ 
+ struct MaintenanceSnapshot {
+@@ -182,6 +193,7 @@
+     std::uint64_t latency_deferral_age_ns{};
+     std::uint64_t latency_debt_overrides{};
+     DurableRotationStats rotation{};
++    DurableCompactionMetrics compaction{};
+     MaintenanceSkipReason last_skip_reason{MaintenanceSkipReason::none};
+     MaintenanceObservation last_observation{};
+     std::optional<Error> last_error{};
+--- a/include/glifistore/persistence/runtime_catalog.hpp
++++ b/include/glifistore/persistence/runtime_catalog.hpp
+@@ -389,6 +389,7 @@
+     [[nodiscard]] auto get_path_stats() const -> std::vector<DurableGetPathWorkerStats>;
+     [[nodiscard]] auto batch_stats() const -> std::vector<DurableBatchWorkerStats>;
+     [[nodiscard]] auto rotation_stats() const noexcept -> DurableRotationStats;
++    [[nodiscard]] auto compaction_stats() const noexcept -> DurableCompactionMetrics;
+     [[nodiscard]] auto next_sequence(std::size_t worker_index) const -> Result<SequenceNumber>;
+     [[nodiscard]] auto active_segment(std::size_t worker_index) const -> Result<SegmentId>;
+     [[nodiscard]] auto next_compaction_worker(std::size_t start_worker) const
+@@ -528,6 +529,14 @@
+     std::atomic_uint64_t last_rotation_total_ns_{};
+     std::atomic_uint64_t total_rotation_ns_{};
+     std::atomic_uint64_t maximum_rotation_total_ns_{};
++    std::atomic_uint64_t compaction_attempts_{};
++    std::atomic_uint64_t compactions_completed_{};
++    std::atomic_uint64_t compaction_delta_overflows_{};
++    std::atomic_uint64_t compaction_manifest_conflicts_{};
++    std::atomic_uint64_t compaction_abandoned_copy_bytes_{};
++    std::atomic_uint64_t compaction_replayed_records_{};
++    std::atomic_uint64_t maximum_compaction_snapshot_ns_{};
++    std::atomic_uint64_t maximum_compaction_commit_gate_ns_{};
+     std::atomic_uint64_t last_rotation_final_record_commit_ns_{};
+     std::atomic_uint64_t total_rotation_final_record_commit_ns_{};
+     std::atomic_uint64_t maximum_rotation_final_record_commit_ns_{};
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -206,6 +206,7 @@
+         ${CMAKE_SOURCE_DIR}/tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
+         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_tests.cpp
+         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_tests.cpp
++        ${CMAKE_SOURCE_DIR}/tests/integration/persistence_compaction_delta_tests.cpp
+         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_enumeration_tests.cpp
+         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_fileio_tests.cpp
+         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
+@@ -319,6 +320,7 @@
+         add_executable(glifistore_allocation_fault_tests
+             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_harness.cpp
+             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_core_tests.cpp
++            ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_compaction_delta_tests.cpp
+             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_paired_tests.cpp
+             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_paired_async_tests.cpp
+             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_main.cpp
+--- a/tests/quality/allocation_fault_tests_decl.hpp
++++ b/tests/quality/allocation_fault_tests_decl.hpp
+@@ -9,6 +9,7 @@
+ void run_exhaustive_read_failures();
+ void run_background_allocation_failure_waiters();
+ void run_exhaustive_compaction_allocation_failures();
++void run_compaction_delta_without_allocation();
+ void run_volatile_rotation_allocation_failures();
+ void run_volatile_vacuum_publication_allocation_failures();
+ void run_index_tombstone_rebuild_allocation_failures();
+--- a/tests/quality/allocation_fault_main.cpp
++++ b/tests/quality/allocation_fault_main.cpp
+@@ -34,6 +34,7 @@
+     run_paired_volatile_get_inline_zero_heap();
+     run_background_allocation_failure_waiters();
+     run_exhaustive_compaction_allocation_failures();
++    run_compaction_delta_without_allocation();
+     run_volatile_rotation_allocation_failures();
+     run_volatile_vacuum_publication_allocation_failures();
+     run_index_tombstone_rebuild_allocation_failures();

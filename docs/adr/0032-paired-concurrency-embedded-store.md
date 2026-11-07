@@ -140,3 +140,9 @@ identity; “shard pair count” is the runtime view of that same count (ADR 003
 - [Concurrency and memory model](../spec/concurrency-memory-model.md)
 - [Worker model](../architecture/worker-model.md)
 - [Public API contract](../architecture/public-api-contract.md)
+
+## Blob-profile amendment (2026-11-07)
+
+[ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
+The opt-in durable v2 embedded profile uses the same paired owner and execution-token protocol for descriptor mutations. Blob preparation occurs before admission; legacy_mutex and daemon blob enablement are unsupported.
+Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.

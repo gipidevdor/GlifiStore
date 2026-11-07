@@ -308,7 +308,8 @@ auto detail::StoreAccess::erase_volatile_published(Store& store, const std::size
 
 auto detail::StoreAccess::put_durable(Store& store, const std::size_t worker_index, const HashedKey& key,
                                       const std::span<const std::byte> value,
-                                      const std::uint64_t expire_at_ns) -> DurableMutationResult {
+                                      const std::uint64_t expire_at_ns, const ValueType type)
+    -> DurableMutationResult {
     const auto rejected = [](Error error) {
         return DurableMutationResult{.outcome = DurableMutationOutcome::not_committed,
                                      .sequence = std::nullopt,
@@ -332,7 +333,7 @@ auto detail::StoreAccess::put_durable(Store& store, const std::size_t worker_ind
     if (!store.impl_->durable_runtime) {
         return rejected(Error{ErrorCode::invalid_argument, "durable put requires a durable Store"});
     }
-    return store.impl_->durable_runtime->put(key, value, expire_at_ns);
+    return store.impl_->durable_runtime->put(key, value, expire_at_ns, type);
 }
 
 auto detail::StoreAccess::erase_durable(Store& store, const std::size_t worker_index, const HashedKey& key)
@@ -449,7 +450,7 @@ auto detail::StoreAccess::mutate_durable_batch(Store& store, const std::size_t w
                 result.mutation = store.impl_->durable_runtime->mutate(
                     key_bytes, mutation.value,
                     mutation.operation == MutationOperation::put ? Opcode::put : Opcode::erase,
-                    mutation.key.hash, mutation.expire_at_ns, ValueType::bytes, 0, true);
+                    mutation.key.hash, mutation.expire_at_ns, mutation.type, 0, true);
                 if (!should_retry_durable_mutation(result.mutation, attempt)) {
                     break;
                 }

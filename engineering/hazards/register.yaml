@@ -105,6 +105,7 @@ hazards:
   prove:
   - docs/spec/client-semantics-v1.md
   - tests/integration/persistence_recovery_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
   rischio_residuo: Client indeterminate outcomes require careful retries
   stato: mitigato
   accettazione_rischio: Client semantics define committed/rejected/indeterminate
@@ -171,6 +172,8 @@ hazards:
   - Stop serving affected ops; operator repair/salvage modes are explicit
   prove:
   - tests/integration/concurrency_tests.cpp
+  - tests/unit/value_tests.cpp
+  - tests/unit/prepared_read_tests.cpp
   rischio_residuo: ASan/UBSan CI smoke; not exhaustive schedules
   stato: mitigato
   accettazione_rischio: Sanitizer CI + generation model; adversarial schedules Phase B

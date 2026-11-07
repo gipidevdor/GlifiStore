@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded generation-slot reservation, publication, and quiescent reclamation.
+ */
 #pragma once
 
 // ADR 0036 Wave 1 production generation slot pool. Opt-in via
@@ -22,6 +26,9 @@
 
 namespace glifistore::store::paired {
 
+/**
+ * @brief Publication versus bounded-capacity, identity, or epoch exhaustion failure.
+ */
 enum class GenerationSlotPublishStatus : std::uint8_t {
     published,
     pool_exhausted,
@@ -29,17 +36,23 @@ enum class GenerationSlotPublishStatus : std::uint8_t {
     epoch_exhausted,
 };
 
+/**
+ * @brief Non-owning callback used to fail the owning runtime closed on slot-identity failure.
+ */
 struct GenerationSlotFailureHook final {
     void* context{};
     void (*fail_closed)(void* context) noexcept {};
 };
 
-// Capacity is one current generation plus MaximumRetired retirement slots.
+/// Capacity is one current generation plus MaximumRetired retirement slots.
 template <std::size_t MaximumRetired> struct GenerationSlotCapacity final {
     static_assert(MaximumRetired <= 65'534U);
     static constexpr std::size_t value = MaximumRetired + 1U;
 };
 
+/**
+ * @brief Bounded slot occupancy, retirement, publication, and rejection observations.
+ */
 struct GenerationSlotPoolStats final {
     std::uint64_t publications{};
     std::uint64_t slot_reuses{};
@@ -61,7 +74,7 @@ struct GenerationSlotPoolStats final {
     bool reader_quiescent{};
 };
 
-// Single 64-bit release token: {epoch:48, slot+1:16}. Zero is never published.
+/// Single 64-bit release token: {epoch:48, slot+1:16}. Zero is never published.
 struct GenerationPublicationToken final {
     static constexpr std::uint64_t kSlotBits = 16U;
     static constexpr std::uint64_t kSlotMask = (1ULL << kSlotBits) - 1U;
@@ -88,8 +101,8 @@ struct GenerationPublicationToken final {
     }
 };
 
-// Fixed-capacity direct-object slot pool for PairReadGeneration. Slots own the
-// graph; Readers retain only a raw pointer after one acquire adoption.
+/// Fixed-capacity direct-object slot pool for PairReadGeneration. Slots own the
+/// graph; Readers retain only a raw pointer after one acquire adoption.
 class GenerationSlotPool final {
   public:
     static constexpr std::size_t kCapacity = GenerationSlotCapacity<64>::value;
@@ -98,6 +111,11 @@ class GenerationSlotPool final {
 
     using Generation = PairReadGeneration;
 
+    /**
+     * @brief Move-only Writer reservation obtained before mutation authority changes.
+     * @note The pool must outlive this token. Destruction cancels an unused reservation;
+     * a marked linearization without publication triggers the pool containment path.
+     */
     class Reservation final {
       public:
         Reservation(Reservation&& other) noexcept
@@ -163,16 +181,25 @@ class GenerationSlotPool final {
     auto operator=(const GenerationSlotPool&) -> GenerationSlotPool& = delete;
     ~GenerationSlotPool();
 
+    /**
+     * @brief Reserve a free generation slot before Store entry; nullopt applies bounded backpressure.
+     */
     [[nodiscard]] auto try_reserve() noexcept -> std::optional<Reservation>;
 
     [[nodiscard]] auto publish_incremental(Reservation& reservation, std::span<const ReadMutation> mutations,
                                            PairReadMerge* merge = nullptr) -> GenerationSlotPublishStatus;
 
-    // Commit a generation already constructed into storage_at(reservation.slot_index()).
+    /// Commit a generation already constructed into storage_at(reservation.slot_index()).
     [[nodiscard]] auto publish_direct(Reservation& reservation, const Generation* generation) noexcept
         -> GenerationSlotPublishStatus;
 
+    /**
+     * @brief Retain a live slot for a counted lease; balance with unpin() before slot reuse.
+     */
     void pin(std::size_t slot_index) noexcept;
+    /**
+     * @brief Release one counted slot pin; caller must own a matching live pin.
+     */
     void unpin(std::size_t slot_index) noexcept;
 
     [[nodiscard]] auto
@@ -180,6 +207,9 @@ class GenerationSlotPool final {
         -> const Generation*;
     [[nodiscard]] auto decode_published(GenerationPublicationToken token) const noexcept -> const Generation*;
 
+    /**
+     * @brief Writer-only retirement collection bounded by the supplied safe epoch and outstanding pins.
+     */
     void reclaim(std::uint64_t safe_epoch) noexcept;
     void stop_admission() noexcept;
     [[nodiscard]] auto accepting() const noexcept -> bool;

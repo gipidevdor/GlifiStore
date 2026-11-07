@@ -1,0 +1,110 @@
+# Open extension risks. Linked local evidence covers only its explicitly recorded subset.
+hazards:
+- id: HAZ-035
+  evento_pericoloso: Committed blob descriptor refers to an incomplete or missing payload
+  cause:
+  - Descriptor becomes recoverable before blob file and installed name are durable
+  - Partial chunks or a wrong Store/owner/ID pass incomplete validation
+  conseguenze:
+  - Loss or corruption of an acknowledged logical value
+  - Recovery exposes a partial value or resurrects an older value
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Proposed strict verified payload installation before descriptor admission in every durable mode
+  - Proposed explicit codecs and identity, CRC and complete digest validation
+  contenimento:
+  - Planned fail-closed open/publication; never recover around an invalid committed reference
+  prove: []
+  rischio_residuo: Ordering, native filesystem behavior and crash boundaries have no blob implementation or evidence
+  stato: aperto
+  accettazione_rischio: Not accepted for enablement; ADR remains proposed and feature unavailable
+  requisiti: [GS-PERSIST-BLOB-001, GS-PERSIST-BLOB-002, GS-RECOVERY-BLOB-001]
+- id: HAZ-036
+  evento_pericoloso: Blob reclaimed while recovery, Reader or backup still needs it
+  cause:
+  - GC marks only the latest Index instead of all recoverable historical descriptors
+  - Periodic ACK releases a dirty descriptor root before its eventual commit-slot publication
+  - Deletion races with publication, snapshot capture, Reader pin or late I/O completion
+  conseguenze:
+  - Unreadable committed history or inconsistent backup
+  - Reader failure and premature physical reclamation
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: bassa
+  prevenzione:
+  - Proposed complete root registry and atomic eligibility check before deletion
+  - Proposed compaction Manifest durability and Reader quiescence before root retirement
+  contenimento:
+  - Incomplete or overflowing GC state must retain files and apply backpressure
+  prove: []
+  rischio_residuo: Root accounting and concurrency protocols are design only
+  stato: aperto
+  accettazione_rischio: Not accepted for enablement; no blob GC or backup safety is claimed
+  requisiti: [GS-RECOVERY-BLOB-001, GS-CONCUR-BLOB-001, GS-OPS-BLOB-001]
+- id: HAZ-037
+  evento_pericoloso: Blob transfers exhaust memory, files, disk or shard progress
+  cause:
+  - Full values retained in queues or copied into generations
+  - Uncharged staging, historical files, materialization or abandoned transfers
+  - Upload space exhaustion prevents maintenance from rotating the descriptor log and reclaiming blobs
+  - Large I/O or hashing executes on a Reader or Writer
+  conseguenze:
+  - Out-of-memory, ENOSPC or unbounded latency for ordinary small records
+  - Shutdown or maintenance cannot make progress
+  severita: alta
+  probabilita: alta
+  rilevabilita: alta
+  prevenzione:
+  - Proposed pre-reserved bounded transfer/byte/metadata/FD/space credits and chunk workers
+  - Proposed separate owning-GET budget and controlled inline non-regression gate
+  contenimento:
+  - Reject admission before copying and reclaim abandoned work through bounded cleanup
+  prove:
+  - tests/unit/blob_lifecycle_tests.cpp
+  - engineering/evidence/blob-lifecycle-local-2026-11-07.md
+  rischio_residuo: Local cleanup and quota boundary regressions do not prove complete memory, overload, sustained cleanup-failure or platform bounds
+  stato: aperto
+  accettazione_rischio: Not accepted for enablement; no resource or latency bound is proven
+  requisiti: [GS-CORE-BLOB-001, GS-PERF-BLOB-001, GS-PROTO-BLOB-001]
+- id: HAZ-038
+  evento_pericoloso: Blob backup omits payloads referenced by copied committed history
+  cause:
+  - Legacy Segment-only backup is applied to a blob-capable Store
+  - Snapshot pins only visible keys or publishes destination Manifest before blob verification
+  conseguenze:
+  - Apparently successful backup fails recovery or loses acknowledged values
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Proposed typed closure traversal, snapshot pins and verified Manifest-last destination publication
+  - Unsupported v2 tools must reject before modifying files
+  contenimento:
+  - Reject incomplete backup promotion and require independent restore verification
+  prove: []
+  rischio_residuo: No blob-aware backup/restore tooling or retained campaign exists
+  stato: aperto
+  accettazione_rischio: Not accepted for enablement; existing v1 backup proof does not cover blobs
+  requisiti: [GS-OPS-BLOB-001]
+- id: HAZ-039
+  evento_pericoloso: Legacy engine or client interprets BlobRef bytes as application data
+  cause:
+  - New semantics introduced through a value prefix or an unversioned type/flag
+  - Required versions or capabilities checked after recovery or namespace cleanup
+  conseguenze:
+  - Silent wrong reads, destructive cleanup or incompatible Store mutation
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: bassa
+  prevenzione:
+  - Proposed opt-in family v2 and explicit typed descriptor with old-engine refusal
+  - Later negotiated client capability contract before daemon enablement
+  contenimento:
+  - Reject unsupported formats and entry points before effects; never expose raw descriptors
+  prove: []
+  rischio_residuo: Old-binary refusal and wire/SDK compatibility remain untested
+  stato: aperto
+  accettazione_rischio: Not accepted for enablement; no on-disk or wire extension is implemented
+  requisiti: [GS-PERSIST-BLOB-001, GS-RECOVERY-BLOB-001, GS-PROTO-BLOB-001]

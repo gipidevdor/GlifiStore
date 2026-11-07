@@ -6,6 +6,9 @@
 
 namespace allocation_fault_test {
 void run_all_tests() {
+    run_slot_pool_mirror_without_allocation();
+    run_client_mutation_allocation_failures();
+    run_client_late_response_allocation();
     const glifistore::DurableRuntimeOptions synchronous{};
     const glifistore::DurableRuntimeOptions strict_group{
         .commit_sync = glifistore::SegmentCommitSync::immediate,
@@ -34,6 +37,7 @@ void run_all_tests() {
     run_paired_volatile_get_inline_zero_heap();
     run_background_allocation_failure_waiters();
     run_exhaustive_compaction_allocation_failures();
+    run_compaction_delta_without_allocation();
     run_volatile_rotation_allocation_failures();
     run_volatile_vacuum_publication_allocation_failures();
     run_index_tombstone_rebuild_allocation_failures();

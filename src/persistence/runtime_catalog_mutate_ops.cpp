@@ -244,7 +244,8 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                                 .key_hash = key_hash,
                                 .expire_at_ns = expire_at_ns,
                                 .key = key,
-                                .value = value};
+                                .value = value,
+                                .format_version = manifest_.format_version};
         const auto committed_sequence = worker.next_sequence;
         const auto encoded_size = encoded_record_size(input);
         if (!encoded_size) {
@@ -312,7 +313,8 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
             const SegmentHeaderIdentity identity{.store_id = manifest_.store_id,
                                                  .segment_id = position->segment_id,
                                                  .generation = position->generation,
-                                                 .owner_worker = position->owner_worker};
+                                                 .owner_worker = position->owner_worker,
+                                                 .format_version = manifest_.format_version};
             if (catalog_index >= generation_pins_.size() || !generation_pins_[catalog_index] ||
                 generation_pins_[catalog_index]->identity != identity) {
                 healthy_.store(false, std::memory_order_release);
@@ -360,9 +362,18 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                 }
                 if (!appended.error) {
                     offset = io_file->selected_commit().commit.committed_end;
-                    appended = batch_enabled || deferred_commit
-                                   ? io_file->append_record(encoded_record)
-                                   : io_file->append(encoded_record, options_.commit_sync);
+                    // V2 blob history must rotate before file quotas can strand obsolete
+                    // descriptors in a mostly empty active Segment. V1 is unchanged.
+                    if (identity.format_version == 2 && type == ValueType::blob_ref &&
+                        io_file->selected_commit().commit.record_count >= 32 && attempt == 0) {
+                        appended = {.outcome = SegmentCommitOutcome::not_committed,
+                                    .error =
+                                        Error{ErrorCode::segment_full, "blob descriptor rotation quantum"}};
+                    } else {
+                        appended = batch_enabled || deferred_commit
+                                       ? io_file->append_record(encoded_record)
+                                       : io_file->append(encoded_record, options_.commit_sync);
+                    }
                     if (appended.outcome == SegmentCommitOutcome::indeterminate) {
                         exception_outcome = DurableMutationOutcome::indeterminate;
                     }
@@ -585,6 +596,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                             .error = published.error()};
                 }
                 // Index authority applied: advance durable_through before secondary work.
+                worker.record_compaction_change(hashed, reference);
                 worker.durable_through = committed_sequence;
                 try {
                     if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
@@ -624,6 +636,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                 }
             } else {
                 const auto erased = worker.index.erase_no_compact(hashed);
+                worker.record_compaction_change(hashed, std::nullopt);
                 worker.durable_through = committed_sequence;
                 try {
                     if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {

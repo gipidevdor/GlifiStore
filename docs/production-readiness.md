@@ -44,6 +44,12 @@ The volatile engine under `src/experimental/` is lab-only.
   Residual risk: Permanent tagged N−1 fixtures and the first old-binary/new-library C ABI row remain release-process steps
   C++ ABI remains not promised; C ABI v1 has an independent contract and CI-linked gate, while tagged cross-release proof remains residual.
 
+- [ ] **GATE-BLOB-WIRE** — Negotiated bounded blob transfers and official-client outcomes
+  State: `NON_INIZIATA` · Release target: `beta`
+  Requirements: `GS-PROTO-BLOB-001`
+  Residual risk: No accepted capability/opcode, streaming flow-control, persistent retry-resolution, C ABI or SDK contract exists. Existing daemon/wire v2 capabilities are unchanged.
+  Deliberately deferred until the embedded gate and a separate wire/SDK ADR are ready; no new opcode, frame size or client retry promise is allocated by ADR 0042.
+
 - [x] **GATE-C-ABI-V1** — C ABI v1 layout symbols lifecycle and installed consumption
   State: `PROVATA_IN_CI` · Release target: `alpha`
   Requirements: `GS-COMPAT-CABI-001`
@@ -75,6 +81,18 @@ The volatile engine under `src/experimental/` is lab-only.
   Requirements: `GS-OPS-BACKUP-001`, `GS-OPS-MIGRATE-001`
   Residual risk: Released-tag artifact consumption remains open; zero-fence hot backup out of scope; E3/E4 open; glifistored mid-BACKUP kill covered by glifistore_crash_backup_daemon
   Offline tools and online fenced backup with ENOSPC and concurrent fence proofs in CI; normative snapshot boundary published. Not E3/E4 certified.
+
+- [ ] **GATE-BLOB-EMBEDDED** — Opt-in embedded blob storage preserves format, commit, recovery and lifetime contracts
+  State: `SPECIFICATA` · Release target: `prototype`
+  Requirements: `GS-PERSIST-BLOB-001`, `GS-PERSIST-BLOB-002`, `GS-RECOVERY-BLOB-001`, `GS-CONCUR-BLOB-001`, `GS-CORE-BLOB-001`, `GS-OPS-BLOB-001`, `GS-PERF-BLOB-001`
+  Residual risk: ADR 0042 is accepted for implementation. Blob implementation and partial local lifecycle regressions exist; they do not establish the complete acceptance matrix. Native durability, overload and inline performance budgets remain unproven; E3/E4 certification stays open.
+  The accepted specification defines field layouts, state transitions, admission, compatibility and an acceptance matrix. SPECIFICATA remains open until complete proofs and retained CI/platform evidence justify promotion; local fixes alone do not.
+
+- [ ] **GATE-COMPACTION-DELTA** — Concurrent whole-Worker compaction preserves v1 authority and bounded foreground work
+  State: `PROVATA_LOCALMENTE` · Release target: `prototype`
+  Requirements: `GS-PERSIST-DELTA-001`
+  Residual risk: Linux/BSD, combined-workspace integration and controlled tail-latency campaigns pending; no release acceptance
+  Bounded in-memory reconciliation retains exact persistence v1 transitions and existing Reader pins.
 
 - [x] **GATE-DURABLE-ACK** — Acknowledgement semantics for durable mutations
   State: `PROVATA_IN_CI` · Release target: `beta`
@@ -137,7 +155,7 @@ The volatile engine under `src/experimental/` is lab-only.
   State: `PROVATA_IN_CI` · Release target: `prototype`
   Requirements: `GS-CORE-BUILD-001`
   Residual risk: The all-target profile intentionally remains diagnostic for lower-confidence, test-macro-sensitive, and toolchain-sensitive findings; production fail-closed tidy runs on every static-analysis.yml push/PR for main
-  The gate derives production translation units from compile_commands.json and rejects unchecked optional access, use-after-move, analyzer dead stores, and declaration/definition parameter-name drift without claiming that the wider diagnostic profile is warning-free.
+  The gate derives production translation units from compile_commands.json and rejects unchecked optional access, use-after-move, analyzer dead stores, and declaration/definition parameter-name drift, unbraced control flow, duplicate includes, obsolete null constants and missing override. The shared formatter checker also covers native tools, probes and C consumers. The wider diagnostic profile is not claimed warning-free.
 
 - [x] **GATE-TEST-SUITES** — Distinct unit integration property concurrency crash recovery suites
   State: `PROVATA_IN_CI` · Release target: `alpha`

@@ -1,0 +1,193 @@
+# Target requirements; linked local proofs cover only their explicitly recorded subset.
+requirements:
+- id: GS-PERSIST-BLOB-001
+  titolo: Versioned external blob format and value-size-independent encoding
+  categoria: persistence
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify an opt-in persistence family v2 with Blob File v1 and typed BlobRef v1,
+    complete little-endian field tables, checked extents, CRC32C and SHA-256. Retain
+    64 MiB Segments and the 1 MiB encoded Record bound, support 64 MiB logical values
+    for every accepted key, preserve legacy v1 Stores, and require old-engine refusal
+    before recovery or namespace mutation. No format constant changes are authorized
+    by this draft alone.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - Proposed codecs and version boundary are not implemented or tested
+  hazards: [HAZ-035, HAZ-039]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-PERSIST-BLOB-002
+  titolo: Durable blob dependency before logical descriptor admission
+  categoria: persistence
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify reserve, stage, verify, strict file sync, non-replacing install and directory
+    sync before the owner Writer can admit a BlobRef in any durable policy. Preserve
+    strict sync/group ACK-after-durability-and-visibility and periodic descriptor loss
+    semantics. Installed payloads alone never establish logical commit, and admitted
+    logical mutations cannot be cancelled by upload abort or disconnect.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - No blob crash/fault campaign or native installation primitive proof exists
+  - E3/E4 filesystem and device certification remains open
+  hazards: [HAZ-035]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-RECOVERY-BLOB-001
+  titolo: Fail-closed recovery of the complete historical blob closure
+  categoria: recovery
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify deterministic recovery from accepted Manifest/intent candidates and selected
+    committed Segment extents. Verify every referenced blob, including historical and
+    expired descriptors, before service. Never adopt an orphan or fall back to an older
+    value when a committed descriptor's payload is missing, truncated or corrupt. Keep
+    identity allocation monotonic and recovery work within configured count/byte budgets.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - Historical reachability and distinct-file verification are design only
+  hazards: [HAZ-035, HAZ-036, HAZ-039]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-CONCUR-BLOB-001
+  titolo: Blob publication ownership, stable reads and conservative reclamation
+  categoria: concurrency
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify Writer sequence order after blob preparation, stable per-version streaming
+    leases, bounded late-completion ownership and terminal shutdown. GC must retain
+    every recovery, pending append/group/periodic-flush, publication, Reader and backup
+    root and serialize final deletion with acquisition of new roots. Compaction cannot
+    retire old blob roots before its Manifest transition is durable and Reader quiescence
+    is satisfied.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - No blob lease, GC, same-key history or shutdown race proof exists
+  hazards: [HAZ-036]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-CORE-BLOB-001
+  titolo: Bounded streaming API and logical inline/blob equivalence
+  categoria: core
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify logical single-item PUT/GET/ERASE equivalence, optional expected size,
+    terminal handle-local commit idempotence, validated EOF, Store-scoped streaming
+    handles and unchanged owning-read lifetime. Limit engine-owned transfer memory to
+    4 MiB, two payload buffers, finite global/per-shard slots and reserved credits.
+    Account materializing GET separately and reject unsupported surfaces before effects.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione:
+  - src/persistence/blob_storage.cpp
+  prove:
+  - tests/unit/blob_lifecycle_tests.cpp
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/blob-lifecycle-local-2026-11-07.md
+    note: Local terminal cleanup, staging quota and sync-hook regressions only
+  rischio_residuo:
+  - Local lifecycle fixes cover staging cleanup and quota boundaries; complete memory, overload and platform proofs remain open
+  hazards: [HAZ-037]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-OPS-BLOB-001
+  titolo: Blob-aware backup, verification and physical-space accounting
+  categoria: operations
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify fenced backup of the complete descriptor closure, pinned source files,
+    destination Manifest publication last and full destination verification. Require
+    unsupported tools to refuse v2 before mutation, distinguish all physical space
+    classes and permit budgeted descriptor compaction for blob gain without Segment gain,
+    including early rotation and separately reserved maintenance credits under blob debt.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - Backup closure, v2 tools and descriptor-only reclaim remain unimplemented
+  hazards: [HAZ-036, HAZ-038]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-PERF-BLOB-001
+  titolo: Controlled inline non-regression and blob saturation evidence
+  categoria: performance
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Specify same-source controlled A/B for inline workloads, with initial proposed budgets
+    of at most 3 percent median throughput loss and 5 percent p99 increase, no blob
+    allocation/hash on inline operations, and separate p99.9/memory/GC-debt reporting.
+    Predeclare noise/confidence rules and exercise hot-key skew, disk saturation,
+    slow streams and compaction overlap before accepting any performance claim.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - No blob benchmark or inline A/B has been executed; budgets are proposed
+  hazards: [HAZ-037]
+  gates: [GATE-BLOB-EMBEDDED]
+- id: GS-PROTO-BLOB-001
+  titolo: Separate negotiated bounded blob transfer and retry-resolution contract
+  categoria: protocol
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Require a later accepted wire/SDK contract before enabling blob-capable daemon
+    Stores. Specify capability negotiation, old-client outcomes, chunk flow control,
+    owner binding, authentication/authorization, transfer expiry and bounded persistent
+    retry resolution. Do not allocate opcodes, enlarge wire v2 frames or infer durable
+    idempotence from an embedded handle or an installed blob file.
+  autorita:
+  - docs/adr/0042-large-blob-storage.md
+  - docs/spec/large-blob-storage-v1.md
+  implementazione: []
+  prove: []
+  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - Wire opcodes, SDK/C ABI integration and persistent retry resolution are deferred
+  hazards: [HAZ-037, HAZ-039]
+  gates: [GATE-BLOB-WIRE]

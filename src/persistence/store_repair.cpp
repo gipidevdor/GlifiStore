@@ -112,12 +112,11 @@ namespace {
     DurableStoreVerifyReport report{.manifest = std::move(manifest)};
     report.segments.reserve(report.manifest.segments.size());
     for (const auto& entry : report.manifest.segments) {
-        const SegmentHeaderIdentity identity{
-            .store_id = report.manifest.store_id,
-            .segment_id = entry.segment_id,
-            .generation = entry.generation,
-            .owner_worker = entry.owner_worker,
-        };
+        const SegmentHeaderIdentity identity{.store_id = report.manifest.store_id,
+                                             .segment_id = entry.segment_id,
+                                             .generation = entry.generation,
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = report.manifest.format_version};
         auto opened = DurableSegmentFile::open(directory, identity, SegmentFileOpenMode::read_only);
         if (!opened) {
             return unexpected(opened.error());
@@ -212,6 +211,9 @@ auto repair_durable_store(const std::filesystem::path& source, const std::filesy
         if (!manifest) {
             return unexpected(manifest.error());
         }
+        if (manifest->format_version == 2) {
+            return fail(ErrorCode::invalid_argument, "v2 blob repair is unsupported");
+        }
         if (auto resources = validate_durable_manifest_resources(*manifest, limits); !resources) {
             return unexpected(resources.error());
         }
@@ -288,12 +290,11 @@ auto repair_durable_store(const std::filesystem::path& source, const std::filesy
         }
 
         for (const auto& entry : catalog->manifest.segments) {
-            const SegmentHeaderIdentity identity{
-                .store_id = catalog->manifest.store_id,
-                .segment_id = entry.segment_id,
-                .generation = entry.generation,
-                .owner_worker = entry.owner_worker,
-            };
+            const SegmentHeaderIdentity identity{.store_id = catalog->manifest.store_id,
+                                                 .segment_id = entry.segment_id,
+                                                 .generation = entry.generation,
+                                                 .owner_worker = entry.owner_worker,
+                                                 .format_version = catalog->manifest.format_version};
             const auto name = segment_filename(identity);
             auto copied = copy_named_file(source_root.get(), destination_root.get(), name.c_str());
             if (!copied) {

@@ -1,5 +1,21 @@
 # Test suites, crash harnesses, CLI contract tests, and check target.
 if(BUILD_TESTING)
+    add_executable(glifistore_blob_tests
+        ${CMAKE_SOURCE_DIR}/tests/test_main.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/blob_storage_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/blob_lifecycle_tests.cpp)
+    target_compile_features(glifistore_blob_tests PRIVATE cxx_std_23)
+    target_include_directories(glifistore_blob_tests PRIVATE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_SOURCE_DIR}/src")
+    target_link_libraries(glifistore_blob_tests PRIVATE GlifiStore::core Threads::Threads glifistore_project_options)
+    glifistore_set_warnings(glifistore_blob_tests)
+    add_test(NAME glifistore_blob_tests COMMAND glifistore_blob_tests)
+    set_tests_properties(glifistore_blob_tests PROPERTIES LABELS "blob;durability;integration" TIMEOUT 300)
+    add_executable(glifistore_crash_blob ${CMAKE_SOURCE_DIR}/tests/crash/crash_blob.cpp)
+    target_compile_features(glifistore_crash_blob PRIVATE cxx_std_23)
+    target_link_libraries(glifistore_crash_blob PRIVATE GlifiStore::core Threads::Threads glifistore_project_options)
+    glifistore_set_warnings(glifistore_crash_blob)
+    add_test(NAME glifistore_crash_blob COMMAND glifistore_crash_blob)
+    set_tests_properties(glifistore_crash_blob PROPERTIES LABELS "blob;crash;durability" TIMEOUT 300)
     add_executable(glifistore_c_abi_tests
         ${CMAKE_SOURCE_DIR}/tests/abi/c_abi_tests.c
     )
@@ -177,11 +193,14 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/unit/connection_handoff_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/client_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/client_error_taxonomy_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/client_transport_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/client_tls_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/benchmark_parse_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/durable_flush_coordinator_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/latency_histogram_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/result_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/value_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/prepared_read_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/record_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/resource_limits_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/server_protocol_tests.cpp
@@ -206,6 +225,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/integration/persistence_compaction_delta_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_enumeration_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_fileio_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
@@ -319,12 +339,14 @@ if(BUILD_TESTING)
         add_executable(glifistore_allocation_fault_tests
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_harness.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_core_tests.cpp
+            ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_compaction_delta_tests.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_paired_tests.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_paired_async_tests.cpp
+            ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_client_tests.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_main.cpp
         )
         target_link_libraries(glifistore_allocation_fault_tests
-            PRIVATE GlifiStore::server glifistore_project_options
+            PRIVATE GlifiStore::server GlifiStore::client glifistore_project_options
         )
         target_include_directories(glifistore_allocation_fault_tests PRIVATE
             "${CMAKE_SOURCE_DIR}/src"

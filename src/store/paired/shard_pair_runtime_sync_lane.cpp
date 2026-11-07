@@ -413,8 +413,8 @@ void ShardPairRuntime::process_sync_lane(const std::size_t shard) noexcept {
                 const auto& key = *node->key;
                 durable_mutate_entered = true;
                 static_cast<void>(life.mark_durable_started());
-                auto result =
-                    execute_durable_single(store_, shard, node->kind, key, node->value, node->expire_at_ns);
+                auto result = execute_durable_single(store_, shard, node->kind, key, node->value,
+                                                     node->expire_at_ns, node->type);
                 if (result.committed()) {
                     durable_committed = true;
                 }

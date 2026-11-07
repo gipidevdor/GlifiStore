@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Durable capacity, free-space, descriptor, and recovery-budget validation.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"

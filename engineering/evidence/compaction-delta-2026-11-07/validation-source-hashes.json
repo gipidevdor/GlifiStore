@@ -1,0 +1,30 @@
+{
+  "base": "8c841cb623a1e49e23cc519270c9b2e34c29f727",
+  "scope": "HEAD plus bounded compaction delta; unrelated blob format and other working-tree features excluded",
+  "sha256": {
+    "src/persistence/compaction_delta.hpp": "c427e1247a35c69f3bd83e74c05c50fdda56c0cc11f868defd0645565810f10b",
+    "src/persistence/runtime_catalog_detail.hpp": "cdda3111fb0416ff8f4c0cac2c1eaf15f50c4dd2937f265531d77cc17874bb37",
+    "src/persistence/runtime_catalog.cpp": "84cb35d50aa92eed7a4c3385313148fe7a0c06fa5d10bc647a7142f9eadb013b",
+    "src/persistence/runtime_catalog_compact.cpp": "053bc90fdb50f0fa213dd620ccc03649219ff4760f2a1839a502be00cb54cfae",
+    "src/persistence/runtime_catalog_mutate_ops.cpp": "70f871d84ff963584da2db65887e69f4d0b59e24f0fd774d6c737d8944d9e20c",
+    "src/persistence/runtime_catalog_batch.cpp": "672c0f1ddf363f9d5ca908fdac87711da92dad1c46cc4a1bd67d2f1403e9d70f",
+    "src/persistence/resource_limits.cpp": "fc5e08cace4ad2d150aa7aa1be20767a99996c5c2f9cc79f4bc919713e0912ae",
+    "src/persistence/compaction_builder.cpp": "640feb4bda0fb23d06e894bbba506f1e90c566fbb877d06f5762f19418782e50",
+    "include/glifistore/persistence/compaction_builder.hpp": "69d3a70fcbb555ad7e8787755ca758194704c33ab2e045acd231d506c173aab3",
+    "tests/integration/persistence_compaction_delta_tests.cpp": "7700d7bb60d9f68ce7a9f37a285d520df8377db35daa68b078ec74a4f3c87d09",
+    "tests/integration/persistence_recovery_compaction_tests.cpp": "745ecc1237a2f6285547ad41c12c2580bf49f1e04fa93c91c0d3641208da5305",
+    "tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp": "33aca2eede93364bcc730f704137c2f27891652505c7eb1a615fcbac5e7ffd3f",
+    "tests/unit/resource_limits_tests.cpp": "33bf31620249df4f16a8deaa6c03d3d67d275e53a931d7404e98c7905858fe26",
+    "tests/quality/allocation_fault_compaction_delta_tests.cpp": "d9401120cfa5c533ff568306ecffc66eceacb3c14c22efb7a1015c66061f695e",
+    "benchmarks/maintenance_benchmark.cpp": "25b67bac791b376bb2b3216e27dcb23146f6c3fed72760360e220ea47ebe7e9d",
+    "include/glifistore/store/config.hpp": "e90407085ce55ce5dc018ef910c07fd32fa6e6862079041d214881f128816395",
+    "include/glifistore/store/store.hpp": "4dd46336329e72c7dc971891c273234615a1970310a0fb679bd9b9d31e8a090a",
+    "src/store/store_impl.hpp": "9345a3d5913ccccb79f15bb57fdb833adbe92fae4bb7021843e45c4b77e35cf9",
+    "src/store/store.cpp": "ac997ffdce2a9fd17d060ee70d7d8183fd3657d0f21a169a097fdd5f1203c248",
+    "include/glifistore/store/maintenance_types.hpp": "04f0c0e9d9ad7e77e0291415c79363234f4c9f6d80070852c7a819dc20f379ac",
+    "include/glifistore/persistence/runtime_catalog.hpp": "424dc4e9d78df83e29d1828ca85a7d205a6e66204bba78600718f93134ecfe33",
+    "tests/CMakeLists.txt": "e840d7f0769c43e434bd2c07b73c79ee219f51f1d4d177bfe534944d57864e02",
+    "tests/quality/allocation_fault_tests_decl.hpp": "e28916200393c210172732c55c8f2acc044180f9e3c4c5212ebe3ca92061bef6",
+    "tests/quality/allocation_fault_main.cpp": "ca16db8b362d0c6b0e73738b53113522d5f9ca7fc780bbe08d3c581b104af229"
+  }
+}

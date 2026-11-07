@@ -10,6 +10,7 @@
 #include "glifistore/persistence/segment_file.hpp"
 #include "glifistore/segment/record.hpp"
 #include "persistence/adaptive_batch_sizer.hpp"
+#include "persistence/blob_storage.hpp"
 #include "persistence/hot_record_table.hpp"
 #include "persistence/runtime_catalog_detail.hpp"
 
@@ -56,6 +57,9 @@ void DurableRuntimeCatalog::RuntimeWorker::erase_hot_record(const std::string_vi
 }
 
 auto DurableRuntimeCatalog::RuntimeWorker::drain_deferred_ttl(const std::size_t limit) -> Status {
+    if (compaction_index_frozen) {
+        return {};
+    }
     if (glifistore::fault::consume_fail(glifistore::fault::Site::deferred_ttl)) {
         return fail(ErrorCode::resource_exhausted, "injected deferred TTL drain failure");
     }
@@ -71,6 +75,7 @@ auto DurableRuntimeCatalog::RuntimeWorker::drain_deferred_ttl(const std::size_t 
             continue;
         }
         const auto erased = index.erase_no_compact(key);
+        record_compaction_change(key, std::nullopt);
         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
             return counted;
         }
@@ -88,6 +93,9 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
     // served; Index removal may wait for a bounded Worker drain.
     erase_hot_record(key);
     get_path_metrics.expired_ttl_gets.fetch_add(1U, std::memory_order_relaxed);
+    if (compaction_index_frozen) {
+        return {};
+    }
 
     if (backlog_limit == 0) {
         const auto current = index.find(key);
@@ -96,6 +104,7 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
             return {};
         }
         const auto erased = index.erase_no_compact(key);
+        record_compaction_change(key, std::nullopt);
         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
             return counted;
         }
@@ -116,6 +125,7 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
             return {};
         }
         const auto erased = index.erase_no_compact(key);
+        record_compaction_change(key, std::nullopt);
         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
             return counted;
         }
@@ -319,6 +329,13 @@ auto DurableRuntimeCatalog::open_locked(DataDirectory directory, const std::uint
     if (auto valid = validate_durable_resource_limits(options.limits); !valid) {
         return unexpected(valid.error());
     }
+    auto format_manifest = directory.read_manifest(options.limits.max_manifest_bytes);
+    if (!format_manifest) {
+        return unexpected(format_manifest.error());
+    }
+    if ((format_manifest->format_version == 2) != static_cast<bool>(options.blob_storage)) {
+        return fail(ErrorCode::invalid_argument, "blob Store requires explicit embedded profile");
+    }
     auto compaction = resolve_interrupted_compaction(directory, recovery_now_ns, options.limits);
     if (!compaction) {
         return unexpected(compaction.error());
@@ -344,6 +361,16 @@ auto DurableRuntimeCatalog::open_locked(DataDirectory directory, const std::uint
         return fail(ErrorCode::unavailable,
                     "durable Store requires interrupted rotation completion before runtime service");
     }
+    if (options.blob_storage) {
+        auto roots = detail::verify_blob_closure(directory, recovered->manifest, *options.blob_storage);
+        if (!roots) {
+            return unexpected(roots.error());
+        }
+        auto cleaned = options.blob_storage->collect(*roots);
+        if (!cleaned) {
+            return unexpected(cleaned.error());
+        }
+    }
     auto runtime = std::unique_ptr<DurableRuntimeCatalog>(
         new DurableRuntimeCatalog(std::move(directory), std::move(*recovered), options));
     if (auto pinned = runtime->initialize_generation_pins(); !pinned) {
@@ -363,7 +390,8 @@ auto DurableRuntimeCatalog::initialize_generation_pins() -> Status {
         const SegmentHeaderIdentity identity{.store_id = manifest_.store_id,
                                              .segment_id = entry.segment_id,
                                              .generation = entry.generation,
-                                             .owner_worker = entry.owner_worker};
+                                             .owner_worker = entry.owner_worker,
+                                             .format_version = manifest_.format_version};
         auto opened = DurableSegmentFile::open(directory_, identity, SegmentFileOpenMode::read_only);
         if (!opened) {
             return unexpected(opened.error());

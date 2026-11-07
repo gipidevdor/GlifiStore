@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Pipeline visibility barriers between mutations and dependent observations.
+ */
 #pragma once
 
 // Daemon mutation windows + GET visibility barrier (ADR 0037 Phase C).
@@ -7,18 +11,21 @@
 
 namespace glifistore::server {
 
-// Contiguous Store mutations before a GET (or other barrier) form one window.
-// Windows are capped at the Writer publication chunk (≤32). Not a multi-key txn.
+/// Contiguous Store mutations before a GET (or other barrier) form one window.
+/// Windows are capped at the Writer publication chunk (≤32). Not a multi-key txn.
 inline constexpr std::uint32_t kMaximumMutationWindow = 32;
 
+/**
+ * @brief Classify operations that mutate visibility or require a preceding mutation barrier.
+ */
 enum class PipelineOpClass : std::uint8_t {
     mutation, // PUT / ERASE
     barrier,  // GET and other ops that require prior mutations' visibility
     other,
 };
 
-// After a mutation window is submitted, GET must not adopt a generation older
-// than `required_visible_epoch` (RAW). Zero means no barrier armed.
+/// After a mutation window is submitted, GET must not adopt a generation older
+/// than `required_visible_epoch` (RAW). Zero means no barrier armed.
 struct MutationVisibilityBarrier final {
     std::uint64_t required_visible_epoch{};
 

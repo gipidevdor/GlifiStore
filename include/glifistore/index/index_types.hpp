@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Owning Index snapshots, mutation results, and memory/probe statistics.
+ */
 #pragma once
 
 #include "glifistore/core/types.hpp"
@@ -10,16 +14,25 @@
 
 namespace glifistore {
 
+/**
+ * @brief Owning binary key and its current physical Record reference.
+ */
 struct IndexEntry {
     std::string key;
     RecordRef record;
 };
 
+/**
+ * @brief Whether insertion created a key and the displaced reference, if any.
+ */
 struct IndexMutationResult {
     bool inserted{};
     std::optional<RecordRef> previous;
 };
 
+/**
+ * @brief Point-in-time table occupancy, probe, and allocated/live storage observations.
+ */
 struct IndexStats {
     std::size_t size{};
     std::size_t bucket_count{};
@@ -35,6 +48,9 @@ struct IndexStats {
     std::uint64_t tombstone_rebuild_count{};
 };
 
+/**
+ * @brief Record scan, visible-state, tombstone, and expiration counts from Index reconstruction.
+ */
 struct RebuildStats {
     std::uint64_t records_scanned{};
     std::uint64_t records_visible{};

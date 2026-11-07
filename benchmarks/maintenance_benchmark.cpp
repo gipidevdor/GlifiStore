@@ -64,6 +64,8 @@ struct Options {
     std::size_t put_percent{5};
     std::size_t maintenance_interval_ms{10};
     std::size_t maintenance_copy_bytes_per_sec{};
+    std::size_t compaction_delta_entries{4096};
+    bool same_worker{};
     std::size_t cooldown_ms{250};
     std::size_t idle_duration_ms{3'000};
     std::optional<Mode> mode;
@@ -81,6 +83,7 @@ struct LatencySummary {
     std::uint64_t p50_ns{};
     std::uint64_t p95_ns{};
     std::uint64_t p99_ns{};
+    std::uint64_t p999_ns{};
     std::uint64_t maximum_ns{};
 };
 
@@ -94,18 +97,27 @@ struct CooperativeStats {
 
 struct CompactionStartGate {
     std::latch* start{};
+    std::latch* snapshot_ready{};
     std::latch* compaction_intent_started{};
     std::latch* rotation_entered{};
     std::filesystem::path store;
     std::thread::id opener_thread;
     std::atomic_bool claimed{false};
     std::atomic_bool intent_claimed{false};
+    std::atomic_bool snapshot_released{false};
+
+    void release_snapshot() noexcept {
+        if (snapshot_ready != nullptr && !snapshot_released.exchange(true, std::memory_order_acq_rel)) {
+            snapshot_ready->count_down();
+        }
+    }
 
     static auto available_space_bytes(void* context) -> glifistore::Result<std::uint64_t> {
         auto& gate = *static_cast<CompactionStartGate*>(context);
         if (std::this_thread::get_id() != gate.opener_thread &&
             !gate.claimed.exchange(true, std::memory_order_acq_rel)) {
             gate.start->wait();
+            gate.release_snapshot();
         }
         std::error_code error;
         const auto space = std::filesystem::space(gate.store, error);
@@ -134,6 +146,7 @@ struct ThreadStats {
     std::uint64_t puts{};
     std::uint64_t put_successes{};
     std::uint64_t generation_backpressure_retries{};
+    std::uint64_t compaction_conflict_retries{};
     std::uint64_t failures{};
     std::vector<std::uint64_t> all_latency_ns;
     std::vector<std::uint64_t> get_latency_ns;
@@ -148,6 +161,7 @@ struct Sample {
     std::uint64_t gets{};
     std::uint64_t puts{};
     std::uint64_t generation_backpressure_retries{};
+    std::uint64_t compaction_conflict_retries{};
     LatencySummary all_latency;
     LatencySummary get_latency;
     LatencySummary put_latency;
@@ -166,6 +180,7 @@ struct Sample {
     glifistore::MaintenanceSkipReason maintenance_last_skip{};
     glifistore::MaintenanceObservation maintenance_observation{};
     glifistore::DurableRotationStats rotation{};
+    glifistore::DurableCompactionMetrics compaction{};
     std::size_t segments_after{};
 };
 
@@ -355,6 +370,10 @@ class TemporaryDirectory final {
         } else if (argument == "--repeats" && index + 1 < argc) {
             options.repeats = parse_size(argv[++index], argument);
             options.repeats_set = true;
+        } else if (argument == "--compaction-delta-entries" && index + 1 < argc) {
+            options.compaction_delta_entries = parse_size(argv[++index], argument);
+        } else if (argument == "--same-worker") {
+            options.same_worker = true;
         } else if (argument == "--operations" && index + 1 < argc) {
             options.operations = parse_size(argv[++index], argument);
             options.operations_set = true;
@@ -389,6 +408,7 @@ class TemporaryDirectory final {
                          " [--reclaim-value-bytes N]"
                          " [--put-percent N] [--maintenance-interval-ms N]"
                          " [--maintenance-copy-bytes-per-sec N]"
+                         " [--compaction-delta-entries N] [--same-worker]"
                          " [--cooldown-ms N] [--idle-duration-ms N]"
                          " [--scenario mixed|forced-rotation|idle|churn]"
                          " [--mode disabled|cooperative|background]\n";
@@ -469,6 +489,7 @@ class TemporaryDirectory final {
                 .dead_byte_ratio_bp_normal = 5'000,
             },
     };
+    config.durable_limits.max_compaction_delta_entries = options.compaction_delta_entries;
     if (start_gate != nullptr) {
         config.filesystem_hooks = {
             .context = start_gate,
@@ -546,6 +567,7 @@ void require_status(const glifistore::Status& status, const std::string_view ope
         .p50_ns = percentile(0.50),
         .p95_ns = percentile(0.95),
         .p99_ns = percentile(0.99),
+        .p999_ns = percentile(0.999),
         .maximum_ns = values.back(),
     };
 }
@@ -636,7 +658,8 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
     foreground_keys.reserve(options.keys);
     for (std::size_t index = 0; index < options.keys; ++index) {
         reclaim_keys.push_back(key_for_worker(0, index, "maintenance-reclaim-"));
-        foreground_keys.push_back(key_for_worker(1, index, "maintenance-foreground-"));
+        foreground_keys.push_back(
+            key_for_worker(options.same_worker ? 0 : 1, index, "maintenance-foreground-"));
     }
 
     auto seed_store =
@@ -660,8 +683,10 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
     seed_store.reset();
 
     std::latch start{1};
+    std::latch snapshot_ready{options.same_worker && mode == Mode::cooperative ? 1 : 0};
     CompactionStartGate start_gate{
         .start = &start,
+        .snapshot_ready = options.same_worker && mode == Mode::cooperative ? &snapshot_ready : nullptr,
         .store = directory.store(),
         .opener_thread = std::this_thread::get_id(),
     };
@@ -689,6 +714,7 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
             std::vector<std::byte> value(options.value_bytes, std::byte{0xA5});
             ready.count_down();
             start.wait();
+            snapshot_ready.wait();
             for (std::size_t operation = thread_index; operation < options.operations;
                  operation += options.threads) {
                 const auto selected = mix(operation);
@@ -706,11 +732,20 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
                             succeeded = true;
                             break;
                         }
-                        if (!is_generation_backpressure(status.error()) || Clock::now() >= retry_deadline) {
+                        const bool compaction_conflict =
+                            options.same_worker &&
+                            status.error().code == glifistore::ErrorCode::sequence_conflict;
+                        if ((!is_generation_backpressure(status.error()) && !compaction_conflict) ||
+                            Clock::now() >= retry_deadline) {
                             break;
                         }
-                        ++stats.generation_backpressure_retries;
-                        if ((stats.generation_backpressure_retries & 63U) == 0U) {
+                        if (compaction_conflict) {
+                            ++stats.compaction_conflict_retries;
+                        } else {
+                            ++stats.generation_backpressure_retries;
+                        }
+                        if (((stats.generation_backpressure_retries + stats.compaction_conflict_retries) &
+                             63U) == 0U) {
                             std::this_thread::sleep_for(std::chrono::microseconds{50});
                         } else {
                             std::this_thread::yield();
@@ -739,6 +774,7 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
             start.wait();
             ++cooperative_stats.attempts;
             const auto compacted = store->compact();
+            start_gate.release_snapshot();
             if (compacted) {
                 if (compacted->compacted) {
                     ++cooperative_stats.useful;
@@ -769,6 +805,7 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
     std::uint64_t puts{};
     std::uint64_t put_successes{};
     std::uint64_t generation_backpressure_retries{};
+    std::uint64_t compaction_conflict_retries{};
     std::uint64_t failures{};
     for (const auto& stats : thread_stats) {
         operations += stats.all_latency_ns.size();
@@ -777,6 +814,7 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
         puts += stats.puts;
         put_successes += stats.put_successes;
         generation_backpressure_retries += stats.generation_backpressure_retries;
+        compaction_conflict_retries += stats.compaction_conflict_retries;
         failures += stats.failures;
     }
     if (operations != options.operations || get_hits != gets || put_successes != puts || failures != 0 ||
@@ -824,6 +862,7 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
         .gets = gets,
         .puts = puts,
         .generation_backpressure_retries = generation_backpressure_retries,
+        .compaction_conflict_retries = compaction_conflict_retries,
         .all_latency = all_latency,
         .get_latency = get_latency,
         .put_latency = put_latency,
@@ -845,6 +884,7 @@ void verify_reopened(glifistore::Store& store, const std::vector<std::string>& k
         .maintenance_observation =
             cooperative ? glifistore::MaintenanceObservation{} : maintenance.last_observation,
         .rotation = maintenance.rotation,
+        .compaction = maintenance.compaction,
         .segments_after = segments_after,
     };
 }
@@ -1107,7 +1147,14 @@ void print_sample(const Sample& sample) {
               << ',' << microseconds(sample.rotation.total_execution_duration_ns) / 1'000.0 << ','
               << microseconds(sample.rotation.total_final_record_commit_duration_ns) / 1'000.0 << ','
               << microseconds(sample.rotation.maximum_total_duration_ns) / 1'000.0 << ','
-              << sample.segments_after << '\n';
+              << sample.segments_after << ',' << microseconds(sample.all_latency.p999_ns) << ','
+              << microseconds(sample.get_latency.p999_ns) << ',' << microseconds(sample.put_latency.p999_ns)
+              << ',' << sample.compaction.replayed_records << ',' << sample.compaction.delta_overflow_aborts
+              << ',' << sample.compaction.manifest_conflict_aborts << ','
+              << sample.compaction.abandoned_copy_bytes << ','
+              << sample.compaction.maximum_snapshot_duration_ns << ','
+              << sample.compaction.maximum_commit_gate_duration_ns << ','
+              << sample.compaction_conflict_retries << '\n';
 }
 
 void print_rotation_sample(const RotationSample& sample) {
@@ -1201,8 +1248,10 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        std::cout << "# storage_mode=durable-periodic;workers=2;reclaim_worker=0;"
-                     "foreground_worker=1;seed_operations=1024;seed_flush=true\n";
+        std::cout << "# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker="
+                  << (options.same_worker ? 0 : 1)
+                  << ";seed_operations=1024;seed_flush=true;compaction_delta_entries="
+                  << options.compaction_delta_entries << '\n';
         std::cout << "# cooperative_policy=one public Store::compact at foreground start\n";
         std::cout << "# background_policy=min_eval_interval_ms=max_eval_interval_ms="
                   << options.maintenance_interval_ms
@@ -1258,7 +1307,11 @@ int main(int argc, char** argv) {
                      "rotation_total_seal_ms,rotation_total_create_ms,"
                      "rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,"
                      "rotation_total_execution_ms,rotation_total_final_record_commit_ms,"
-                     "rotation_maximum_total_ms,segments_after\n";
+                     "rotation_maximum_total_ms,segments_after,p999_us,get_p999_us,put_p999_us,"
+                     "compaction_replayed_records,compaction_delta_overflow_aborts,"
+                     "compaction_manifest_conflict_aborts,compaction_abandoned_copy_bytes,"
+                     "compaction_maximum_snapshot_ns,compaction_maximum_commit_gate_ns,"
+                     "compaction_conflict_retries\n";
 
         for (std::size_t warmup = 0; warmup < options.warmups; ++warmup) {
             const auto offset = warmup % selected.size();

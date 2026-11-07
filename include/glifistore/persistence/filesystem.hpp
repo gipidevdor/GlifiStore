@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief RAII file ownership and data-directory publication with explicit failure polarity.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -26,8 +30,15 @@ inline constexpr auto kBootstrapTemporaryFilename = ".glifistore.bootstrap.tmp";
 inline constexpr auto kCompactionIntentFilename = ".glifistore.compaction";
 inline constexpr auto kCompactionTemporaryFilename = ".glifistore.compaction.tmp";
 
+/**
+ * @brief Directory creation/open policy applied before catalog access.
+ */
 enum class DataDirectoryOpenMode { existing, open_or_create, create_new };
 
+/**
+ * @brief Move-only descriptor owner with optional shared I/O hooks; get() borrows and release() transfers
+ * ownership.
+ */
 class FileDescriptor final {
   public:
     FileDescriptor() = default;
@@ -50,12 +61,30 @@ class FileDescriptor final {
         return descriptor_;
     }
 
+    /**
+     * @brief Detach the descriptor without closing it; the caller becomes its sole owner.
+     */
     [[nodiscard]] auto release() noexcept -> int;
+    /**
+     * @brief Close the current descriptor and adopt the replacement, or become empty for -1.
+     */
     void reset(int descriptor = -1, FileIoHooks io_hooks = {}) noexcept;
 
     [[nodiscard]] auto size() const -> Result<std::uint64_t>;
+    /**
+     * @brief Write the complete borrowed byte range at an absolute file offset.
+     * @return Success or a checked-extent/I/O error; input is not retained.
+     */
     [[nodiscard]] auto write_all_at(std::span<const std::byte> bytes, std::uint64_t offset) const -> Status;
+    /**
+     * @brief Fill the complete caller buffer from an absolute file offset.
+     * @return Success or an extent, short-read, or I/O error; partial data is not a successful result.
+     */
     [[nodiscard]] auto read_exact_at(std::span<std::byte> bytes, std::uint64_t offset) const -> Status;
+    /**
+     * @brief Request the selected platform file synchronization boundary.
+     * @note Success reflects the requested primitive, not cross-platform durability certification.
+     */
     [[nodiscard]] auto sync(FileSyncMode mode) const -> Status;
 
   private:
@@ -117,6 +146,16 @@ class FileDescriptor final {
         return "copy_backup_manifest";
     case FilesystemOperation::sync_backup_destination:
         return "sync_backup_destination";
+    case FilesystemOperation::write_blob_chunk:
+        return "write_blob_chunk";
+    case FilesystemOperation::sync_blob_file:
+        return "sync_blob_file";
+    case FilesystemOperation::install_blob_file:
+        return "install_blob_file";
+    case FilesystemOperation::link_blob_file:
+        return "link_blob_file";
+    case FilesystemOperation::sync_blob_directory:
+        return "sync_blob_directory";
     }
     return "unknown";
 }
@@ -148,7 +187,12 @@ class FileDescriptor final {
                                  FilesystemOperation::remove_compaction_segment,
                                  FilesystemOperation::copy_backup_segment,
                                  FilesystemOperation::copy_backup_manifest,
-                                 FilesystemOperation::sync_backup_destination}) {
+                                 FilesystemOperation::sync_backup_destination,
+                                 FilesystemOperation::write_blob_chunk,
+                                 FilesystemOperation::sync_blob_file,
+                                 FilesystemOperation::install_blob_file,
+                                 FilesystemOperation::link_blob_file,
+                                 FilesystemOperation::sync_blob_directory}) {
         if (name == filesystem_operation_name(operation)) {
             return operation;
         }
@@ -173,8 +217,14 @@ inline void invoke_filesystem_after(const FilesystemHooks& hooks,
 }
 } // namespace detail
 
+/**
+ * @brief Whether new Manifest authority is durable, absent, or uncertain after I/O failure.
+ */
 enum class ManifestPublicationOutcome { durable, not_published, indeterminate };
 
+/**
+ * @brief Manifest publication knowledge; indeterminate means namespace durability could not be established.
+ */
 struct ManifestPublicationResult {
     ManifestPublicationOutcome outcome{ManifestPublicationOutcome::not_published};
     std::optional<Error> error;
@@ -184,8 +234,14 @@ struct ManifestPublicationResult {
     }
 };
 
+/**
+ * @brief Whether a recovery intent is durable, absent, or potentially published.
+ */
 enum class CompactionIntentPublicationOutcome { durable, not_published, indeterminate };
 
+/**
+ * @brief Intent publication knowledge; failure after a possible authority change requires recovery.
+ */
 struct CompactionIntentPublicationResult {
     CompactionIntentPublicationOutcome outcome{CompactionIntentPublicationOutcome::not_published};
     std::optional<Error> error;
@@ -195,8 +251,14 @@ struct CompactionIntentPublicationResult {
     }
 };
 
+/**
+ * @brief Whether intent removal is durable, absent, or uncertain.
+ */
 enum class CompactionIntentRemovalOutcome { durable, not_removed, indeterminate };
 
+/**
+ * @brief Intent removal knowledge including an indeterminate directory-sync boundary.
+ */
 struct CompactionIntentRemovalResult {
     CompactionIntentRemovalOutcome outcome{CompactionIntentRemovalOutcome::not_removed};
     std::optional<Error> error;
@@ -206,8 +268,14 @@ struct CompactionIntentRemovalResult {
     }
 };
 
+/**
+ * @brief Whether source retirement is durable, not performed, or uncertain.
+ */
 enum class CompactionSegmentRetirementOutcome { durable, not_removed, indeterminate };
 
+/**
+ * @brief Source retirement knowledge; an error does not imply all source names remain present.
+ */
 struct CompactionSegmentRetirementResult {
     CompactionSegmentRetirementOutcome outcome{CompactionSegmentRetirementOutcome::not_removed};
     std::optional<Error> error;
@@ -219,6 +287,10 @@ struct CompactionSegmentRetirementResult {
 
 class DurableSegmentFile;
 
+/**
+ * @brief Owning directory descriptor and exclusive Store lock; lifetime spans all descriptor-relative catalog
+ * work.
+ */
 class DataDirectory final {
   public:
     [[nodiscard]] static auto open_and_lock(const std::filesystem::path& path, FilesystemHooks hooks = {})
@@ -232,9 +304,17 @@ class DataDirectory final {
     DataDirectory(DataDirectory&&) noexcept = default;
     auto operator=(DataDirectory&& other) noexcept -> DataDirectory&;
 
+    /**
+     * @brief Encode, synchronize, and publish a new authoritative Manifest.
+     * @return Explicit durable/not-published/indeterminate knowledge, not merely a boolean error.
+     * @note Callers must preserve the recovery protocol on an indeterminate result.
+     */
     [[nodiscard]] auto publish_manifest(const Manifest& manifest,
                                         std::size_t max_bytes = kMaximumManifestBytes)
         -> ManifestPublicationResult;
+    /**
+     * @brief Read/decode the authoritative Manifest subject to a byte cap; no fallback authority is invented.
+     */
     [[nodiscard]] auto read_manifest(std::size_t max_bytes = kMaximumManifestBytes) const -> Result<Manifest>;
     [[nodiscard]] auto publish_bootstrap_intent(const Manifest& manifest,
                                                 std::size_t max_bytes = kMaximumManifestBytes) -> Status;
@@ -250,17 +330,17 @@ class DataDirectory final {
     [[nodiscard]] auto retire_compaction_segments(const StoreId& store_id,
                                                   std::span<const ManifestSegmentEntry> segments)
         -> CompactionSegmentRetirementResult;
-    // Recovery-only cleanup after a complete authoritative scan. Every name
-    // must be a recognized private engine temporary; the batch is removed and
-    // directory-synchronized without ever touching a canonical Segment name.
+    /// Recovery-only cleanup after a complete authoritative scan. Every name
+    /// must be a recognized private engine temporary; the batch is removed and
+    /// directory-synchronized without ever touching a canonical Segment name.
     [[nodiscard]] auto cleanup_recovery_temporaries(std::span<const std::string> names) -> Status;
     [[nodiscard]] auto pristine_for_bootstrap() const -> Result<bool>;
     [[nodiscard]] auto available_space_bytes() const -> Result<std::uint64_t>;
-    // Returns an independently positioned descriptor for descriptor-relative
-    // namespace enumeration. The caller owns the returned descriptor.
+    /// Returns an independently positioned descriptor for descriptor-relative
+    /// namespace enumeration. The caller owns the returned descriptor.
     [[nodiscard]] auto open_directory_for_enumeration() const -> Result<FileDescriptor>;
 
-    // Descriptor-relative openat for catalog backup/copy while the Store lock is held.
+    /// Descriptor-relative openat for catalog backup/copy while the Store lock is held.
     [[nodiscard]] auto directory_descriptor() const noexcept -> int {
         return directory_.get();
     }

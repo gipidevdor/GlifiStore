@@ -117,9 +117,9 @@ GLIFI_TEST("blocked durable compaction build permits same-Worker reads and mutat
     GLIFI_REQUIRE(mutation.committed());
     GLIFI_REQUIRE(erased.committed());
     GLIFI_REQUIRE(ttl_updated.committed());
-    GLIFI_REQUIRE(compaction.outcome == glifistore::DurableCompactionOutcome::not_compacted);
-    GLIFI_REQUIRE(compaction.error.has_value());
-    GLIFI_REQUIRE(compaction.error->code == glifistore::ErrorCode::sequence_conflict);
+    GLIFI_REQUIRE(compaction.compacted());
+    GLIFI_REQUIRE(!compaction.error.has_value());
+    GLIFI_REQUIRE(compaction.stats.delta_records == 3);
     GLIFI_REQUIRE((*runtime)->healthy());
     const auto current = (*runtime)->get(key);
     GLIFI_REQUIRE(current.has_value());
@@ -133,7 +133,7 @@ GLIFI_TEST("blocked durable compaction build permits same-Worker reads and mutat
     const auto ttl_expired = (*runtime)->get("ttl-key", 100);
     GLIFI_REQUIRE(!ttl_expired.has_value());
     GLIFI_REQUIRE(ttl_expired.error().code == glifistore::ErrorCode::not_found);
-    GLIFI_REQUIRE((*runtime)->manifest() == recovery_manifest(store_id, 1, entries));
+    GLIFI_REQUIRE((*runtime)->manifest().manifest_generation == 2);
     GLIFI_REQUIRE((*runtime)->namespace_audit().clean());
 }
 

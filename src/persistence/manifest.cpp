@@ -56,6 +56,10 @@ auto manifest_failure(ErrorCode code, std::string message) -> Status {
 }
 
 auto validate_manifest(const Manifest& manifest, ErrorCode error_code) -> Status {
+    if ((manifest.format_version != 1 && manifest.format_version != 2) ||
+        (manifest.format_version == 2 && all_zero(manifest.next_blob_id))) {
+        return manifest_failure(error_code, "unsupported Manifest version or blob counter");
+    }
     if (all_zero(manifest.store_id)) {
         return manifest_failure(error_code, "manifest Store ID cannot be all zero");
     }
@@ -132,7 +136,7 @@ auto encode_manifest(const std::span<std::byte> out, const Manifest& manifest) -
 
     std::vector<std::byte> encoded(*size, std::byte{0});
     put_u32(encoded, 0, kManifestMagic);
-    put_u16(encoded, 4, kManifestFormatVersion);
+    put_u16(encoded, 4, manifest.format_version);
     put_u16(encoded, 6, static_cast<std::uint16_t>(kManifestHeaderBytes));
     put_u32(encoded, 8, static_cast<std::uint32_t>(*size));
     put_u16(encoded, 12, static_cast<std::uint16_t>(kManifestSegmentEntryBytes));
@@ -144,13 +148,21 @@ auto encode_manifest(const std::span<std::byte> out, const Manifest& manifest) -
     put_u64(encoded, 48, manifest.routing_epoch);
     put_u32(encoded, 56, static_cast<std::uint32_t>(manifest.segments.size()));
     put_u16(encoded, 60, kSegmentFormatVersion);
-    put_u16(encoded, 62, kRecordFormatVersion);
-    put_u16(encoded, 64, kSegmentHeaderFormatVersion);
+    put_u16(encoded, 62, manifest.format_version);
+    put_u16(encoded, 64, manifest.format_version);
     put_u16(encoded, 66, kSegmentCommitFormatVersion);
     put_u64(encoded, 68, manifest.next_segment_id.value);
     put_u32(encoded, 76, manifest.next_segment_generation.value);
     put_u64(encoded, kManifestWorkerHashSeedOffset, manifest.worker_hash_seed);
     put_u32(encoded, kManifestChecksumOffset, 0);
+    if (manifest.format_version == 2) {
+        std::memcpy(encoded.data() + 92, manifest.next_blob_id.data(), 16);
+        put_u64(encoded, 108, 1);
+        put_u16(encoded, 116, 1);
+        put_u16(encoded, 118, 1);
+        put_u16(encoded, 120, 1);
+        put_u16(encoded, 122, 20);
+    }
 
     for (std::size_t index = 0; index < manifest.segments.size(); ++index) {
         const auto offset = kManifestHeaderBytes + index * kManifestSegmentEntryBytes;
@@ -182,13 +194,15 @@ auto decode_manifest(const std::span<const std::byte> bytes) -> Result<Manifest>
     if (bytes.size() < kManifestHeaderBytes) {
         return fail(ErrorCode::invalid_record, "manifest is shorter than its v1 header");
     }
-    if (get_u32(bytes, 0) != kManifestMagic || get_u16(bytes, 4) != kManifestFormatVersion ||
+    if (get_u32(bytes, 0) != kManifestMagic || (get_u16(bytes, 4) != 1 && get_u16(bytes, 4) != 2) ||
         get_u16(bytes, 6) != kManifestHeaderBytes || get_u16(bytes, 12) != kManifestSegmentEntryBytes ||
         get_u16(bytes, 14) != 0 || get_u16(bytes, 60) != kSegmentFormatVersion ||
-        get_u16(bytes, 62) != kRecordFormatVersion || get_u16(bytes, 64) != kSegmentHeaderFormatVersion ||
+        get_u16(bytes, 62) != get_u16(bytes, 4) || get_u16(bytes, 64) != get_u16(bytes, 4) ||
         get_u16(bytes, 66) != kSegmentCommitFormatVersion ||
-        !all_zero(bytes.subspan(kManifestWorkerHashSeedOffset + sizeof(std::uint64_t),
-                                44U - sizeof(std::uint64_t)))) {
+        (get_u16(bytes, 4) == 1
+             ? !all_zero(bytes.subspan(92, 36))
+             : (get_u64(bytes, 108) != 1 || get_u16(bytes, 116) != 1 || get_u16(bytes, 118) != 1 ||
+                get_u16(bytes, 120) != 1 || get_u16(bytes, 122) != 20 || !all_zero(bytes.subspan(124, 4))))) {
         return fail(ErrorCode::invalid_record,
                     "manifest magic, versions, sizes, or reserved fields are invalid");
     }
@@ -214,6 +228,10 @@ auto decode_manifest(const std::span<const std::byte> bytes) -> Result<Manifest>
         .next_segment_id = SegmentId{get_u64(bytes, 68)},
         .next_segment_generation = GenerationId{get_u32(bytes, 76)},
     };
+    manifest.format_version = get_u16(bytes, 4);
+    if (manifest.format_version == 2) {
+        std::memcpy(manifest.next_blob_id.data(), bytes.data() + 92, 16);
+    }
     std::memcpy(manifest.store_id.data(), bytes.data() + 16, manifest.store_id.size());
     manifest.segments.reserve(segment_count);
     for (std::size_t index = 0; index < segment_count; ++index) {

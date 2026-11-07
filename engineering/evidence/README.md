@@ -1,6 +1,21 @@
 # Retained evidence drops for tagged claims (Phase D+).
 # Populate from CI artifacts / campaign records; do not invent E3/E4.
 
+- [`blob-lifecycle-local-2026-11-07.md`](blob-lifecycle-local-2026-11-07.md) records local staging
+  cleanup, terminal exception, peak quota and sync-hook regressions for embedded blobs.
+  It covers a limited lifecycle subset and does not close the blob or durability gates.
+- [`compaction-delta-local-2026-11-07.md`](compaction-delta-local-2026-11-07.md) records the isolated
+  v1 bounded-delta native/sanitizer/allocation/crash campaign and controlled staging smoke samples.
+  It is local macOS prototype evidence, without a p99.9 improvement or release acceptance claim.
+- [`code-style-local-2026-11-07.md`](code-style-local-2026-11-07.md) records the shared pinned
+  formatter, native source coverage and eight-check static-analysis campaign, including the
+  concurrent-feature rebuild limitation. It is local evidence only.
+- [`cpp-correctness-local-2026-11-07.md`](cpp-correctness-local-2026-11-07.md) records the
+  local C++ allocation, deadline, observer, aliasing and cold-read lifetime repairs. It does not
+  promote a gate or provide CI, release or durability certification.
+- [`dependabot-local-2026-11-07.md`](dependabot-local-2026-11-07.md) records local CodeQL
+  revision/grouping regressions and TLC checks for Dependabot workflow repairs. It is neither
+  hosted CI nor release evidence.
 - [`sdk-installed-secure-profile.md`](sdk-installed-secure-profile.md) defines the temporary CI
   evidence bundle for the installed six-SDK secure-profile matrix. It is not a tagged claim drop.
 - [`adr0036-slot-token-local-2026-08-27.md`](adr0036-slot-token-local-2026-08-27.md) records a local,

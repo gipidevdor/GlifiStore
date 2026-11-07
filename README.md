@@ -165,6 +165,14 @@ The installed shared-library boundary is C ABI v1 (`GlifiStore::abi` or
 unstable before 1.0, and an ABI contract does not raise the product above architectural-prototype
 status.
 
+### Large values in the embedded prototype
+
+A new durable paired Store may opt in with `StoreConfig::enable_blobs = true`. Single-item
+`put/get/erase` then support values up to **64 MiB**, with `begin_blob_put` / `open_blob` for
+bounded streaming. Blob files are immutable and typed references use an explicit persistence v2
+profile; existing v1 Stores are not upgraded. Daemon, SDK and C ABI blob support remain deferred.
+See [Large Blob Storage v1](docs/spec/large-blob-storage-v1.md) and its open assurance gate.
+
 ## Native clients
 
 Every client implements default FNV wire-v2 routing, monotonic deadlines, bounded ordered pipelines

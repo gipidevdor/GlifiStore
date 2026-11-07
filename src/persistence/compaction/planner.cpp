@@ -9,7 +9,8 @@ namespace glifistore {
 
 auto plan_durable_worker_compaction(const Manifest& current, const WorkerId worker_id,
                                     const std::size_t output_segment_count,
-                                    const DurableResourceLimits& limits) -> Result<DurableCompactionPlan> {
+                                    const DurableResourceLimits& limits,
+                                    const std::uint64_t blob_reclaim_bytes) -> Result<DurableCompactionPlan> {
     if (auto valid = validate_durable_manifest_resources(current, limits); !valid) {
         return unexpected(valid.error());
     }
@@ -34,7 +35,8 @@ auto plan_durable_worker_compaction(const Manifest& current, const WorkerId work
         return fail(ErrorCode::invalid_argument, "durable compaction output exceeds its sealed source set");
     }
     if (auto amplification =
-            validate_compaction_write_amplification(plan.sources.size(), output_segment_count, limits);
+            validate_compaction_write_amplification(plan.sources.size(), output_segment_count, limits,
+                                                    current.format_version == 2 ? blob_reclaim_bytes : 0);
         !amplification) {
         return unexpected(amplification.error());
     }
@@ -70,7 +72,10 @@ auto plan_durable_worker_compaction(const Manifest& current, const WorkerId work
         return unexpected(valid.error());
     }
     plan.temporary_bytes = estimate->temporary_bytes;
-    plan.reclaimed_bytes = estimate->reclaimed_bytes;
+    if (blob_reclaim_bytes > std::numeric_limits<std::uint64_t>::max() - estimate->reclaimed_bytes) {
+        return fail(ErrorCode::arithmetic_overflow, "compaction total reclaim overflow");
+    }
+    plan.reclaimed_bytes = estimate->reclaimed_bytes + (current.format_version == 2 ? blob_reclaim_bytes : 0);
 
     if (auto encoded = encoded_manifest_size(plan.next_manifest); !encoded) {
         return unexpected(encoded.error());

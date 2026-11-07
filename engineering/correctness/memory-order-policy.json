@@ -192,6 +192,40 @@
       "required_happens_before": "release generation/queue/stop publication pairs with acquire adoption/consumption; lease fence and acq_rel drop close reclamation; execution token acq_rel serializes shard mutation",
       "invariant": "one mutator owns a shard; Readers see complete immutable generations; pins/leases outlive borrows; reclaim precedes reuse only after a safe epoch",
       "relaxed_justification": "relaxed fields are Writer-owned state, sequence-protected memory census, or telemetry; the token, queue, publication, lease, health, and shutdown atomics carry synchronization"
+    },
+    {
+      "id": "compaction-delta-journal",
+      "paths": [
+        "src/persistence/compaction_delta.hpp"
+      ],
+      "classification": "bounded maintenance journal exhaustion and owner handoff",
+      "allowed_orders": [
+        "relaxed",
+        "acquire",
+        "release"
+      ],
+      "writer": "the serialized mutable Index publisher for the compacted Worker",
+      "readers": "the same publisher and the compactor after the commit gate drains publishers",
+      "published_or_protected_data": "sticky journal overflow status; non-atomic entries and key bytes remain protected by Worker ownership and the commit gate",
+      "required_happens_before": "overflow release is observed by acquire checks; commit-gate ownership and publisher drain, not the overflow flag, order journal entry writes before replay",
+      "invariant": "journal overflow abandons only the private compaction; no replay races Index publication and no journal append exceeds preallocated entry/key capacity",
+      "relaxed_justification": "the relaxed load is the sole serialized publisher checking its own sticky overflow flag; replay uses acquire and separately requires publisher quiescence"
+    },
+    {
+      "id": "blob-materialization-admission",
+      "paths": [
+        "src/store/store_blob.cpp"
+      ],
+      "classification": "self-contained owning-read byte admission counter",
+      "allowed_orders": [
+        "relaxed"
+      ],
+      "writer": "concurrent owning blob reads reserving and releasing materialization bytes",
+      "readers": "owning blob reads attempting their own atomic reservation",
+      "published_or_protected_data": "only the aggregate outstanding materialization byte charge; each returned value has independent ownership",
+      "required_happens_before": "none for value payloads; the successful atomic compare/exchange reserves capacity before allocation and the scope guard releases it",
+      "invariant": "successful reservations do not exceed the materialization cap and every acquired charge is released without publishing another read payload",
+      "relaxed_justification": "the relaxed load is only the initial compare/exchange candidate; the successful RMW decides admission and no non-atomic payload is published through the counter"
     }
   ]
 }

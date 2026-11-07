@@ -8,11 +8,15 @@ gates:
   prove:
   - tests/consumer
   - tests/integration/store_tests.cpp
+  - tests/unit/value_tests.cpp
+  - tests/unit/prepared_read_tests.cpp
   piattaforme:
   - linux-x86_64
   - macos-arm64
   evidenze:
   - workflow: ci.yml
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Additional aliasing/lifetime regressions verified locally; no CI promotion
   stato: PROVATA_IN_CI
   rischio_residuo: No ABI stability before 1.0
   riapertura:
@@ -104,6 +108,8 @@ gates:
   - tests/integration/server_reactor_mutation_window_tests.cpp
   - tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
   - tests/fixtures/error_taxonomy_v1.json
+  - tests/unit/client_transport_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
   - tests/integration/server_reactor_security_tests.cpp
   - tests/integration/server_reactor_durable_lifecycle_tests.cpp
   - tests/integration/server_reactor_durable_wire_tests.cpp
@@ -114,6 +120,8 @@ gates:
   evidenze:
   - workflow: ci.yml
   - workflow: formal-models.yml
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: C++ client outcome/deadline and slot observer fixes; local evidence only
   stato: PROVATA_IN_CI
   rischio_residuo: Formal model bounds and declared fairness do not prove real scheduler fairness;
     checker history size bounded; admitted Store mutations remain non-cancellable by disconnect/timeout
@@ -311,6 +319,8 @@ gates:
   - GS-CORE-BUILD-001
   prove:
   - engineering/tools/run_clang_tidy_gate.py
+  - engineering/tools/format_code.py
+  - scripts/tests/test_code_format.py
   - scripts/tests/test_clang_tidy_gate.py
   - scripts/tests/test_ci_workflow.py
   piattaforme:
@@ -319,6 +329,8 @@ gates:
   evidenze:
   - workflow: static-analysis.yml
   - path: engineering/evidence/quality-hardening-local-2026-08-30.md
+  - path: engineering/evidence/code-style-local-2026-11-07.md
+    note: Additional style checks are locally verified; the modified workflow has not run in CI
   stato: PROVATA_IN_CI
   rischio_residuo: The all-target profile intentionally remains diagnostic for lower-confidence,
     test-macro-sensitive, and toolchain-sensitive findings; production fail-closed tidy runs on
@@ -328,7 +340,9 @@ gates:
   - Running the fail-closed pass over fewer production sources than the compile database contains
   narrative: The gate derives production translation units from compile_commands.json and rejects
     unchecked optional access, use-after-move, analyzer dead stores, and declaration/definition
-    parameter-name drift without claiming that the wider diagnostic profile is warning-free.
+    parameter-name drift, unbraced control flow, duplicate includes, obsolete null constants and
+    missing override. The shared formatter checker also covers native tools, probes and C consumers.
+    The wider diagnostic profile is not claimed warning-free.
 - id: GATE-FAULT-INJECTION
   titolo: Fault injection for allocation filesystem clock socket thread failures
   sezione: verification
@@ -338,6 +352,7 @@ gates:
   - GS-PERSIST-FAULT-001
   - GS-PERSIST-AMP-001
   prove:
+  - tests/quality/allocation_fault_client_tests.cpp
   - tests/integration/persistence_recovery_tests.cpp
   - tests/integration/persistence_recovery_compaction_tests.cpp
   - tests/integration/persistence_recovery_compaction_fileio_tests.cpp
@@ -573,6 +588,7 @@ gates:
   - .github/workflows/actionlint.yml
   - .github/workflows/release.yml
   - engineering/tools/validate_actions_pins.py
+  - scripts/tests/test_actions_pins.py
   - scripts/verify_hardening.py
   piattaforme:
   - linux-x86_64
@@ -584,6 +600,8 @@ gates:
   - workflow: actionlint.yml
   - workflow: assurance.yml
   - workflow: release.yml
+  - path: engineering/evidence/dependabot-local-2026-11-07.md
+    note: Local workflow repairs and bounded TLC checks; gate status unchanged
   stato: IMPLEMENTATA
   rischio_residuo: Project GPG / full SLSA L3 optional; Dependabot must update SHAs; no tagged security-matrix evidence has been retained yet
   riapertura:

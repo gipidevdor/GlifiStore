@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Fixed-memory latency buckets for bounded percentile observations.
+ */
 #pragma once
 
 #include <algorithm>
@@ -10,9 +14,9 @@
 
 namespace glifistore {
 
-// Fixed upper-bound latency histogram for STATS export. Buckets are inclusive
-// "le" thresholds in nanoseconds (Prometheus-style cumulative counts). Zero means
-// unlimited collection; observe() is lock-free only when the caller serializes.
+/// Fixed-memory latency histogram for STATS export. Each stored count belongs
+/// to one inclusive upper-bound bucket in nanoseconds; cumulative() produces
+/// Prometheus-style le counts. Access requires external serialization.
 struct LatencyHistogram final {
     static constexpr std::array<std::uint64_t, 8> kBoundsNs{
         1'000ULL,                                  // 1 µs
@@ -42,7 +46,7 @@ struct LatencyHistogram final {
                      : sum_ns + sample_ns;
     }
 
-    // Cumulative le_* counts for export (counts[i] = observations with value <= bound[i]).
+    /// Cumulative le_* counts for export (counts[i] = observations with value <= bound[i]).
     [[nodiscard]] auto cumulative() const noexcept -> std::array<std::uint64_t, kBoundsNs.size()> {
         std::array<std::uint64_t, kBoundsNs.size()> out{};
         std::uint64_t running{};
@@ -53,8 +57,9 @@ struct LatencyHistogram final {
         return out;
     }
 
-    // Bucket-interpolated approximate percentile. Returns 0 when empty. The
-    // +Inf bucket contributes its lower bound (1 s) as a conservative estimate.
+    /// Bucket-interpolated approximate percentile. Returns 0 when empty. The
+    /// +Inf bucket contributes its lower bound (1 s); larger samples are not
+    /// recoverable from the histogram and this estimate can understate them.
     [[nodiscard]] auto approximate_percentile_ns(const double percentile) const noexcept -> std::uint64_t {
         if (observations == 0 || !(percentile >= 0.0) || percentile > 1.0) {
             return 0;
@@ -94,7 +99,7 @@ struct LatencyHistogram final {
     return std::to_string(bound_ns);
 }
 
-// Appends count/sum/le_*/p50/p99 lines under `prefix` (for example "lane[0].queue_wait_ns").
+/// Appends count/sum/le_*/p50/p99 lines under `prefix` (for example "lane[0].queue_wait_ns").
 inline void append_latency_histogram(std::string& out, const std::string_view prefix,
                                      const LatencyHistogram& histogram) {
     out += prefix;

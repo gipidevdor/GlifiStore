@@ -4,13 +4,15 @@ This document records the formats understood by the current `0.1.x` code line. I
 reader/writer matrix for persistence and wire codecs. Released migration policy is separate and is
 not implied by this matrix.
 
-Durable persistence has one format family: v1. All durable policies differ only in commit timing and
-acknowledgement semantics; they read and write the same v1 bytes.
+Default durable persistence remains family v1. ADR 0042 adds an explicit embedded-only blob
+profile in family v2; opening a v1 Store never upgrades it. Within either profile, durable policies
+share that profile's bytes and differ in acknowledgement timing. Blob payload installation is
+strict even for periodic descriptor commits.
 
 Format versions are independent. A library version never implies that manifest, Segment, Record,
 and wire versions advance together.
 
-## Current codecs
+## Default v1 codecs
 
 | Component | Current version | Current reader | Current writer | Canonical evidence | Status |
 |---|---:|---|---|---|---|
@@ -28,6 +30,25 @@ reserved bytes are rejected. Wire v2 likewise rejects non-zero flags/reserved fi
 non-canonical opcode-specific key, value, expiry, and target-Worker combinations.
 Record v1 additionally requires the minimal 8-byte-aligned extent and zero alignment padding, so
 one logical Record cannot have multiple correctly checksummed encodings.
+
+## Opt-in blob profile
+
+[ADR 0042](../adr/0042-large-blob-storage.md) and
+[Large Blob Storage v1](../spec/large-blob-storage-v1.md) govern this separate prototype profile:
+
+| Component | Version | Compatibility boundary |
+| --- | --- | --- |
+| Manifest / bootstrap | 2 | Required feature/version fields checked before recovery |
+| Segment container / commit slots | 1 / 1 | Existing 64 MiB geometry and slot contract |
+| Segment header / Record | 2 / 2 | Typed BlobRef plus unchanged 1 MiB physical Record bound |
+| Compaction intent | 2 | Both embedded Manifests must have the same v2 profile |
+| Blob file / BlobRef | 1 / 1 | Separate explicit codecs, not arbitrary value prefixes |
+
+The new engine can decode both profiles but admits v2 only through the explicit paired durable
+embedded configuration. Earlier v1 engines reject the v2 Manifest. Wire v2, daemon, SDK and C ABI
+blob enablement are deferred. Independent fixtures come from
+[`generate_blob_fixtures.py`](../../scripts/generate_blob_fixtures.py); local tests do not establish
+released cross-version compatibility or E3/E4 certification.
 
 ## Reader/writer matrix
 

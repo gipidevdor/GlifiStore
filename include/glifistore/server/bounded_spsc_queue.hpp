@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Server alias for the paired runtime single-producer, single-consumer queue.
+ */
 #pragma once
 
 // Compatibility header. The bounded SPSC ring moved into glifistore_core with

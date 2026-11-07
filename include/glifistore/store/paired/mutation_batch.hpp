@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Bounded mutation grouping helpers for externally serialized Writer execution.
+ */
 #pragma once
 
 // Sync/async mutation batching helpers (behavior-neutral extraction).
@@ -33,7 +37,7 @@ template <typename KeyFn>
     return end;
 }
 
-// Cap a sync volatile publication chunk at kMaximumPublicationBatch.
+/// Cap a sync volatile publication chunk at kMaximumPublicationBatch.
 [[nodiscard]] constexpr auto sync_publication_chunk_cap(const std::size_t remaining) noexcept -> std::size_t {
     return remaining < kMaximumPublicationBatch ? remaining : kMaximumPublicationBatch;
 }

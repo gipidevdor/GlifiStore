@@ -51,7 +51,7 @@ GLIFI_TEST("record v1 matches its golden binary-key fixture") {
     GLIFI_REQUIRE(fixture.back() == std::byte{0});
 
     auto future = fixture;
-    future[4] = std::byte{2};
+    future[4] = std::byte{3};
     put_u32(future, 20, glifistore::crc32c_with_zeroed_checksum_field(future));
     const auto unknown_version = glifistore::decode_record(future);
     GLIFI_REQUIRE(!unknown_version.has_value());

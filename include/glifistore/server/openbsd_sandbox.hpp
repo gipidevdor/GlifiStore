@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief OpenBSD pledge/unveil planning from resolved daemon resources.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -20,11 +24,17 @@ namespace glifistore::server {
 // authz-map paths (r) when configured; Unix socket parent directory (rwc) for
 // bind/unlink when --unix-socket is set. Fail closed when applied.
 
+/**
+ * @brief Resolved path and unveil permission string to install before locking down the namespace.
+ */
 struct OpenbsdUnveilEntry {
     std::filesystem::path path{};
     std::string permissions{}; // unveil(2) permission string, e.g. "rwc" or "r"
 };
 
+/**
+ * @brief Observable platform support plus the complete unveil/pledge plan.
+ */
 struct OpenbsdSandboxPlan {
     bool available{};
     std::vector<OpenbsdUnveilEntry> unveils{};
@@ -40,13 +50,13 @@ struct OpenbsdSandboxPlan {
 
 [[nodiscard]] auto openbsd_sandbox_supported() noexcept -> bool;
 
-// Builds the unveil plan from resolved daemon options. Paths are absolute;
-// missing optional paths are omitted. Does not call unveil/pledge.
+/// Builds the unveil plan from resolved daemon options. Paths are absolute;
+/// missing optional paths are omitted. Does not call unveil/pledge.
 [[nodiscard]] auto plan_openbsd_sandbox(const DaemonOptions& options) -> Result<OpenbsdSandboxPlan>;
 
-// Applies unveil then pledge. No-op success when !openbsd_sandbox_supported().
-// Fail closed on any unveil/pledge error (including empty durable path when
-// storage requires a data directory that was not opened yet).
+/// Applies unveil then pledge. No-op success when !openbsd_sandbox_supported().
+/// Fail closed on any unveil/pledge error (including empty durable path when
+/// storage requires a data directory that was not opened yet).
 [[nodiscard]] auto apply_openbsd_sandbox(const DaemonOptions& options) -> Status;
 
 } // namespace glifistore::server

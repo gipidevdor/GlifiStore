@@ -80,7 +80,7 @@ auto encode_compaction_intent(const std::span<std::byte> out, const DurableCompa
     }
     std::vector<std::byte> encoded(*total, std::byte{0});
     put_u32(encoded, 0, kCompactionIntentMagic);
-    put_u16(encoded, 4, kCompactionIntentFormatVersion);
+    put_u16(encoded, 4, intent.old_manifest.format_version);
     put_u16(encoded, 6, static_cast<std::uint16_t>(kCompactionIntentHeaderBytes));
     put_u32(encoded, 8, static_cast<std::uint32_t>(*total));
     put_u32(encoded, 12, intent.worker_id.value);
@@ -114,7 +114,7 @@ auto decode_compaction_intent(const std::span<const std::byte> bytes) -> Result<
     if (bytes.size() < kCompactionIntentHeaderBytes) {
         return fail(ErrorCode::invalid_record, "compaction intent is shorter than its v1 header");
     }
-    if (get_u32(bytes, 0) != kCompactionIntentMagic || get_u16(bytes, 4) != kCompactionIntentFormatVersion ||
+    if (get_u32(bytes, 0) != kCompactionIntentMagic || (get_u16(bytes, 4) != 1 && get_u16(bytes, 4) != 2) ||
         get_u16(bytes, 6) != kCompactionIntentHeaderBytes || !all_zero(bytes.subspan(60, 68))) {
         return fail(ErrorCode::invalid_record,
                     "compaction intent magic, version, header size, or reserved fields are invalid");
@@ -142,6 +142,10 @@ auto decode_compaction_intent(const std::span<const std::byte> bytes) -> Result<
     DurableCompactionIntent intent{.worker_id = WorkerId{get_u32(bytes, 12)},
                                    .old_manifest = std::move(*old_manifest),
                                    .next_manifest = std::move(*next_manifest)};
+    if (intent.old_manifest.format_version != get_u16(bytes, 4) ||
+        intent.next_manifest.format_version != get_u16(bytes, 4)) {
+        return fail(ErrorCode::invalid_record, "compaction intent profile mismatch");
+    }
     StoreId encoded_store{};
     std::memcpy(encoded_store.data(), bytes.data() + 16, encoded_store.size());
     if (encoded_store != intent.old_manifest.store_id ||

@@ -88,6 +88,16 @@ stable release. The current release-claim ceiling remains architectural prototyp
 | [C++ TCP client API](reference/cpp-client-api.md) | Client routing, mutation outcomes, lifecycle, and SDK contract |
 | [C ABI v1](spec/c-abi-v1.md) | Stable language-neutral ABI, layouts, ownership and mutation outcomes |
 
+## Opt-in prototype extensions
+
+[Large Blob Storage v1](spec/large-blob-storage-v1.md) and
+[ADR 0042](adr/0042-large-blob-storage.md) define the embedded streaming path for values up to
+64 MiB, immutable external blob files and an explicit opt-in persistence v2 boundary. It is an
+implemented prototype with open qualification gates; default persistence v1, wire v2 and the
+architectural-prototype release ceiling remain unchanged.
+Implementation and evidence are tracked by the open
+[blob gates](../engineering/gates/large-blobs.yaml).
+
 ## Architecture and implementation guides
 
 The documents in `docs/architecture/` explain rationale, implementation state, and detailed recovery
@@ -137,6 +147,7 @@ source package documents its language-specific API and concurrency contract:
 - [ADR index and lifecycle](adr/README.md)
 - [Glossary](glossary.md)
 - [Code tour](development/code-tour.md)
+- [Native code style and automatic checks](development/code-style.md)
 - [Test strategy](development/test-strategy.md)
 - [Threat model](security/threat-model.md)
 - [Security implementation roadmap](security/roadmap.md)

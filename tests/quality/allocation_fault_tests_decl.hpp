@@ -4,11 +4,15 @@
 
 namespace allocation_fault_test {
 void run_exhaustive_allocation_failures(const Scenario& scenario);
+void run_client_mutation_allocation_failures();
+void run_client_late_response_allocation();
+void run_slot_pool_mirror_without_allocation();
 void run_no_post_write_allocation(const glifistore::DurableRuntimeOptions options);
 void run_paired_volatile_get_inline_zero_heap();
 void run_exhaustive_read_failures();
 void run_background_allocation_failure_waiters();
 void run_exhaustive_compaction_allocation_failures();
+void run_compaction_delta_without_allocation();
 void run_volatile_rotation_allocation_failures();
 void run_volatile_vacuum_publication_allocation_failures();
 void run_index_tombstone_rebuild_allocation_failures();

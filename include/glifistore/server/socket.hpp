@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Move-only socket/listener ownership and nonblocking transport setup.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -11,6 +15,9 @@
 
 namespace glifistore::server {
 
+/**
+ * @brief Move-only descriptor owner. release() transfers responsibility; descriptor() only borrows it.
+ */
 class SocketHandle final {
   public:
     SocketHandle() = default;
@@ -32,19 +39,29 @@ class SocketHandle final {
         return descriptor_ >= 0;
     }
 
+    /**
+     * @brief Detach the descriptor without closing it; the caller becomes its sole owner.
+     */
     [[nodiscard]] auto release() noexcept -> int;
+    /**
+     * @brief Close the current descriptor and adopt the replacement, or become empty for -1.
+     */
     void reset(int descriptor = -1) noexcept;
 
   private:
     int descriptor_{-1};
 };
 
+/**
+ * @brief Owning nonblocking TCP listener; accepted sockets transfer ownership to the caller.
+ */
 class TcpListener final {
   public:
     TcpListener() = default;
 
     [[nodiscard]] static auto bind(std::string_view address, std::uint16_t port, int backlog = 512,
                                    bool reuse_port = false) -> Result<TcpListener>;
+    /// @brief Transfer an accepted socket; successful nullopt means no connection is ready.
     [[nodiscard]] auto accept() const -> Result<std::optional<SocketHandle>>;
 
     [[nodiscard]] auto descriptor() const noexcept -> int {
@@ -62,8 +79,8 @@ class TcpListener final {
     std::uint16_t port_{};
 };
 
-// AF_UNIX stream listener (Phase 8 / ADR 0029). One acceptor per process; path is
-// unlinked on bind (stale) and again when the owning listener is destroyed.
+/// AF_UNIX stream listener (Phase 8 / ADR 0029). One acceptor per process; path is
+/// unlinked on bind (stale) and again when the owning listener is destroyed.
 class UnixListener final {
   public:
     UnixListener() = default;
@@ -76,6 +93,7 @@ class UnixListener final {
 
     [[nodiscard]] static auto bind(const std::filesystem::path& path, int backlog = 512)
         -> Result<UnixListener>;
+    /// @brief Transfer an accepted socket; successful nullopt means no connection is ready.
     [[nodiscard]] auto accept() const -> Result<std::optional<SocketHandle>>;
 
     [[nodiscard]] auto descriptor() const noexcept -> int {

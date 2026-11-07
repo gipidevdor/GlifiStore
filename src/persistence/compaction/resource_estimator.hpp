@@ -25,6 +25,7 @@ struct CompactionResourceEstimate final {
                                                  const DurableResourceLimits& limits) -> Status;
 
 [[nodiscard]] auto validate_compaction_write_amplification(std::size_t source_count, std::size_t output_count,
-                                                           const DurableResourceLimits& limits) -> Status;
+                                                           const DurableResourceLimits& limits,
+                                                           std::uint64_t blob_reclaim_bytes = 0) -> Status;
 
 } // namespace glifistore

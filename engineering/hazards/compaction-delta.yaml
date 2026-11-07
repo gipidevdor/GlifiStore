@@ -1,0 +1,29 @@
+hazards:
+- id: HAZ-040
+  evento_pericoloso: Compaction installs a stale Index or resurrects erased state after concurrent mutations
+  cause:
+  - Missing group or TTL Index publication in the post-snapshot delta
+  - Silent journal overflow or dangling journal ownership
+  - Rotation changes the active identity or sealed tombstone domain
+  - Live-byte counters use physical copy bytes after concurrent overwrites
+  conseguenze:
+  - Lost acknowledged updates or resurrected values
+  - Premature source reclamation or incorrect maintenance pressure
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Preallocated owning journal, sticky overflow, full Manifest/source pin validation
+  - Log actual Index publications; drain Writer and group state; defer TTL housekeeping during final freeze
+  - Ordered bounded replay with checked live-byte reconciliation before Manifest publication
+  contenimento:
+  - Exact old-authority rollback before new Manifest; fail-closed recovery on persistent ambiguity
+  prove:
+  - tests/integration/persistence_compaction_delta_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  rischio_residuo: >-
+    Bounded journal may prevent reclaim progress under sustained writes. Local tests do not
+    establish native-platform durability, p99.9 improvement or E3/E4 certification.
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; no release acceptance
+  requisiti: [GS-PERSIST-DELTA-001]

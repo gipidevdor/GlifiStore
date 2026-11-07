@@ -64,7 +64,8 @@ auto PairReadGeneration::get(const HashedKey& key, const std::uint64_t now_ns) c
         return fail(ErrorCode::not_found, "key not found");
     }
     GS_PHASE_GET(value_copy);
-    return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns);
+    return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns,
+                                  decoded->type);
 }
 
 auto PairReadGeneration::prepare_durable(const HashedKey& key) const

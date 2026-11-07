@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Periodic/group durable flush scheduling and per-Worker batch coordination.
+ */
 #pragma once
 
 #include "glifistore/core/error.hpp"
@@ -16,6 +20,10 @@ namespace detail {
 class DurableFlushCoordinatorAccess;
 }
 
+/**
+ * @brief Own the periodic/group timer thread and serialize explicit blocking flush completion; the callback
+ * captures state that must outlive stop().
+ */
 class DurableFlushCoordinator final {
   public:
     using FlushCallback = std::function<Status(bool force_all)>;

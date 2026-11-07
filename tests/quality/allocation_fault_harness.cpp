@@ -46,6 +46,14 @@ struct Observation {
 };
 
 constinit thread_local ThreadState thread_state;
+
+struct AllocationDelay {
+    std::size_t size{};
+    std::chrono::milliseconds delay{};
+    bool fired{};
+};
+
+constinit thread_local AllocationDelay allocation_delay;
 constinit std::atomic_bool forbid_all{};
 constinit std::atomic_bool forbidden_allocation_observed{};
 // Cross-thread arm for paired Writer work (Writer runs on a dedicated thread).
@@ -81,6 +89,16 @@ auto end_forbid_all() noexcept -> bool {
     return forbidden_allocation_observed.load(std::memory_order_acquire);
 }
 
+void delay_next_allocation_of_size(const std::size_t size, const std::chrono::milliseconds delay) noexcept {
+    allocation_delay = {.size = size, .delay = delay};
+}
+
+auto end_allocation_delay() noexcept -> bool {
+    const auto fired = allocation_delay.fired;
+    allocation_delay = {};
+    return fired;
+}
+
 auto should_fail() noexcept -> bool {
     if (forbid_all.load(std::memory_order_acquire)) {
         forbidden_allocation_observed.store(true, std::memory_order_release);
@@ -105,6 +123,11 @@ auto should_fail() noexcept -> bool {
 }
 
 auto allocate(const std::size_t requested) -> void* {
+    if (allocation_delay.size != 0 && requested == allocation_delay.size) {
+        allocation_delay.size = 0;
+        allocation_delay.fired = true;
+        std::this_thread::sleep_for(allocation_delay.delay);
+    }
     if (should_fail()) {
         throw std::bad_alloc{};
     }

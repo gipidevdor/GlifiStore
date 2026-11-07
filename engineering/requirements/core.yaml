@@ -14,9 +14,13 @@ requirements:
   - docs/spec/index-v1.md
   implementazione:
   - include/glifistore/store/store.hpp
+  - include/glifistore/store/value.hpp
   - src/store/store.cpp
+  - src/store/prepared_cold_read.cpp
   prove:
   - tests/integration/store_tests.cpp
+  - tests/unit/value_tests.cpp
+  - tests/unit/prepared_read_tests.cpp
   - tests/consumer
   piattaforme:
   - linux-x86_64
@@ -25,6 +29,8 @@ requirements:
   evidenze:
   - workflow: ci.yml
     note: install-consumer job builds against installed prefix
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Local aliasing and cold-read lifetime regression campaign; not hosted CI
   rischio_residuo:
   - ABI not promised before 1.0
   gates:
@@ -72,11 +78,14 @@ requirements:
   descrizione: The build uses add_subdirectory for src/tools/tests/benchmarks/fuzz, keeps installed
     GlifiStore::core/server/client aliases, and enforces a documented dependency matrix,
     size/TODO waiver CI, pinned formatting, and a fail-closed high-signal static-analysis pass over
-    the production sources present in the compile database.
+    the production sources present in the compile database. One formatter entry point covers
+    tracked and new non-ignored C/C++ sources, including tools, packaging consumers and probes,
+    with a shared exact version pin for bootstrap, local verification and CI.
   autorita:
   - docs/assurance/engineering-baseline.md
   - engineering/build/dependency-matrix.yaml
   - engineering/build/structure-thresholds.yaml
+  - docs/development/code-style.md
   implementazione:
   - CMakeLists.txt
   - src/CMakeLists.txt
@@ -88,11 +97,15 @@ requirements:
   - engineering/tools/validate_structure_debt.py
   - engineering/tools/validate_cmake_deps.py
   - engineering/tools/run_clang_tidy_gate.py
+  - engineering/tools/format_code.py
+  - .clang-format
+  - .clang-format-version
   - .github/workflows/static-analysis.yml
   prove:
   - engineering/tools/validate_cmake_deps.py
   - engineering/tools/validate_structure_debt.py
   - scripts/tests/test_clang_tidy_gate.py
+  - scripts/tests/test_code_format.py
   - scripts/tests/test_ci_workflow.py
   piattaforme:
   - linux-x86_64
@@ -102,6 +115,8 @@ requirements:
   - workflow: assurance.yml
   - workflow: static-analysis.yml
   - path: engineering/evidence/quality-hardening-local-2026-08-30.md
+  - path: engineering/evidence/code-style-local-2026-11-07.md
+    note: Complete native formatting inventory and eight-check tidy gate; local evidence only
   rischio_residuo:
   - Further per-component OBJECT library splits remain optional; the 1600-line structure gate is green
     with empty active size waivers (WAV-001/002/003 revoked for audit trail only)

@@ -54,6 +54,27 @@ Store::~Store() {
 }
 
 auto Store::open(const StoreConfig& config) -> Result<std::unique_ptr<Store>> try {
+    std::uint64_t blob_recovery_bytes{};
+    if (config.enable_blobs) {
+        const auto& limits = config.blob_limits;
+        if (limits.max_files == 0 || limits.max_files > 1'000'000 || limits.max_bytes == 0 ||
+            limits.max_transfers == 0 || limits.max_transfers > 8 || limits.max_transfers_per_shard == 0 ||
+            limits.max_transfers_per_shard > limits.max_transfers) {
+            return fail(ErrorCode::invalid_argument, "invalid blob resource limits");
+        }
+        // Reserve bounded blob maps, root vectors and verification buffers from the
+        // existing recovery budget before either recovery subsystem allocates.
+        blob_recovery_bytes = 4ULL * 1024 * 1024 + 512ULL * limits.max_files;
+        if (config.durable_limits.max_recovery_memory_bytes <= blob_recovery_bytes) {
+            return fail(ErrorCode::invalid_argument,
+                        "recovery memory budget cannot contain blob metadata and buffers");
+        }
+    }
+    if (config.enable_blobs &&
+        (config.storage_mode == StorageMode::volatile_memory ||
+         config.concurrency != StoreConcurrencyMode::paired || config.paired.async_lane_capacity != 0)) {
+        return fail(ErrorCode::invalid_argument, "blobs require a durable paired embedded Store");
+    }
     if (config.storage_mode != StorageMode::volatile_memory &&
         config.storage_mode != StorageMode::durable_sync &&
         config.storage_mode != StorageMode::durable_periodic &&
@@ -152,12 +173,27 @@ auto Store::open(const StoreConfig& config) -> Result<std::unique_ptr<Store>> tr
     }
     if (auto prepared = prepare_durable_store(*directory, config.durable_open_mode, count,
                                               config.worker_config.explicit_count, config.durable_limits,
-                                              config.worker_routing);
+                                              config.worker_routing, config.enable_blobs);
         !prepared) {
         return unexpected(prepared.error());
     }
+    std::shared_ptr<detail::BlobStorage> blobs;
+    if (config.enable_blobs) {
+        auto manifest = directory->read_manifest(config.durable_limits.max_manifest_bytes);
+        if (!manifest) {
+            return unexpected(manifest.error());
+        }
+        auto opened = detail::BlobStorage::open(*directory, *manifest, config.blob_limits,
+                                                config.durable_limits.reserved_free_bytes);
+        if (!opened) {
+            return unexpected(opened.error());
+        }
+        blobs = std::move(*opened);
+    }
     DurableRuntimeOptions runtime_options{};
+    runtime_options.blob_storage = blobs;
     runtime_options.limits = config.durable_limits;
+    runtime_options.limits.max_recovery_memory_bytes -= blob_recovery_bytes;
     if (config.concurrency == StoreConcurrencyMode::paired) {
         // Generation-only ordinary reads (ADR 0032).
         runtime_options.limits.hot_cache_enabled = false;
@@ -180,9 +216,23 @@ auto Store::open(const StoreConfig& config) -> Result<std::unique_ptr<Store>> tr
         return unexpected(runtime.error());
     }
     auto impl = std::make_unique<Impl>(std::move(*runtime), config.clock, recovery_now_ns);
+    impl->blobs = blobs;
     auto store = std::unique_ptr<Store>(new Store(std::move(impl)));
     store->impl_->maintenance = std::make_unique<MaintenanceController>(config.maintenance);
     Store* const raw = store.get();
+    if (blobs) {
+        blobs->bind([raw](std::string_view key, std::span<const std::byte> value, std::uint64_t expiry,
+                          ValueType type) { return raw->put_record(key, value, expiry, type); },
+                    [raw]() -> Result<BlobId> {
+                        Impl::OperationGuard operation{*raw->impl_, raw->impl_->control_shard()};
+                        if (!operation) {
+                            return store_detail::closed_store();
+                        }
+                        return raw->impl_->durable_runtime->allocate_blob_id();
+                    },
+                    [raw] { raw->impl_->mark_durable_fail_closed(); });
+    }
+
     store->impl_->maintenance->bind_compact(
         [raw](const std::optional<std::size_t> preferred_worker,
               const std::uint64_t max_copy_bytes) -> Result<CompactionResult> {
@@ -230,7 +280,7 @@ auto Store::get(const std::span<const std::byte> key) -> Result<OwnedValue> {
     return get_copy(key);
 }
 
-auto Store::get_copy(const std::string_view key) -> Result<OwnedValue> try {
+auto Store::get_record(const std::string_view key) -> Result<OwnedValue> try {
     PrehashedKey hashed;
     {
         GS_PHASE_GET(hash);
@@ -305,8 +355,8 @@ auto Store::get_copy(const std::span<const std::byte> key) -> Result<OwnedValue>
     return get_copy(store_detail::as_string_view(key));
 }
 
-auto Store::put(const std::string_view key, const std::span<const std::byte> value,
-                const std::uint64_t expire_at_ns) -> Status try {
+auto Store::put_record(const std::string_view key, const std::span<const std::byte> value,
+                       const std::uint64_t expire_at_ns, const ValueType type) -> Status try {
     const PrehashedKey hashed{key, hash_key_routing(key, impl_->routing)};
     const auto shard = route_worker(hashed.hash, impl_->worker_count_value);
     Impl::OperationGuard operation{*impl_, shard};
@@ -321,10 +371,10 @@ auto Store::put(const std::string_view key, const std::span<const std::byte> val
     }
     if (impl_->pair_runtime) {
         return impl_->pair_runtime->mutate(shard, store::paired::MutationKind::put, hashed, value,
-                                           expire_at_ns);
+                                           expire_at_ns, type);
     }
     if (impl_->durable_runtime) {
-        return store_detail::durable_status(impl_->durable_runtime->put(hashed, value, expire_at_ns));
+        return store_detail::durable_status(impl_->durable_runtime->put(hashed, value, expire_at_ns, type));
     }
     return impl_->volatile_runtime->workers.route(hashed).put(hashed, value, expire_at_ns);
 } catch (const std::bad_alloc&) {
@@ -769,6 +819,10 @@ auto Store::compact() -> Result<CompactionResult> {
 
 auto Store::compact_for_maintenance(const std::optional<std::size_t> preferred_worker,
                                     const std::uint64_t max_copy_bytes) -> Result<CompactionResult> try {
+    std::shared_lock<std::shared_mutex> blob_snapshot;
+    if (impl_->blobs) {
+        blob_snapshot = impl_->blobs->snapshot_lock();
+    }
     Impl::OperationGuard operation{*impl_, impl_->control_shard()};
     if (!operation) {
         return store_detail::closed_store();
@@ -861,11 +915,17 @@ auto Store::maintenance_snapshot() const -> MaintenanceSnapshot {
     auto snapshot = impl_->maintenance->snapshot();
     if (impl_->durable_runtime) {
         snapshot.rotation = impl_->durable_runtime->rotation_stats();
+        snapshot.compaction = impl_->durable_runtime->compaction_stats();
     }
     return snapshot;
 }
 
-auto Store::close() -> Status try { return impl_->close(); } catch (const std::bad_alloc&) {
+auto Store::close() -> Status try {
+    if (impl_->blobs) {
+        impl_->blobs->close();
+    }
+    return impl_->close();
+} catch (const std::bad_alloc&) {
 
     return store_detail::resource_exhausted();
 } catch (...) {

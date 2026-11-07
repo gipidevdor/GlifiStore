@@ -10,7 +10,7 @@ namespace glifistore {
 detail::PreparedColdRead::PreparedColdRead(State&& state) noexcept {
     static_assert(sizeof(State) <= kStateBytes);
     static_assert(alignof(State) <= alignof(std::max_align_t));
-    std::construct_at(this->state(), std::move(state));
+    std::construct_at(reinterpret_cast<State*>(storage_.data()), std::move(state));
     engaged_ = true;
 }
 
@@ -31,7 +31,7 @@ void detail::PreparedColdRead::reset() noexcept {
 
 detail::PreparedColdRead::PreparedColdRead(PreparedColdRead&& other) noexcept {
     if (other.engaged_) {
-        std::construct_at(state(), std::move(*other.state()));
+        std::construct_at(reinterpret_cast<State*>(storage_.data()), std::move(*other.state()));
         engaged_ = true;
         other.reset();
     }
@@ -41,7 +41,7 @@ auto detail::PreparedColdRead::operator=(PreparedColdRead&& other) noexcept -> P
     if (this != &other) {
         reset();
         if (other.engaged_) {
-            std::construct_at(state(), std::move(*other.state()));
+            std::construct_at(reinterpret_cast<State*>(storage_.data()), std::move(*other.state()));
             engaged_ = true;
             other.reset();
         }

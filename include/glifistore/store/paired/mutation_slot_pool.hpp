@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Fixed mutation slots with borrowed input views and bounded payload ownership.
+ */
 #pragma once
 
 #include <cstddef>
@@ -10,14 +14,17 @@
 
 namespace glifistore::store::paired {
 
-// Reader-owned allocator for one paired mutation lane. The Reader acquires and
-// releases slots in completion order; the Writer only reads an immutable slot
-// between the mutation-queue release edge and the completion-queue release
-// edge. Consequently the payload path needs no mutex, refcount, or allocation.
+/// Reader-owned allocator for one paired mutation lane. The Reader acquires and
+/// releases slots in completion order; the Writer only reads an immutable slot
+/// between the mutation-queue release edge and the completion-queue release
+/// edge. Consequently the payload path needs no mutex, refcount, or allocation.
 class MutationSlotPool final {
   public:
     using SlotId = std::uint32_t;
 
+    /**
+     * @brief Distinguish slot exhaustion, byte exhaustion, and a single oversized payload.
+     */
     enum class AcquireFailure : std::uint8_t {
         none,
         slot_exhausted,
@@ -25,16 +32,26 @@ class MutationSlotPool final {
         payload_too_large,
     };
 
+    /**
+     * @brief Slot identity and logical admission charge; release follows completion order.
+     */
     struct Lease final {
         SlotId slot{};
         std::size_t admission_bytes{};
     };
 
+    /**
+     * @brief Either a payload lease or an explicit bounded-admission failure.
+     */
     struct AcquireResult final {
         std::optional<Lease> lease{};
         AcquireFailure failure{AcquireFailure::none};
     };
 
+    /**
+     * @brief Borrowed immutable slot bytes; valid only while the Writer owns the corresponding queued
+     * mutation.
+     */
     struct PayloadView final {
         std::string_view key;
         std::span<const std::byte> value;
@@ -48,20 +65,20 @@ class MutationSlotPool final {
     MutationSlotPool(MutationSlotPool&&) = delete;
     auto operator=(MutationSlotPool&&) -> MutationSlotPool& = delete;
 
-    // Copies key/value into one stable contiguous extent. admission_bytes is a
-    // stable logical charge supplied by the paired runtime and includes task
-    // metadata as well as payload bytes.
+    /// Copies key/value into one stable contiguous extent. admission_bytes is a
+    /// stable logical charge supplied by the paired runtime and includes task
+    /// metadata as well as payload bytes.
     [[nodiscard]] auto try_acquire(std::span<const std::byte> key, std::span<const std::byte> value,
                                    std::size_t admission_bytes) noexcept -> AcquireResult;
 
-    // Used only when queue publication fails immediately after acquisition.
+    /// Used only when queue publication fails immediately after acquisition.
     [[nodiscard]] auto rollback(Lease lease) noexcept -> bool;
 
-    // Completion-order release is part of the safety contract. Returning false
-    // means internal corruption/order violation and must fail the daemon closed.
+    /// Completion-order release is part of the safety contract. Returning false
+    /// means internal corruption/order violation and must fail the daemon closed.
     [[nodiscard]] auto release(SlotId slot) noexcept -> bool;
 
-    // Writer-only while the corresponding queue cell is owned by the Writer.
+    /// Writer-only while the corresponding queue cell is owned by the Writer.
     [[nodiscard]] auto view(SlotId slot) const noexcept -> std::optional<PayloadView>;
 
     [[nodiscard]] auto slot_capacity() const noexcept -> std::size_t {
