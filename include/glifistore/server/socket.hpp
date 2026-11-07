@@ -14,7 +14,9 @@ namespace glifistore::server {
 class SocketHandle final {
   public:
     SocketHandle() = default;
+
     explicit SocketHandle(int descriptor) noexcept : descriptor_(descriptor) {}
+
     ~SocketHandle();
 
     SocketHandle(const SocketHandle&) = delete;
@@ -25,9 +27,11 @@ class SocketHandle final {
     [[nodiscard]] auto descriptor() const noexcept -> int {
         return descriptor_;
     }
+
     [[nodiscard]] auto valid() const noexcept -> bool {
         return descriptor_ >= 0;
     }
+
     [[nodiscard]] auto release() noexcept -> int;
     void reset(int descriptor = -1) noexcept;
 
@@ -42,9 +46,11 @@ class TcpListener final {
     [[nodiscard]] static auto bind(std::string_view address, std::uint16_t port, int backlog = 512,
                                    bool reuse_port = false) -> Result<TcpListener>;
     [[nodiscard]] auto accept() const -> Result<std::optional<SocketHandle>>;
+
     [[nodiscard]] auto descriptor() const noexcept -> int {
         return socket_.descriptor();
     }
+
     [[nodiscard]] auto port() const noexcept -> std::uint16_t {
         return port_;
     }
@@ -71,9 +77,11 @@ class UnixListener final {
     [[nodiscard]] static auto bind(const std::filesystem::path& path, int backlog = 512)
         -> Result<UnixListener>;
     [[nodiscard]] auto accept() const -> Result<std::optional<SocketHandle>>;
+
     [[nodiscard]] auto descriptor() const noexcept -> int {
         return socket_.descriptor();
     }
+
     [[nodiscard]] auto path() const noexcept -> const std::filesystem::path& {
         return path_;
     }

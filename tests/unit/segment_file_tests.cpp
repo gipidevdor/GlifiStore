@@ -530,10 +530,12 @@ GLIFI_TEST("Segment handles fail closed when their data directory lifetime ends"
 
 GLIFI_TEST("deferred append defers synchronization until sync_file") {
     SegmentTemporaryDirectory temporary;
+
     struct SyncCounter {
         std::size_t sync_record_calls{};
         std::size_t sync_commit_slot_calls{};
     } counter;
+
     const auto hooks = glifistore::FilesystemHooks{
         .context = &counter,
         .before = [](void* context, const glifistore::FilesystemOperation operation) -> glifistore::Status {
@@ -571,11 +573,13 @@ GLIFI_TEST("deferred append defers synchronization until sync_file") {
 
 GLIFI_TEST("batched append_record defers commit slot until flush_pending_commit") {
     SegmentTemporaryDirectory temporary;
+
     struct SlotCounter {
         std::size_t sync_record_calls{};
         std::size_t write_commit_slot_calls{};
         std::size_t sync_commit_slot_calls{};
     } counter;
+
     const auto hooks = glifistore::FilesystemHooks{
         .context = &counter,
         .before = [](void* context, const glifistore::FilesystemOperation operation) -> glifistore::Status {

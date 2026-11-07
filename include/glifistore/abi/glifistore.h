@@ -5,22 +5,22 @@
 #include <stdint.h>
 
 #if defined(_WIN32)
-#  if defined(GLIFISTORE_ABI_BUILD)
-#    define GS_API __declspec(dllexport)
-#  else
-#    define GS_API __declspec(dllimport)
-#  endif
-#elif defined(__GNUC__) || defined(__clang__)
-#  define GS_API __attribute__((visibility("default")))
+#if defined(GLIFISTORE_ABI_BUILD)
+#define GS_API __declspec(dllexport)
 #else
-#  define GS_API
+#define GS_API __declspec(dllimport)
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#define GS_API __attribute__((visibility("default")))
+#else
+#define GS_API
 #endif
 
 #ifdef __cplusplus
-#  define GS_NOEXCEPT noexcept
+#define GS_NOEXCEPT noexcept
 extern "C" {
 #else
-#  define GS_NOEXCEPT
+#define GS_NOEXCEPT
 #endif
 
 #define GS_ABI_VERSION_MAJOR 1u
@@ -79,7 +79,7 @@ typedef uint32_t gs_durable_open_mode;
 typedef struct gs_store gs_store;
 
 typedef struct gs_bytes_view {
-    const uint8_t *data;
+    const uint8_t* data;
     size_t size;
 } gs_bytes_view;
 
@@ -126,27 +126,27 @@ GS_API uint32_t gs_abi_minor(void) GS_NOEXCEPT;
 GS_API uint32_t gs_product_version_major(void) GS_NOEXCEPT;
 GS_API uint32_t gs_product_version_minor(void) GS_NOEXCEPT;
 GS_API uint32_t gs_product_version_patch(void) GS_NOEXCEPT;
-GS_API const char *gs_product_version_string(void) GS_NOEXCEPT;
+GS_API const char* gs_product_version_string(void) GS_NOEXCEPT;
 
 /* Returns bytes required including the trailing NUL. */
-GS_API size_t gs_status_message(gs_status status, char *buffer, size_t capacity) GS_NOEXCEPT;
+GS_API size_t gs_status_message(gs_status status, char* buffer, size_t capacity) GS_NOEXCEPT;
 
-GS_API gs_status gs_store_options_init(gs_store_options *options) GS_NOEXCEPT;
-GS_API gs_status gs_store_open(const gs_store_options *options, gs_store **out_store) GS_NOEXCEPT;
+GS_API gs_status gs_store_options_init(gs_store_options* options) GS_NOEXCEPT;
+GS_API gs_status gs_store_open(const gs_store_options* options, gs_store** out_store) GS_NOEXCEPT;
 /* Consumes the handle. The caller must externally serialize close with all other calls. */
-GS_API gs_status gs_store_close(gs_store *store) GS_NOEXCEPT;
+GS_API gs_status gs_store_close(gs_store* store) GS_NOEXCEPT;
 
-GS_API gs_status gs_store_get(gs_store *store, gs_bytes_view key, uint8_t *output,
-                              size_t output_capacity, size_t *output_required) GS_NOEXCEPT;
-GS_API gs_mutation_result gs_store_put(gs_store *store, gs_bytes_view key,
-                                       gs_bytes_view value, uint64_t expire_at_ns) GS_NOEXCEPT;
-GS_API gs_mutation_result gs_store_erase(gs_store *store, gs_bytes_view key) GS_NOEXCEPT;
+GS_API gs_status gs_store_get(gs_store* store, gs_bytes_view key, uint8_t* output, size_t output_capacity,
+                              size_t* output_required) GS_NOEXCEPT;
+GS_API gs_mutation_result gs_store_put(gs_store* store, gs_bytes_view key, gs_bytes_view value,
+                                       uint64_t expire_at_ns) GS_NOEXCEPT;
+GS_API gs_mutation_result gs_store_erase(gs_store* store, gs_bytes_view key) GS_NOEXCEPT;
 
 /* Batch items linearize independently; this is not a transaction. */
-GS_API gs_status gs_store_put_batch(gs_store *store, const gs_put_request *requests,
-                                    size_t request_count, gs_mutation_result *results) GS_NOEXCEPT;
-GS_API gs_status gs_store_erase_batch(gs_store *store, const gs_erase_request *requests,
-                                      size_t request_count, gs_mutation_result *results) GS_NOEXCEPT;
+GS_API gs_status gs_store_put_batch(gs_store* store, const gs_put_request* requests, size_t request_count,
+                                    gs_mutation_result* results) GS_NOEXCEPT;
+GS_API gs_status gs_store_erase_batch(gs_store* store, const gs_erase_request* requests, size_t request_count,
+                                      gs_mutation_result* results) GS_NOEXCEPT;
 
 #ifdef __cplusplus
 } /* extern "C" */

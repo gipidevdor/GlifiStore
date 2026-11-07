@@ -96,9 +96,11 @@ class DurableSegmentFile final {
     [[nodiscard]] auto seal() -> SegmentCommitResult;
     [[nodiscard]] auto sync_file() -> SegmentCommitResult;
     [[nodiscard]] auto is_dirty() const noexcept -> bool;
+
     [[nodiscard]] auto persisted_commit() const noexcept -> const SelectedSegmentCommit& {
         return persisted_;
     }
+
     [[nodiscard]] auto visit_committed_records(void* context, CommittedRecordVisitor visitor) const -> Status;
     [[nodiscard]] auto scan_committed() const -> Result<std::vector<RecordRef>>;
     [[nodiscard]] auto read_record(const RecordRef& reference) const -> Result<std::vector<std::byte>>;
@@ -124,9 +126,11 @@ class DurableSegmentFile final {
     [[nodiscard]] auto identity() const noexcept -> const SegmentHeaderIdentity& {
         return identity_;
     }
+
     [[nodiscard]] auto selected_commit() const noexcept -> const SelectedSegmentCommit& {
         return selected_;
     }
+
     [[nodiscard]] auto healthy() const noexcept -> bool {
         return directory_health_ && directory_health_->load(std::memory_order_acquire);
     }

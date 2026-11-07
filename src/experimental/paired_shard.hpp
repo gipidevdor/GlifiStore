@@ -64,6 +64,7 @@ class PrototypeReadPin final {
 
   private:
     using Release = void (*)(void*, std::uint32_t) noexcept;
+
     PrototypeReadPin(void* owner, const std::uint32_t slot, Release release) noexcept
         : owner_(owner), slot_(slot), release_(release) {}
 

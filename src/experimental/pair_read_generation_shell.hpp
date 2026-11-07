@@ -35,6 +35,7 @@ class PairReadGenerationShellStorage final {
     [[nodiscard]] static auto create() -> Result<std::shared_ptr<PairReadGenerationShellStorage>> try {
         return std::make_shared<PairReadGenerationShellStorage>();
     } catch (const std::bad_alloc&) {
+
         return fail(ErrorCode::resource_exhausted, "generation shell backing-storage allocation failed");
     }
 
@@ -45,9 +46,11 @@ class PairReadGenerationShellStorage final {
     [[nodiscard]] auto occupied() const noexcept -> bool {
         return occupied_.load(std::memory_order_acquire);
     }
+
     [[nodiscard]] auto allocation_count() const noexcept -> std::uint64_t {
         return allocation_count_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto reuse_count() const noexcept -> std::uint64_t {
         return reuse_count_.load(std::memory_order_relaxed);
     }
@@ -88,11 +91,13 @@ class PairReadGenerationInlineShellStorage final {
     static constexpr std::size_t kAlignment = PairReadGenerationShellStorage::kAlignment;
 
     PairReadGenerationInlineShellStorage() = default;
+
     ~PairReadGenerationInlineShellStorage() {
         if (occupied_) {
             std::terminate();
         }
     }
+
     PairReadGenerationInlineShellStorage(const PairReadGenerationInlineShellStorage&) = delete;
     auto operator=(const PairReadGenerationInlineShellStorage&)
         -> PairReadGenerationInlineShellStorage& = delete;
@@ -100,6 +105,7 @@ class PairReadGenerationInlineShellStorage final {
     [[nodiscard]] auto allocation_count() const noexcept -> std::uint64_t {
         return allocation_count_;
     }
+
     [[nodiscard]] auto reuse_count() const noexcept -> std::uint64_t {
         return reuse_count_;
     }
@@ -150,6 +156,7 @@ template <std::size_t Capacity> class PairReadGenerationShellBank final {
         }
         return bank;
     } catch (const std::bad_alloc&) {
+
         return fail(ErrorCode::resource_exhausted, "generation shell bank allocation failed");
     }
 
@@ -281,11 +288,13 @@ template <std::size_t Capacity> class PairReadGenerationDirectRing final {
 
     explicit PairReadGenerationDirectRing(std::shared_ptr<const Generation> initial) noexcept
         : initial_owner_(std::move(initial)), current_(initial_owner_.get()) {}
+
     ~PairReadGenerationDirectRing() {
         if (current_slot_) {
             PairReadGenerationShellAccess::destroy_direct(current_, storage_[*current_slot_]);
         }
     }
+
     PairReadGenerationDirectRing(const PairReadGenerationDirectRing&) = delete;
     auto operator=(const PairReadGenerationDirectRing&) -> PairReadGenerationDirectRing& = delete;
 
@@ -313,9 +322,11 @@ template <std::size_t Capacity> class PairReadGenerationDirectRing final {
     [[nodiscard]] auto current() const noexcept -> const Generation* {
         return current_;
     }
+
     [[nodiscard]] auto allocation_count(const std::size_t index) const noexcept -> std::uint64_t {
         return index < Capacity ? storage_[index].allocation_count() : 0U;
     }
+
     [[nodiscard]] auto reuse_count(const std::size_t index) const noexcept -> std::uint64_t {
         return index < Capacity ? storage_[index].reuse_count() : 0U;
     }
@@ -343,6 +354,7 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
         Reservation(Reservation&& other) noexcept
             : owner_(std::exchange(other.owner_, nullptr)), slot_(other.slot_),
               store_linearized_(other.store_linearized_) {}
+
         auto operator=(Reservation&& other) noexcept -> Reservation& {
             if (this != &other) {
                 reset();
@@ -352,8 +364,10 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
             }
             return *this;
         }
+
         Reservation(const Reservation&) = delete;
         auto operator=(const Reservation&) -> Reservation& = delete;
+
         ~Reservation() {
             reset();
         }
@@ -361,12 +375,15 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
         void mark_store_linearized() noexcept {
             store_linearized_ = true;
         }
+
         [[nodiscard]] auto store_linearized() const noexcept -> bool {
             return store_linearized_;
         }
+
         [[nodiscard]] auto slot_index() const noexcept -> std::size_t {
             return slot_;
         }
+
         void reset() noexcept {
             if (owner_ != nullptr) {
                 auto* owner = std::exchange(owner_, nullptr);
@@ -377,9 +394,11 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
       private:
         Reservation(PairReadGenerationDirectSlotPool* owner, const std::size_t slot) noexcept
             : owner_(owner), slot_(slot) {}
+
         void consume() noexcept {
             owner_ = nullptr;
         }
+
         PairReadGenerationDirectSlotPool* owner_{};
         std::size_t slot_{};
         bool store_linearized_{};
@@ -419,6 +438,7 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
 
     PairReadGenerationDirectSlotPool(ConstructionToken, const GenerationSlotFailureHook failure_hook) noexcept
         : failure_hook_(failure_hook) {}
+
     ~PairReadGenerationDirectSlotPool() {
         if (!initialized_) {
             return;
@@ -431,6 +451,7 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
             std::terminate();
         }
     }
+
     PairReadGenerationDirectSlotPool(const PairReadGenerationDirectSlotPool&) = delete;
     auto operator=(const PairReadGenerationDirectSlotPool&) -> PairReadGenerationDirectSlotPool& = delete;
 
@@ -555,9 +576,11 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
             shutdown_starts_.fetch_add(1U, std::memory_order_relaxed);
         }
     }
+
     [[nodiscard]] auto accepting() const noexcept -> bool {
         return accepting_.load(std::memory_order_acquire);
     }
+
     [[nodiscard]] auto mark_reader_quiescent() noexcept -> bool {
         if (accepting_.load(std::memory_order_acquire) ||
             reserved_slots_.load(std::memory_order_acquire) != 0U) {
@@ -573,6 +596,7 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
         reader_quiescent_.store(true, std::memory_order_release);
         return true;
     }
+
     [[nodiscard]] auto try_finish_shutdown() noexcept -> bool {
         if (accepting_.load(std::memory_order_acquire) ||
             reserved_slots_.load(std::memory_order_acquire) != 0U ||
@@ -605,15 +629,18 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
                 .accepting = accepting_.load(std::memory_order_relaxed),
                 .reader_quiescent = reader_quiescent_.load(std::memory_order_relaxed)};
     }
+
     [[nodiscard]] auto shell_allocation_count(const std::size_t index) const noexcept -> std::uint64_t {
         return index < Capacity ? slots_[index].storage.allocation_count() : 0U;
     }
+
     [[nodiscard]] auto shell_reuse_count(const std::size_t index) const noexcept -> std::uint64_t {
         return index < Capacity ? slots_[index].storage.reuse_count() : 0U;
     }
 
   private:
     enum class SlotState : std::uint8_t { free, building, published, retired };
+
     struct Slot final {
         PairReadGenerationDirectStorage storage;
         const Generation* generation{};
@@ -622,6 +649,7 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
         std::uint64_t publication_count{};
         SlotState state{SlotState::free};
     };
+
     static constexpr std::uint64_t kSlotBits = 16U;
     static constexpr std::uint64_t kSlotMask = (1ULL << kSlotBits) - 1U;
     static constexpr std::uint64_t kMaximumEpoch = std::numeric_limits<std::uint64_t>::max() >> kSlotBits;
@@ -630,18 +658,22 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
         -> std::uint64_t {
         return (epoch << kSlotBits) | (static_cast<std::uint64_t>(slot) + 1U);
     }
+
     [[nodiscard]] static constexpr auto decode_epoch(const std::uint64_t token) noexcept -> std::uint64_t {
         return token >> kSlotBits;
     }
+
     [[nodiscard]] static constexpr auto decode_slot(const std::uint64_t token) noexcept -> std::size_t {
         return static_cast<std::size_t>((token & kSlotMask) - 1U);
     }
+
     static void destroy_slot(Slot& slot) noexcept {
         if (slot.generation != nullptr) {
             PairReadGenerationShellAccess::destroy_direct(slot.generation, slot.storage);
             slot.generation = nullptr;
         }
     }
+
     void update_high_watermark(const std::size_t value) noexcept {
         auto observed = live_high_watermark_.load(std::memory_order_relaxed);
         while (value > observed &&
@@ -649,6 +681,7 @@ template <std::size_t Capacity> class PairReadGenerationDirectSlotPool final {
                                                            std::memory_order_relaxed)) {
         }
     }
+
     void cancel_reservation(const std::size_t index, const bool linearized) noexcept {
         if (index >= Capacity || slots_[index].state != SlotState::building) {
             return;
@@ -724,6 +757,7 @@ template <std::size_t Capacity> class PairReadGenerationInlineSlotPool final {
 
     PairReadGenerationInlineSlotPool(ConstructionToken, std::unique_ptr<Pool> pool) noexcept
         : pool_(std::move(pool)) {}
+
     PairReadGenerationInlineSlotPool(const PairReadGenerationInlineSlotPool&) = delete;
     auto operator=(const PairReadGenerationInlineSlotPool&) -> PairReadGenerationInlineSlotPool& = delete;
 

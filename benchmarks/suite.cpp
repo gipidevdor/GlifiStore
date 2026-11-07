@@ -40,10 +40,12 @@ struct DurableContext {
     std::filesystem::path data_dir;
 
     explicit DurableContext(std::filesystem::path path) : data_dir(std::move(path)) {}
+
     DurableContext(const DurableContext&) = delete;
     auto operator=(const DurableContext&) -> DurableContext& = delete;
     DurableContext(DurableContext&&) = default;
     auto operator=(DurableContext&&) -> DurableContext& = default;
+
     ~DurableContext() {
         std::error_code ignored;
         std::filesystem::remove_all(data_dir, ignored);

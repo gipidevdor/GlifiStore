@@ -4,9 +4,11 @@
 namespace glifistore::store::paired {
 
 PairReadMerge::PairReadMerge(std::unique_ptr<State> state) noexcept : state_(std::move(state)) {}
+
 PairReadMerge::~PairReadMerge() = default;
 PairReadMerge::PairReadMerge(PairReadMerge&&) noexcept = default;
 auto PairReadMerge::operator=(PairReadMerge&&) noexcept -> PairReadMerge& = default;
+
 auto PairReadGeneration::finish_incremental_merge_direct(const PairReadGeneration& current,
                                                          PairReadMerge& merge,
                                                          GenerationDirectStorage& storage)
@@ -33,10 +35,12 @@ auto PairReadGeneration::finish_incremental_merge_direct(const PairReadGeneratio
         throw;
     }
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "direct incremental merge publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "direct incremental merge publication failed");
 }
+
 auto PairReadGeneration::start_incremental_merge(std::shared_ptr<const PairReadGeneration> cut,
                                                  const std::size_t maximum_post_entries)
     -> Result<std::unique_ptr<PairReadMerge>> try {
@@ -60,6 +64,7 @@ auto PairReadGeneration::start_incremental_merge(std::shared_ptr<const PairReadG
                                                         bounded_post_entries);
     return std::unique_ptr<PairReadMerge>{new PairReadMerge{std::move(state)}};
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "incremental read merge allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "incremental read merge construction failed");
@@ -126,6 +131,7 @@ auto PairReadGeneration::advance_incremental_merge(PairReadMerge& merge, const s
     }
     return processed;
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "incremental read merge quantum allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "incremental read merge quantum failed");
@@ -147,6 +153,7 @@ auto PairReadGeneration::finish_incremental_merge(std::shared_ptr<const PairRead
                                   std::move(merge.state_->post_delta), current->epoch_ + 1U,
                                   current->visible_through_);
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "incremental read merge publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "incremental read merge publication failed");

@@ -35,6 +35,7 @@ struct VacuumResult {
 class VacuumPlanner final {
   public:
     explicit VacuumPlanner(VacuumPolicy policy = {}) : policy_(policy) {}
+
     [[nodiscard]] auto candidates(std::span<const SegmentPtr> segments) const -> std::vector<SegmentId>;
 
   private:

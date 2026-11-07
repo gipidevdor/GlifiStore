@@ -267,9 +267,11 @@ void run_paired_durable_batch_stops_after_indeterminate_ttl() {
     class ManualStoreClock final : public glifistore::StoreClock {
       public:
         explicit ManualStoreClock(const std::uint64_t initial_now_ns) : now_ns_(initial_now_ns) {}
+
         [[nodiscard]] auto now_ns() const noexcept -> std::uint64_t override {
             return now_ns_.load(std::memory_order_relaxed);
         }
+
         void set(const std::uint64_t now_ns) noexcept {
             now_ns_.store(now_ns, std::memory_order_relaxed);
         }
@@ -277,6 +279,7 @@ void run_paired_durable_batch_stops_after_indeterminate_ttl() {
       private:
         std::atomic<std::uint64_t> now_ns_;
     };
+
     const auto clock = std::make_shared<ManualStoreClock>(50);
 
     struct WriteCounter final {

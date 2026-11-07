@@ -38,12 +38,15 @@ using Clock = std::chrono::steady_clock;
 class Socket final {
   public:
     Socket() = default;
+
     explicit Socket(const int descriptor) noexcept : descriptor_(descriptor) {}
+
     ~Socket() {
         reset();
     }
 
     Socket(Socket&& other) noexcept : descriptor_(std::exchange(other.descriptor_, -1)) {}
+
     auto operator=(Socket&& other) noexcept -> Socket& {
         if (this != &other) {
             reset();
@@ -51,15 +54,18 @@ class Socket final {
         }
         return *this;
     }
+
     Socket(const Socket&) = delete;
     auto operator=(const Socket&) -> Socket& = delete;
 
     [[nodiscard]] auto get() const noexcept -> int {
         return descriptor_;
     }
+
     [[nodiscard]] explicit operator bool() const noexcept {
         return descriptor_ >= 0;
     }
+
     void reset() noexcept {
         if (descriptor_ >= 0) {
             static_cast<void>(::close(descriptor_));

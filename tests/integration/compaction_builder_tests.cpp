@@ -687,6 +687,7 @@ GLIFI_TEST("multi-seed durable compaction histories match their models before an
         std::size_t occurrence{1};
         bool expects_next_authority{};
     };
+
     constexpr std::array<std::uint64_t, 4> kSeeds{
         0xC04F'AC71'0A5E'2026ULL,
         0xC04F'AC71'0A5E'2027ULL,

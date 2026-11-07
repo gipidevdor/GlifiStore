@@ -30,6 +30,7 @@ struct SecurityAuditSink final {
     };
 
     explicit SecurityAuditSink(const int output_descriptor) noexcept : descriptor{output_descriptor} {}
+
     ~SecurityAuditSink() {
         if (descriptor >= 0) {
             static_cast<void>(::close(descriptor));

@@ -68,6 +68,7 @@ class AbuseController final {
     [[nodiscard]] auto limits() const noexcept -> const AbuseLimits& {
         return limits_;
     }
+
     [[nodiscard]] auto enabled() const noexcept -> bool {
         return limits_.any_enabled();
     }

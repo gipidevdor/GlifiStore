@@ -76,6 +76,7 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
         if (worker_lock.owns_lock()) {
             worker_lock.unlock();
         }
+
         // Exclusive Writer (mutex-elided durable_sync only): drop hot_path_depth while
         // blocked on another publisher (compaction). Compaction waits for depth==0
         // before the Index swap; keeping depth here deadlocks against that wait.
@@ -96,14 +97,17 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
                 }
                 paused = true;
             }
+
             ~ExclusiveHotPathPause() {
                 if (paused && worker != nullptr) {
                     worker->hot_path_depth.fetch_add(1U, std::memory_order_acq_rel);
                 }
             }
+
             ExclusiveHotPathPause(const ExclusiveHotPathPause&) = delete;
             auto operator=(const ExclusiveHotPathPause&) -> ExclusiveHotPathPause& = delete;
         } hot_path_pause{&worker, elide_worker_mutex};
+
         {
             std::unique_lock wait_lock{manifest_publication_mutex_};
             manifest_publication_changed_.wait(wait_lock, [&] {

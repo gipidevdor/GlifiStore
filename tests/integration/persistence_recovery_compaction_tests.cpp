@@ -544,6 +544,7 @@ GLIFI_TEST("online compaction filesystem fault matrix reopens one clean authorit
         glifistore::FilesystemOperation operation;
         std::size_t occurrence{1};
     };
+
     const std::vector<FaultCase> faults{
         {glifistore::FilesystemOperation::write_compaction_intent},
         {glifistore::FilesystemOperation::sync_compaction_intent},
@@ -638,6 +639,7 @@ GLIFI_TEST("online compaction storage_exhausted fault matrix reopens one clean a
         glifistore::FilesystemOperation operation;
         std::size_t occurrence{1};
     };
+
     const std::vector<FaultCase> faults{
         {glifistore::FilesystemOperation::preallocate_segment},
         {glifistore::FilesystemOperation::write_segment_header},

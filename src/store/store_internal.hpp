@@ -108,6 +108,7 @@ class StoreAccess final {
     [[nodiscard]] static auto mutate_durable_batch(Store& store, std::size_t worker_index,
                                                    std::span<const DurableMutationView> mutations)
         -> std::vector<DurableWriterBatchResult>;
+
     // ErrorCode alone cannot authorize replay: committed and indeterminate
     // results are never retryable even if they carry sequence_conflict.
     [[nodiscard]] static auto should_retry_durable_mutation(const DurableMutationResult& result,
@@ -115,6 +116,7 @@ class StoreAccess final {
         return attempt == 0 && result.outcome == DurableMutationOutcome::not_committed && result.error &&
                result.error->code == ErrorCode::sequence_conflict;
     }
+
     [[nodiscard]] static auto is_durable(const Store& store) noexcept -> bool;
     [[nodiscard]] static auto worker_routing(const Store& store) noexcept -> WorkerRoutingState;
     [[nodiscard]] static auto batch_stats(const Store& store) -> std::vector<DurableBatchWorkerStats>;

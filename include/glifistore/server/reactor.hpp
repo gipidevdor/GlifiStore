@@ -128,63 +128,81 @@ class Reactor final {
     // Best-effort OVERLOADED for BIND handoffs still sitting only in the mesh
     // (shutdown force-close / late race). Must not destroy buffered OK silently.
     void reject_pending_handoffs() noexcept;
+
     [[nodiscard]] auto idle_for_shutdown() const noexcept -> bool {
         return active_connections_.load(std::memory_order_relaxed) == 0 && disk_reads_outstanding_ == 0 &&
                mutations_outstanding_ == 0 && !mesh_.has_pending(executor_id_);
     }
+
     // Cleartext listen port, or 0 when this reactor has no cleartext listener.
     [[nodiscard]] auto cleartext_port() const noexcept -> std::uint16_t {
         return listener_.descriptor() >= 0 ? listener_.port() : 0;
     }
+
     // TLS listen port, or 0 when this reactor has no TLS listener.
     [[nodiscard]] auto tls_port() const noexcept -> std::uint16_t {
         return tls_listener_.descriptor() >= 0 ? tls_listener_.port() : 0;
     }
+
     // Backward-compatible primary port: cleartext if present, otherwise TLS.
     [[nodiscard]] auto port() const noexcept -> std::uint16_t {
         const auto cleartext = cleartext_port();
         return cleartext != 0 ? cleartext : tls_port();
     }
+
     [[nodiscard]] auto unix_socket_path() const noexcept -> std::string_view {
         return unix_listener_.descriptor() >= 0 ? std::string_view{unix_listener_.path().native()}
                                                 : std::string_view{};
     }
+
     [[nodiscard]] auto executor_id() const noexcept -> std::size_t {
         return executor_id_;
     }
+
     [[nodiscard]] auto active_connections() const noexcept -> std::size_t {
         return active_connections_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto adopted_connections() const noexcept -> std::size_t {
         return adopted_connections_;
     }
+
     [[nodiscard]] auto output_scatter_responses() const noexcept -> std::uint64_t {
         return output_scatter_responses_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto output_scatter_bytes() const noexcept -> std::uint64_t {
         return output_scatter_bytes_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto output_scatter_partial_writes() const noexcept -> std::uint64_t {
         return output_scatter_partial_writes_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto output_scatter_completions() const noexcept -> std::uint64_t {
         return output_scatter_completions_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto input_buffer_compactions() const noexcept -> std::uint64_t {
         return input_buffer_compactions_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto input_buffer_bytes_moved() const noexcept -> std::uint64_t {
         return input_buffer_bytes_moved_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto output_buffer_compactions() const noexcept -> std::uint64_t {
         return output_buffer_compactions_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto output_buffer_bytes_moved() const noexcept -> std::uint64_t {
         return output_buffer_bytes_moved_.load(std::memory_order_relaxed);
     }
+
     [[nodiscard]] auto abuse_stats() const noexcept -> AbuseStats {
         return abuse_ ? abuse_->stats() : AbuseStats{};
     }
+
     [[nodiscard]] auto security_audit_stats() const noexcept -> SecurityAuditStats {
         return security_audit_ ? security_audit_->stats() : SecurityAuditStats{};
     }

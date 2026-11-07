@@ -37,6 +37,7 @@ class SecurityAudit final {
     void tls_error(std::string_view reason) noexcept;
 
     [[nodiscard]] auto stats() const noexcept -> SecurityAuditStats;
+
     [[nodiscard]] auto emit_events() const noexcept -> bool {
         return emit_events_;
     }

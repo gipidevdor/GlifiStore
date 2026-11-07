@@ -17,10 +17,15 @@ struct LatestRecord {
 } // namespace
 
 Index::Index() = default;
+
 Index::Index(const std::uint64_t seed) : table_(seed) {}
+
 Index::Index(const WorkerRoutingState routing) : table_(routing) {}
+
 Index::Index(const WorkerRoutingState routing, const std::uint64_t seed) : table_(routing, seed) {}
+
 Index::Index(SwissTableIndex table) : table_(std::move(table)) {}
+
 Index::~Index() = default;
 Index::Index(Index&&) noexcept = default;
 auto Index::operator=(Index&&) noexcept -> Index& = default;

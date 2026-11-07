@@ -34,9 +34,11 @@ struct DurableCompactionPlacement {
 class DurableCompactionLayout final {
   public:
     [[nodiscard]] auto add_record(std::uint32_t encoded_size) -> Result<DurableCompactionPlacement>;
+
     [[nodiscard]] auto segment_count() const noexcept -> std::size_t {
         return segment_count_;
     }
+
     [[nodiscard]] auto encoded_bytes() const noexcept -> std::uint64_t {
         return encoded_bytes_;
     }

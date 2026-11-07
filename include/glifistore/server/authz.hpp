@@ -63,12 +63,15 @@ class AuthzPolicy final {
     [[nodiscard]] auto enabled() const noexcept -> bool {
         return enabled_;
     }
+
     [[nodiscard]] auto empty() const noexcept -> bool {
         return principals_.empty();
     }
+
     [[nodiscard]] auto size() const noexcept -> std::size_t {
         return principals_.size();
     }
+
     [[nodiscard]] auto prefix_scoped_count() const noexcept -> std::size_t;
     [[nodiscard]] auto capabilities_for(std::string_view principal) const noexcept -> Capability;
     [[nodiscard]] auto grant_for(std::string_view principal) const -> AuthzGrant;
@@ -77,6 +80,7 @@ class AuthzPolicy final {
     void set_enabled(bool enabled) noexcept {
         enabled_ = enabled;
     }
+
     void bind(std::string principal, Capability capabilities, std::string key_prefix = {});
 
   private:

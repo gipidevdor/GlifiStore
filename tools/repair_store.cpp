@@ -14,20 +14,16 @@ enum OptionId : std::size_t { help, version, json, no_scan };
 constexpr std::array kOptionSpecs{
     glifistore::cli::OptionSpec{
         help, "help", 'h', glifistore::cli::OptionArity::none, {}, "Show this help message and exit"},
-    glifistore::cli::OptionSpec{version,
-                                 "version",
-                                 'V',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Show version information and exit"},
+    glifistore::cli::OptionSpec{
+        version, "version", 'V', glifistore::cli::OptionArity::none, {}, "Show version information and exit"},
     glifistore::cli::OptionSpec{
         json, "json", '\0', glifistore::cli::OptionArity::none, {}, "Emit a stable JSON report on stdout"},
     glifistore::cli::OptionSpec{no_scan,
-                                 "no-scan",
-                                 '\0',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Skip committed Record scans during catalog verification"},
+                                "no-scan",
+                                '\0',
+                                glifistore::cli::OptionArity::none,
+                                {},
+                                "Skip committed Record scans during catalog verification"},
 };
 
 void print_help(const std::string_view program) {
@@ -131,8 +127,7 @@ void write_text_ok(std::ostream& out, const glifistore::DurableStoreRepairReport
 }
 
 void write_json_ok(std::ostream& out, const glifistore::DurableStoreRepairReport& report) {
-    out << '{'
-        << "\"status\":\"ok\","
+    out << '{' << "\"status\":\"ok\","
         << "\"source\":\"" << json_escape(report.source.string()) << "\","
         << "\"workspace\":\"" << json_escape(report.workspace.string()) << "\","
         << "\"repaired_store\":\"" << json_escape(report.repaired_store.string()) << "\","
@@ -145,8 +140,7 @@ void write_json_ok(std::ostream& out, const glifistore::DurableStoreRepairReport
 
 void write_json_error(std::ostream& out, const std::string_view source, const std::string_view workspace,
                       const glifistore::Error& error) {
-    out << '{'
-        << "\"status\":\"error\","
+    out << '{' << "\"status\":\"error\","
         << "\"source\":\"" << json_escape(source) << "\","
         << "\"workspace\":\"" << json_escape(workspace) << "\","
         << "\"error\":{"
@@ -158,8 +152,7 @@ void write_json_error(std::ostream& out, const std::string_view source, const st
 } // namespace
 
 int main(const int argc, char** argv) try {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_repair_store");
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_repair_store");
     auto parsed = glifistore::cli::parse_arguments(argc, argv, kOptionSpecs);
     if (!parsed) {
         std::cerr << program << ": error: " << parsed.error().message << "\nTry '" << program
@@ -201,8 +194,8 @@ int main(const int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& exception) {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_repair_store");
+
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_repair_store");
     std::cerr << program << ": fatal: " << exception.what() << '\n';
     return 1;
 } catch (...) {

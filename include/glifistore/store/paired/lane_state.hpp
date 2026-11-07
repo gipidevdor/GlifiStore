@@ -126,6 +126,7 @@ struct GenerationState final {
     [[nodiscard]] auto uses_slot_pool() const noexcept -> bool {
         return slot_pool != nullptr;
     }
+
     [[nodiscard]] auto retired_debt() const noexcept -> std::size_t {
         return uses_slot_pool() ? slot_pool->retired_count() : retired_generations.size();
     }

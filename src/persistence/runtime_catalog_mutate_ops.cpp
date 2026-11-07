@@ -52,6 +52,7 @@ auto DurableRuntimeCatalog::erase(const HashedKey& key) -> DurableMutationResult
         std::span<const std::byte>{reinterpret_cast<const std::byte*>(key.key.data()), key.key.size()}, {},
         Opcode::erase, key.hash, 0, ValueType::bytes, 0);
 }
+
 auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                                    const std::span<const std::byte> value, const Opcode opcode,
                                    const std::uint64_t key_hash, const std::uint64_t expire_at_ns,
@@ -74,6 +75,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
         const auto worker_index = route_worker(key_hash, workers_.size());
         auto& worker = *workers_[worker_index];
         const bool strict_batch = options_.batch.has_value() && options_.strict_ack;
+
         struct GroupAdmission final {
             std::atomic_size_t* active{};
 
@@ -82,20 +84,24 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                     active->fetch_add(1U, std::memory_order_relaxed);
                 }
             }
+
             ~GroupAdmission() {
                 if (active) {
                     active->fetch_sub(1U, std::memory_order_relaxed);
                 }
             }
+
             GroupAdmission(const GroupAdmission&) = delete;
             auto operator=(const GroupAdmission&) -> GroupAdmission& = delete;
         } admission{strict_batch ? &worker.active_group_mutations : nullptr};
+
         // Paired exclusive Writer (no background flusher): skip Worker mutex on the
         // ordinary mutate hot path. Compaction observes hot_path_depth instead.
         // Group/periodic paths keep the mutex because the flush coordinator shares
         // pending-batch and file state with mutate.
         const bool elide_worker_mutex = options_.exclusive_writer && flusher_ == nullptr;
         std::unique_lock worker_lock{worker.mutex, std::defer_lock};
+
         struct ExclusiveHotPathGuard final {
             RuntimeWorker* worker{};
 
@@ -104,6 +110,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                     worker->hot_path_depth.fetch_add(1U, std::memory_order_acq_rel);
                 }
             }
+
             ~ExclusiveHotPathGuard() {
                 if (worker == nullptr) {
                     return;
@@ -112,9 +119,11 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                     worker->hot_path_depth.notify_all();
                 }
             }
+
             ExclusiveHotPathGuard(const ExclusiveHotPathGuard&) = delete;
             auto operator=(const ExclusiveHotPathGuard&) -> ExclusiveHotPathGuard& = delete;
         } hot_path{elide_worker_mutex ? &worker : nullptr};
+
         if (elide_worker_mutex) {
 #ifndef NDEBUG
             // Debug: the exclusive Writer must not find the mutex already held by

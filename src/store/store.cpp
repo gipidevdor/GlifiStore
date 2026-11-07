@@ -42,6 +42,7 @@ namespace glifistore {
 }
 
 Store::Store(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
+
 Store::~Store() {
     try {
         static_cast<void>(close());
@@ -211,6 +212,7 @@ auto Store::open(const StoreConfig& config) -> Result<std::unique_ptr<Store>> tr
     store->impl_->maintenance->start();
     return store;
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     return store_detail::internal_failure();
@@ -291,6 +293,7 @@ auto Store::get_copy(const std::string_view key) -> Result<OwnedValue> try {
     GS_PHASE_GET(value_copy);
     return store_detail::copy_value(*record);
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();
@@ -325,6 +328,7 @@ auto Store::put(const std::string_view key, const std::span<const std::byte> val
     }
     return impl_->volatile_runtime->workers.route(hashed).put(hashed, value, expire_at_ns);
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();
@@ -355,6 +359,7 @@ auto Store::put_batch(const std::span<const PutItem> items) -> std::vector<Statu
         std::size_t shard{};
         std::size_t input_index{};
     };
+
     std::vector<Prepared> prepared;
     prepared.reserve(items.size());
     bool single_shard = true;
@@ -466,6 +471,7 @@ auto Store::put_batch(const std::span<const PutItem> items) -> std::vector<Statu
     }
     return statuses;
 } catch (const std::bad_alloc&) {
+
     std::vector<Status> statuses(items.size());
     for (auto& status : statuses) {
         status = store_detail::resource_exhausted();
@@ -498,6 +504,7 @@ auto Store::erase(const std::string_view key) -> Status try {
     }
     return impl_->volatile_runtime->workers.route(hashed).erase(hashed);
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();
@@ -525,6 +532,7 @@ auto Store::erase_batch(const std::span<const EraseItem> items) -> std::vector<S
         std::size_t shard{};
         std::size_t input_index{};
     };
+
     std::vector<Prepared> prepared;
     prepared.reserve(items.size());
     bool single_shard = true;
@@ -631,6 +639,7 @@ auto Store::erase_batch(const std::span<const EraseItem> items) -> std::vector<S
     }
     return statuses;
 } catch (const std::bad_alloc&) {
+
     std::vector<Status> statuses(items.size());
     for (auto& status : statuses) {
         status = store_detail::resource_exhausted();
@@ -655,6 +664,7 @@ auto Store::flush() -> Status try {
     }
     return {};
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();
@@ -675,13 +685,16 @@ auto Store::backup_to(const std::filesystem::path& destination, const bool scan_
     // (and an OperationGuard) cannot deadlock against wait_for_active_operations. The fence is
     // counted: a concurrent backup cannot reopen admission while this owner still copies.
     impl_->close_admission();
+
     struct AdmissionResume final {
         Impl* impl;
+
         ~AdmissionResume() {
             if (impl != nullptr) {
                 impl->resume_admission_if_open();
             }
         }
+
         void release() noexcept {
             if (impl != nullptr) {
                 impl->resume_admission_if_open();
@@ -743,6 +756,7 @@ auto Store::backup_to(const std::filesystem::path& destination, const bool scan_
                                        .count());
     return copied;
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();
@@ -833,6 +847,7 @@ auto Store::compact_for_maintenance(const std::optional<std::size_t> preferred_w
         return store_detail::public_compaction_result(worker_index, std::move(result));
     }
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();
@@ -851,6 +866,7 @@ auto Store::maintenance_snapshot() const -> MaintenanceSnapshot {
 }
 
 auto Store::close() -> Status try { return impl_->close(); } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     return store_detail::internal_failure();
@@ -919,6 +935,7 @@ auto Store::verify_index() const -> Status try {
     }
     return {};
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     impl_->mark_durable_fail_closed();

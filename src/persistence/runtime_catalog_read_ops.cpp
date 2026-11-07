@@ -250,6 +250,7 @@ auto DurableRuntimeCatalog::snapshot_published_reads(const std::size_t worker_in
     result.catalog_revision = worker.read_catalog_revision.load(std::memory_order_relaxed);
     return result;
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "durable read-generation snapshot allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "durable read-generation snapshot failed");
@@ -318,6 +319,7 @@ auto DurableRuntimeCatalog::capture_published_read(const std::size_t worker_inde
     return PublishedReadRecord::bind(std::string{key.key}, key.hash, *reference,
                                      PublishedReadPin{worker_index, pin});
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "durable read publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "durable read publication capture failed");

@@ -24,15 +24,19 @@ class WorkerPool final {
     [[nodiscard]] auto size() const noexcept -> std::size_t {
         return workers_.size();
     }
+
     [[nodiscard]] auto worker(std::size_t index) const noexcept -> const Worker& {
         return *workers_[index];
     }
+
     [[nodiscard]] auto worker(std::size_t index) noexcept -> Worker& {
         return *workers_[index];
     }
+
     [[nodiscard]] auto route(const HashedKey& key) const noexcept -> const Worker& {
         return worker(route_worker(key.hash, workers_.size()));
     }
+
     [[nodiscard]] auto route(const HashedKey& key) noexcept -> Worker& {
         return worker(route_worker(key.hash, workers_.size()));
     }

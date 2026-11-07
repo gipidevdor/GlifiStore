@@ -435,10 +435,12 @@ class Client::Impl final {
         }
 
         std::vector<PipelineResponse> responses(requests.size());
+
         struct ActiveJob {
             WorkerJob* job{};
             std::future<Result<std::vector<PipelineResponse>>> future;
         };
+
         std::vector<ActiveJob> active;
         active.reserve(worker_count_);
 
@@ -538,10 +540,12 @@ class Client::Impl final {
         }
 
         std::vector<std::vector<PipelineResponse>> results(worker_count_);
+
         struct ActiveJob {
             std::size_t worker{};
             const std::vector<PipelineRequest>* requests{};
         };
+
         std::vector<ActiveJob> planned;
         planned.reserve(worker_count_);
         for (std::size_t worker = 0; worker < batches.size(); ++worker) {
@@ -586,6 +590,7 @@ class Client::Impl final {
             ActiveJob job;
             std::future<Result<std::vector<PipelineResponse>>> future;
         };
+
         std::vector<FutureJob> active;
         active.reserve(planned.size());
         for (const auto& item : planned) {
@@ -609,15 +614,19 @@ class Client::Impl final {
     [[nodiscard]] auto worker_count() const noexcept -> std::uint32_t {
         return worker_count_;
     }
+
     [[nodiscard]] auto worker_for_key(const std::span<const std::byte> key) const noexcept -> std::uint32_t {
         return worker_for(key);
     }
+
     [[nodiscard]] auto routing_epoch() const noexcept -> std::uint64_t {
         return routing_epoch_;
     }
+
     [[nodiscard]] auto routing() const noexcept -> WorkerRoutingState {
         return routing_;
     }
+
     [[nodiscard]] auto healthy() const noexcept -> bool {
         return healthy_.load(std::memory_order_acquire);
     }
@@ -837,6 +846,7 @@ class Client::Impl final {
         }
         return {.outcome = MutationOutcome::rejected, .error = std::move(error)};
     }
+
     [[nodiscard]] static auto indeterminate(Error error) -> MutationResult {
         if (error.mutation_outcome.empty()) {
             error.mutation_outcome = "indeterminate";

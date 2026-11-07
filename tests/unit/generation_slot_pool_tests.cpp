@@ -52,6 +52,7 @@ struct MockGeneration final {
 
 template <typename Pool> struct DirectPoolShutdown final {
     Pool* pool{};
+
     ~DirectPoolShutdown() {
         if (pool != nullptr) {
             pool->stop_admission();

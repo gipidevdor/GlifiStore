@@ -15,6 +15,7 @@ auto PairReadGeneration::empty(const WorkerRoutingState routing)
                                   make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries), 0,
                                   0);
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "read generation allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "read generation construction failed");
@@ -53,6 +54,7 @@ auto PairReadGeneration::build_durable_snapshot(
                                   make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries),
                                   epoch, visible_through);
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "durable read generation allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "durable read generation construction failed");
@@ -104,6 +106,7 @@ auto PairReadGeneration::publish(std::shared_ptr<const PairReadGeneration> previ
     return make_shared_generation(previous->routing_, std::move(next_base), std::move(next_delta),
                                   previous->epoch_ + 1U, visible_through);
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "read generation publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "read generation publication failed");
@@ -247,6 +250,7 @@ auto PairReadGeneration::publish_incremental_construct(
     IncrementalPublicationAccess::commit_merge(merge, *prepared, next);
     return next;
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "incremental read publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "incremental read publication failed");

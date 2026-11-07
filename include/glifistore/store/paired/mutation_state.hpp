@@ -77,6 +77,7 @@ struct DurableDecision final {
     [[nodiscard]] auto committed() const noexcept -> bool {
         return knowledge == CommitKnowledge::committed;
     }
+
     [[nodiscard]] auto clean_commit() const noexcept -> bool {
         return committed() && !error.has_value();
     }
@@ -88,6 +89,7 @@ struct PublicationDecision final {
     [[nodiscard]] auto published() const noexcept -> bool {
         return state == PublicationState::published;
     }
+
     [[nodiscard]] auto failed() const noexcept -> bool {
         return state == PublicationState::failed;
     }
@@ -116,12 +118,15 @@ class MutationLifecycle final {
     [[nodiscard]] auto stage() const noexcept -> MutationStage {
         return stage_;
     }
+
     [[nodiscard]] auto durable() const noexcept -> const DurableDecision& {
         return durable_;
     }
+
     [[nodiscard]] auto publication() const noexcept -> const PublicationDecision& {
         return publication_;
     }
+
     [[nodiscard]] auto completion() const noexcept -> const CompletionDecision& {
         return completion_;
     }

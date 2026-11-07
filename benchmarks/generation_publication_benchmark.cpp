@@ -361,6 +361,7 @@ int main(const int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& error) {
+
     std::cerr << "generation publication benchmark error: " << error.what() << '\n';
     return 1;
 }

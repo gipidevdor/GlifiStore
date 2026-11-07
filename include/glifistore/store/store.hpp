@@ -69,6 +69,7 @@ class Store final {
                            std::uint64_t expire_at_ns = 0) -> Status;
     [[nodiscard]] auto put(std::span<const std::byte> key, std::span<const std::byte> value,
                            std::uint64_t expire_at_ns = 0) -> Status;
+
     /// Same-call batch of PUTs. Items may span owners: each shard is linearized and
     /// published independently (pairs are independent). Per-item Status values are
     /// returned in input order. Successful items on one shard share one publication
@@ -79,10 +80,12 @@ class Store final {
         std::span<const std::byte> value{};
         std::uint64_t expire_at_ns{};
     };
+
     /// Apply PUT items, returning per-item status in input order. @see PutItem
     [[nodiscard]] auto put_batch(std::span<const PutItem> items) -> std::vector<Status>;
     [[nodiscard]] auto erase(std::string_view key) -> Status;
     [[nodiscard]] auto erase(std::span<const std::byte> key) -> Status;
+
     // Same-call batch of ERASEs. Items may span owners: each shard is linearized and
     // published independently (pairs are independent). Per-item Status values are
     // returned in input order. Successful items on one shard share one publication
@@ -91,6 +94,7 @@ class Store final {
     struct EraseItem final {
         std::string_view key{};
     };
+
     [[nodiscard]] auto erase_batch(std::span<const EraseItem> items) -> std::vector<Status>;
 
     [[nodiscard]] auto flush() -> Status;

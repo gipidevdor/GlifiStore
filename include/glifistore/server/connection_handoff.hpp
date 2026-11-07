@@ -47,9 +47,11 @@ class ConnectionHandoffMesh final {
 
     ConnectionHandoffMesh(const ConnectionHandoffMesh&) = delete;
     auto operator=(const ConnectionHandoffMesh&) -> ConnectionHandoffMesh& = delete;
+
     ConnectionHandoffMesh(ConnectionHandoffMesh&& other) noexcept
         : endpoints_(std::move(other.endpoints_)),
           accepting_(other.accepting_.load(std::memory_order_relaxed)) {}
+
     auto operator=(ConnectionHandoffMesh&& other) noexcept -> ConnectionHandoffMesh& {
         if (this != &other) {
             endpoints_ = std::move(other.endpoints_);
@@ -62,15 +64,18 @@ class ConnectionHandoffMesh final {
     // Refuse new handoffs (process stop). Queued cells remain until the target pops
     // or reject_orphaned_handoff drains them — never silently destroy BIND OK.
     void stop_accepting() noexcept;
+
     [[nodiscard]] auto accepting() const noexcept -> bool {
         return accepting_.load(std::memory_order_acquire);
     }
+
     // Success consumes connection; rejection leaves it untouched so the
     // source Reactor can restore and close it through the wire contract.
     [[nodiscard]] auto try_handoff(std::size_t target_executor, ConnectionHandoff& connection) -> bool;
     [[nodiscard]] auto try_handoff(std::size_t target_executor, ConnectionHandoff&& connection) -> bool;
     [[nodiscard]] auto try_pop(std::size_t executor) -> std::optional<ConnectionHandoff>;
     [[nodiscard]] auto has_pending(std::size_t executor) const noexcept -> bool;
+
     [[nodiscard]] auto size() const noexcept -> std::size_t {
         return endpoints_.size();
     }

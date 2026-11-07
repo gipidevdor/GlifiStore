@@ -53,9 +53,11 @@ class Server final {
     [[nodiscard]] auto cleartext_port() const noexcept -> std::uint16_t;
     [[nodiscard]] auto tls_port() const noexcept -> std::uint16_t;
     [[nodiscard]] auto unix_socket_path() const -> std::string;
+
     [[nodiscard]] auto executor_count() const noexcept -> std::size_t {
         return reactors_.size();
     }
+
     [[nodiscard]] auto adopted_connections_per_executor() const -> std::vector<std::size_t>;
     [[nodiscard]] auto active_connections_per_executor() const -> std::vector<std::size_t>;
     [[nodiscard]] auto executor_affinity_results() const -> std::vector<ExecutorAffinityResult>;
@@ -63,20 +65,25 @@ class Server final {
     [[nodiscard]] auto reactor_buffer_stats() const noexcept -> ReactorBufferStats;
     [[nodiscard]] auto pair_writer_stats() const -> std::vector<PairWriterStats>;
     [[nodiscard]] auto durable_batch_stats() const -> std::vector<DurableBatchWorkerStats>;
+
     [[nodiscard]] auto healthy() const noexcept -> bool {
         return !failed_.load(std::memory_order_acquire) && pair_writers_healthy();
     }
+
     // Paired Writer pool sticky health (READY / classify_ready_loss). Independent of
     // process liveness (`live`) and of durable catalog `store_operational`.
     [[nodiscard]] auto pair_writers_healthy() const noexcept -> bool {
         return pair_writers_ != nullptr && pair_writers_->healthy();
     }
+
     [[nodiscard]] auto stop_requested() const noexcept -> bool {
         return stop_requested_.load(std::memory_order_acquire);
     }
+
     [[nodiscard]] auto shutdown_drain_timed_out() const noexcept -> bool {
         return shutdown_drain_timed_out_.load(std::memory_order_acquire);
     }
+
     // Process liveness: started and no executor failure has been recorded.
     [[nodiscard]] auto live() const noexcept -> bool;
     // Traffic readiness: live, not shutting down, pair Writers healthy, Store admission open,

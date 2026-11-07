@@ -20,6 +20,7 @@
 namespace glifistore {
 
 class Store;
+
 namespace detail {
 class StoreAccess;
 }
@@ -41,9 +42,11 @@ class Worker final {
     [[nodiscard]] auto id() const noexcept -> WorkerId {
         return id_;
     }
+
     [[nodiscard]] auto index() const noexcept -> const Index& {
         return index_;
     }
+
     [[nodiscard]] auto owned_segments() const noexcept -> const std::vector<SegmentPtr>& {
         return owned_;
     }
@@ -62,6 +65,7 @@ class Worker final {
     void set_exclusive_writer(bool exclusive) noexcept {
         exclusive_writer_ = exclusive;
     }
+
     [[nodiscard]] auto exclusive_writer() const noexcept -> bool {
         return exclusive_writer_;
     }
@@ -75,6 +79,7 @@ class Worker final {
                 worker->hot_path_depth_.fetch_add(1U, std::memory_order_acq_rel);
             }
         }
+
         ~ExclusiveHotPathGuard() {
             if (worker == nullptr) {
                 return;
@@ -83,6 +88,7 @@ class Worker final {
                 worker->hot_path_depth_.notify_all();
             }
         }
+
         ExclusiveHotPathGuard(const ExclusiveHotPathGuard&) = delete;
         auto operator=(const ExclusiveHotPathGuard&) -> ExclusiveHotPathGuard& = delete;
     };
@@ -105,6 +111,7 @@ class Worker final {
                 worker.hot_path_depth_.wait(depth, std::memory_order_acquire);
             }
         }
+
         void clear() noexcept {
             if (!armed) {
                 return;
@@ -112,9 +119,11 @@ class Worker final {
             armed = false;
             worker.disarm_index_quiesce_gate();
         }
+
         ~ExclusiveIndexQuiesce() {
             clear();
         }
+
         ExclusiveIndexQuiesce(const ExclusiveIndexQuiesce&) = delete;
         auto operator=(const ExclusiveIndexQuiesce&) -> ExclusiveIndexQuiesce& = delete;
     };
@@ -141,6 +150,7 @@ class Worker final {
             index_quiesce_active_.store(true, std::memory_order_release);
         }
     }
+
     void disarm_index_quiesce_gate() noexcept {
         if (index_quiesce_holders_.fetch_sub(1U, std::memory_order_acq_rel) == 1U) {
             index_quiesce_active_.store(false, std::memory_order_release);

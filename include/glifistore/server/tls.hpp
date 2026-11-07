@@ -29,9 +29,11 @@ struct TlsConfig {
         return !certificate_file.empty() || !private_key_file.empty() || !client_ca_file.empty() ||
                !crl_file.empty() || ocsp_fail_closed;
     }
+
     [[nodiscard]] auto mtls_enabled() const noexcept -> bool {
         return !client_ca_file.empty();
     }
+
     [[nodiscard]] auto crl_enabled() const noexcept -> bool {
         return !crl_file.empty();
     }
@@ -121,12 +123,15 @@ class TlsContext final {
     [[nodiscard]] auto mtls_enabled() const noexcept -> bool {
         return mtls_enabled_;
     }
+
     [[nodiscard]] auto crl_enabled() const noexcept -> bool {
         return crl_enabled_;
     }
+
     [[nodiscard]] auto ocsp_fail_closed() const noexcept -> bool {
         return ocsp_fail_closed_;
     }
+
     [[nodiscard]] auto client_mode() const noexcept -> bool {
         return client_mode_;
     }

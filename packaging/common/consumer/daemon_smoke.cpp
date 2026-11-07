@@ -8,9 +8,8 @@
 // Each invocation performs exactly one operation and reports the outcome through
 // the exit status, which keeps the retained logs readable as evidence.
 
-#include <glifistore/client/client.hpp>
-
 #include <cstdint>
+#include <glifistore/client/client.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -66,13 +65,10 @@ int main(int argc, char** argv) try {
     std::string destination;
 
     for (int index = 1; index < argc; ++index) {
-        if (option("--host", index, argc, argv, host) ||
-            option("--port", index, argc, argv, port) ||
+        if (option("--host", index, argc, argv, host) || option("--port", index, argc, argv, port) ||
             option("--timeout-ms", index, argc, argv, timeout_ms) ||
-            option("--command", index, argc, argv, command) ||
-            option("--key", index, argc, argv, key) ||
-            option("--value", index, argc, argv, value) ||
-            option("--expect", index, argc, argv, expect) ||
+            option("--command", index, argc, argv, command) || option("--key", index, argc, argv, key) ||
+            option("--value", index, argc, argv, value) || option("--expect", index, argc, argv, expect) ||
             option("--destination", index, argc, argv, destination)) {
             continue;
         }
@@ -158,8 +154,8 @@ int main(int argc, char** argv) try {
         const auto& bytes = got.value();
         const std::string observed{reinterpret_cast<const char*>(bytes.data()), bytes.size()};
         if (!expect.empty() && observed != expect) {
-            std::cerr << "get mismatch: expected " << expect.size() << " bytes, observed "
-                      << observed.size() << " bytes\n";
+            std::cerr << "get mismatch: expected " << expect.size() << " bytes, observed " << observed.size()
+                      << " bytes\n";
             return exit_mismatch;
         }
         std::cout << "get OK key=" << key << " bytes=" << observed.size() << '\n';
@@ -194,6 +190,7 @@ int main(int argc, char** argv) try {
     usage();
     return exit_usage;
 } catch (const std::exception& error) {
+
     std::cerr << "glifistore_daemon_smoke failed: " << error.what() << '\n';
     return exit_usage;
 }

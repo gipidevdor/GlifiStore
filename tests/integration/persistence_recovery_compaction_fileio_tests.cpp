@@ -259,6 +259,7 @@ GLIFI_TEST("online compaction FileIoHooks capacity faults reject before intent")
         int error_number;
         const char* label;
     };
+
     std::vector<Case> cases{{ENOSPC, "enospc"}};
 #if defined(EDQUOT)
     cases.push_back({EDQUOT, "edquot"});
@@ -309,6 +310,7 @@ GLIFI_TEST("online compaction FileIoHooks write EIO and EROFS reject before inte
         glifistore::ErrorCode expected;
         const char* label;
     };
+
     const std::array cases{
         Case{EIO, glifistore::ErrorCode::io_error, "eio"},
         Case{EROFS, glifistore::ErrorCode::read_only_filesystem, "erofs"},
@@ -398,6 +400,7 @@ GLIFI_TEST("online compaction FileIoHooks intent write and sync faults reject cl
         glifistore::ErrorCode expected{glifistore::ErrorCode::io_error};
         const char* label;
     };
+
     struct IntentFault final {
         Case::Mode mode{};
         int write_error{EIO};
@@ -509,6 +512,7 @@ GLIFI_TEST("online compaction FileIoHooks promotion manifest faults recover clea
         glifistore::ErrorCode expected{glifistore::ErrorCode::io_error};
         const char* label;
     };
+
     struct PromotionFault final {
         Case::Mode mode{};
         int write_error{EIO};

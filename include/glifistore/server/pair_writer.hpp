@@ -164,9 +164,11 @@ class PairWriterPool final {
     // Drain-deadline path: abandon pre-Store queued work as resource_exhausted so
     // Reactors can flush OVERLOADED before close_all_connections.
     void abandon_queued_mutations() noexcept;
+
     [[nodiscard]] auto expire_remaining_armed() const noexcept -> bool {
         return runtime_.expire_remaining_armed();
     }
+
     [[nodiscard]] auto stop_and_drain(std::optional<std::chrono::milliseconds> deadline = std::nullopt)
         -> Status;
 

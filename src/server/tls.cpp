@@ -272,6 +272,7 @@ struct TlsSession::Impl {
     bool server_handshake{};
     bool mtls_required{};
     bool handshake_complete{};
+
     ~Impl() {
         if (ssl != nullptr) {
             SSL_free(ssl);
@@ -660,6 +661,7 @@ auto TlsSession::write(const std::byte* data, const std::size_t size) -> Result<
 #else
 
 struct TlsContext::Impl {};
+
 struct TlsSession::Impl {};
 
 TlsContext::TlsContext() = default;
@@ -697,26 +699,34 @@ auto TlsContext::connect_socket(const int, const std::string_view) const
 }
 
 TlsSession::TlsSession(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
+
 TlsSession::~TlsSession() = default;
+
 TlsSession::TlsSession(TlsSession&& other) noexcept : impl_(std::move(other.impl_)) {}
+
 auto TlsSession::operator=(TlsSession&& other) noexcept -> TlsSession& {
     if (this != &other) {
         impl_ = std::move(other.impl_);
     }
     return *this;
 }
+
 auto TlsSession::valid() const noexcept -> bool {
     return false;
 }
+
 auto TlsSession::peer_principal() const noexcept -> std::string_view {
     return {};
 }
+
 auto TlsSession::pending() const noexcept -> std::size_t {
     return 0;
 }
+
 auto TlsSession::read(std::byte*, const std::size_t) -> Result<TlsIoResult> {
     return fail(ErrorCode::invalid_argument, "GlifiStore was built without TLS support");
 }
+
 auto TlsSession::write(const std::byte*, const std::size_t) -> Result<TlsIoResult> {
     return fail(ErrorCode::invalid_argument, "GlifiStore was built without TLS support");
 }

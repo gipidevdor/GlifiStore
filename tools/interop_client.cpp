@@ -29,8 +29,7 @@ namespace {
     out.reserve(text.size() / 2);
     std::size_t index = 0;
     while (index < text.size()) {
-        while (index < text.size() &&
-               (text[index] == ' ' || text[index] == '\n' || text[index] == '\t')) {
+        while (index < text.size() && (text[index] == ' ' || text[index] == '\n' || text[index] == '\t')) {
             ++index;
         }
         if (index >= text.size()) {
@@ -63,20 +62,18 @@ namespace {
 }
 
 void usage(const char* program) {
-    std::cerr
-        << "Usage:\n  " << program
-        << " --port PORT [--host HOST] [--tls] [--tls-ca PATH] [--tls-cert PATH] [--tls-key PATH] "
-           "[--server-name NAME] [--insecure-skip-verify]\n"
-        << "    put --key-hex HEX --value-hex HEX [--expire-at-ns N]\n  " << program
-        << " ... get --key-hex HEX\n  " << program << " ... erase --key-hex HEX\n  " << program
-        << " ... pipeline-put-get --key-hex HEX --value-hex HEX\n  " << program
-        << " ... worker-pipelines-put-get --key-hex PREFIX_HEX\n  " << program
-        << " ... health|ready|stats\n  " << program
-        << " ... backup --dest PATH\n  " << program
-        << " ... expect-not-found --key-hex HEX\n  " << program
-        << " ... expect-permission-denied --key-hex HEX --value-hex HEX\n  " << program
-        << " ... burst-expect-overloaded --key-hex HEX --value-hex HEX [--burst N]\n  " << program
-        << " ... expect-frame-limit\n";
+    std::cerr << "Usage:\n  " << program
+              << " --port PORT [--host HOST] [--tls] [--tls-ca PATH] [--tls-cert PATH] [--tls-key PATH] "
+                 "[--server-name NAME] [--insecure-skip-verify]\n"
+              << "    put --key-hex HEX --value-hex HEX [--expire-at-ns N]\n  " << program
+              << " ... get --key-hex HEX\n  " << program << " ... erase --key-hex HEX\n  " << program
+              << " ... pipeline-put-get --key-hex HEX --value-hex HEX\n  " << program
+              << " ... worker-pipelines-put-get --key-hex PREFIX_HEX\n  " << program
+              << " ... health|ready|stats\n  " << program << " ... backup --dest PATH\n  " << program
+              << " ... expect-not-found --key-hex HEX\n  " << program
+              << " ... expect-permission-denied --key-hex HEX --value-hex HEX\n  " << program
+              << " ... burst-expect-overloaded --key-hex HEX --value-hex HEX [--burst N]\n  " << program
+              << " ... expect-frame-limit\n";
 }
 
 [[nodiscard]] auto require_flag(const int argc, char** argv, int& index, const char* name)
@@ -139,10 +136,9 @@ int main(int argc, char** argv) try {
         } else if (arg == "--insecure-skip-verify") {
             tls.insecure_skip_verify = true;
         } else if (arg == "put" || arg == "get" || arg == "erase" || arg == "pipeline-put-get" ||
-                   arg == "worker-pipelines-put-get" || arg == "health" || arg == "ready" ||
-                   arg == "stats" || arg == "backup" || arg == "expect-not-found" ||
-                   arg == "expect-permission-denied" || arg == "burst-expect-overloaded" ||
-                   arg == "expect-frame-limit") {
+                   arg == "worker-pipelines-put-get" || arg == "health" || arg == "ready" || arg == "stats" ||
+                   arg == "backup" || arg == "expect-not-found" || arg == "expect-permission-denied" ||
+                   arg == "burst-expect-overloaded" || arg == "expect-frame-limit") {
             command = std::string{arg};
         } else {
             std::cerr << "unknown argument: " << arg << '\n';
@@ -170,8 +166,8 @@ int main(int argc, char** argv) try {
     const auto key = parse_hex(key_hex);
     if (command == "put") {
         const auto value = parse_hex(value_hex);
-        const auto result = client->put(
-            key, value, glifistore::client::PutOptions{.expire_at_ns = expire_at_ns});
+        const auto result =
+            client->put(key, value, glifistore::client::PutOptions{.expire_at_ns = expire_at_ns});
         if (!result.committed()) {
             std::cerr << "put not committed\n";
             return 1;
@@ -201,8 +197,7 @@ int main(int argc, char** argv) try {
             {.opcode = glifistore::client::PipelineOpcode::put,
              .key = std::span<const std::byte>{key},
              .value = std::span<const std::byte>{value}},
-            {.opcode = glifistore::client::PipelineOpcode::get,
-             .key = std::span<const std::byte>{key}},
+            {.opcode = glifistore::client::PipelineOpcode::get, .key = std::span<const std::byte>{key}},
         };
         auto responses = client->execute_pipeline(requests);
         if (!responses) {
@@ -284,9 +279,9 @@ int main(int argc, char** argv) try {
         return 0;
     }
     if (command == "health" || command == "ready" || command == "stats") {
-        auto payload = command == "health"   ? client->health()
-                       : command == "ready"  ? client->ready()
-                                             : client->stats();
+        auto payload = command == "health"  ? client->health()
+                       : command == "ready" ? client->ready()
+                                            : client->stats();
         if (!payload) {
             std::cerr << command << " failed: " << payload.error().message << '\n';
             return 1;
@@ -319,11 +314,10 @@ int main(int argc, char** argv) try {
     }
     if (command == "expect-permission-denied") {
         const auto value = parse_hex(value_hex);
-        const auto denied = client->put(
-            key, value, glifistore::client::PutOptions{.expire_at_ns = expire_at_ns});
-        if (denied.outcome != glifistore::client::MutationOutcome::rejected ||
-            !denied.error.has_value() || denied.error->category != "permission_denied" ||
-            denied.error->retryability != "never") {
+        const auto denied =
+            client->put(key, value, glifistore::client::PutOptions{.expire_at_ns = expire_at_ns});
+        if (denied.outcome != glifistore::client::MutationOutcome::rejected || !denied.error.has_value() ||
+            denied.error->category != "permission_denied" || denied.error->retryability != "never") {
             std::cerr << "PUT did not produce the expected permission_denied rejection\n";
             return 1;
         }
@@ -332,11 +326,10 @@ int main(int argc, char** argv) try {
     if (command == "burst-expect-overloaded") {
         const auto value = parse_hex(value_hex);
         for (std::uint64_t index = 0; index < burst; ++index) {
-            const auto result = client->put(
-                key, value, glifistore::client::PutOptions{.expire_at_ns = expire_at_ns});
-            if (result.outcome == glifistore::client::MutationOutcome::rejected &&
-                result.error.has_value() && result.error->category == "overloaded" &&
-                result.error->retryability == "never") {
+            const auto result =
+                client->put(key, value, glifistore::client::PutOptions{.expire_at_ns = expire_at_ns});
+            if (result.outcome == glifistore::client::MutationOutcome::rejected && result.error.has_value() &&
+                result.error->category == "overloaded" && result.error->retryability == "never") {
                 return 0;
             }
             if (!result.committed()) {
@@ -353,8 +346,7 @@ int main(int argc, char** argv) try {
         const auto rejected = client->put(limit_key, oversized);
         if (rejected.outcome != glifistore::client::MutationOutcome::rejected ||
             !rejected.error.has_value() || rejected.error->category != "invalid_argument" ||
-            rejected.error->bytes_sent != 0 ||
-            rejected.error->retryability != "never") {
+            rejected.error->bytes_sent != 0 || rejected.error->retryability != "never") {
             std::cerr << "oversized PUT did not produce the expected local frame-limit rejection\n";
             return 1;
         }
@@ -364,6 +356,7 @@ int main(int argc, char** argv) try {
     usage(argv[0]);
     return 2;
 } catch (const std::exception& exception) {
+
     std::cerr << "error: " << exception.what() << '\n';
     return 1;
 }

@@ -551,6 +551,7 @@ void Reactor::reject_orphaned_handoff(ConnectionHandoff handoff,
         offset += static_cast<std::size_t>(sent);
     }
 } catch (...) {
+
     return;
 }
 

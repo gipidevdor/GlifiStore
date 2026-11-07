@@ -222,6 +222,7 @@ int main(int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& exception) {
+
     std::cerr << "benchmark error: " << exception.what() << '\n';
     return 1;
 } catch (...) {

@@ -339,6 +339,7 @@ class BlockingFileSync final {
 class SyncReleaseGuard final {
   public:
     explicit SyncReleaseGuard(BlockingFileSync& sync) noexcept : sync_(sync) {}
+
     ~SyncReleaseGuard() {
         sync_.release();
     }

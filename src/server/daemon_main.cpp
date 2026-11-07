@@ -243,6 +243,7 @@ int main(const int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& exception) {
+
     const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistored");
     std::cerr << program << ": fatal: " << exception.what() << '\n';
     return 1;

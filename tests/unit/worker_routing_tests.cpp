@@ -30,9 +30,11 @@ struct RoutingGuard final {
         : previous_(glifistore::get_worker_routing()) {
         glifistore::set_worker_routing(state);
     }
+
     ~RoutingGuard() {
         glifistore::set_worker_routing(previous_);
     }
+
     RoutingGuard(const RoutingGuard&) = delete;
     auto operator=(const RoutingGuard&) -> RoutingGuard& = delete;
 

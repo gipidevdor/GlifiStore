@@ -56,6 +56,7 @@ auto PairWriterPool::create(Store& store, const std::size_t worker_count,
     static_cast<void>(payload_bytes_per_worker);
     return std::unique_ptr<PairWriterPool>(new PairWriterPool(*runtime));
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "paired mutation executor allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "paired mutation executor construction failed");

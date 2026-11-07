@@ -39,6 +39,7 @@
 #include <vector>
 
 using namespace glifistore::test::server_reactor_support;
+
 GLIFI_TEST("paired Writer closes strict durable groups without concurrent shard mutators") {
     ServerTemporaryDirectory temporary;
     GroupBatchObserver observer;
@@ -1039,8 +1040,10 @@ GLIFI_TEST("BIND_WORKER OK is flushed before pipelined decode failure closes") {
 GLIFI_TEST("durable segment_full surfaces as wire OVERLOADED not INTERNAL_ERROR") {
     // Append rejected before commit must not look like sticky INTERNAL_ERROR / reconcile.
     ServerTemporaryDirectory temporary;
+
     struct SegmentFullOnPut final {
         std::size_t write_records{};
+
         static auto before(void* opaque, const glifistore::FilesystemOperation operation)
             -> glifistore::Status {
             auto& state = *static_cast<SegmentFullOnPut*>(opaque);
@@ -1051,6 +1054,7 @@ GLIFI_TEST("durable segment_full surfaces as wire OVERLOADED not INTERNAL_ERROR"
             return glifistore::fail(glifistore::ErrorCode::segment_full, "injected segment full");
         }
     } failure;
+
     auto opened = glifistore::server::Server::create(
         {.port = 0, .maximum_connections = 4, .worker_count = 1, .disk_read_thread_count = 1},
         {.storage_mode = glifistore::StorageMode::durable_sync,
@@ -1088,8 +1092,10 @@ GLIFI_TEST("durable not-committed io_error surfaces as wire OVERLOADED not INTER
     // Pre-write append reject is authoritative not_committed; Writer must not leave
     // ErrorCode::io_error (Reactor → INTERNAL_ERROR → client indeterminate/reconcile).
     ServerTemporaryDirectory temporary;
+
     struct IoErrorOnPut final {
         std::size_t write_records{};
+
         static auto before(void* opaque, const glifistore::FilesystemOperation operation)
             -> glifistore::Status {
             auto& state = *static_cast<IoErrorOnPut*>(opaque);
@@ -1100,6 +1106,7 @@ GLIFI_TEST("durable not-committed io_error surfaces as wire OVERLOADED not INTER
             return glifistore::fail(glifistore::ErrorCode::io_error, "injected append reject");
         }
     } failure;
+
     auto opened = glifistore::server::Server::create(
         {.port = 0, .maximum_connections = 4, .worker_count = 1, .disk_read_thread_count = 1},
         {.storage_mode = glifistore::StorageMode::durable_sync,
@@ -1153,9 +1160,11 @@ GLIFI_TEST("durable not-committed INTERNAL_ERROR-bucket codes surface as wire OV
     const std::array codes{glifistore::ErrorCode::corrupted_data, glifistore::ErrorCode::internal_error};
     for (std::size_t index = 0; index < codes.size(); ++index) {
         ServerTemporaryDirectory temporary;
+
         struct InjectedReject final {
             glifistore::ErrorCode code{};
             std::size_t write_records{};
+
             static auto before(void* opaque, const glifistore::FilesystemOperation operation)
                 -> glifistore::Status {
                 auto& state = *static_cast<InjectedReject*>(opaque);
@@ -1166,6 +1175,7 @@ GLIFI_TEST("durable not-committed INTERNAL_ERROR-bucket codes surface as wire OV
                 return glifistore::fail(state.code, "injected not_committed reject");
             }
         } failure{.code = codes[index]};
+
         auto opened = glifistore::server::Server::create(
             {.port = 0, .maximum_connections = 4, .worker_count = 1, .disk_read_thread_count = 1},
             {.storage_mode = glifistore::StorageMode::durable_sync,

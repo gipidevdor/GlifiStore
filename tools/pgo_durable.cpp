@@ -26,11 +26,10 @@ namespace {
 
 void durable_training_loop(const std::filesystem::path& data_dir, const std::size_t operations) {
     {
-        auto opened =
-            glifistore::Store::open({.worker_config = {.explicit_count = 1},
-                                      .storage_mode = glifistore::StorageMode::durable_sync,
-                                      .data_directory = data_dir,
-                                      .durable_open_mode = glifistore::DurableOpenMode::create_new});
+        auto opened = glifistore::Store::open({.worker_config = {.explicit_count = 1},
+                                               .storage_mode = glifistore::StorageMode::durable_sync,
+                                               .data_directory = data_dir,
+                                               .durable_open_mode = glifistore::DurableOpenMode::create_new});
         if (!opened) {
             throw std::runtime_error("durable PGO training failed to create store");
         }
@@ -52,9 +51,9 @@ void durable_training_loop(const std::filesystem::path& data_dir, const std::siz
 
     auto reopened =
         glifistore::Store::open({.worker_config = {.explicit_count = 1},
-                                  .storage_mode = glifistore::StorageMode::durable_sync,
-                                  .data_directory = data_dir,
-                                  .durable_open_mode = glifistore::DurableOpenMode::open_existing});
+                                 .storage_mode = glifistore::StorageMode::durable_sync,
+                                 .data_directory = data_dir,
+                                 .durable_open_mode = glifistore::DurableOpenMode::open_existing});
     if (!reopened) {
         throw std::runtime_error("durable PGO training failed to reopen store");
     }

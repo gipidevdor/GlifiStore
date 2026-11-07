@@ -91,12 +91,15 @@ struct OwnedBytes final {
     [[nodiscard]] auto begin() noexcept -> std::byte* {
         return data();
     }
+
     [[nodiscard]] auto end() noexcept -> std::byte* {
         return data() + size_;
     }
+
     [[nodiscard]] auto begin() const noexcept -> const std::byte* {
         return data();
     }
+
     [[nodiscard]] auto end() const noexcept -> const std::byte* {
         return data() + size_;
     }
@@ -104,12 +107,15 @@ struct OwnedBytes final {
     [[nodiscard]] auto front() noexcept -> std::byte& {
         return data()[0];
     }
+
     [[nodiscard]] auto front() const noexcept -> const std::byte& {
         return data()[0];
     }
+
     [[nodiscard]] auto back() noexcept -> std::byte& {
         return data()[size_ - 1];
     }
+
     [[nodiscard]] auto back() const noexcept -> const std::byte& {
         return data()[size_ - 1];
     }
@@ -117,6 +123,7 @@ struct OwnedBytes final {
     [[nodiscard]] auto operator[](const std::size_t index) noexcept -> std::byte& {
         return data()[index];
     }
+
     [[nodiscard]] auto operator[](const std::size_t index) const noexcept -> const std::byte& {
         return data()[index];
     }

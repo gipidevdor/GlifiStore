@@ -56,7 +56,9 @@ struct Unexpected {
 template <typename T> class [[nodiscard]] Result final {
   public:
     Result(T value) : storage_(std::move(value)) {}
+
     Result(Unexpected failure) : storage_(std::move(failure.error)) {}
+
     Result(Result&&) noexcept = default;
     auto operator=(Result&&) noexcept -> Result& = default;
     Result(const Result&) = delete;
@@ -65,6 +67,7 @@ template <typename T> class [[nodiscard]] Result final {
     [[nodiscard]] auto has_value() const noexcept -> bool {
         return std::holds_alternative<T>(storage_);
     }
+
     explicit operator bool() const noexcept {
         return has_value();
     }
@@ -72,15 +75,19 @@ template <typename T> class [[nodiscard]] Result final {
     [[nodiscard]] auto value() & -> T& {
         return std::get<T>(storage_);
     }
+
     [[nodiscard]] auto value() const& -> const T& {
         return std::get<T>(storage_);
     }
+
     [[nodiscard]] auto value() && -> T&& {
         return std::get<T>(std::move(storage_));
     }
+
     [[nodiscard]] auto error() & -> Error& {
         return std::get<Error>(storage_);
     }
+
     [[nodiscard]] auto error() const& -> const Error& {
         return std::get<Error>(storage_);
     }
@@ -88,12 +95,15 @@ template <typename T> class [[nodiscard]] Result final {
     [[nodiscard]] auto operator*() & -> T& {
         return value();
     }
+
     [[nodiscard]] auto operator*() const& -> const T& {
         return value();
     }
+
     [[nodiscard]] auto operator->() -> T* {
         return &value();
     }
+
     [[nodiscard]] auto operator->() const -> const T* {
         return &value();
     }
@@ -105,20 +115,24 @@ template <typename T> class [[nodiscard]] Result final {
 template <> class [[nodiscard]] Result<void> final {
   public:
     Result() = default;
+
     Result(Unexpected failure) : error_(std::move(failure.error)) {}
 
     [[nodiscard]] auto has_value() const noexcept -> bool {
         return !error_.has_value();
     }
+
     explicit operator bool() const noexcept {
         return has_value();
     }
+
     [[nodiscard]] auto error() & -> Error& {
         if (!error_) {
             throw std::bad_optional_access{};
         }
         return *error_;
     }
+
     [[nodiscard]] auto error() const& -> const Error& {
         if (!error_) {
             throw std::bad_optional_access{};

@@ -51,6 +51,7 @@ struct NamespaceAuditReport {
     [[nodiscard]] auto clean() const noexcept -> bool {
         return issues.empty();
     }
+
     [[nodiscard]] auto recovery_safe() const noexcept -> bool;
 };
 

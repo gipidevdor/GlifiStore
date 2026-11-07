@@ -94,6 +94,7 @@ auto detail::StoreAccess::prepare_get_owned(Store& store, const std::size_t work
     }
     return PreparedGet{.value = store_detail::copy_value(*record)};
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     return store_detail::internal_failure();
@@ -196,6 +197,7 @@ auto detail::StoreAccess::prepare_published_durable_get(Store& store, const std:
     }
     return PreparedGet{.cold = PreparedColdRead{PreparedColdRead::State{std::move(borrowed_cold).value()}}};
 } catch (const std::bad_alloc&) {
+
     return store_detail::resource_exhausted();
 } catch (...) {
     return store_detail::internal_failure();

@@ -56,6 +56,7 @@ class Poller final {
 
   private:
     explicit Poller(int descriptor) noexcept : descriptor_(descriptor) {}
+
     [[nodiscard]] auto release() noexcept -> int;
     void reset(int descriptor = -1) noexcept;
 

@@ -178,19 +178,24 @@ class ShardPairRuntime final {
     [[nodiscard]] auto shard_count() const noexcept -> std::size_t {
         return lanes_.size();
     }
+
     [[nodiscard]] auto async_lane_enabled() const noexcept -> bool;
+
     // ADR 0037: embedded sync combines without Writer threads when async is off.
     [[nodiscard]] auto combining_enabled() const noexcept -> bool {
         return !async_lane_enabled();
     }
+
     // True when a permanent per-shard Writer thread must run (async lane and/or
     // durable_group Writer-batch coalesce). Embedded volatile and durable_sync
     // with async off use the caller combiner only.
     [[nodiscard]] auto dedicated_writer_required() const noexcept -> bool;
     [[nodiscard]] auto start() -> Status;
+
     [[nodiscard]] auto healthy() const noexcept -> bool {
         return healthy_.load(std::memory_order_acquire);
     }
+
     // Stops admission and drains every admitted mutation before returning.
     // nullopt waits unbounded. A set deadline expires remaining queued (pre-Store)
     // work as resource_exhausted once it elapses (including a zero deadline, which
@@ -208,6 +213,7 @@ class ShardPairRuntime final {
     // hard-closing sockets. Safe while a Writer is blocked in Store: queue pops are
     // serialized with the Writer consumer. Idempotent.
     void abandon_queued_mutations() noexcept;
+
     [[nodiscard]] auto expire_remaining_armed() const noexcept -> bool {
         return expire_remaining_.load(std::memory_order_acquire);
     }
@@ -230,6 +236,7 @@ class ShardPairRuntime final {
         std::span<const std::byte> value{};
         std::uint64_t expire_at_ns{};
     };
+
     [[nodiscard]] auto mutate_batch(std::size_t shard, std::span<const SyncBatchItem> items,
                                     std::span<Status> statuses) -> Status;
 
@@ -250,6 +257,7 @@ class ShardPairRuntime final {
         explicit operator bool() const noexcept {
             return generation_ != nullptr;
         }
+
         [[nodiscard]] auto generation() const noexcept -> const PairReadGeneration* {
             return generation_;
         }

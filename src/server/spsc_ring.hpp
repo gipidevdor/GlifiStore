@@ -61,10 +61,12 @@ template <typename T, std::size_t Capacity> class SpscRing final {
 
   private:
     static constexpr std::size_t kMask = Capacity - 1U;
+
     struct alignas(128) ProducerState final {
         std::atomic<std::size_t> head{};
         std::size_t cached_tail{};
     };
+
     struct alignas(128) ConsumerState final {
         std::atomic<std::size_t> tail{};
         std::size_t cached_head{};

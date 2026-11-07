@@ -12,6 +12,7 @@ class Wakeup final {
     [[nodiscard]] auto descriptor() const noexcept -> int {
         return reader_.descriptor();
     }
+
     [[nodiscard]] auto notify() const -> Status;
     [[nodiscard]] auto drain() const -> Status;
 

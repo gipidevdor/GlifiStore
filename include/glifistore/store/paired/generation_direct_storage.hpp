@@ -20,17 +20,20 @@ class GenerationDirectStorage final {
     static constexpr std::size_t kAlignment = 64U;
 
     GenerationDirectStorage() = default;
+
     ~GenerationDirectStorage() {
         if (occupied_) {
             std::terminate();
         }
     }
+
     GenerationDirectStorage(const GenerationDirectStorage&) = delete;
     auto operator=(const GenerationDirectStorage&) -> GenerationDirectStorage& = delete;
 
     [[nodiscard]] auto allocation_count() const noexcept -> std::uint64_t {
         return allocation_count_;
     }
+
     [[nodiscard]] auto reuse_count() const noexcept -> std::uint64_t {
         return reuse_count_;
     }

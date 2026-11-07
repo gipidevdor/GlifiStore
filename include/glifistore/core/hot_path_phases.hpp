@@ -220,9 +220,11 @@ class PhaseScope final {
 inline void observe_get_u8(const std::uint8_t phase, const std::uint64_t elapsed_ns) noexcept {
     observe_get(static_cast<GetPhase>(phase), elapsed_ns);
 }
+
 inline void observe_put_u8(const std::uint8_t phase, const std::uint64_t elapsed_ns) noexcept {
     observe_put(static_cast<PutPhase>(phase), elapsed_ns);
 }
+
 inline void observe_tcp_u8(const std::uint8_t phase, const std::uint64_t elapsed_ns) noexcept {
     observe_tcp(static_cast<TcpPhase>(phase), elapsed_ns);
 }
@@ -232,20 +234,29 @@ inline void observe_tcp_u8(const std::uint8_t phase, const std::uint64_t elapsed
 inline auto enabled() noexcept -> bool {
     return false;
 }
+
 inline void set_enabled(bool) noexcept {}
+
 inline void reset() noexcept {}
+
 inline void observe_get(GetPhase, std::uint64_t) noexcept {}
+
 inline void observe_put(PutPhase, std::uint64_t) noexcept {}
+
 inline void observe_tcp(TcpPhase, std::uint64_t) noexcept {}
+
 inline auto snapshot_get(GetPhase) noexcept -> PhaseSnapshot {
     return {};
 }
+
 inline auto snapshot_put(PutPhase) noexcept -> PhaseSnapshot {
     return {};
 }
+
 inline auto snapshot_tcp(TcpPhase) noexcept -> PhaseSnapshot {
     return {};
 }
+
 inline auto format_report() -> std::string {
     return {};
 }

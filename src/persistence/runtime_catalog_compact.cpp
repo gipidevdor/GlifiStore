@@ -158,6 +158,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             manifest_publication_changed_.notify_all();
         };
         ScopeExit publication_lease{release_publication_lease};
+
         struct IntentGateContext final {
             DurableRuntimeCatalog& runtime;
             const Manifest& snapshot;
@@ -167,6 +168,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                               .snapshot = snapshot,
                               .active = publication_lease_active,
                               .started = publication_lease_started};
+
         const DurableCompactionIntentGate intent_gate{
             .context = &intent_gate_context,
             .acquire = [](void* opaque) -> Status {
@@ -343,6 +345,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             explicit WorkerCommitGate(RuntimeWorker& owner) noexcept : worker(owner) {
                 worker.arm_index_quiesce_gate();
             }
+
             ~WorkerCommitGate() {
                 if (!active) {
                     return;
@@ -350,6 +353,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                 const std::lock_guard lock{worker.mutex};
                 worker.disarm_index_quiesce_gate();
             }
+
             void clear_locked() noexcept {
                 worker.disarm_index_quiesce_gate();
                 active = false;
@@ -358,6 +362,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             WorkerCommitGate(const WorkerCommitGate&) = delete;
             auto operator=(const WorkerCommitGate&) -> WorkerCommitGate& = delete;
         } commit_gate{worker};
+
         // Release every physical mutex before quiesce waits and the durable
         // manifest write (durable-compaction.md). Holding catalog/worker across
         // hot_path_depth wait deadlocks the exclusive Writer: mutate already

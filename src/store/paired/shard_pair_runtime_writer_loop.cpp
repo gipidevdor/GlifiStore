@@ -33,12 +33,15 @@ namespace glifistore::store::paired {
 
 void ShardPairRuntime::run(const std::size_t shard) noexcept try {
     auto& lane = *lanes_[shard];
+
     struct ExitGuard final {
         ShardPairRuntime& executor;
+
         ~ExitGuard() {
             executor.note_writer_exit();
         }
     } exit_guard{*this};
+
     const auto pop_queued = [&lane]() noexcept -> std::optional<runtime_detail::AsyncMutationTask> {
         const std::lock_guard lock{lane.async.queue_consumer_mutex};
         return lane.queue.try_pop();
@@ -419,6 +422,7 @@ void ShardPairRuntime::run(const std::size_t shard) noexcept try {
         run_writer_async_batch(async_env);
     }
 } catch (...) {
+
     FailClosedState{store_, healthy_, expire_remaining_}.arm(fail_closed_wakes_,
                                                              FailClosedScope::pair_and_store);
 }

@@ -12,12 +12,8 @@ enum OptionId : std::size_t { help, version };
 constexpr std::array kOptionSpecs{
     glifistore::cli::OptionSpec{
         help, "help", 'h', glifistore::cli::OptionArity::none, {}, "Show this help message and exit"},
-    glifistore::cli::OptionSpec{version,
-                                 "version",
-                                 'V',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Show version information and exit"},
+    glifistore::cli::OptionSpec{
+        version, "version", 'V', glifistore::cli::OptionArity::none, {}, "Show version information and exit"},
 };
 
 void print_help(const std::string_view program) {
@@ -54,12 +50,15 @@ int main(const int argc, char** argv) try {
         return 2;
     }
     std::cerr << program << ": error: durable v1 does not persist a separate Index artifact\n"
-              << program << ": note: reopen the Store data directory to rebuild Indexes from "
+              << program
+              << ": note: reopen the Store data directory to rebuild Indexes from "
                  "committed Segments\n"
-              << program << ": note: for offline catalog repair use glifistore_repair_store with an "
+              << program
+              << ": note: for offline catalog repair use glifistore_repair_store with an "
                  "explicit empty workspace\n";
     return 1;
 } catch (const std::exception& exception) {
+
     const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_rebuild_index");
     std::cerr << program << ": fatal: " << exception.what() << '\n';
     return 1;

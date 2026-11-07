@@ -53,28 +53,36 @@ class Segment final {
     [[nodiscard]] auto id() const noexcept -> SegmentId {
         return id_;
     }
+
     [[nodiscard]] auto owner() const noexcept -> WorkerId {
         return owner_;
     }
+
     [[nodiscard]] auto generation() const noexcept -> GenerationId {
         return generation_;
     }
+
     [[nodiscard]] auto state() const noexcept -> SegmentState {
         return state_;
     }
+
     [[nodiscard]] auto residency() const noexcept -> ResidencyState {
         return residency_;
     }
+
     [[nodiscard]] auto stats() const noexcept -> SegmentStats {
         return stats_;
     }
+
     [[nodiscard]] auto base() const noexcept -> const std::byte* {
         return storage_.get();
     }
+
     // Exposed for fuzzing and corruption probes; mutating bytes invalidates CRC on read().
     [[nodiscard]] auto mutable_base() noexcept -> std::byte* {
         return storage_.get();
     }
+
     [[nodiscard]] auto capacity() const noexcept -> std::size_t {
         return kSegmentSizeBytes;
     }

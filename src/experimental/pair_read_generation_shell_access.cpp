@@ -38,6 +38,7 @@ auto PairReadGenerationShellAccess::publish_incremental(
     store::paired::IncrementalPublicationAccess::commit_merge(merge, *prepared, next);
     return next;
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "incremental read publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "incremental read publication failed");
@@ -75,6 +76,7 @@ auto PairReadGenerationShellAccess::publish_incremental_borrowed(
         previous_view.routing_, previous_view.base_, std::move(delta), previous_view.epoch_ + 1U,
         prepared->visible_through, storage);
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "incremental read publication allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "incremental read publication failed");

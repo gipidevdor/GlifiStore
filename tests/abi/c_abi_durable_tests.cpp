@@ -33,6 +33,7 @@ auto require(const bool condition, const char* expression, const int line) -> bo
 
 struct DirectoryGuard final {
     std::filesystem::path path;
+
     ~DirectoryGuard() {
         std::error_code ignored;
         std::filesystem::remove_all(path, ignored);

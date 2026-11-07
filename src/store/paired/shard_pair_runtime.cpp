@@ -133,6 +133,7 @@ auto ShardPairRuntime::create(Store& store, const PairedConcurrencyConfig& confi
     }
     return runtime;
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "paired runtime allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "paired runtime construction failed");
@@ -161,6 +162,7 @@ auto ShardPairRuntime::start() -> Status try {
     }
     return {};
 } catch (const std::exception& exception) {
+
     static_cast<void>(stop_and_drain());
     return fail(ErrorCode::io_error,
                 std::string{"failed to start paired mutation executor: "} + exception.what());
@@ -212,12 +214,15 @@ auto ShardPairRuntime::try_submit(const AsyncMutationRequest& request) noexcept
         lane.metrics.rejected.fetch_add(1U, std::memory_order_relaxed);
         return std::nullopt;
     }
+
     struct SubmissionGuard final {
         ShardPairRuntime& executor;
+
         ~SubmissionGuard() {
             executor.finish_submission();
         }
     } submission{*this};
+
     if (!healthy_.load(std::memory_order_acquire) || !started_.load(std::memory_order_acquire) ||
         stopping_.load(std::memory_order_acquire) || lane.async.stopping.load(std::memory_order_acquire) ||
         expire_remaining_.load(std::memory_order_acquire) || !detail::StoreAccess::admissions_open(store_)) {
@@ -634,8 +639,10 @@ auto ShardPairRuntime::mutate(const std::size_t shard, const MutationKind kind, 
             return fail(ErrorCode::unavailable, "paired runtime is not accepting mutations");
         }
     }
+
     struct AdmissionGuard final {
         ShardPairRuntime& runtime;
+
         ~AdmissionGuard() {
             runtime.finish_submission();
         }
@@ -699,8 +706,10 @@ auto ShardPairRuntime::mutate_batch(const std::size_t shard, const std::span<con
         }
         return fail(ErrorCode::unavailable, "paired runtime is not accepting mutations");
     }
+
     struct AdmissionGuard final {
         ShardPairRuntime& runtime;
+
         ~AdmissionGuard() {
             runtime.finish_submission();
         }

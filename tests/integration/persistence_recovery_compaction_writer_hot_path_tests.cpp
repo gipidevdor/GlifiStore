@@ -187,6 +187,7 @@ GLIFI_TEST("exclusive Writer compact unlocks before hot_path_depth wait") {
             return BlockingFilesystemOperation::before(&state.intent, operation);
         }
     } blocker;
+
     auto directory = glifistore::DataDirectory::open_and_lock(
         temporary.path(), {.context = &blocker, .before = &DualBlocker::before});
     GLIFI_REQUIRE(directory.has_value());
@@ -278,6 +279,7 @@ GLIFI_TEST("exclusive Writer compact Phase A drains hot_path_depth before Index 
             return BlockingFilesystemOperation::before(&state.intent, operation);
         }
     } blocker;
+
     auto directory = glifistore::DataDirectory::open_and_lock(
         temporary.path(), {.context = &blocker, .before = &DualBlocker::before});
     GLIFI_REQUIRE(directory.has_value());
@@ -485,6 +487,7 @@ GLIFI_TEST("exclusive Writer capture_published_read takes Worker mutex under com
             return BlockingFilesystemOperation::before(&state.intent, operation);
         }
     } blocker;
+
     auto directory = glifistore::DataDirectory::open_and_lock(
         temporary.path(), {.context = &blocker, .before = &DualBlocker::before});
     GLIFI_REQUIRE(directory.has_value());

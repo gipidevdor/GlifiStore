@@ -30,6 +30,7 @@ namespace glifistore {
         std::uint32_t quotient{};
         std::uint64_t remainder{};
     };
+
     const auto add = [denominator](const Fraction left, const Fraction right) constexpr noexcept {
         Fraction result{.quotient = static_cast<std::uint32_t>(left.quotient + right.quotient)};
         if (right.remainder != 0 && left.remainder >= denominator - right.remainder) {

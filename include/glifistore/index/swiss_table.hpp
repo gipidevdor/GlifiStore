@@ -76,13 +76,16 @@ class SwissTableIndex final {
         [[nodiscard]] auto key_size() const noexcept -> std::uint32_t {
             return key_size_and_mode & ~kInlineKeyMask;
         }
+
         [[nodiscard]] auto key_is_inline() const noexcept -> bool {
             return (key_size_and_mode & kInlineKeyMask) != 0;
         }
+
         void set_key_metadata(const std::uint32_t size, const bool is_inline) noexcept {
             key_size_and_mode = size | (is_inline ? kInlineKeyMask : 0U);
         }
     };
+
     static_assert(sizeof(Slot) == 64, "Swiss slot memory amplification regression");
 
     [[nodiscard]] auto mix_hash(std::uint64_t key_hash) const noexcept -> std::uint64_t;

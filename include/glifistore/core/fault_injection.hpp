@@ -67,18 +67,27 @@ void maybe_block(Site site) noexcept;
 #else
 
 inline void at(Site) noexcept {}
+
 inline void configure(std::uint64_t, std::uint32_t, std::uint32_t) noexcept {}
+
 inline void reset() noexcept {}
+
 inline void fail_once(Site) noexcept {}
+
 inline void fail_nth(Site, std::uint32_t) noexcept {}
+
 inline auto consume_fail(Site) noexcept -> bool {
     return false;
 }
+
 inline void arm_block(Site) noexcept {}
+
 inline void release_block(Site) noexcept {}
+
 inline auto wait_until_blocked(Site, std::chrono::milliseconds = std::chrono::seconds{2}) -> bool {
     return false;
 }
+
 inline void maybe_block(Site) noexcept {}
 
 #endif

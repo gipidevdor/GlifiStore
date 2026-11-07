@@ -69,6 +69,7 @@ auto Reactor::advance_tls_handshake(const ConnectionToken token) -> Status try {
     }
     return {};
 } catch (const std::bad_alloc&) {
+
     close_connection(token);
     return {};
 }

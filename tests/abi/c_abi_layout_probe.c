@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 int main(void) {
-    _Static_assert(sizeof(void *) == 8, "C ABI v1 requires a 64-bit target");
+    _Static_assert(sizeof(void*) == 8, "C ABI v1 requires a 64-bit target");
     _Static_assert(sizeof(gs_bytes_view) == 16, "gs_bytes_view layout changed");
     _Static_assert(_Alignof(gs_bytes_view) == 8, "gs_bytes_view alignment changed");
     _Static_assert(offsetof(gs_bytes_view, data) == 0, "gs_bytes_view.data moved");

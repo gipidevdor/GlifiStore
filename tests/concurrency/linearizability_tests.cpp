@@ -235,6 +235,7 @@ GLIFI_TEST("paired Store TTL put-get stays linearizable under fixed clock") {
     class FixedClock final : public glifistore::StoreClock {
       public:
         explicit FixedClock(const std::uint64_t now) : now_(now) {}
+
         [[nodiscard]] auto now_ns() const noexcept -> std::uint64_t override {
             return now_;
         }
@@ -242,6 +243,7 @@ GLIFI_TEST("paired Store TTL put-get stays linearizable under fixed clock") {
       private:
         std::uint64_t now_;
     };
+
     const auto clock = std::make_shared<FixedClock>(50);
     auto opened = glifistore::Store::open({.worker_config = {.explicit_count = 1}, .clock = clock});
     GLIFI_REQUIRE(opened.has_value());

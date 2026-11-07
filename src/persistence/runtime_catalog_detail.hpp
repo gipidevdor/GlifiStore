@@ -75,9 +75,11 @@ void end_atomic_stats_publication(std::atomic_uint64_t& version, std::uint64_t p
 template <typename Callback> class ScopeExit final {
   public:
     explicit ScopeExit(Callback callback) noexcept : callback_(std::move(callback)) {}
+
     ~ScopeExit() noexcept {
         callback_();
     }
+
     ScopeExit(const ScopeExit&) = delete;
     auto operator=(const ScopeExit&) -> ScopeExit& = delete;
 
@@ -92,15 +94,18 @@ template <typename Callback> ScopeExit(Callback) -> ScopeExit<Callback>;
 class PreparedHotRecord final {
   public:
     PreparedHotRecord() = default;
+
     PreparedHotRecord(std::string key, const std::uint64_t key_hash, HotRecordEntry entry,
                       std::uint64_t* staged_bytes, std::size_t* staged_entries,
                       const std::uint64_t staged_charge, const std::uint64_t resident_charge) noexcept
         : key_(std::move(key)), key_hash_(key_hash), entry_(std::move(entry)), staged_bytes_(staged_bytes),
           staged_entries_(staged_entries), staged_charge_(staged_charge), resident_charge_(resident_charge),
           active_(true) {}
+
     ~PreparedHotRecord() {
         release_stage();
     }
+
     PreparedHotRecord(PreparedHotRecord&& other) noexcept
         : key_(std::move(other.key_)), key_hash_(std::exchange(other.key_hash_, 0)),
           entry_(std::move(other.entry_)), staged_bytes_(std::exchange(other.staged_bytes_, nullptr)),
@@ -108,6 +113,7 @@ class PreparedHotRecord final {
           staged_charge_(std::exchange(other.staged_charge_, 0)),
           resident_charge_(std::exchange(other.resident_charge_, 0)),
           active_(std::exchange(other.active_, false)) {}
+
     auto operator=(PreparedHotRecord&& other) noexcept -> PreparedHotRecord& {
         if (this != &other) {
             release_stage();
@@ -122,27 +128,34 @@ class PreparedHotRecord final {
         }
         return *this;
     }
+
     PreparedHotRecord(const PreparedHotRecord&) = delete;
     auto operator=(const PreparedHotRecord&) -> PreparedHotRecord& = delete;
 
     [[nodiscard]] auto empty() const noexcept -> bool {
         return !active_;
     }
+
     [[nodiscard]] auto key() const -> const std::string& {
         return key_;
     }
+
     [[nodiscard]] auto take_key() noexcept -> std::string {
         return std::move(key_);
     }
+
     [[nodiscard]] auto key_hash() const noexcept -> std::uint64_t {
         return key_hash_;
     }
+
     [[nodiscard]] auto mapped() -> HotRecordEntry& {
         return entry_;
     }
+
     [[nodiscard]] auto resident_charge() const noexcept -> std::uint64_t {
         return resident_charge_;
     }
+
     [[nodiscard]] auto take_entry() -> HotRecordEntry {
         release_stage();
         active_ = false;
@@ -361,12 +374,14 @@ struct DurableRuntimeCatalog::RuntimeWorker {
             compaction_commit_active.store(true, std::memory_order_release);
         }
     }
+
     void disarm_index_quiesce_gate() noexcept {
         if (compaction_commit_holders.fetch_sub(1U, std::memory_order_acq_rel) == 1U) {
             compaction_commit_active.store(false, std::memory_order_release);
             compaction_commit_finished.notify_all();
         }
     }
+
     // Nested exclusive-Writer hot-path depth. Compaction / exclusive Index readers
     // wait for zero before touching the Index when exclusive_writer elides the
     // Worker mutex (`exclusive_writer &&` no background flusher). Flusher paths
@@ -375,9 +390,11 @@ struct DurableRuntimeCatalog::RuntimeWorker {
 
     [[nodiscard]] auto hot_cache_total_bytes() const noexcept -> std::uint64_t;
     void erase_hot_record(std::string_view key, std::uint64_t key_hash) noexcept;
+
     void erase_hot_record(const HashedKey& key) noexcept {
         erase_hot_record(key.key, key.hash);
     }
+
     // Drain up to `limit` deferred TTL reclamations. Verifies exact RecordRef
     // before erase so a reinsert/update is never deleted. Caller holds mutex.
     [[nodiscard]] auto drain_deferred_ttl(std::size_t limit) -> Status;
@@ -418,6 +435,7 @@ struct DurableRuntimeCatalog::ExclusiveIndexQuiesce final {
             worker.hot_path_depth.wait(depth, std::memory_order_acquire);
         }
     }
+
     void clear() noexcept {
         if (!armed) {
             return;
@@ -425,9 +443,11 @@ struct DurableRuntimeCatalog::ExclusiveIndexQuiesce final {
         armed = false;
         worker.disarm_index_quiesce_gate();
     }
+
     ~ExclusiveIndexQuiesce() {
         clear();
     }
+
     ExclusiveIndexQuiesce(const ExclusiveIndexQuiesce&) = delete;
     auto operator=(const ExclusiveIndexQuiesce&) -> ExclusiveIndexQuiesce& = delete;
 };

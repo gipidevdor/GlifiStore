@@ -1199,6 +1199,7 @@ GLIFI_TEST("online backup FileIoHooks capacity faults leave source healthy") {
     struct Case {
         int error_number;
     };
+
     std::vector<Case> cases{{ENOSPC}};
 #if defined(EDQUOT)
     cases.push_back({EDQUOT});
@@ -1243,6 +1244,7 @@ GLIFI_TEST("online backup FileIoHooks write EIO and EROFS leave source healthy")
         int error_number;
         glifistore::ErrorCode expected;
     };
+
     const std::array cases{
         Case{EIO, glifistore::ErrorCode::io_error},
         Case{EROFS, glifistore::ErrorCode::read_only_filesystem},

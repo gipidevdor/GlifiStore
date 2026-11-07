@@ -36,6 +36,7 @@ auto PairReadGeneration::empty_direct(const WorkerRoutingState routing, Generati
         throw;
     }
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "direct empty generation allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "direct empty generation construction failed");
@@ -85,6 +86,7 @@ auto PairReadGeneration::build_durable_snapshot_direct(
         throw;
     }
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "direct durable read generation allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "direct durable read generation construction failed");

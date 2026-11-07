@@ -98,12 +98,15 @@ class HotRecordTable final {
     [[nodiscard]] auto size() const noexcept -> std::size_t {
         return size_;
     }
+
     [[nodiscard]] auto capacity() const noexcept -> std::size_t {
         return capacity_;
     }
+
     [[nodiscard]] auto bucket_count() const noexcept -> std::size_t {
         return capacity_;
     }
+
     [[nodiscard]] auto tombstone_count() const noexcept -> std::size_t {
         return tombstones_;
     }

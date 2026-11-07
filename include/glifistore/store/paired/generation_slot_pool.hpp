@@ -103,6 +103,7 @@ class GenerationSlotPool final {
         Reservation(Reservation&& other) noexcept
             : owner_(std::exchange(other.owner_, nullptr)), slot_(other.slot_),
               store_linearized_(other.store_linearized_) {}
+
         auto operator=(Reservation&& other) noexcept -> Reservation& {
             if (this != &other) {
                 reset();
@@ -112,8 +113,10 @@ class GenerationSlotPool final {
             }
             return *this;
         }
+
         Reservation(const Reservation&) = delete;
         auto operator=(const Reservation&) -> Reservation& = delete;
+
         ~Reservation() {
             reset();
         }
@@ -121,12 +124,15 @@ class GenerationSlotPool final {
         void mark_store_linearized() noexcept {
             store_linearized_ = true;
         }
+
         [[nodiscard]] auto store_linearized() const noexcept -> bool {
             return store_linearized_;
         }
+
         [[nodiscard]] auto slot_index() const noexcept -> std::size_t {
             return slot_;
         }
+
         void reset() noexcept {
             if (owner_ != nullptr) {
                 auto* owner = std::exchange(owner_, nullptr);
@@ -137,9 +143,11 @@ class GenerationSlotPool final {
       private:
         Reservation(GenerationSlotPool* owner, const std::size_t slot) noexcept
             : owner_(owner), slot_(slot) {}
+
         void consume() noexcept {
             owner_ = nullptr;
         }
+
         GenerationSlotPool* owner_{};
         std::size_t slot_{};
         bool store_linearized_{};

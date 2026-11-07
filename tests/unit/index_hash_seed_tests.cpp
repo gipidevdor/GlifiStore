@@ -15,9 +15,11 @@ struct SeedGuard final {
     explicit SeedGuard(const std::uint64_t seed) : previous_(glifistore::get_index_hash_seed()) {
         glifistore::set_index_hash_seed(seed);
     }
+
     ~SeedGuard() {
         glifistore::set_index_hash_seed(previous_);
     }
+
     SeedGuard(const SeedGuard&) = delete;
     auto operator=(const SeedGuard&) -> SeedGuard& = delete;
 

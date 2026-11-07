@@ -16,26 +16,21 @@ enum OptionId : std::size_t { help, version, json, no_scan };
 constexpr std::array kOptionSpecs{
     glifistore::cli::OptionSpec{
         help, "help", 'h', glifistore::cli::OptionArity::none, {}, "Show this help message and exit"},
-    glifistore::cli::OptionSpec{version,
-                                 "version",
-                                 'V',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Show version information and exit"},
+    glifistore::cli::OptionSpec{
+        version, "version", 'V', glifistore::cli::OptionArity::none, {}, "Show version information and exit"},
     glifistore::cli::OptionSpec{
         json, "json", '\0', glifistore::cli::OptionArity::none, {}, "Emit a stable JSON report on stdout"},
     glifistore::cli::OptionSpec{no_scan,
-                                 "no-scan",
-                                 '\0',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Validate header and commit metadata only (skip committed Record scan)"},
+                                "no-scan",
+                                '\0',
+                                glifistore::cli::OptionArity::none,
+                                {},
+                                "Validate header and commit metadata only (skip committed Record scan)"},
 };
 
 void print_help(const std::string_view program) {
-    glifistore::cli::write_help(std::cout, program,
-                                 "Inspect a GlifiStore durable Segment file (read-only).",
-                                 "[OPTIONS] <SEGMENT-FILE>", kOptionSpecs);
+    glifistore::cli::write_help(std::cout, program, "Inspect a GlifiStore durable Segment file (read-only).",
+                                "[OPTIONS] <SEGMENT-FILE>", kOptionSpecs);
 }
 
 [[nodiscard]] auto to_hex(const std::span<const std::byte> bytes) -> std::string {
@@ -167,8 +162,7 @@ void write_text_ok(std::ostream& out, const glifistore::DurableSegmentInspectRep
 
 void write_json_ok(std::ostream& out, const glifistore::DurableSegmentInspectReport& report) {
     const auto& commit = report.selected.commit;
-    out << '{'
-        << "\"status\":\"ok\","
+    out << '{' << "\"status\":\"ok\","
         << "\"path\":\"" << json_escape(report.path.string()) << "\","
         << "\"store_id\":\"" << to_hex(std::span{report.identity.store_id}) << "\","
         << "\"segment_id\":" << report.identity.segment_id.value << ','
@@ -176,8 +170,8 @@ void write_json_ok(std::ostream& out, const glifistore::DurableSegmentInspectRep
         << "\"owner_worker\":" << report.identity.owner_worker.value << ','
         << "\"selected_slot\":" << report.selected.slot_index << ','
         << "\"commit_generation\":" << commit.commit_generation << ','
-        << "\"committed_end\":" << commit.committed_end << ','
-        << "\"state\":\"" << state_name(commit.state) << "\","
+        << "\"committed_end\":" << commit.committed_end << ',' << "\"state\":\"" << state_name(commit.state)
+        << "\","
         << "\"record_count\":" << commit.record_count << ','
         << "\"first_sequence\":" << commit.first_sequence.value << ','
         << "\"last_sequence\":" << commit.last_sequence.value << ','
@@ -191,8 +185,7 @@ void write_json_ok(std::ostream& out, const glifistore::DurableSegmentInspectRep
 }
 
 void write_json_error(std::ostream& out, const std::string_view path, const glifistore::Error& error) {
-    out << '{'
-        << "\"status\":\"error\","
+    out << '{' << "\"status\":\"error\","
         << "\"path\":\"" << json_escape(path) << "\","
         << "\"error\":{"
         << "\"code\":\"" << error_code_name(error.code) << "\","
@@ -203,8 +196,7 @@ void write_json_error(std::ostream& out, const std::string_view path, const glif
 } // namespace
 
 int main(const int argc, char** argv) try {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_inspect_segment");
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_inspect_segment");
     auto parsed = glifistore::cli::parse_arguments(argc, argv, kOptionSpecs);
     if (!parsed) {
         std::cerr << program << ": error: " << parsed.error().message << "\nTry '" << program
@@ -245,8 +237,8 @@ int main(const int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& exception) {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_inspect_segment");
+
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_inspect_segment");
     std::cerr << program << ": fatal: " << exception.what() << '\n';
     return 1;
 } catch (...) {

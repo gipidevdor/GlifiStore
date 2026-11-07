@@ -88,6 +88,7 @@ template <typename T> class BoundedSpscQueue final {
         std::atomic<std::size_t> head{};
         std::size_t cached_tail{};
     };
+
     struct alignas(128) ConsumerState final {
         std::atomic<std::size_t> tail{};
         std::size_t cached_head{};

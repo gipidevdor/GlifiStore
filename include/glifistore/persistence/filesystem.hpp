@@ -31,8 +31,10 @@ enum class DataDirectoryOpenMode { existing, open_or_create, create_new };
 class FileDescriptor final {
   public:
     FileDescriptor() = default;
+
     explicit FileDescriptor(int descriptor, FileIoHooks io_hooks = {}) noexcept
         : descriptor_(descriptor), io_hooks_(io_hooks) {}
+
     ~FileDescriptor();
 
     FileDescriptor(const FileDescriptor&) = delete;
@@ -43,9 +45,11 @@ class FileDescriptor final {
     [[nodiscard]] auto valid() const noexcept -> bool {
         return descriptor_ >= 0;
     }
+
     [[nodiscard]] auto get() const noexcept -> int {
         return descriptor_;
     }
+
     [[nodiscard]] auto release() noexcept -> int;
     void reset(int descriptor = -1, FileIoHooks io_hooks = {}) noexcept;
 
@@ -255,13 +259,16 @@ class DataDirectory final {
     // Returns an independently positioned descriptor for descriptor-relative
     // namespace enumeration. The caller owns the returned descriptor.
     [[nodiscard]] auto open_directory_for_enumeration() const -> Result<FileDescriptor>;
+
     // Descriptor-relative openat for catalog backup/copy while the Store lock is held.
     [[nodiscard]] auto directory_descriptor() const noexcept -> int {
         return directory_.get();
     }
+
     [[nodiscard]] auto hooks() const noexcept -> const FilesystemHooks& {
         return hooks_;
     }
+
     [[nodiscard]] auto healthy() const noexcept -> bool {
         return health_ && health_->load(std::memory_order_acquire);
     }

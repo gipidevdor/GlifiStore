@@ -22,6 +22,7 @@ auto VacuumPlanner::candidates(std::span<const SegmentPtr> segments) const -> st
         SegmentId id{};
         double ratio{};
     };
+
     std::vector<Candidate> ranked;
     for (const auto& segment : segments) {
         const auto stats = segment->stats();
@@ -77,11 +78,13 @@ auto VacuumBuilder::rebuild(const Index& current_index, const std::span<const Se
         return fail(ErrorCode::invalid_argument, "vacuum requires a replacement Segment allocator");
     }
     const auto catalog = make_catalog(current_segments);
+
     struct SourceAccounting {
         Segment* segment{};
         std::uint64_t records{};
         std::uint64_t bytes{};
     };
+
     std::unordered_map<SegmentId, SourceAccounting> sources;
     sources.reserve(candidates.size());
     WorkerId source_owner{};

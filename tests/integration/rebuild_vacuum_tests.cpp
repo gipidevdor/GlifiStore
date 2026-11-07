@@ -8,6 +8,7 @@ namespace {
 auto bytes(std::string_view value) -> std::span<const std::byte> {
     return {reinterpret_cast<const std::byte*>(value.data()), value.size()};
 }
+
 auto append(glifistore::Segment& segment, std::uint64_t seq, glifistore::Opcode op, std::string_view key,
             std::string_view value = {}, std::uint64_t hash = 7, std::uint64_t expiry = 0)
     -> glifistore::RecordRef {

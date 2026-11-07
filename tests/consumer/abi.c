@@ -7,14 +7,14 @@ int main(void) {
     if (gs_store_options_init(&options).code != GS_OK) {
         return 1;
     }
-    gs_store *store = NULL;
+    gs_store* store = NULL;
     if (gs_store_open(&options, &store).code != GS_OK || store == NULL) {
         return 2;
     }
     const char key[] = "installed-c-consumer";
     const char value[] = "value";
-    const gs_bytes_view key_view = {(const uint8_t *)key, sizeof(key) - 1};
-    const gs_bytes_view value_view = {(const uint8_t *)value, sizeof(value) - 1};
+    const gs_bytes_view key_view = {(const uint8_t*)key, sizeof(key) - 1};
+    const gs_bytes_view value_view = {(const uint8_t*)value, sizeof(value) - 1};
     const gs_mutation_result put = gs_store_put(store, key_view, value_view, 0);
     if (put.status.code != GS_OK || put.outcome != GS_MUTATION_COMMITTED) {
         (void)gs_store_close(store);

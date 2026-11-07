@@ -388,6 +388,7 @@ auto DurableRuntimeCatalog::maintenance_observation(const std::size_t start_work
             std::uint64_t key_hash{};
             bool expired{};
         };
+
         const RecordVisitor probe_visitor = [](void* opaque, const RecordView& record) -> Status {
             auto& context = *static_cast<ProbeContext*>(opaque);
             if (record.opcode != Opcode::put || record.key_hash != context.key_hash) {

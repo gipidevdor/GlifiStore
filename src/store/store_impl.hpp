@@ -220,6 +220,7 @@ struct Store::Impl {
       public:
         OperationGuard(Impl& impl, const std::size_t shard) noexcept
             : impl_(impl.begin_operation(shard) ? &impl : nullptr), shard_(shard) {}
+
         ~OperationGuard() {
             if (impl_ != nullptr) {
                 impl_->finish_operation(shard_);
@@ -244,6 +245,7 @@ struct Store::Impl {
           active_operations(std::make_unique<ActiveOperationCounter[]>(worker_count_value + 1)),
           volatile_runtime(std::move(runtime)), clock(std::move(store_clock)), latest_now_ns(initial_now_ns) {
     }
+
     explicit Impl(std::unique_ptr<DurableRuntimeCatalog> runtime,
                   std::shared_ptr<const StoreClock> store_clock, const std::uint64_t initial_now_ns)
         : worker_count_value(runtime->worker_count()), routing(runtime->worker_routing()),
@@ -540,8 +542,10 @@ struct Store::Impl {
 
 struct detail::PreparedColdRead::State final {
     explicit State(DurableRuntimeCatalog::PinnedRead prepared_read) : prepared(std::move(prepared_read)) {}
+
     explicit State(DurableRuntimeCatalog::BorrowedPinnedRead prepared_read)
         : prepared(std::move(prepared_read)) {}
+
     std::variant<DurableRuntimeCatalog::PinnedRead, DurableRuntimeCatalog::BorrowedPinnedRead> prepared;
 };
 

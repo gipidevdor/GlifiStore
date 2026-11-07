@@ -39,6 +39,7 @@
 #include <vector>
 
 using namespace glifistore::test::server_reactor_support;
+
 GLIFI_TEST("server request timeout closes socket without cancelling admitted durable mutation") {
 #if defined(__OpenBSD__)
     // Same OpenBSD qemu residual as the durable mutation queue deadline test: BlockingFileSync
@@ -262,10 +263,12 @@ GLIFI_TEST("server shutdown drain deadline abandons queued durable mutations") {
     server.request_stop();
     std::optional<glifistore::Status> joined;
     std::thread joiner{[&] { joined = server.join(); }};
+
     struct JoinGuard final {
         std::thread& thread;
         BlockingFileSync& blocker;
         bool released{};
+
         void release_and_join() {
             if (!released) {
                 blocker.release();
@@ -275,10 +278,12 @@ GLIFI_TEST("server shutdown drain deadline abandons queued durable mutations") {
                 thread.join();
             }
         }
+
         ~JoinGuard() {
             release_and_join();
         }
     } join_guard{joiner, blocker};
+
     // Drain deadline abandons the queued PUT as wire OVERLOADED while the socket
     // is still live (before hard close). In-flight Store work stays blocked until
     // the sync hook releases.
@@ -360,14 +365,17 @@ GLIFI_TEST("server shutdown drain deadline abandons durable_group coalescing hol
     server.request_stop();
     std::optional<glifistore::Status> joined;
     std::thread joiner{[&] { joined = server.join(); }};
+
     struct JoinGuard final {
         std::thread& thread;
+
         ~JoinGuard() {
             if (thread.joinable()) {
                 thread.join();
             }
         }
     } join_guard{joiner};
+
     const auto frame = receive_response(socket);
     GLIFI_REQUIRE(!frame.empty());
     const auto response = glifistore::server::decode_response(frame);

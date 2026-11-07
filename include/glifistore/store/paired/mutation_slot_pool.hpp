@@ -67,16 +67,21 @@ class MutationSlotPool final {
     [[nodiscard]] auto slot_capacity() const noexcept -> std::size_t {
         return slot_capacity_;
     }
+
     [[nodiscard]] auto slots_in_use() const noexcept -> std::size_t {
         return slot_capacity_ - free_slots_.size();
     }
+
     [[nodiscard]] auto byte_capacity() const noexcept -> std::size_t {
         return byte_capacity_;
     }
+
     [[nodiscard]] auto storage_bytes() const noexcept -> std::size_t {
         return byte_capacity_ + maximum_payload_bytes_;
     }
+
     [[nodiscard]] auto payload_bytes_in_use() const noexcept -> std::size_t;
+
     [[nodiscard]] auto admission_bytes_in_use() const noexcept -> std::size_t {
         return admission_bytes_in_use_;
     }

@@ -30,6 +30,7 @@ auto bytes(const std::string_view value) -> std::span<const std::byte> {
 }
 
 } // namespace
+
 GLIFI_TEST("paired Store read-after-write and close drain") {
     auto opened = glifistore::Store::open({.worker_config = {.explicit_count = 2}});
     GLIFI_REQUIRE(opened.has_value());

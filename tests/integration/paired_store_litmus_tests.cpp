@@ -30,6 +30,7 @@ auto bytes(const std::string_view value) -> std::span<const std::byte> {
 }
 
 } // namespace
+
 GLIFI_TEST("paired Store concurrent GET observes live generation under overwrite storm") {
     // ADR 0036 V2/V3 baseline under production shared_ptr + ReadLease (not slot-pool).
     // Slot-pool landing must keep this class of race green (see ADR 0036 verification matrix).
@@ -1045,6 +1046,7 @@ GLIFI_TEST("paired durable pre-write rotation failure is known not committed") {
 
     struct SegmentFullOnce final {
         std::size_t write_records{};
+
         static auto before(void* opaque, const glifistore::FilesystemOperation operation)
             -> glifistore::Status {
             auto& state = *static_cast<SegmentFullOnce*>(opaque);
@@ -1110,6 +1112,7 @@ GLIFI_TEST("paired durable post-seal rotation reader-open is sticky indeterminat
 
     struct SegmentFullOnSecond final {
         std::size_t write_records{};
+
         static auto before(void* opaque, const glifistore::FilesystemOperation operation)
             -> glifistore::Status {
             auto& state = *static_cast<SegmentFullOnSecond*>(opaque);
@@ -1176,6 +1179,7 @@ GLIFI_TEST("paired durable post-seal rotation create reject is sticky indetermin
     struct SegmentFullThenCreateReject final {
         std::size_t write_records{};
         std::size_t preallocates{};
+
         static auto before(void* opaque, const glifistore::FilesystemOperation operation)
             -> glifistore::Status {
             auto& state = *static_cast<SegmentFullThenCreateReject*>(opaque);

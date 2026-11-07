@@ -336,6 +336,7 @@ extern "C" GS_API gs_status gs_store_open(const gs_store_options* const options,
     *out_store = handle.release();
     return ok_status();
 } catch (const std::bad_alloc&) {
+
     return resource_exhausted();
 } catch (...) {
     return internal_error();
@@ -349,6 +350,7 @@ extern "C" GS_API gs_status gs_store_close(gs_store* const store) noexcept try {
     const auto status = map_status(owner->value->close());
     return status;
 } catch (...) {
+
     return internal_error();
 }
 
@@ -375,6 +377,7 @@ extern "C" GS_API gs_status gs_store_get(gs_store* const store, const gs_bytes_v
     }
     return ok_status();
 } catch (const std::bad_alloc&) {
+
     return resource_exhausted();
 } catch (...) {
     return internal_error();
@@ -389,6 +392,7 @@ extern "C" GS_API gs_mutation_result gs_store_put(gs_store* const store, const g
     return engine_mutation_result(
         map_status(store->value->put(key_view(key), byte_span(value), expire_at_ns)));
 } catch (const std::bad_alloc&) {
+
     return mutation_result(resource_exhausted(), GS_MUTATION_INDETERMINATE);
 } catch (...) {
     return mutation_result(internal_error(), GS_MUTATION_INDETERMINATE);
@@ -401,6 +405,7 @@ extern "C" GS_API gs_mutation_result gs_store_erase(gs_store* const store, const
     }
     return engine_mutation_result(map_status(store->value->erase(key_view(key))));
 } catch (const std::bad_alloc&) {
+
     return mutation_result(resource_exhausted(), GS_MUTATION_INDETERMINATE);
 } catch (...) {
     return mutation_result(internal_error(), GS_MUTATION_INDETERMINATE);
@@ -440,6 +445,7 @@ extern "C" GS_API gs_status gs_store_put_batch(gs_store* const store, const gs_p
     }
     return ok_status();
 } catch (const std::bad_alloc&) {
+
     if (results != nullptr) {
         for (size_t index = 0; index < request_count; ++index) {
             results[index] = mutation_result(resource_exhausted(), GS_MUTATION_INDETERMINATE);
@@ -488,6 +494,7 @@ extern "C" GS_API gs_status gs_store_erase_batch(gs_store* const store,
     }
     return ok_status();
 } catch (const std::bad_alloc&) {
+
     if (results != nullptr) {
         for (size_t index = 0; index < request_count; ++index) {
             results[index] = mutation_result(resource_exhausted(), GS_MUTATION_INDETERMINATE);

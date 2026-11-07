@@ -28,6 +28,7 @@ struct PackedRecord {
     RecordRef output{};
     std::uint32_t encoded_crc{};
 };
+
 static_assert(sizeof(PackedRecord) <= 64, "compaction placement metadata must remain within one cache line");
 
 struct VerifiedRecordContext {
@@ -155,6 +156,7 @@ class StagedSegmentGuard final {
   public:
     StagedSegmentGuard(DataDirectory& directory, std::span<const SegmentHeaderIdentity> identities) noexcept
         : directory_(&directory), identities_(identities) {}
+
     ~StagedSegmentGuard() {
         if (directory_ != nullptr) {
             DurableSegmentFile::discard_staged(*directory_, identities_.first(created_count_));

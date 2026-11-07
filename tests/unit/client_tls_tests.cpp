@@ -26,10 +26,12 @@ class TemporaryDirectory final {
         GLIFI_REQUIRE(created != nullptr);
         path_ = created;
     }
+
     ~TemporaryDirectory() {
         std::error_code ec;
         std::filesystem::remove_all(path_, ec);
     }
+
     [[nodiscard]] auto path() const -> const std::filesystem::path& {
         return path_;
     }

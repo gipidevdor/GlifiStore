@@ -14,27 +14,22 @@ enum OptionId : std::size_t { help, version, json, no_scan };
 constexpr std::array kOptionSpecs{
     glifistore::cli::OptionSpec{
         help, "help", 'h', glifistore::cli::OptionArity::none, {}, "Show this help message and exit"},
-    glifistore::cli::OptionSpec{version,
-                                 "version",
-                                 'V',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Show version information and exit"},
+    glifistore::cli::OptionSpec{
+        version, "version", 'V', glifistore::cli::OptionArity::none, {}, "Show version information and exit"},
     glifistore::cli::OptionSpec{
         json, "json", '\0', glifistore::cli::OptionArity::none, {}, "Emit a stable JSON report on stdout"},
     glifistore::cli::OptionSpec{no_scan,
-                                 "no-scan",
-                                 '\0',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Skip committed Record scans during source/destination verify"},
+                                "no-scan",
+                                '\0',
+                                glifistore::cli::OptionArity::none,
+                                {},
+                                "Skip committed Record scans during source/destination verify"},
 };
 
 void print_help(const std::string_view program) {
-    glifistore::cli::write_help(
-        std::cout, program,
-        "Offline backup (or restore) of a GlifiStore durable data directory.",
-        "[OPTIONS] <SOURCE-DATA-DIR> <DESTINATION-DATA-DIR>", kOptionSpecs);
+    glifistore::cli::write_help(std::cout, program,
+                                "Offline backup (or restore) of a GlifiStore durable data directory.",
+                                "[OPTIONS] <SOURCE-DATA-DIR> <DESTINATION-DATA-DIR>", kOptionSpecs);
 }
 
 [[nodiscard]] auto error_code_name(const glifistore::ErrorCode code) -> std::string_view {
@@ -133,13 +128,11 @@ void write_text_ok(std::ostream& out, const glifistore::DurableStoreBackupReport
 }
 
 void write_json_ok(std::ostream& out, const glifistore::DurableStoreBackupReport& report) {
-    out << '{'
-        << "\"status\":\"ok\","
+    out << '{' << "\"status\":\"ok\","
         << "\"source\":\"" << json_escape(report.source.string()) << "\","
         << "\"destination\":\"" << json_escape(report.destination.string()) << "\","
-        << "\"files_copied\":" << report.files_copied << ','
-        << "\"bytes_copied\":" << report.bytes_copied << ','
-        << "\"admission_fence_ns\":" << report.admission_fence_ns << ','
+        << "\"files_copied\":" << report.files_copied << ',' << "\"bytes_copied\":" << report.bytes_copied
+        << ',' << "\"admission_fence_ns\":" << report.admission_fence_ns << ','
         << "\"catalog_copy_ns\":" << report.catalog_copy_ns << ','
         << "\"destination_verify_ns\":" << report.destination_verify_ns << ','
         << "\"segment_copy_workers\":" << report.segment_copy_workers << ','
@@ -151,8 +144,7 @@ void write_json_ok(std::ostream& out, const glifistore::DurableStoreBackupReport
 
 void write_json_error(std::ostream& out, const std::string_view source, const std::string_view destination,
                       const glifistore::Error& error) {
-    out << '{'
-        << "\"status\":\"error\","
+    out << '{' << "\"status\":\"error\","
         << "\"source\":\"" << json_escape(source) << "\","
         << "\"destination\":\"" << json_escape(destination) << "\","
         << "\"error\":{"
@@ -164,8 +156,7 @@ void write_json_error(std::ostream& out, const std::string_view source, const st
 } // namespace
 
 int main(const int argc, char** argv) try {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_backup_store");
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_backup_store");
     auto parsed = glifistore::cli::parse_arguments(argc, argv, kOptionSpecs);
     if (!parsed) {
         std::cerr << program << ": error: " << parsed.error().message << "\nTry '" << program
@@ -181,8 +172,8 @@ int main(const int argc, char** argv) try {
         return 0;
     }
     if (parsed->positionals.size() != 2) {
-        std::cerr << program << ": error: expected source and destination data directories\nTry '"
-                  << program << " --help' for more information.\n";
+        std::cerr << program << ": error: expected source and destination data directories\nTry '" << program
+                  << " --help' for more information.\n";
         return 2;
     }
 
@@ -207,8 +198,8 @@ int main(const int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& exception) {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_backup_store");
+
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_backup_store");
     std::cerr << program << ": fatal: " << exception.what() << '\n';
     return 1;
 } catch (...) {

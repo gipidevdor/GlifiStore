@@ -129,8 +129,10 @@ template <typename T> class ReleasingLargeAllocator {
 
 #if defined(__unix__) || defined(__APPLE__)
     ReleasingLargeAllocator() : pool_(std::make_shared<LargeImmutableMappingPool>()) {}
+
     explicit ReleasingLargeAllocator(std::shared_ptr<LargeImmutableMappingPool> pool) noexcept
         : pool_(std::move(pool)) {}
+
     template <typename U>
     ReleasingLargeAllocator(const ReleasingLargeAllocator<U>& other) noexcept : pool_(other.pool_) {}
 
@@ -139,6 +141,7 @@ template <typename T> class ReleasingLargeAllocator {
     }
 #else
     ReleasingLargeAllocator() noexcept = default;
+
     template <typename U> ReleasingLargeAllocator(const ReleasingLargeAllocator<U>&) noexcept {}
 #endif
 
@@ -394,6 +397,7 @@ struct alignas(64) DeltaRecord final {
         std::array<char, 16> inline_key{};
         const char* external_key;
     };
+
     RecordRef record;
     KeyStorage key;
     const void* pin{};
@@ -401,6 +405,7 @@ struct alignas(64) DeltaRecord final {
     Opcode opcode{Opcode::put};
     bool durable{};
 };
+
 static_assert(sizeof(DeltaRecord) == 64, "a Delta record must occupy exactly one cache line");
 static_assert(std::is_trivially_copyable_v<DeltaRecord>);
 
@@ -627,6 +632,7 @@ struct CompactReadRecord final {
         std::array<char, 16> inline_key{};
         const char* external_key;
     };
+
     RecordRef record{};
     std::uint64_t hash{};
     KeyStorage key{};
@@ -641,18 +647,22 @@ struct CompactReadRecord final {
     [[nodiscard]] auto pin_index() const noexcept -> std::uint32_t {
         return pin_and_flags & kPinMask;
     }
+
     [[nodiscard]] auto durable() const noexcept -> bool {
         return (pin_and_flags & kDurableFlag) != 0;
     }
+
     [[nodiscard]] auto opcode() const noexcept -> Opcode {
         return (pin_and_flags & kEraseFlag) != 0 ? Opcode::erase : Opcode::put;
     }
+
     void set_metadata(const std::uint32_t pin_index, const bool is_durable,
                       const Opcode record_opcode) noexcept {
         pin_and_flags =
             pin_index | (is_durable ? kDurableFlag : 0U) | (record_opcode == Opcode::erase ? kEraseFlag : 0U);
     }
 };
+
 static_assert(sizeof(CompactReadRecord) == 64,
               "the immutable Reader record and full hash must occupy one cache line");
 

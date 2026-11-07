@@ -154,9 +154,11 @@ class PairReadGeneration {
     [[nodiscard]] auto epoch() const noexcept -> std::uint64_t {
         return epoch_;
     }
+
     [[nodiscard]] auto visible_through() const noexcept -> std::uint64_t {
         return visible_through_;
     }
+
     [[nodiscard]] auto delta_entries() const noexcept -> std::size_t;
     [[nodiscard]] auto delta_record_versions() const noexcept -> std::size_t;
     [[nodiscard]] auto delta_arena_record_bytes() const noexcept -> std::size_t;
@@ -191,6 +193,7 @@ class PairReadGeneration {
     // derived helper. delta_ points into that storage for the object's lifetime.
     PairReadGeneration(WorkerRoutingState routing, std::shared_ptr<const ImmutableReadIndex> base,
                        const DeltaState* delta, std::uint64_t epoch, std::uint64_t visible_through) noexcept;
+
     void bind_delta(const DeltaState* delta) noexcept {
         delta_ = delta;
     }

@@ -80,6 +80,7 @@ auto DiskReadExecutor::create(Store& store, const std::size_t worker_count,
     }
     return std::unique_ptr<DiskReadExecutor>(new DiskReadExecutor(store, worker_count, capacity_per_worker));
 } catch (const std::bad_alloc&) {
+
     return fail(ErrorCode::resource_exhausted, "disk-read executor allocation failed");
 } catch (...) {
     return fail(ErrorCode::internal_error, "disk-read executor construction failed");
@@ -97,6 +98,7 @@ auto DiskReadExecutor::start() -> Status try {
     }
     return {};
 } catch (const std::exception& exception) {
+
     stop();
     return fail(ErrorCode::io_error, std::string{"failed to start disk-read executor: "} + exception.what());
 } catch (...) {
@@ -124,12 +126,15 @@ auto DiskReadExecutor::try_submit(DiskReadTask task) -> bool {
     if (task.worker_index >= lanes_.size() || !begin_submission()) {
         return false;
     }
+
     struct SubmissionGuard final {
         DiskReadExecutor& executor;
+
         ~SubmissionGuard() {
             executor.finish_submission();
         }
     } submission{*this};
+
     if (!started_.load(std::memory_order_acquire) || stopping_.load(std::memory_order_acquire)) {
         return false;
     }

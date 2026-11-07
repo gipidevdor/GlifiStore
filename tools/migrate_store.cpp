@@ -16,26 +16,18 @@ enum OptionId : std::size_t { help, version, json, no_scan, workers };
 constexpr std::array kOptionSpecs{
     glifistore::cli::OptionSpec{
         help, "help", 'h', glifistore::cli::OptionArity::none, {}, "Show this help message and exit"},
-    glifistore::cli::OptionSpec{version,
-                                 "version",
-                                 'V',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Show version information and exit"},
+    glifistore::cli::OptionSpec{
+        version, "version", 'V', glifistore::cli::OptionArity::none, {}, "Show version information and exit"},
     glifistore::cli::OptionSpec{
         json, "json", '\0', glifistore::cli::OptionArity::none, {}, "Emit a stable JSON report on stdout"},
     glifistore::cli::OptionSpec{no_scan,
-                                 "no-scan",
-                                 '\0',
-                                 glifistore::cli::OptionArity::none,
-                                 {},
-                                 "Skip committed Record scans during source/destination verify"},
-    glifistore::cli::OptionSpec{workers,
-                                 "workers",
-                                 'w',
-                                 glifistore::cli::OptionArity::required,
-                                 "N",
-                                 "Destination Worker count (required, 1..256)"},
+                                "no-scan",
+                                '\0',
+                                glifistore::cli::OptionArity::none,
+                                {},
+                                "Skip committed Record scans during source/destination verify"},
+    glifistore::cli::OptionSpec{workers, "workers", 'w', glifistore::cli::OptionArity::required, "N",
+                                "Destination Worker count (required, 1..256)"},
 };
 
 void print_help(const std::string_view program) {
@@ -139,22 +131,19 @@ void write_text_ok(std::ostream& out, const glifistore::DurableStoreMigrateRepor
 }
 
 void write_json_ok(std::ostream& out, const glifistore::DurableStoreMigrateReport& report) {
-    out << '{'
-        << "\"status\":\"ok\","
+    out << '{' << "\"status\":\"ok\","
         << "\"source\":\"" << json_escape(report.source.string()) << "\","
         << "\"destination\":\"" << json_escape(report.destination.string()) << "\","
         << "\"source_workers\":" << report.source_worker_count << ','
         << "\"target_workers\":" << report.target_worker_count << ','
-        << "\"keys_copied\":" << report.keys_copied << ','
-        << "\"keys_skipped\":" << report.keys_skipped << ','
-        << "\"bytes_copied\":" << report.bytes_copied << ','
+        << "\"keys_copied\":" << report.keys_copied << ',' << "\"keys_skipped\":" << report.keys_skipped
+        << ',' << "\"bytes_copied\":" << report.bytes_copied << ','
         << "\"resumed\":" << (report.resumed ? "true" : "false") << "}\n";
 }
 
 void write_json_error(std::ostream& out, const std::string_view source, const std::string_view destination,
                       const glifistore::Error& error) {
-    out << '{'
-        << "\"status\":\"error\","
+    out << '{' << "\"status\":\"error\","
         << "\"source\":\"" << json_escape(source) << "\","
         << "\"destination\":\"" << json_escape(destination) << "\","
         << "\"error\":{"
@@ -179,8 +168,7 @@ void write_json_error(std::ostream& out, const std::string_view source, const st
 } // namespace
 
 int main(const int argc, char** argv) try {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_migrate_store");
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_migrate_store");
     auto parsed = glifistore::cli::parse_arguments(argc, argv, kOptionSpecs);
     if (!parsed) {
         std::cerr << program << ": error: " << parsed.error().message << "\nTry '" << program
@@ -208,8 +196,8 @@ int main(const int argc, char** argv) try {
         return 2;
     }
     if (parsed->positionals.size() != 2) {
-        std::cerr << program << ": error: expected source and destination data directories\nTry '"
-                  << program << " --help' for more information.\n";
+        std::cerr << program << ": error: expected source and destination data directories\nTry '" << program
+                  << " --help' for more information.\n";
         return 2;
     }
 
@@ -234,8 +222,8 @@ int main(const int argc, char** argv) try {
     }
     return 0;
 } catch (const std::exception& exception) {
-    const auto program =
-        glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_migrate_store");
+
+    const auto program = glifistore::cli::executable_name(argc > 0 ? argv[0] : "glifistore_migrate_store");
     std::cerr << program << ": fatal: " << exception.what() << '\n';
     return 1;
 } catch (...) {

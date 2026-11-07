@@ -32,6 +32,7 @@ namespace {
 
 struct ProductionPoolShutdown final {
     glifistore::store::paired::GenerationSlotPool* pool{};
+
     ~ProductionPoolShutdown() {
         if (pool == nullptr) {
             return;

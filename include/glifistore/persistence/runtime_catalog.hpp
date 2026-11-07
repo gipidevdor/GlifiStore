@@ -36,13 +36,16 @@
 namespace glifistore {
 
 class DurableFlushCoordinator;
+
 namespace detail {
 class StoreAccess;
 }
+
 namespace store::paired {
 class ImmutableReadIndex;
 class PairReadGeneration;
 } // namespace store::paired
+
 namespace server {
 using store::paired::ImmutableReadIndex;
 using store::paired::PairReadGeneration;
@@ -182,7 +185,9 @@ class DurableRuntimeCatalog final {
         [[nodiscard]] auto worker_index() const noexcept -> std::size_t {
             return worker_index_;
         }
+
         [[nodiscard]] auto matches(const RecordRef& reference) const noexcept -> bool;
+
         [[nodiscard]] auto same_generation(const PublishedReadPin& other) const noexcept -> bool {
             return generation_ == other.generation_;
         }
@@ -211,18 +216,23 @@ class DurableRuntimeCatalog final {
         [[nodiscard]] auto key() const noexcept -> std::string_view {
             return key_;
         }
+
         [[nodiscard]] auto key_hash() const noexcept -> std::uint64_t {
             return key_hash_;
         }
+
         [[nodiscard]] auto worker_index() const noexcept -> std::size_t {
             return pin_.worker_index();
         }
+
         [[nodiscard]] auto reference() const noexcept -> const RecordRef& {
             return reference_;
         }
+
         [[nodiscard]] auto pin() const noexcept -> const PublishedReadPin& {
             return pin_;
         }
+
         [[nodiscard]] static auto bind(std::string key, std::uint64_t key_hash, RecordRef reference,
                                        PublishedReadPin pin) -> PublishedReadRecord {
             return PublishedReadRecord{std::move(key), key_hash, reference, std::move(pin)};
@@ -249,15 +259,19 @@ class DurableRuntimeCatalog final {
         [[nodiscard]] auto key() const noexcept -> std::string_view {
             return key_;
         }
+
         [[nodiscard]] auto key_hash() const noexcept -> std::uint64_t {
             return key_hash_;
         }
+
         [[nodiscard]] auto worker_index() const noexcept -> std::size_t {
             return pin_->worker_index();
         }
+
         [[nodiscard]] auto reference() const noexcept -> const RecordRef& {
             return reference_;
         }
+
         [[nodiscard]] auto pin() const noexcept -> const PublishedReadPin& {
             return *pin_;
         }
@@ -270,6 +284,7 @@ class DurableRuntimeCatalog final {
                                          const PublishedReadPin& pin) noexcept -> PublishedReadView {
             return PublishedReadView{key, key_hash, reference, &pin};
         }
+
         PublishedReadView(std::string_view key, std::uint64_t key_hash, RecordRef reference,
                           const PublishedReadPin* pin) noexcept
             : key_(key), key_hash_(key_hash), reference_(reference), pin_(pin) {}
@@ -283,6 +298,7 @@ class DurableRuntimeCatalog final {
         friend class store::paired::ImmutableReadIndex;
         friend class store::paired::PairReadGeneration;
     };
+
     static_assert(std::is_trivially_copyable_v<PublishedReadView>);
     static_assert(sizeof(PublishedReadView) <= 72);
 
@@ -379,9 +395,11 @@ class DurableRuntimeCatalog final {
 
     [[nodiscard]] auto healthy() const noexcept -> bool;
     [[nodiscard]] auto worker_count() const noexcept -> std::size_t;
+
     [[nodiscard]] auto worker_routing() const noexcept -> WorkerRoutingState {
         return worker_routing_;
     }
+
     [[nodiscard]] auto manifest() const -> Manifest;
     [[nodiscard]] auto namespace_audit() const -> NamespaceAuditReport;
     [[nodiscard]] auto recovery_stats() const noexcept -> const DurableRecoveryStats&;
