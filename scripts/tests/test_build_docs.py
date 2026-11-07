@@ -9,6 +9,24 @@ from scripts import build_docs
 
 
 class DocumentationBuildTests(unittest.TestCase):
+    def test_rejects_old_doxygen_before_replacing_an_existing_site(self) -> None:
+        with TemporaryDirectory() as directory:
+            output = Path(directory)
+            html = output / "html"
+            html.mkdir()
+            home = html / "index.html"
+            home.write_text("existing site", encoding="utf-8")
+            with (
+                patch.object(
+                    build_docs.subprocess, "check_output", return_value="1.9.8\n"
+                ),
+                self.assertRaisesRegex(RuntimeError, r"Doxygen >= 1\.18\.0 required"),
+            ):
+                build_docs.build(
+                    output, "doxygen", "https://github.com/owner/repo", "main"
+                )
+            self.assertEqual("existing site", home.read_text(encoding="utf-8"))
+
     def test_stages_nested_guides_and_commit_links_without_modifying_sources(
         self,
     ) -> None:

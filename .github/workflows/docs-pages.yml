@@ -34,9 +34,21 @@ jobs:
         with:
           persist-credentials: false
       - name: Install documentation tools
+        env:
+          DOXYGEN_VERSION: "1.18.0"
+          DOXYGEN_SHA256: "14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90"
         run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y cmake doxygen
+          sudo apt-get install --no-install-recommends -y cmake
+          archive="$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          curl --fail --silent --show-error --location \
+            "https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" \
+            --output "$archive"
+          echo "${DOXYGEN_SHA256}  ${archive}" | sha256sum --check -
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}/bin/doxygen" --version
       - name: Check documentation tooling
         run: python3 -m unittest scripts.tests.test_build_docs
       - name: Configure documentation only

@@ -17,7 +17,7 @@ header does not make its implementation symbols part of the supported or install
 
 ## Generate locally
 
-Requirements: CMake 3.25+, Python 3.10+, and Doxygen 1.9.8+. Graphviz, a C++ compiler, TLS
+Requirements: CMake 3.25+, Python 3.10+, and Doxygen 1.18.0+. Graphviz, a C++ compiler, TLS
 libraries, and a build of the engine are not required for the standalone documentation target.
 All theme assets are vendored; generation needs no network connection.
 
@@ -27,12 +27,23 @@ macOS:
 brew install cmake doxygen python
 ```
 
-Ubuntu 24.04:
+Ubuntu 24.04 (x86-64), from the repository root:
 
 ```bash
 sudo apt-get update
-sudo apt-get install cmake doxygen python3
+sudo apt-get install cmake python3
+mkdir -p .tools
+curl --fail --location \
+  https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/doxygen-1.18.0.linux.bin.tar.gz \
+  --output .tools/doxygen-1.18.0.linux.bin.tar.gz
+echo '14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90  .tools/doxygen-1.18.0.linux.bin.tar.gz' | sha256sum --check -
+tar -xzf .tools/doxygen-1.18.0.linux.bin.tar.gz -C .tools
+export PATH="$PWD/.tools/doxygen-1.18.0/bin:$PATH"
 ```
+
+The Ubuntu distribution package provides Doxygen 1.9.8, whose generated links do not satisfy
+the site's checks. CI uses the official Doxygen 1.18.0 Linux binary and verifies its
+[published SHA-256](https://www.doxygen.nl/download.html) before running it.
 
 From the repository root:
 

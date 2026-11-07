@@ -5,7 +5,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     project(GlifiStoreDocumentation LANGUAGES NONE)
 endif()
 
-find_package(Doxygen 1.9.8 REQUIRED COMPONENTS doxygen)
+find_package(Doxygen 1.18.0 REQUIRED COMPONENTS doxygen)
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 get_filename_component(GLIFISTORE_DOCS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 set(GLIFISTORE_DOCS_SOURCE_URL "https://github.com/gipidevdor/GlifiStore"

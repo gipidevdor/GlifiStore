@@ -56,6 +56,7 @@ HTML_EXTRA_STYLESHEET  = "@THEME@/doxygen-awesome.css" \
 HTML_EXTRA_FILES       = "@THEME@/doxygen-awesome-darkmode-toggle.js" \
                          "@THEME@/doxygen-awesome-fragment-copy-button.js"
 HTML_COLORSTYLE        = LIGHT
+HTML_COPY_CLIPBOARD    = NO
 GENERATE_TREEVIEW      = YES
 DISABLE_INDEX          = NO
 FULL_SIDEBAR           = NO

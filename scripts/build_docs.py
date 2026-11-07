@@ -136,6 +136,10 @@ def validate_site(html: Path) -> None:
 
 
 def build(output: Path, doxygen: str, source_url: str, revision: str) -> None:
+    version_text = subprocess.check_output([doxygen, "--version"], text=True).strip()
+    version = tuple(int(part) for part in version_text.split()[0].split(".")[:3])
+    if version < (1, 18, 0):
+        raise RuntimeError(f"Doxygen >= 1.18.0 required; found {version_text}")
     output.mkdir(parents=True, exist_ok=True)
     inputs = output / "input"
     # Only delete our disposable input tree; keep CMake's build files intact.
@@ -145,10 +149,6 @@ def build(output: Path, doxygen: str, source_url: str, revision: str) -> None:
         shutil.rmtree(output / "html")
     stage_guides(inputs, source_url.rstrip("/"), revision)
 
-    version_text = subprocess.check_output([doxygen, "--version"], text=True).strip()
-    version = tuple(int(part) for part in version_text.split()[0].split(".")[:3])
-    if version < (1, 9, 8):
-        raise RuntimeError(f"Doxygen >= 1.9.8 required; found {version_text}")
     config = (SITE / "Doxyfile.in").read_text(encoding="utf-8")
     for key, value in {
         "ROOT": ROOT.as_posix(),
@@ -158,8 +158,6 @@ def build(output: Path, doxygen: str, source_url: str, revision: str) -> None:
         "VERSION": (ROOT / "VERSION").read_text(encoding="utf-8").strip(),
     }.items():
         config = config.replace(f"@{key}@", value)
-    if version >= (1, 10, 0):
-        config += "\nHTML_COPY_CLIPBOARD = NO\n"
     doxyfile = output / "Doxyfile"
     doxyfile.write_text(config, encoding="utf-8")
 
