@@ -1,0 +1,26 @@
+html {
+    --primary-color: #315cbb;
+    --primary-dark-color: #23458d;
+    --primary-light-color: #6488da;
+    --side-nav-fixed-width: 300px;
+    --border-radius-small: 5px;
+    --border-radius-large: 9px;
+    --border-radius-medium: 7px;
+}
+
+html.dark-mode {
+    --primary-color: #90b4ff;
+    --primary-dark-color: #b4ccff;
+    --primary-light-color: #638ee0;
+}
+
+#projectlogo img {
+    max-height: 54px;
+    padding: 8px;
+}
+
+.glifi-intro {
+    color: var(--page-secondary-foreground-color);
+    font-size: 1.15em;
+    line-height: 1.7;
+}

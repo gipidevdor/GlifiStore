@@ -97,6 +97,11 @@ glifistore_add_xcode_project_files()
 
 add_subdirectory(man)
 
+option(GLIFISTORE_BUILD_DOCS "Enable the Doxygen documentation target" OFF)
+if(GLIFISTORE_BUILD_DOCS)
+    add_subdirectory(docs/doxygen)
+endif()
+
 install(TARGETS glifistore_core glifistore_wire glifistore_tls_layer glifistore_client
     EXPORT GlifiStoreTargets
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT Runtime

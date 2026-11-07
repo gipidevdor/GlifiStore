@@ -53,6 +53,7 @@ struct RequestOptions {
     std::optional<std::chrono::milliseconds> timeout{};
 };
 
+/// Observable outcome of a client mutation; an indeterminate operation may have committed.
 enum class MutationOutcome {
     committed,
     rejected,
@@ -105,11 +106,13 @@ struct PipelineResponse {
 // Standalone PUT/ERASE outcome implied by a decoded wire status (fixture matrix).
 [[nodiscard]] auto portable_mutation_outcome(std::uint16_t wire_status) -> std::string;
 
-// A synchronous, thread-safe TCP client for wire protocol v2. It keeps one
-// connection bound to each server worker, preserving per-key routing while
-// allowing independent workers to make progress concurrently.
+/// A synchronous, thread-safe TCP client for wire protocol v2. It keeps one
+/// connection bound to each server worker, preserving per-key routing while
+/// allowing independent workers to make progress concurrently.
+/// @see ClientConfig, MutationResult
 class Client final {
   public:
+    /// Connect and bootstrap owner-bound connections using the configured transport.
     [[nodiscard]] static auto connect(ClientConfig config = {}) -> Result<Client>;
     ~Client();
 

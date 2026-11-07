@@ -72,6 +72,7 @@ wrappers must respect each tool’s license.
 | --- | --- | --- |
 | Apple Human Interface Guidelines / Icon Composer docs | Linked from `artwork/README.md` | External documentation; Apple’s copyright applies to Apple’s materials. GlifiStore artwork under this repository is BSD-3-Clause with the project copyright. |
 | ADRs / specs | Normative project docs | BSD-3-Clause as part of the repository |
+| Doxygen Awesome v2.5.0 | Vendored documentation CSS/JavaScript, commit `46483f1e5a70ffb9ecd3b82d0a1cd1b24edf13da` | Copyright (c) 2021–2023 jothepro, MIT. Original files and [license](docs/doxygen/theme/LICENSE) are retained under `docs/doxygen/theme/`. The license is copied into the generated site; these assets are not linked into the runtime. |
 
 ## 6. Redistributor checklist
 

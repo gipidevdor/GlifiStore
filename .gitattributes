@@ -11,3 +11,6 @@ CMakeLists.txt text
 *.gseg binary
 *.gwal binary
 *.gsf binary
+
+# Preserve vendored theme assets byte-for-byte, including upstream whitespace.
+docs/doxygen/theme/** -whitespace

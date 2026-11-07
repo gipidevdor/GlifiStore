@@ -37,8 +37,17 @@ struct CompactionResult {
     std::uint64_t transient_metadata_lower_bound_bytes{};
 };
 
+/**
+ * @brief Embedded key-value Store with paired Reader–Writer ownership domains.
+ *
+ * Public reads return owning values. The Store is neither copyable nor movable;
+ * open() returns its owning handle. Persistence and acknowledgement policies are
+ * selected through StoreConfig.
+ * @see StoreConfig, OwnedValue
+ */
 class Store final {
   public:
+    /// Open a Store using the supplied configuration; the default is volatile storage.
     [[nodiscard]] static auto open(const StoreConfig& config = {}) -> Result<std::unique_ptr<Store>>;
     ~Store();
 
@@ -49,8 +58,8 @@ class Store final {
 
     [[nodiscard]] auto worker_count() const noexcept -> std::size_t;
 
-    // Thread-safe owning read. Returned bytes and metadata are independent of
-    // later Store operations and remain valid after Store destruction.
+    /// Thread-safe owning read. Returned bytes and metadata are independent of
+    /// later Store operations and remain valid after Store destruction.
     [[nodiscard]] auto get(std::string_view key) -> Result<OwnedValue>;
     [[nodiscard]] auto get(std::span<const std::byte> key) -> Result<OwnedValue>;
     [[nodiscard]] auto get_copy(std::string_view key) -> Result<OwnedValue>;
@@ -60,16 +69,17 @@ class Store final {
                            std::uint64_t expire_at_ns = 0) -> Status;
     [[nodiscard]] auto put(std::span<const std::byte> key, std::span<const std::byte> value,
                            std::uint64_t expire_at_ns = 0) -> Status;
-    // Same-call batch of PUTs. Items may span owners: each shard is linearized and
-    // published independently (pairs are independent). Per-item Status values are
-    // returned in input order. Successful items on one shard share one publication
-    // epoch (≤32 per publish). Key/value views must remain live for the call.
-    // After return, every successful item is visible to GET (no early ACK).
+    /// Same-call batch of PUTs. Items may span owners: each shard is linearized and
+    /// published independently (pairs are independent). Per-item Status values are
+    /// returned in input order. Successful items on one shard share one publication
+    /// epoch (≤32 per publish). Key/value views must remain live for the call.
+    /// After return, every successful item is visible to GET (no early ACK).
     struct PutItem final {
         std::string_view key{};
         std::span<const std::byte> value{};
         std::uint64_t expire_at_ns{};
     };
+    /// Apply PUT items, returning per-item status in input order. @see PutItem
     [[nodiscard]] auto put_batch(std::span<const PutItem> items) -> std::vector<Status>;
     [[nodiscard]] auto erase(std::string_view key) -> Status;
     [[nodiscard]] auto erase(std::span<const std::byte> key) -> Status;

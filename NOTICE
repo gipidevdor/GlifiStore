@@ -32,3 +32,7 @@ source trees are vendored in this repository.
 CI workflows pin third-party GitHub Actions by commit SHA. Those Actions are
 not part of the GlifiStore runtime distribution; their licenses apply to the
 Actions themselves when GitHub executes them.
+
+The generated documentation includes Doxygen Awesome v2.5.0 by jothepro,
+distributed under the MIT License. Its unmodified CSS/JavaScript and license
+are retained under docs/doxygen/theme/; the license also accompanies the site.

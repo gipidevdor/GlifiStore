@@ -22,7 +22,7 @@ An accepted ADR is never silently rewritten to pretend a later decision existed.
 Use [template.md](template.md). Every new ADR must describe context, decision drivers, considered
 alternatives, decision, consequences, compatibility impact, verification, and relationships.
 
-## Index
+## Decision index
 
 | ADR | Decision | Status | Relationships |
 |---|---|---|---|

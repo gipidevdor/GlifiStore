@@ -3,6 +3,9 @@
 This directory is the entry point for GlifiStore's technical documentation. Its purpose is to
 make the project maintainable without relying on oral history or knowledge held by one maintainer.
 
+The [Doxygen / GitHub Pages guide](development/documentation.md) explains how to generate the
+searchable C++ reference and publish these guides alongside it.
+
 ## Current implementation boundary
 
 For 0.1.0, `glifistored` uses a single runtime: paired Reader–Writer shard pairs

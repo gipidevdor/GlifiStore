@@ -227,7 +227,12 @@ and section-1 pages for offline tools). See [`man/README.md`](man/README.md).
 
 ## Documentation
 
-Start with the [documentation map](docs/README.md). The shortest useful paths are:
+Start with the [documentation map](docs/README.md).
+
+For a browsable C++ reference with class/namespace navigation, header source, and search, see
+[building and publishing the Doxygen / GitHub Pages site](docs/development/documentation.md).
+
+The shortest useful paths are:
 
 | Goal | Read |
 | --- | --- |
