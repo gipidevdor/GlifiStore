@@ -20663,5 +20663,5 @@
     "include/glifistore/**/*.hpp",
     "src/**/*.{cpp,hpp}"
   ],
-  "source_sha256": "da3a86ff22ef36d624d1e697413b71b4a72b5e6db700db0a6ef433fdc94d8c4c"
+  "source_sha256": "465dbd72103e6151cbb0bf0a47d570b9ecd0694b2fb132b6d3100d5d825b13d5"
 }
