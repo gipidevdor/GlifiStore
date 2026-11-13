@@ -635,7 +635,8 @@ BlobStorage::~BlobStorage() {
 }
 
 auto BlobStorage::open(DataDirectory& directory, const Manifest& manifest, BlobResourceLimits limits,
-                       const std::uint64_t reserved_free_bytes) -> Result<std::shared_ptr<BlobStorage>> {
+                       const std::uint64_t reserved_free_bytes, const bool allow_create)
+    -> Result<std::shared_ptr<BlobStorage>> {
     if (manifest.format_version != 2 || limits.max_files == 0 || limits.max_files > 1'000'000 ||
         limits.max_bytes == 0 || limits.max_transfers == 0 || limits.max_transfers > 8 ||
         limits.max_transfers_per_shard == 0 || limits.max_transfers_per_shard > limits.max_transfers) {
@@ -646,7 +647,7 @@ auto BlobStorage::open(DataDirectory& directory, const Manifest& manifest, BlobR
     state->limits = limits;
     state->hooks = directory.hooks();
     state->reserved_free = reserved_free_bytes;
-    const bool initial = manifest.manifest_generation == 1;
+    const bool initial = allow_create && manifest.manifest_generation == 1;
     auto fd = open_blob_directory(directory.directory_descriptor(), initial);
     if (!fd) {
         return unexpected(fd.error());

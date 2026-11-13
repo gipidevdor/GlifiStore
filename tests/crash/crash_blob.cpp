@@ -33,8 +33,12 @@ auto config(const std::filesystem::path& path, const std::string_view policy) ->
 }
 
 [[noreturn]] void crash_now() noexcept {
-    static_cast<void>(::kill(::getpid(), SIGKILL));
-    ::_exit(125);
+    if (::kill(::getpid(), SIGKILL) != 0)
+        ::_exit(125);
+    // Process-directed SIGKILL may be delivered to a different thread first.
+    // Do not race it with a successful userspace exit from this I/O thread.
+    for (;;)
+        static_cast<void>(::pause());
 }
 
 struct Checkpoint {

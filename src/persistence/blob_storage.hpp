@@ -30,8 +30,8 @@ class BlobStorage final : public std::enable_shared_from_this<BlobStorage> {
         std::function<Status(std::string_view, std::span<const std::byte>, std::uint64_t, ValueType)>;
     using Allocate = std::function<Result<BlobId>()>;
     [[nodiscard]] static auto open(DataDirectory& directory, const Manifest& manifest,
-                                   BlobResourceLimits limits, std::uint64_t reserved_free_bytes)
-        -> Result<std::shared_ptr<BlobStorage>>;
+                                   BlobResourceLimits limits, std::uint64_t reserved_free_bytes,
+                                   bool allow_create = false) -> Result<std::shared_ptr<BlobStorage>>;
     BlobStorage();
     ~BlobStorage();
     BlobStorage(const BlobStorage&) = delete;

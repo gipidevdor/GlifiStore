@@ -1,4 +1,4 @@
-# Open extension risks. Linked local evidence covers only its explicitly recorded subset.
+# Open residual risks for the opt-in embedded prototype.
 hazards:
 - id: HAZ-035
   evento_pericoloso: Committed blob descriptor refers to an incomplete or missing payload
@@ -12,15 +12,24 @@ hazards:
   probabilita: media
   rilevabilita: media
   prevenzione:
-  - Proposed strict verified payload installation before descriptor admission in every durable mode
-  - Proposed explicit codecs and identity, CRC and complete digest validation
+  - 'Implemented: strict verified payload installation before descriptor admission in every durable
+    mode'
+  - 'Implemented: explicit codecs and identity, CRC and complete digest validation'
   contenimento:
-  - Planned fail-closed open/publication; never recover around an invalid committed reference
-  prove: []
-  rischio_residuo: Ordering, native filesystem behavior and crash boundaries have no blob implementation or evidence
+  - fail-closed open/publication; never recover around an invalid committed reference
+  prove:
+  - tests/unit/blob_storage_tests.cpp
+  - tests/unit/blob_lifecycle_tests.cpp
+  - tests/crash/crash_blob.cpp
+  rischio_residuo: Opt-in prototype checks exist, but complete native platform, exhaustive fault/race
+    and release qualification remains open; E3/E4 is not certified.
   stato: aperto
-  accettazione_rischio: Not accepted for enablement; ADR remains proposed and feature unavailable
-  requisiti: [GS-PERSIST-BLOB-001, GS-PERSIST-BLOB-002, GS-RECOVERY-BLOB-001]
+  accettazione_rischio: Accepted only for explicitly selected architectural-prototype use under ADR 0042;
+    release acceptance remains blocked by the blob gate.
+  requisiti:
+  - GS-PERSIST-BLOB-001
+  - GS-PERSIST-BLOB-002
+  - GS-RECOVERY-BLOB-001
 - id: HAZ-036
   evento_pericoloso: Blob reclaimed while recovery, Reader or backup still needs it
   cause:
@@ -34,15 +43,22 @@ hazards:
   probabilita: media
   rilevabilita: bassa
   prevenzione:
-  - Proposed complete root registry and atomic eligibility check before deletion
-  - Proposed compaction Manifest durability and Reader quiescence before root retirement
+  - 'Implemented: complete root registry and atomic eligibility check before deletion'
+  - 'Implemented: compaction Manifest durability and Reader quiescence before root retirement'
   contenimento:
   - Incomplete or overflowing GC state must retain files and apply backpressure
-  prove: []
-  rischio_residuo: Root accounting and concurrency protocols are design only
+  prove:
+  - tests/unit/blob_storage_tests.cpp
+  - tests/unit/blob_lifecycle_tests.cpp
+  rischio_residuo: Opt-in prototype checks exist, but complete native platform, exhaustive fault/race
+    and release qualification remains open; E3/E4 is not certified.
   stato: aperto
-  accettazione_rischio: Not accepted for enablement; no blob GC or backup safety is claimed
-  requisiti: [GS-RECOVERY-BLOB-001, GS-CONCUR-BLOB-001, GS-OPS-BLOB-001]
+  accettazione_rischio: Accepted only for explicitly selected architectural-prototype use under ADR 0042;
+    release acceptance remains blocked by the blob gate.
+  requisiti:
+  - GS-RECOVERY-BLOB-001
+  - GS-CONCUR-BLOB-001
+  - GS-OPS-BLOB-001
 - id: HAZ-037
   evento_pericoloso: Blob transfers exhaust memory, files, disk or shard progress
   cause:
@@ -57,17 +73,22 @@ hazards:
   probabilita: alta
   rilevabilita: alta
   prevenzione:
-  - Proposed pre-reserved bounded transfer/byte/metadata/FD/space credits and chunk workers
-  - Proposed separate owning-GET budget and controlled inline non-regression gate
+  - 'Implemented: pre-reserved bounded transfer/byte/metadata/FD/space credits and chunk workers'
+  - 'Implemented: separate owning-GET budget and controlled inline non-regression gate'
   contenimento:
   - Reject admission before copying and reclaim abandoned work through bounded cleanup
   prove:
+  - tests/unit/blob_storage_tests.cpp
   - tests/unit/blob_lifecycle_tests.cpp
-  - engineering/evidence/blob-lifecycle-local-2026-11-07.md
-  rischio_residuo: Local cleanup and quota boundary regressions do not prove complete memory, overload, sustained cleanup-failure or platform bounds
+  rischio_residuo: Opt-in prototype checks exist, but complete native platform, exhaustive fault/race
+    and release qualification remains open; E3/E4 is not certified.
   stato: aperto
-  accettazione_rischio: Not accepted for enablement; no resource or latency bound is proven
-  requisiti: [GS-CORE-BLOB-001, GS-PERF-BLOB-001, GS-PROTO-BLOB-001]
+  accettazione_rischio: Accepted only for explicitly selected architectural-prototype use under ADR 0042;
+    release acceptance remains blocked by the blob gate.
+  requisiti:
+  - GS-CORE-BLOB-001
+  - GS-PERF-BLOB-001
+  - GS-PROTO-BLOB-001
 - id: HAZ-038
   evento_pericoloso: Blob backup omits payloads referenced by copied committed history
   cause:
@@ -79,15 +100,21 @@ hazards:
   probabilita: media
   rilevabilita: media
   prevenzione:
-  - Proposed typed closure traversal, snapshot pins and verified Manifest-last destination publication
+  - 'Implemented: typed closure traversal, snapshot pins and verified Manifest-last destination
+    publication'
   - Unsupported v2 tools must reject before modifying files
   contenimento:
   - Reject incomplete backup promotion and require independent restore verification
-  prove: []
-  rischio_residuo: No blob-aware backup/restore tooling or retained campaign exists
+  prove:
+  - tests/unit/blob_storage_tests.cpp
+  - tests/unit/blob_lifecycle_tests.cpp
+  rischio_residuo: Opt-in prototype checks exist, but complete native platform, exhaustive fault/race
+    and release qualification remains open; E3/E4 is not certified.
   stato: aperto
-  accettazione_rischio: Not accepted for enablement; existing v1 backup proof does not cover blobs
-  requisiti: [GS-OPS-BLOB-001]
+  accettazione_rischio: Accepted only for explicitly selected architectural-prototype use under ADR 0042;
+    release acceptance remains blocked by the blob gate.
+  requisiti:
+  - GS-OPS-BLOB-001
 - id: HAZ-039
   evento_pericoloso: Legacy engine or client interprets BlobRef bytes as application data
   cause:
@@ -99,12 +126,19 @@ hazards:
   probabilita: media
   rilevabilita: bassa
   prevenzione:
-  - Proposed opt-in family v2 and explicit typed descriptor with old-engine refusal
+  - 'Implemented: opt-in family v2 and explicit typed descriptor with old-engine refusal'
   - Later negotiated client capability contract before daemon enablement
   contenimento:
   - Reject unsupported formats and entry points before effects; never expose raw descriptors
-  prove: []
-  rischio_residuo: Old-binary refusal and wire/SDK compatibility remain untested
+  prove:
+  - tests/unit/blob_storage_tests.cpp
+  - tests/unit/blob_lifecycle_tests.cpp
+  rischio_residuo: Opt-in prototype checks exist, but complete native platform, exhaustive fault/race
+    and release qualification remains open; E3/E4 is not certified.
   stato: aperto
-  accettazione_rischio: Not accepted for enablement; no on-disk or wire extension is implemented
-  requisiti: [GS-PERSIST-BLOB-001, GS-RECOVERY-BLOB-001, GS-PROTO-BLOB-001]
+  accettazione_rischio: Accepted only for explicitly selected architectural-prototype use under ADR 0042;
+    release acceptance remains blocked by the blob gate.
+  requisiti:
+  - GS-PERSIST-BLOB-001
+  - GS-RECOVERY-BLOB-001
+  - GS-PROTO-BLOB-001

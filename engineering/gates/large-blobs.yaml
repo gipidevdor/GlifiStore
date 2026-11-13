@@ -12,40 +12,50 @@ gates:
   - GS-OPS-BLOB-001
   - GS-PERF-BLOB-001
   prove:
+  - tests/unit/blob_storage_tests.cpp
   - tests/unit/blob_lifecycle_tests.cpp
-  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  - tests/crash/crash_blob.cpp
+  - scripts/generate_blob_fixtures.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd-amd64
+  - openbsd-amd64
   evidenze:
   - path: engineering/evidence/blob-lifecycle-local-2026-11-07.md
     note: Partial local lifecycle regression evidence; no CI or release acceptance
-  stato: SPECIFICATA
-  rischio_residuo: >-
-    ADR 0042 is accepted for implementation. Blob implementation and partial local
-    lifecycle regressions exist; they do not establish the complete acceptance matrix.
-    Native durability, overload and inline performance budgets remain unproven;
-    E3/E4 certification stays open.
+  - path: engineering/evidence/blob-local-2026-11-07.md
+    note: 22 blob tests and 51 SIGKILL cases passed locally under ASan/UBSan; allocation timeout remains
+      recorded
+  stato: IMPLEMENTATA
+  rischio_residuo: Accepted ADR 0042 has an opt-in embedded implementation and local checks. Retained
+    tagged compatibility, complete platform/fault/saturation campaigns, telemetry and controlled inline
+    A/B budgets remain open. No E3/E4 certification or daemon/SDK enablement is claimed.
   riapertura:
   - Change to descriptor versions, file identity, key/value bounds or required-version refusal
   - Change to ACK ordering, periodic dependency, GC roots, backup closure or streaming lifetime
   - Relaxation of resource or inline performance budgets without reviewed evidence
-  narrative: >-
-    The accepted specification defines field layouts, state transitions, admission,
-    compatibility and an acceptance matrix. SPECIFICATA remains open until complete
-    proofs and retained CI/platform evidence justify promotion; local fixes alone do not.
+  narrative: Typed external values up to 64 MiB, bounded streaming, v2 format refusal, dependency-before-descriptor
+    ordering, recovery, conservative GC, descriptor compaction and fenced backup are implemented. This
+    open gate does not accept the feature for release; further evidence is required.
 - id: GATE-BLOB-WIRE
   titolo: Negotiated bounded blob transfers and official-client outcomes
   sezione: public_contract
   livello_rilascio: beta
-  requisiti: [GS-PROTO-BLOB-001]
+  requisiti:
+  - GS-PROTO-BLOB-001
   prove: []
-  piattaforme: [linux-x86_64, macos-arm64, freebsd-amd64, openbsd-amd64]
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd-amd64
+  - openbsd-amd64
   evidenze: []
   stato: NON_INIZIATA
-  rischio_residuo: >-
-    No accepted capability/opcode, streaming flow-control, persistent retry-resolution,
-    C ABI or SDK contract exists. Existing daemon/wire v2 capabilities are unchanged.
+  rischio_residuo: Wire capability/opcode, persistent retry resolution and C ABI/SDK blob integration
+    remain deferred. Existing daemon/wire v2 capabilities are unchanged.
   riapertura:
   - Enabling blob-capable daemon Stores before the negotiated client contract and proofs
   - Treating embedded handle-local idempotence as durable reconnect deduplication
-  narrative: >-
-    Deliberately deferred until the embedded gate and a separate wire/SDK ADR are ready;
-    no new opcode, frame size or client retry promise is allocated by ADR 0042.
+  narrative: Deferred behind a separate negotiated wire/SDK contract. ADR 0042 authorizes the embedded
+    implementation only and allocates no opcode or reconnect-idempotency promise.

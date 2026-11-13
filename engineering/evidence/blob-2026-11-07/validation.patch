@@ -1,0 +1,92 @@
+diff --git a/src/persistence/blob_storage.cpp b/src/persistence/blob_storage.cpp
+index aaa0299..9f3bac0 100644
+--- a/src/persistence/blob_storage.cpp
++++ b/src/persistence/blob_storage.cpp
+@@ -635,7 +635,8 @@ BlobStorage::~BlobStorage() {
+ }
+ 
+ auto BlobStorage::open(DataDirectory& directory, const Manifest& manifest, BlobResourceLimits limits,
+-                       const std::uint64_t reserved_free_bytes) -> Result<std::shared_ptr<BlobStorage>> {
++                       const std::uint64_t reserved_free_bytes, const bool allow_create)
++    -> Result<std::shared_ptr<BlobStorage>> {
+     if (manifest.format_version != 2 || limits.max_files == 0 || limits.max_files > 1'000'000 ||
+         limits.max_bytes == 0 || limits.max_transfers == 0 || limits.max_transfers > 8 ||
+         limits.max_transfers_per_shard == 0 || limits.max_transfers_per_shard > limits.max_transfers) {
+@@ -646,7 +647,7 @@ auto BlobStorage::open(DataDirectory& directory, const Manifest& manifest, BlobR
+     state->limits = limits;
+     state->hooks = directory.hooks();
+     state->reserved_free = reserved_free_bytes;
+-    const bool initial = manifest.manifest_generation == 1;
++    const bool initial = allow_create && manifest.manifest_generation == 1;
+     auto fd = open_blob_directory(directory.directory_descriptor(), initial);
+     if (!fd) {
+         return unexpected(fd.error());
+diff --git a/src/persistence/blob_storage.hpp b/src/persistence/blob_storage.hpp
+index dcc34ca..d842bc6 100644
+--- a/src/persistence/blob_storage.hpp
++++ b/src/persistence/blob_storage.hpp
+@@ -30,8 +30,8 @@ class BlobStorage final : public std::enable_shared_from_this<BlobStorage> {
+         std::function<Status(std::string_view, std::span<const std::byte>, std::uint64_t, ValueType)>;
+     using Allocate = std::function<Result<BlobId>()>;
+     [[nodiscard]] static auto open(DataDirectory& directory, const Manifest& manifest,
+-                                   BlobResourceLimits limits, std::uint64_t reserved_free_bytes)
+-        -> Result<std::shared_ptr<BlobStorage>>;
++                                   BlobResourceLimits limits, std::uint64_t reserved_free_bytes,
++                                   bool allow_create = false) -> Result<std::shared_ptr<BlobStorage>>;
+     BlobStorage();
+     ~BlobStorage();
+     BlobStorage(const BlobStorage&) = delete;
+diff --git a/src/store/store.cpp b/src/store/store.cpp
+index 2179682..db0acee 100644
+--- a/src/store/store.cpp
++++ b/src/store/store.cpp
+@@ -184,7 +184,7 @@ auto Store::open(const StoreConfig& config) -> Result<std::unique_ptr<Store>> tr
+             return unexpected(manifest.error());
+         }
+         auto opened = detail::BlobStorage::open(*directory, *manifest, config.blob_limits,
+-                                                config.durable_limits.reserved_free_bytes);
++                                                config.durable_limits.reserved_free_bytes, true);
+         if (!opened) {
+             return unexpected(opened.error());
+         }
+diff --git a/tests/crash/crash_blob.cpp b/tests/crash/crash_blob.cpp
+index b1d5ebc..fb44510 100644
+--- a/tests/crash/crash_blob.cpp
++++ b/tests/crash/crash_blob.cpp
+@@ -33,8 +33,12 @@ auto config(const std::filesystem::path& path, const std::string_view policy) ->
+ }
+ 
+ [[noreturn]] void crash_now() noexcept {
+-    static_cast<void>(::kill(::getpid(), SIGKILL));
+-    ::_exit(125);
++    if (::kill(::getpid(), SIGKILL) != 0)
++        ::_exit(125);
++    // Process-directed SIGKILL may be delivered to a different thread first.
++    // Do not race it with a successful userspace exit from this I/O thread.
++    for (;;)
++        static_cast<void>(::pause());
+ }
+ 
+ struct Checkpoint {
+diff --git a/tests/unit/blob_storage_tests.cpp b/tests/unit/blob_storage_tests.cpp
+index 1792e66..066f816 100644
+--- a/tests/unit/blob_storage_tests.cpp
++++ b/tests/unit/blob_storage_tests.cpp
+@@ -451,3 +451,17 @@ GLIFI_TEST("blob streaming read keeps its selected value after TTL expiration")
+     }
+     GLIFI_REQUIRE(total == value.size());
+ }
++
++GLIFI_TEST("blob read-only verification does not create a missing namespace") {
++    Temp temp;
++    auto cfg = config(temp.path);
++    auto store = take(Store::open(cfg));
++    success(store->put("inline", data("value")));
++    success(store->close());
++    store.reset();
++    GLIFI_REQUIRE(std::filesystem::remove(temp.path / "blobs"));
++    GLIFI_REQUIRE(!verify_durable_store_path(temp.path));
++    GLIFI_REQUIRE(!std::filesystem::exists(temp.path / "blobs"));
++    store = take(Store::open(cfg));
++    GLIFI_REQUIRE(take(store->get("inline")).bytes.size() == 5);
++}

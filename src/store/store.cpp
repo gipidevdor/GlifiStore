@@ -184,7 +184,7 @@ auto Store::open(const StoreConfig& config) -> Result<std::unique_ptr<Store>> tr
             return unexpected(manifest.error());
         }
         auto opened = detail::BlobStorage::open(*directory, *manifest, config.blob_limits,
-                                                config.durable_limits.reserved_free_bytes);
+                                                config.durable_limits.reserved_free_bytes, true);
         if (!opened) {
             return unexpected(opened.error());
         }

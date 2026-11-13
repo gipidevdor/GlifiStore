@@ -1,6 +1,9 @@
 # Retained evidence drops for tagged claims (Phase D+).
 # Populate from CI artifacts / campaign records; do not invent E3/E4.
 
+- [`blob-local-2026-11-07.md`](blob-local-2026-11-07.md) records the embedded 64 MiB
+  integration, sanitizer and 51-case SIGKILL campaign, including the allocation-test timeout.
+  It is local prototype evidence and does not close the blob gates.
 - [`blob-lifecycle-local-2026-11-07.md`](blob-lifecycle-local-2026-11-07.md) records local staging
   cleanup, terminal exception, peak quota and sync-hook regressions for embedded blobs.
   It covers a limited lifecycle subset and does not close the blob or durability gates.

@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-07",
+  "evidence_class": "local",
+  "claim_ceiling": "architectural-prototype",
+  "base_revision": "ee6fbf31047c77ac41383436eb39d2beabf462e6",
+  "source_identity": "source-hashes.json plus validation.patch; shared dirty source tree, no immutable release candidate",
+  "platform": "macOS 27.2 arm64",
+  "compiler": "AppleClang 21.0.0",
+  "language": "C++23",
+  "cmake": "4.4.5",
+  "sanitizers": [
+    "ASan",
+    "UBSan"
+  ],
+  "tls_sanitizer_build": "OFF",
+  "warnings_as_errors": true,
+  "native_main": {
+    "passed": 752,
+    "failed": 0,
+    "checkpoint": "before final blob-only read-only-verifier correction"
+  },
+  "final_blob": {
+    "passed": 22,
+    "failed": 0,
+    "asan_ubsan": true
+  },
+  "final_sigkill": {
+    "passed": 51,
+    "failed": 0,
+    "policies": [
+      "sync",
+      "group",
+      "periodic"
+    ],
+    "boundaries_per_policy": 17,
+    "durability_evidence_class": "E2"
+  },
+  "final_native_verifier": {
+    "passed": 1,
+    "failed": 0
+  },
+  "legacy_selection": {
+    "targets_passed": 17,
+    "targets_timed_out": 1,
+    "timeout_seconds": 180
+  },
+  "allocation_ctest_retry": {
+    "status": "timeout",
+    "timeout_seconds": 180
+  },
+  "allocation_direct_diagnostic": {
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 183.89,
+    "does_not_waive_ctest_timeout": true
+  },
+  "binary_sha256": {
+    "build/blob-asan/glifistore_blob_tests": "ec970519d03424d5004cb64b73292ec134cc202142b4818dc9daa7bcb07abc44",
+    "build/blob-asan/glifistore_crash_blob": "d990e8293712875e3b61c6c5ed850c15649b9ebbf16e541146c3b7d2c1aa6c29",
+    "build/macos-debug/glifistore_allocation_fault_tests": "fe3909da8d2a743d26f9a83516b10857f4fc72e0d58729b880197e5a8b1ce815"
+  },
+  "not_claimed": [
+    "CI qualification",
+    "release acceptance",
+    "E3/E4 durability",
+    "Linux/BSD native qualification",
+    "inline performance budgets",
+    "daemon/SDK/C ABI blob support",
+    "complete selected CTest gate pass"
+  ],
+  "commands": [
+    "cmake --build build/blob-asan --target glifistore_blob_tests glifistore_crash_blob -j4",
+    "ASAN_OPTIONS=halt_on_error=1:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/blob-asan -R '^(glifistore_blob_tests|glifistore_crash_blob)$' --output-on-failure",
+    "ctest --test-dir build/macos-debug -R '^glifistore_(c_abi|abi_|allocation_fault_tests|crash_)' -E '^glifistore_crash_blob$' -j2 --output-on-failure",
+    "ctest --test-dir build/macos-debug -R '^glifistore_allocation_fault_tests$' --output-on-failure",
+    "build/macos-debug/glifistore_allocation_fault_tests",
+    "python3 scripts/generate_blob_fixtures.py --check"
+  ]
+}

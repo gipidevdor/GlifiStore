@@ -451,3 +451,17 @@ GLIFI_TEST("blob streaming read keeps its selected value after TTL expiration") 
     }
     GLIFI_REQUIRE(total == value.size());
 }
+
+GLIFI_TEST("blob read-only verification does not create a missing namespace") {
+    Temp temp;
+    auto cfg = config(temp.path);
+    auto store = take(Store::open(cfg));
+    success(store->put("inline", data("value")));
+    success(store->close());
+    store.reset();
+    GLIFI_REQUIRE(std::filesystem::remove(temp.path / "blobs"));
+    GLIFI_REQUIRE(!verify_durable_store_path(temp.path));
+    GLIFI_REQUIRE(!std::filesystem::exists(temp.path / "blobs"));
+    store = take(Store::open(cfg));
+    GLIFI_REQUIRE(take(store->get("inline")).bytes.size() == 5);
+}

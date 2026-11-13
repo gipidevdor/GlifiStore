@@ -11,7 +11,7 @@ Generated from `engineering/gates/`. See also the derived
 | `GATE-ARTIFACT-DELIVERY` | distribution_lifecycle | `IMPLEMENTATA` | `rc` | `GS-RELEASE-ARTIFACT-001` |
 | `GATE-AUTH-TRANSPORT` | operations_security | `PROVATA_IN_CI` | `beta` | `GS-SEC-PROFILE-001`, `GS-SEC-BOUNDS-001` |
 | `GATE-BACKUP-RESTORE` | durability_recovery | `PROVATA_IN_CI` | `beta` | `GS-OPS-BACKUP-001`, `GS-OPS-MIGRATE-001` |
-| `GATE-BLOB-EMBEDDED` | durability_recovery | `SPECIFICATA` | `prototype` | `GS-PERSIST-BLOB-001`, `GS-PERSIST-BLOB-002`, `GS-RECOVERY-BLOB-001`, `GS-CONCUR-BLOB-001`, `GS-CORE-BLOB-001`, `GS-OPS-BLOB-001`, `GS-PERF-BLOB-001` |
+| `GATE-BLOB-EMBEDDED` | durability_recovery | `IMPLEMENTATA` | `prototype` | `GS-PERSIST-BLOB-001`, `GS-PERSIST-BLOB-002`, `GS-RECOVERY-BLOB-001`, `GS-CONCUR-BLOB-001`, `GS-CORE-BLOB-001`, `GS-OPS-BLOB-001`, `GS-PERF-BLOB-001` |
 | `GATE-BLOB-WIRE` | public_contract | `NON_INIZIATA` | `beta` | `GS-PROTO-BLOB-001` |
 | `GATE-C-ABI-V1` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-CABI-001` |
 | `GATE-CMAKE-INSTALL` | distribution_lifecycle | `PROVATA_IN_CI` | `alpha` | `GS-CORE-API-001`, `GS-CORE-BUILD-001` |

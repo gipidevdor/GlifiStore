@@ -47,8 +47,8 @@ The volatile engine under `src/experimental/` is lab-only.
 - [ ] **GATE-BLOB-WIRE** — Negotiated bounded blob transfers and official-client outcomes
   State: `NON_INIZIATA` · Release target: `beta`
   Requirements: `GS-PROTO-BLOB-001`
-  Residual risk: No accepted capability/opcode, streaming flow-control, persistent retry-resolution, C ABI or SDK contract exists. Existing daemon/wire v2 capabilities are unchanged.
-  Deliberately deferred until the embedded gate and a separate wire/SDK ADR are ready; no new opcode, frame size or client retry promise is allocated by ADR 0042.
+  Residual risk: Wire capability/opcode, persistent retry resolution and C ABI/SDK blob integration remain deferred. Existing daemon/wire v2 capabilities are unchanged.
+  Deferred behind a separate negotiated wire/SDK contract. ADR 0042 authorizes the embedded implementation only and allocates no opcode or reconnect-idempotency promise.
 
 - [x] **GATE-C-ABI-V1** — C ABI v1 layout symbols lifecycle and installed consumption
   State: `PROVATA_IN_CI` · Release target: `alpha`
@@ -83,10 +83,10 @@ The volatile engine under `src/experimental/` is lab-only.
   Offline tools and online fenced backup with ENOSPC and concurrent fence proofs in CI; normative snapshot boundary published. Not E3/E4 certified.
 
 - [ ] **GATE-BLOB-EMBEDDED** — Opt-in embedded blob storage preserves format, commit, recovery and lifetime contracts
-  State: `SPECIFICATA` · Release target: `prototype`
+  State: `IMPLEMENTATA` · Release target: `prototype`
   Requirements: `GS-PERSIST-BLOB-001`, `GS-PERSIST-BLOB-002`, `GS-RECOVERY-BLOB-001`, `GS-CONCUR-BLOB-001`, `GS-CORE-BLOB-001`, `GS-OPS-BLOB-001`, `GS-PERF-BLOB-001`
-  Residual risk: ADR 0042 is accepted for implementation. Blob implementation and partial local lifecycle regressions exist; they do not establish the complete acceptance matrix. Native durability, overload and inline performance budgets remain unproven; E3/E4 certification stays open.
-  The accepted specification defines field layouts, state transitions, admission, compatibility and an acceptance matrix. SPECIFICATA remains open until complete proofs and retained CI/platform evidence justify promotion; local fixes alone do not.
+  Residual risk: Accepted ADR 0042 has an opt-in embedded implementation and local checks. Retained tagged compatibility, complete platform/fault/saturation campaigns, telemetry and controlled inline A/B budgets remain open. No E3/E4 certification or daemon/SDK enablement is claimed.
+  Typed external values up to 64 MiB, bounded streaming, v2 format refusal, dependency-before-descriptor ordering, recovery, conservative GC, descriptor compaction and fenced backup are implemented. This open gate does not accept the feature for release; further evidence is required.
 
 - [ ] **GATE-COMPACTION-DELTA** — Concurrent whole-Worker compaction preserves v1 authority and bounded foreground work
   State: `PROVATA_LOCALMENTE` · Release target: `prototype`
