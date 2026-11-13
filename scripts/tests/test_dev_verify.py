@@ -42,5 +42,37 @@ class DevVerifyTests(unittest.TestCase):
             self.assertFalse(marker.exists(), result.stdout + result.stderr)
 
 
+class DevCommandLineTests(unittest.TestCase):
+    def run_dev(self, *arguments: str, family: str | None = None) -> subprocess.CompletedProcess:
+        environment = os.environ.copy()
+        environment.pop("GLIFISTORE_PRESET_FAMILY", None)
+        if family is not None:
+            environment["GLIFISTORE_PRESET_FAMILY"] = family
+        return subprocess.run(
+            ["bash", str(ROOT / "scripts/dev.sh"), *arguments],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def test_help_lists_everyday_commands(self) -> None:
+        result = self.run_dev("help")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for command in ("doctor", "build", "test", "verify", "format-check", "benchmark"):
+            self.assertIn(f"  {command}", result.stdout)
+
+    def test_unknown_command_fails_with_usage_error(self) -> None:
+        result = self.run_dev("no-such-command")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("unknown command 'no-such-command'", result.stderr)
+
+    def test_preset_family_override_is_validated(self) -> None:
+        self.assertIn("presets: unix-*", self.run_dev("help", family="unix").stdout)
+        result = self.run_dev("help", family="windows")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("GLIFISTORE_PRESET_FAMILY", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

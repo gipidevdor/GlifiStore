@@ -96,19 +96,24 @@ hide architecture-specific optimization decisions.
 
 ## CLI shortcuts
 
-The root `Makefile` wraps the same scripts:
+The root `Makefile` mirrors every `./scripts/dev.sh` command; plain `make` prints the list:
 
 ```bash
 make bootstrap
+make doctor
 make xcode
 make xcode-verify
 make test
 make asan
+make verify
 make benchmark
 ```
 
 ## Troubleshooting
 
+- Start with `./scripts/dev.sh doctor`: it shows the resolved tools and warns about Finder/iCloud
+  conflict copies. Do not keep the checkout in iCloud-synced `~/Documents` or `~/Desktop`; iCloud
+  duplicates files as `name 2.ext`, including inside `.git/`.
 - Regenerate after changing CMake: `./scripts/open-xcode.sh`.
 - Remove generated state: `./scripts/dev.sh clean` and bootstrap again.
 - If Python cannot create a virtual environment, install a current Python 3 or provide `CMAKE` and

@@ -3,13 +3,30 @@
 The project uses CMake 3.25+, C++23, strict warnings, CTest, sanitizer presets, and standalone
 fuzz/benchmark targets. macOS instructions are in [development-macos.md](development-macos.md).
 
-Portable commands:
+`./scripts/dev.sh` is the single developer entry point on every platform. It selects the
+`macos-*` presets on Darwin and the `unix-*` presets elsewhere (override with
+`GLIFISTORE_PRESET_FAMILY=macos|unix`), prefers the repository-local `.tools/venv` and falls back
+to `cmake`, `ctest` and `python3` on `PATH`:
+
+```bash
+./scripts/dev.sh doctor            # tools, preset family, checkout hazards
+./scripts/dev.sh test              # configure, build, CTest
+./scripts/dev.sh test -R blob      # extra arguments go to CTest
+./scripts/dev.sh build --target glifistore_tests
+./scripts/dev.sh help              # every command
+```
+
+The root `Makefile` mirrors the same commands (`make test`, `make verify`, …). The equivalent raw
+CMake commands remain supported:
 
 ```bash
 cmake --preset unix-debug
 cmake --build --preset unix-debug
 ctest --preset unix-debug
 ```
+
+Keep the checkout outside iCloud- or Dropbox-synced folders: sync conflict copies such as
+`store 2.cpp` and `.git/index 2` appear silently. `doctor` reports both.
 
 Before review, run formatting, `./scripts/dev.sh verify`, unit/integration tests, the sanitizer
 appropriate to the change, and any focused benchmark. `verify` checks all tracked Markdown local

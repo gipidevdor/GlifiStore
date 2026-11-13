@@ -1,4 +1,18 @@
-.PHONY: bootstrap xcode xcode-verify configure build test asan tsan benchmark format clean
+# Thin convenience wrapper: every target delegates to scripts/dev.sh, which is the
+# single source of truth for presets and tools. Run `make help` for details.
+DEV := ./scripts/dev.sh
+DEV_COMMANDS := doctor configure build test format format-check verify clean \
+	asan tsan test-lto correctness fuzz-build fuzz-run \
+	benchmark benchmark-durable benchmark-compaction benchmark-maintenance \
+	benchmark-server benchmark-lto benchmark-pgo pgo-generate pgo-train pgo-use xcode-build
+
+.DEFAULT_GOAL := help
+.PHONY: help bootstrap xcode xcode-verify $(DEV_COMMANDS)
+
+help:
+	@$(DEV) help
+	@echo
+	@echo "make targets mirror these commands; also: bootstrap, xcode, xcode-verify (macOS)."
 
 bootstrap:
 	./scripts/bootstrap-macos.sh
@@ -9,26 +23,5 @@ xcode:
 xcode-verify:
 	./scripts/verify-xcode.sh
 
-configure:
-	./scripts/dev.sh configure
-
-build:
-	./scripts/dev.sh build
-
-test:
-	./scripts/dev.sh test
-
-asan:
-	./scripts/dev.sh asan
-
-tsan:
-	./scripts/dev.sh tsan
-
-benchmark:
-	./scripts/dev.sh benchmark
-
-format:
-	./scripts/dev.sh format
-
-clean:
-	./scripts/dev.sh clean
+$(DEV_COMMANDS):
+	$(DEV) $@
