@@ -402,7 +402,7 @@ auto DurableRuntimeCatalog::maintenance_observation(const std::size_t start_work
         const auto candidate = *observation.compaction_candidate_worker;
         auto& worker = *workers_[candidate];
         // Drop the observation catalog lock before any exclusive-Writer depth wait
-        // (holding catalog across hot_path_depth wait deadlocks mutex-elided mutate).
+        // (holding catalog across index_gate Writer depth wait deadlocks mutex-elided mutate).
         // Also avoids a same-thread nested shared lock on catalog_mutex_.
         catalog_lock.unlock();
 
@@ -458,7 +458,7 @@ auto DurableRuntimeCatalog::maintenance_observation(const std::size_t start_work
             observation.candidate_unread_expired_sealed_record_bytes += entry.record.size.value;
         }
         observation.unread_ttl_probe_performed = true;
-        probe_gate.clear();
+        probe_gate.clear_locked();
     }
     return observation;
 }

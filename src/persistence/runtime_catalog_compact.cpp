@@ -104,7 +104,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
         //
         // Exclusive durable_sync elides worker.mutex on mutate, so the mutex alone
         // does not own the Index. ExclusiveIndexQuiesce arms the gate and drains
-        // hot_path_depth before enumerating; clear before Phase B so ordinary
+        // index_gate Writer depth before enumerating; clear before Phase B so ordinary
         // mutations continue during the unlocked build (Phase C re-arms for the
         // Index swap).
         {
@@ -162,7 +162,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             worker.compaction_delta = &delta;
             delta_attached = true;
             // Drop the snapshot gate before Phase B so mutates proceed during build.
-            snapshot_gate.clear();
+            snapshot_gate.clear_locked();
         }
         snapshot_duration_ns = steady_elapsed_ns(snapshot_started);
 
@@ -419,7 +419,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
 
             void clear_locked() noexcept {
                 worker.compaction_index_frozen = false;
-                worker.disarm_index_quiesce_gate();
+                worker.disarm_index_quiesce_gate_locked();
                 stats.commit_gate_duration_ns = steady_elapsed_ns(started);
                 active = false;
             }
@@ -431,22 +431,16 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
         commit_gate_started = commit_gate.started;
         // Release every physical mutex before quiesce waits and the durable
         // manifest write (durable-compaction.md). Holding catalog/worker across
-        // hot_path_depth wait deadlocks the exclusive Writer: mutate already
+        // index_gate Writer depth wait deadlocks the exclusive Writer: mutate already
         // entered the hot path, dropped catalog for append I/O, and needs shared
         // catalog again to publish Index / drop depth.
         catalog_lock.unlock();
         worker_lock.unlock();
 
-        // Depth wait matches ExclusiveHotPathGuard: only the mutex-elided exclusive
-        // Writer path increments hot_path_depth. Flusher paths keep the Worker mutex.
+        // Writer drain matches ExclusiveHotPathGuard: only the mutex-elided exclusive
+        // Writer path enters the Index gate as a Writer. Flusher paths keep the Worker mutex.
         if (options_.exclusive_writer && flusher_ == nullptr) {
-            for (;;) {
-                const auto depth = worker.hot_path_depth.load(std::memory_order_acquire);
-                if (depth == 0) {
-                    break;
-                }
-                worker.hot_path_depth.wait(depth, std::memory_order_acquire);
-            }
+            worker.index_gate.wait_for_writers();
         }
 
         worker_lock.lock();

@@ -47,3 +47,4 @@ accepted residual risks do not imply production readiness.
 | `HAZ-038` | Blob backup omits payloads referenced by copied committed history | catastrofica | media | media | aperto | `GS-OPS-BLOB-001` |
 | `HAZ-039` | Legacy engine or client interprets BlobRef bytes as application data | catastrofica | media | bassa | aperto | `GS-PERSIST-BLOB-001`, `GS-RECOVERY-BLOB-001`, `GS-PROTO-BLOB-001` |
 | `HAZ-040` | Compaction installs a stale Index or resurrects erased state after concurrent mutations | catastrofica | media | media | aperto | `GS-PERSIST-DELTA-001` |
+| `HAZ-041` | Background compaction cannot keep up and the durable Store stops accepting writes | alta | media | alta | aperto | `GS-PERSIST-DELTA-001`, `GS-PERSIST-AMP-001`, `GS-OPS-DEBT-001` |

@@ -77,7 +77,7 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
             worker_lock.unlock();
         }
 
-        // Exclusive Writer (mutex-elided durable_sync only): drop hot_path_depth while
+        // Exclusive Writer (mutex-elided durable_sync only): drop index_gate Writer depth while
         // blocked on another publisher (compaction). Compaction waits for depth==0
         // before the Index swap; keeping depth here deadlocks against that wait.
         // Paired durable-group/periodic keep the Worker mutex (flusher shares state)
@@ -92,15 +92,14 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
                 if (worker == nullptr) {
                     return;
                 }
-                if (worker->hot_path_depth.fetch_sub(1U, std::memory_order_acq_rel) == 1U) {
-                    worker->hot_path_depth.notify_all();
-                }
+                worker->index_gate.leave_writer();
                 paused = true;
             }
 
             ~ExclusiveHotPathPause() {
                 if (paused && worker != nullptr) {
-                    worker->hot_path_depth.fetch_add(1U, std::memory_order_acq_rel);
+                    // Re-entry: the caller rechecks index_gate.armed() before Index work.
+                    worker->index_gate.enter_writer();
                 }
             }
 

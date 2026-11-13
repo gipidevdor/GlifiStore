@@ -323,8 +323,7 @@ auto DurableRuntimeCatalog::flush_pending_batches(const SegmentCommitSync sync) 
         // and healthy() is false while closed_ — that must not skip the close flush.
         worker->mutation_io_finished.wait(
             lock, [&] { return !worker->mutation_io_active || !healthy_.load(std::memory_order_acquire); });
-        worker->compaction_commit_finished.wait(
-            lock, [&] { return !worker->compaction_commit_active.load(std::memory_order_relaxed); });
+        worker->compaction_commit_finished.wait(lock, [&] { return !worker->index_gate.armed(); });
         // Sticky abandon only: do not flush orphaned Segment pending after fail-closed.
         if (!healthy_.load(std::memory_order_acquire)) {
             return {};
@@ -342,8 +341,7 @@ auto DurableRuntimeCatalog::flush_due_batches(const SegmentCommitSync sync) -> S
         std::unique_lock lock{worker->mutex};
         worker->mutation_io_finished.wait(
             lock, [&] { return !worker->mutation_io_active || !healthy_.load(std::memory_order_acquire); });
-        worker->compaction_commit_finished.wait(
-            lock, [&] { return !worker->compaction_commit_active.load(std::memory_order_relaxed); });
+        worker->compaction_commit_finished.wait(lock, [&] { return !worker->index_gate.armed(); });
         if (!healthy_.load(std::memory_order_acquire)) {
             return {};
         }

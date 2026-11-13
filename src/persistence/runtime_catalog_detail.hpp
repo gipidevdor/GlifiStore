@@ -5,6 +5,7 @@
 #include "persistence/adaptive_batch_sizer.hpp"
 #include "persistence/compaction_delta.hpp"
 #include "persistence/hot_record_table.hpp"
+#include "persistence/runtime_catalog_quiesce_gate.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -362,32 +363,37 @@ struct DurableRuntimeCatalog::RuntimeWorker {
     // pins and relinearize against the Index. Writers, flush, and compaction do.
     bool mutation_io_active{};
     std::condition_variable mutation_io_finished;
-    // Set while compaction, unread-TTL probe, or exclusive Index readers
-    // (prepare_get / snapshot_live_keys) hold logical Index ownership. Under
-    // exclusive_writer the mutate hot path observes this atomically without the mutex.
-    // Holders nest (GET + Phase A/C): only the last disarm clears the bool.
-    std::atomic_bool compaction_commit_active{};
-    std::atomic_uint32_t compaction_commit_holders{};
+    // Armed while compaction, unread-TTL probe, flush, or exclusive Index readers
+    // (prepare_get / snapshot_live_keys) hold logical Index ownership; holders nest.
+    // Under exclusive_writer the mutate hot path enters as a Writer and backs out
+    // when armed, without the Worker mutex. Only the mutex-elided exclusive Writer
+    // path (`exclusive_writer &&` no background flusher) enters as a Writer.
+    runtime_catalog_detail::IndexQuiesceGate index_gate;
+    // Waiters hold `mutex` and wait for !index_gate.armed().
     std::condition_variable compaction_commit_finished;
 
     void arm_index_quiesce_gate() noexcept {
-        if (compaction_commit_holders.fetch_add(1U, std::memory_order_acq_rel) == 0U) {
-            compaction_commit_active.store(true, std::memory_order_release);
-        }
+        index_gate.arm();
     }
 
-    void disarm_index_quiesce_gate() noexcept {
-        if (compaction_commit_holders.fetch_sub(1U, std::memory_order_acq_rel) == 1U) {
-            compaction_commit_active.store(false, std::memory_order_release);
+    // Caller holds `mutex`, so no waiter can be between its predicate check and sleep.
+    void disarm_index_quiesce_gate_locked() noexcept {
+        if (index_gate.disarm()) {
             compaction_commit_finished.notify_all();
         }
     }
 
-    // Nested exclusive-Writer hot-path depth. Compaction / exclusive Index readers
-    // wait for zero before touching the Index when exclusive_writer elides the
-    // Worker mutex (`exclusive_writer &&` no background flusher). Flusher paths
-    // never bump this.
-    std::atomic_uint32_t hot_path_depth{};
+    // Caller does not hold `mutex`. Passing through the mutex after the final
+    // release orders the notify after any waiter's predicate check (no lost wakeup).
+    void disarm_index_quiesce_gate_unlocked() noexcept {
+        if (index_gate.disarm()) {
+            {
+                const std::lock_guard lock{mutex};
+            }
+            compaction_commit_finished.notify_all();
+        }
+    }
+
     // Protected by Index ownership (mutex, or exclusive Writer depth). The
     // compactor detaches only after quiescing that owner. Never owns the journal.
     runtime_catalog_detail::CompactionDelta* compaction_delta{};
@@ -424,11 +430,13 @@ struct DurableRuntimeCatalog::RuntimeWorker {
     [[nodiscard]] auto publish_hot_record(PreparedHotRecord& prepared, const RecordRef& reference) -> Status;
 };
 
-// Arms compaction_commit_active and drains hot_path_depth before Index touch on the
+// Arms the Index gate and drains exclusive Writers before Index touch on the
 // mutex-elided exclusive Writer path. Mutex alone does not serialize with mutate.
 // Used by prepare_get, snapshot_live_keys, snapshot_published_reads,
 // capture_published_read, compaction Phase A, unread TTL probe, and
 // flush_dirty_segments (exclusive durable_sync, no flusher).
+// Construct it before locking `worker.mutex` (the Writer drain must not hold
+// it); the destructor therefore runs after that lock is released.
 struct DurableRuntimeCatalog::ExclusiveIndexQuiesce final {
     RuntimeWorker& worker;
     bool armed{};
@@ -439,25 +447,23 @@ struct DurableRuntimeCatalog::ExclusiveIndexQuiesce final {
         }
         worker.arm_index_quiesce_gate();
         armed = true;
-        for (;;) {
-            const auto depth = worker.hot_path_depth.load(std::memory_order_acquire);
-            if (depth == 0) {
-                break;
-            }
-            worker.hot_path_depth.wait(depth, std::memory_order_acquire);
-        }
+        worker.index_gate.wait_for_writers();
     }
 
-    void clear() noexcept {
+    // Early release while the caller still holds `worker.mutex`.
+    void clear_locked() noexcept {
         if (!armed) {
             return;
         }
         armed = false;
-        worker.disarm_index_quiesce_gate();
+        worker.disarm_index_quiesce_gate_locked();
     }
 
     ~ExclusiveIndexQuiesce() {
-        clear();
+        if (armed) {
+            armed = false;
+            worker.disarm_index_quiesce_gate_unlocked();
+        }
     }
 
     ExclusiveIndexQuiesce(const ExclusiveIndexQuiesce&) = delete;

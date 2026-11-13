@@ -519,7 +519,7 @@ auto DurableRuntimeCatalog::flush_dirty_segments() -> Status {
         // Exclusive durable_sync (no flusher): mutate elides worker.mutex while moving
         // cached_file and toggling mutation_io_active. Mutex+CV alone can lose the
         // wakeup or race the handle. ExclusiveIndexQuiesce arms the gate and drains
-        // hot_path_depth first (do not hold mutex across the wait).
+        // index_gate Writer depth first (do not hold mutex across the wait).
         const bool elide_worker_mutex = options_.exclusive_writer && flusher_ == nullptr;
         ExclusiveIndexQuiesce index_quiesce{*worker, elide_worker_mutex};
         std::unique_lock lock{worker->mutex};
@@ -527,10 +527,9 @@ auto DurableRuntimeCatalog::flush_dirty_segments() -> Status {
             lock, [&] { return !worker->mutation_io_active || !healthy_.load(std::memory_order_acquire); });
         if (!elide_worker_mutex) {
             // Non-elided path: wait for other Index quiesce holders (compact/GET).
-            // When we hold ExclusiveIndexQuiesce, compaction_commit_active is true —
+            // When we hold ExclusiveIndexQuiesce, the Index gate is armed —
             // waiting for it clear would self-deadlock.
-            worker->compaction_commit_finished.wait(
-                lock, [&] { return !worker->compaction_commit_active.load(std::memory_order_relaxed); });
+            worker->compaction_commit_finished.wait(lock, [&] { return !worker->index_gate.armed(); });
         }
         if (!healthy_.load(std::memory_order_acquire)) {
             return {};

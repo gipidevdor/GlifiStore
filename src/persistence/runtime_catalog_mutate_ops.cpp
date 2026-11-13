@@ -96,7 +96,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
         } admission{strict_batch ? &worker.active_group_mutations : nullptr};
 
         // Paired exclusive Writer (no background flusher): skip Worker mutex on the
-        // ordinary mutate hot path. Compaction observes hot_path_depth instead.
+        // ordinary mutate hot path. Index owners drain index_gate Writers instead.
         // Group/periodic paths keep the mutex because the flush coordinator shares
         // pending-batch and file state with mutate.
         const bool elide_worker_mutex = options_.exclusive_writer && flusher_ == nullptr;
@@ -107,7 +107,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
 
             explicit ExclusiveHotPathGuard(RuntimeWorker* owner) noexcept : worker(owner) {
                 if (worker != nullptr) {
-                    worker->hot_path_depth.fetch_add(1U, std::memory_order_acq_rel);
+                    worker->index_gate.enter_writer();
                 }
             }
 
@@ -115,9 +115,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                 if (worker == nullptr) {
                     return;
                 }
-                if (worker->hot_path_depth.fetch_sub(1U, std::memory_order_acq_rel) == 1U) {
-                    worker->hot_path_depth.notify_all();
-                }
+                worker->index_gate.leave_writer();
             }
 
             ExclusiveHotPathGuard(const ExclusiveHotPathGuard&) = delete;
@@ -134,7 +132,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
             }
             worker_lock.unlock();
 #endif
-            if (worker.compaction_commit_active.load(std::memory_order_acquire)) {
+            if (worker.index_gate.armed()) {
                 return mutation_failure(
                     DurableMutationOutcome::not_committed,
                     Error{ErrorCode::sequence_conflict,
@@ -174,7 +172,7 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
             abandon_pending_batches();
             return mutation_failure(DurableMutationOutcome::indeterminate, drained.error());
         }
-        if (worker.compaction_commit_active.load(std::memory_order_acquire)) {
+        if (worker.index_gate.armed()) {
             return mutation_failure(DurableMutationOutcome::not_committed,
                                     Error{ErrorCode::sequence_conflict,
                                           "durable mutation conflicts with compaction manifest publication"});
@@ -297,6 +295,15 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
         }
 
         for (unsigned attempt = 0; attempt < 2; ++attempt) {
+            // A rotation that waited for another publication left the Index gate
+            // as a Writer and re-entered on return. Re-check before any Index work:
+            // an owner that armed meanwhile saw zero Writers and may be using it.
+            if (attempt != 0 && elide_worker_mutex && worker.index_gate.armed()) {
+                return mutation_failure(
+                    DurableMutationOutcome::not_committed,
+                    Error{ErrorCode::sequence_conflict,
+                          "durable mutation conflicts with an Index owner after rotation"});
+            }
             std::shared_lock catalog_lock{catalog_mutex_};
             const auto position =
                 std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), worker.active_segment,

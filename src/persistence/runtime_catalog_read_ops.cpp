@@ -289,7 +289,7 @@ auto DurableRuntimeCatalog::capture_published_read(const std::size_t worker_inde
     auto& worker = *workers_[worker_index];
     // Always take worker.mutex (match snapshot_published_reads) so capture
     // serializes with compaction Phase A/C Index enumerate/swap. Exclusive
-    // durable_sync mutate also elides the mutex via hot_path_depth — quiesce
+    // durable_sync mutate also elides the mutex via index_gate Writer depth — quiesce
     // depth before Index find so off-Writer / concurrent snapshot paths cannot
     // sticky fail_closed on a torn pin view after a committed PUT.
     ExclusiveIndexQuiesce index_quiesce{worker, options_.exclusive_writer && flusher_ == nullptr};

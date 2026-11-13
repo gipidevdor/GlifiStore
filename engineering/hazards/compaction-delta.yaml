@@ -6,6 +6,8 @@ hazards:
   - Silent journal overflow or dangling journal ownership
   - Rotation changes the active identity or sealed tombstone domain
   - Live-byte counters use physical copy bytes after concurrent overwrites
+  - Index gate lets the mutex-elided exclusive Writer publish while an Index owner snapshots or swaps
+    (two-variable arm/disarm race, acquire/release store buffering, unchecked re-entry after rotation)
   conseguenze:
   - Lost acknowledged updates or resurrected values
   - Premature source reclamation or incorrect maintenance pressure
@@ -16,14 +18,49 @@ hazards:
   - Preallocated owning journal, sticky overflow, full Manifest/source pin validation
   - Log actual Index publications; drain Writer and group state; defer TTL housekeeping during final freeze
   - Ordered bounded replay with checked live-byte reconciliation before Manifest publication
+  - Single-counter seq_cst IndexQuiesceGate; Writer rechecks the gate after rotation re-entry
   contenimento:
   - Exact old-authority rollback before new Manifest; fail-closed recovery on persistent ambiguity
   prove:
   - tests/integration/persistence_compaction_delta_tests.cpp
   - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/unit/index_quiesce_gate_tests.cpp
   rischio_residuo: >-
     Bounded journal may prevent reclaim progress under sustained writes. Local tests do not
     establish native-platform durability, p99.9 improvement or E3/E4 certification.
   stato: aperto
   accettazione_rischio: Architectural prototype only; no release acceptance
   requisiti: [GS-PERSIST-DELTA-001]
+- id: HAZ-041
+  evento_pericoloso: Background compaction cannot keep up and the durable Store stops accepting writes
+  cause:
+  - Sustained same-Worker writes exhaust the bounded delta during whole-Worker staging (abort loop)
+  - Any Segment rotation in the Store changes the Manifest and aborts a staged compaction
+  - Normal policy skips Workers whose live sealed bytes exceed max_copy_bytes_per_cycle
+  - At emergency, peak-budget planning (current Segments + outputs) exceeds max_store_bytes when
+    max_store_bytes leaves less than one compaction output of headroom over max_segment_count
+  conseguenze:
+  - Repeated abandoned copy I/O and unbounded Segment growth under load
+  - Emergency rejects mutations while compaction is refused for the peak budget (manual repair)
+  - Foreground PUT/ERASE on the compacted Worker fail with sequence_conflict while the gate is held
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Size Workers so live sealed bytes stay below delta_entries x copy_rate / per-Worker op rate
+  - Keep max_store_bytes >= max_segment_count Segments + max_temporary_compaction_bytes
+  contenimento:
+  - Pressure and emergency bypass pacing and the per-cycle copy cap; emergency stops new writes
+  - Delta overflow and Manifest conflicts are counted (delta_overflow_aborts, abandoned_copy_bytes)
+  prove:
+  - tests/integration/persistence_compaction_delta_tests.cpp
+  - tests/integration/store_tests.cpp
+  rischio_residuo: >-
+    Measured locally on 2026-11-13 (macOS arm64, Debug library): 1 Worker, 128 MiB live, 4 KiB
+    overwrites at about 6,000 op/s, 128 MiB/s pacing and the default 4,096-entry delta completed
+    0 of 39 attempts, abandoned about 1 GiB of copies and grew to 17 Segments in 25 s. With
+    max_store_bytes equal to max_segment_count + 1 Segments, a full Store refused both writes and
+    compaction. No incremental or partial-history compaction exists; whole-Worker cost is O(live).
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; capacity and liveness envelope not accepted
+  requisiti: [GS-PERSIST-DELTA-001, GS-PERSIST-AMP-001, GS-OPS-DEBT-001]

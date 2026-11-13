@@ -1,7 +1,7 @@
 Status: descriptive
 Applies to: repository version `0.1.x` (Phase B1)
 Owner: maintainers
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-13
 
 # Atomics and memory-order inventory
 
@@ -11,7 +11,7 @@ Requirement: `GS-CONCUR-MEM-001`.
 
 The machine-checked companion
 [`engineering/evidence/memory-order-inventory-2026-08-30.json`](../../engineering/evidence/memory-order-inventory-2026-08-30.json)
-records all 1,215 explicit `std::memory_order_*` occurrences in production headers/sources with exact
+records all 1,207 explicit `std::memory_order_*` occurrences in production headers/sources with exact
 file, line, object expression, operation, writer/readers, protected data, required happens-before,
 invariant, and positive `relaxed` justification. It is regenerated and checked by
 `engineering/tools/audit_memory_orders.py`; a new source occurrence, an unsupported order, an ambiguous
@@ -47,6 +47,7 @@ without publishing another read's payload. These arguments are recorded in the
 | `Lane::signal` | submitters / Writer | release fetch_add + notify / acquire wait | Writer idle wakeup ladder (pause→yield→park) | combining + LIVE-001 |
 | Store `active_operations[]` | ops / close | relaxed admit; acq_rel finish | Close LP + drain | GS-CORE-CLOSE-001 |
 | Store `lifecycle` | closer / waiters | acq_rel / release / acquire | One-way close | close tests |
+| `IndexQuiesceGate` writer depth / holders | exclusive Writer / compaction, TTL probe, flush, prepared GET | **seq_cst** on enter, leave, arm, disarm and both checks | Dekker handshake: Writer and Index owner never both touch the mutable Index; armed iff `holders != 0` (single counter) | `index_quiesce_gate_tests` (fails with the former two-variable gate), exclusive-Writer compaction litmus |
 
 ## 3. Queues
 

@@ -166,6 +166,15 @@ Memory orders are chosen for a specific publication relation:
   release/acquire to report exhaustion; the commit gate must separately drain publishers before
   reading non-atomic journal entries or replaying them. The publisher's relaxed overflow check does
   not grant the compactor access to those entries;
+- the durable Worker Index gate (`IndexQuiesceGate`) is a Dekker handshake between the mutex-elided
+  exclusive Writer (`depth += 1`, then read holders) and an exclusive Index owner (`holders += 1`,
+  then read depth). All four accesses are `seq_cst`; acquire/release would admit the
+  store-buffering outcome in which both proceed. The gate is armed exactly while `holders != 0`:
+  a separate armed boolean is forbidden because a concurrent final disarm and first arm can leave
+  it false while a holder believes it owns the Index. A Writer that leaves the gate while waiting
+  (rotation behind another Manifest publication) must recheck `armed()` after re-entering and
+  before touching the Index. A disarm that releases the final hold without the Worker mutex passes
+  through that mutex before notifying condition-variable waiters;
 - owning blob reads reserve a self-contained aggregate byte charge with atomic compare/exchange
   before allocating a materialized value. The initial relaxed load is only a reservation candidate;
   the counter does not publish value bytes or replace the Store admission/lifetime protocol;
