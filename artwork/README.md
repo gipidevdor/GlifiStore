@@ -17,9 +17,11 @@ and appearance variants. The SVGs deliberately contain no baked mask, glow or dr
 ## Directory layout
 
 - `brand/master/`: deterministic vector master.
-- `brand/concept/`: generated visual-development reference; not a production layer.
+- `brand/concept/`: generated visual-development references (icon concept, laboratory mood
+  image); never a production layer and not used by the README or documentation.
 - `apple/icon-composer/layers/`: separate 1024 × 1024 SVG layers for Icon Composer.
 - `apple/raster/`: flat compatibility exports generated from the vector master.
+- [`../docs/assets/`](../docs/assets/): light and dark repository banners derived from the master.
 
 ## Raster exports
 
@@ -49,6 +51,33 @@ addressable memory. The brand idea is **a mark that persists**: *il glifo della 
 The abstract `G` consists of three immutable Segment plates. The copper tile at its centre is one
 exact Record, small and addressable. Keep the wordmark separate from the app icon and preserve the
 capital `G` and `S` in editorial use.
+
+The same idea drives every surface: few elements, exact geometry, one warm accent. Blue is
+structure (Segments, Index, ownership); copper is the single addressable Record and is never used
+decoratively or more than once per composition.
+
+## Palette
+
+| Token | Hex | Role |
+| --- | --- | --- |
+| `abyss` | `#050B1B` | Icon background, deepest tone |
+| `ink` | `#091A3A` | Icon midtone, light-mode text and badges |
+| `depth` | `#123367` | Icon highlight |
+| `segment` | `#6EA5D8` | Segment plates; dark-mode accent |
+| `segment-ink` | `#3A78BC` | Segment tiles and links on light surfaces |
+| `record` | `#D9922E` | The Record — one per composition; prototype-status badge |
+| `paper` | `#E8EEF7` | Dark-mode text |
+| `mist` | `#4A5B76` / `#9FB3CF` | Secondary text, light / dark |
+
+## Typography and usage
+
+- Wordmark: system UI sans-serif (`-apple-system`, `Segoe UI`, Inter, Helvetica), semibold, tight
+  tracking; written `GlifiStore` with capital `G` and `S`.
+- Repository banners (`docs/assets/glifistore-banner-{light,dark}.svg`) are hand-written SVG: the
+  master mark, the wordmark, the descriptor line and a strip of three Segments holding one copper
+  Record. Regenerate both variants together and keep them text-equivalent.
+- Diagrams in documentation stay monochrome text or ASCII; colour is reserved for the identity.
+- Do not use photographic or generated imagery as a primary visual in the README or documentation.
 
 Apple references: [App icons](https://developer.apple.com/design/human-interface-guidelines/app-icons),
 [Icon Composer](https://developer.apple.com/icon-composer/), and

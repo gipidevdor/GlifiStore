@@ -6,6 +6,17 @@ make the project maintainable without relying on oral history or knowledge held 
 The [Doxygen / GitHub Pages guide](development/documentation.md) explains how to generate the
 searchable C++ reference and publish these guides alongside it.
 
+## Start here
+
+| Reader | First | Then |
+| --- | --- | --- |
+| New to the project | [Architecture](spec/architecture.md) | [Code tour](development/code-tour.md) · [Glossary](glossary.md) |
+| Embedding the engine | [C++ API](reference/cpp-api.md) | [C ABI v1](spec/c-abi-v1.md) · [Durability and recovery](architecture/durability-recovery.md) |
+| Writing a client | [Wire protocol v2](spec/wire-protocol-v2.md) | [Client semantics v1](spec/client-semantics-v1.md) · [Conformance](spec/tcp-client-conformance-v1.md) |
+| Operating the daemon | [Operations handbook](operations/handbook.md) | [CLI](cli.md) · [Secure profile](security/secure-profile.md) |
+| Judging readiness | [Quality gates](production-readiness.md) | [Assurance catalog](../engineering/README.md) · [Evidence matrix](architecture/platform-durability-evidence.md) |
+| Contributing | [Code style](development/code-style.md) | [Test strategy](development/test-strategy.md) · [ADR index](adr/README.md) |
+
 ## Current implementation boundary
 
 For 0.1.0, `glifistored` uses a single runtime: paired Reader–Writer shard pairs
