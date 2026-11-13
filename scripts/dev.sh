@@ -179,8 +179,8 @@ Everyday
   build [args]           build the debug preset (configures on first use);
                          e.g. build --target glifistore_tests
   test [ctest args]      configure, build and run CTest; e.g. test -R blob
-  format [paths]         apply the pinned clang-format
-  format-check [paths]   check formatting without writing
+  format                 apply the pinned clang-format to all native sources
+  format-check           check formatting without writing
   verify                 shell syntax, formatting, assurance validators, script tests
   clean                  remove build/
 
