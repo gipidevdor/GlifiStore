@@ -2,6 +2,7 @@
 #include "glifistore/core/memory_reserve.hpp"
 #include "glifistore/core/pageable_array.hpp"
 #include "glifistore/index/index.hpp"
+#include "glifistore/persistence/segment_image.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -223,4 +224,41 @@ GLIFI_TEST("mapped regions are bounded by guard pages and map their whole size")
     GLIFI_REQUIRE(probe != MAP_FAILED);
     GLIFI_REQUIRE(probe != static_cast<void*>(after));
     GLIFI_REQUIRE(::munmap(probe, page) == 0);
+}
+
+GLIFI_TEST("compaction image credit follows sources evicted while outputs are admitted") {
+    constexpr std::uint64_t kSegment = glifistore::kSegmentSizeBytes;
+    using glifistore::SegmentImage;
+    auto reserve = std::make_shared<glifistore::MemoryReserve>(2U * kSegment, std::filesystem::path{});
+
+    // A sealed source and the active image of the same Worker fill the budget.
+    auto source = SegmentImage::create(reserve);
+    auto active = SegmentImage::create(reserve);
+    GLIFI_REQUIRE(source && active);
+    glifistore::CompactionImageCredit credit;
+    credit.add_source(source.get());
+    credit.add_source(nullptr); // a cold source lends nothing
+    credit.add_source(active.get());
+    credit.retain_sources(2U);
+    GLIFI_REQUIRE(credit.credit_bytes() == kSegment);
+
+    // While the sources are charged, an output borrows their bytes.
+    auto first_output = credit.create_output(reserve);
+    GLIFI_REQUIRE(first_output != nullptr);
+    first_output.reset();
+
+    // A rotation evicts the source to admit its next active image. The credit shrinks with it,
+    // so the output can no longer be admitted on bytes that were already returned.
+    credit.release_evicted(*source);
+    GLIFI_REQUIRE(credit.credit_bytes() == 0U);
+    GLIFI_REQUIRE(reserve->stats().image_charged_bytes == kSegment);
+    auto next_active = SegmentImage::create(reserve);
+    GLIFI_REQUIRE(next_active != nullptr);
+    GLIFI_REQUIRE(credit.create_output(reserve) == nullptr);
+    GLIFI_REQUIRE(reserve->stats().image_charged_bytes <= reserve->stats().image_budget_bytes);
+
+    // Evicting an image that is not a source only releases its charge.
+    credit.release_evicted(*active);
+    GLIFI_REQUIRE(credit.credit_bytes() == 0U);
+    GLIFI_REQUIRE(reserve->stats().image_charged_bytes == kSegment);
 }

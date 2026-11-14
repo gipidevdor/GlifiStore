@@ -509,7 +509,6 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
         std::vector<std::shared_ptr<SegmentImage>> replacement_images;
         replacement_images.reserve(plan->replacements.size());
         std::shared_ptr<SegmentImage> output_image;
-        std::uint64_t image_credit_used_bytes{};
         const auto finalize_output = [&](const std::size_t group_end) -> Status {
             if (!output || !output_index || group_end <= output_group_begin) {
                 return fail(ErrorCode::internal_error, "durable compaction output group is incomplete");
@@ -552,7 +551,6 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             replacement_commits.push_back(selected);
             if (output_image) {
                 output_image->seal(commit.committed_end);
-                image_credit_used_bytes += output_image->charged_bytes();
             }
             replacement_images.push_back(std::move(output_image));
             output.reset();
@@ -579,11 +577,9 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 staged_guard.mark_created();
                 output.emplace(std::move(*created));
                 if (request.image_reserve) {
-                    const auto credit_bytes = request.image_credit_bytes > image_credit_used_bytes
-                                                  ? request.image_credit_bytes - image_credit_used_bytes
-                                                  : 0U;
-                    output_image =
-                        SegmentImage::create(request.image_reserve, kSegmentSizeBytes, credit_bytes);
+                    output_image = request.image_credit
+                                       ? request.image_credit->create_output(request.image_reserve)
+                                       : SegmentImage::create(request.image_reserve);
                 }
             }
             if (!output) {

@@ -17,10 +17,12 @@
 #include <chrono>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <optional>
 #include <ranges>
+#include <shared_mutex>
 #include <span>
 #include <string>
 #include <utility>
@@ -89,12 +91,14 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
         std::vector<IndexEntry> snapshot_entries;
         // Exact generation pins of the Worker's sealed Segments, in Manifest order.
         std::vector<std::shared_ptr<const RuntimeSegmentGeneration>> source_pins;
-        // Image bytes of each source pin, captured under the catalog lock (ADR 0046 credit).
-        std::vector<std::uint64_t> source_image_bytes;
+        // Image bytes the sources hold, lent to the outputs and withdrawn by eviction (ADR 0046).
+        const auto image_credit = std::make_shared<CompactionImageCredit>();
         bool ownership_claimed{};
         ScopeExit release_ownership{[&] {
             if (ownership_claimed) {
                 const std::lock_guard lock{worker.mutex};
+                const std::shared_lock catalog_lock{catalog_mutex_};
+                worker.compaction_image_credit.reset();
                 worker.compaction_active = false;
             }
         }};
@@ -151,8 +155,9 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                                          "durable compaction source has no matching generation pin"});
                 }
                 source_pins.push_back(pin);
-                source_image_bytes.push_back(pin->image ? pin->image->charged_bytes() : 0U);
+                image_credit->add_source(pin->image.get());
             }
+            worker.compaction_image_credit = image_credit;
             worker.compaction_active = true;
             ownership_claimed = true;
             snapshot_gate.clear_locked();
@@ -189,12 +194,10 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             return failure(
                 Error{ErrorCode::internal_error, "durable compaction prefix pin set is incomplete"});
         }
+        // Withdraw the sources outside the prefix while they are still pinned: the credit
+        // identifies sources by address.
+        image_credit->retain_sources(choice->source_count);
         source_pins.resize(choice->source_count);
-        source_image_bytes.resize(choice->source_count);
-        std::uint64_t source_image_credit_bytes{};
-        for (const auto bytes : source_image_bytes) {
-            source_image_credit_bytes += bytes;
-        }
 
         // Phase B performs the exact scan and the complete staged output
         // copy/seal/verification without a global publication lease. The
@@ -257,7 +260,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
              .intent_gate = intent_gate,
              .pacing = {.bytes_per_second = max_copy_bytes_per_second},
              .image_reserve = options_.limits.resident_reads_enabled ? memory_reserve_ : nullptr,
-             .image_credit_bytes = source_image_credit_bytes});
+             .image_credit = image_credit});
         if (!built.succeeded()) {
             stats = built.stats;
             stats.snapshot_duration_ns = snapshot_duration_ns;

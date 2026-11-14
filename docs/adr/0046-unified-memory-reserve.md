@@ -88,9 +88,10 @@ replacements) inherits it with its one retired spare region, which stays charged
   sequence, size, key/hash and expiry. It skips only the positional read and the scratch buffer.
 - At open, images are loaded for active Segments first, then sealed Segments by descending Segment
   ID, until the first refusal. A sealed image is charged for its committed bytes only.
-- Compaction mirrors every output Record while it stages the output. An output may borrow up to the
-  image bytes its sources hold; the sources stop counting when the transaction commits. Live-only
-  data is therefore born resident.
+- Compaction mirrors every output Record while it stages the output. An output is admitted with
+  the image bytes its sources still hold as overdraft, so the images left once the sources retire
+  fit the budget; the sources stop counting when the transaction commits. Live-only data is
+  therefore born resident.
 
 ### 4. Eviction (amends ADR 0045 §2)
 
@@ -101,7 +102,9 @@ Eviction runs only at a Worker's rotation, before any persistent write of that r
 - dropping republishes the generation with the same shared file handle and no image, then advances
   the Worker's read catalog revision. Readers that already hold the old generation keep using its
   image; the pages return when the existing generation reclamation drops the last holder;
-- an evicted image stops counting against the reserve immediately.
+- an evicted image stops counting against the reserve immediately. When it is a source of the
+  Worker's in-flight compaction, its bytes leave that compaction's credit at the same moment, under
+  the lock that output admission takes, so an output never borrows bytes already returned.
 
 Because compaction outputs are created last, the oldest-first rule keeps live-only data longest. A
 generation identity check that compared generation objects now compares their shared file handle, so
@@ -151,9 +154,6 @@ An `index_spill_directory` that is not an existing directory fails open with `in
   is first written; Linux and FreeBSD preallocate the file, macOS and OpenBSD do not (HAZ-043).
 - Two paired Reader bases can coexist during a rebuild, and both are charged: a rebuild near the
   reserve shrinks the image budget until the old base is retired.
-- A compaction captures its sources' image charge when it starts. If a rotation evicts one of those
-  images before the outputs are admitted, the outputs may borrow bytes that were already returned:
-  images can exceed the budget by at most that amount until the next rotation evicts again.
 - `MemoryReserveStats::image_evictions` counts evicted images.
 - Images are optional, so the exhaustive allocation-fault proofs run with images disabled for the
   mandatory path and separately prove that a failed image allocation leaves a committed, readable
@@ -171,14 +171,17 @@ Local evidence (architectural prototype, not release evidence):
 
 - unit: reserve priority and overdraft, heap/anonymous/spill backing, unlinked spill files, image
   charge trimming, guard pages and full-size mappings, pageable-array growth, an Index spilled
-  beyond a zero reserve stays exact, a Reader base lineage charges and releases the reserve;
+  beyond a zero reserve stays exact, a Reader base lineage charges and releases the reserve, a
+  compaction credit shrinks when a source is evicted and then refuses an output it would have
+  admitted;
 - integration: resident reads across open, append, rotation and compaction; a zero reserve keeps
   everything cold without refusing writes; reopen with images enabled and disabled; the paired
   Reader completes a resident read at prepare and keeps the cold path above its inline limit;
 - concurrency: with a reserve that holds one active image, 48 forced rotations evict sealed images
   while four reader threads read every published key, through the catalog and through paired
-  Readers; values stay exact, evictions are observed, and TSan and ASan report nothing (three runs
-  each, local);
+  Readers; in the catalog run a thread compacts continuously, so evictions withdraw sources of
+  in-flight compactions. Values stay exact, evictions and compactions are observed, images end
+  within the budget, and TSan and ASan report nothing (three runs each, local);
 - cold-path tests (blocked reads, cancellation, post-open corruption) run with images disabled;
 - allocation-fault enumeration for mutation, rotation and compaction, with and without images;
 - the existing crash, fault and sanitizer suites.

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <mutex>
 #include <new>
 #include <utility>
 
@@ -77,6 +78,44 @@ void SegmentImage::release_charge() noexcept {
 void SegmentImage::seal(const std::uint64_t committed_end) noexcept {
     region_.trim_image_charge(
         static_cast<std::size_t>(std::min<std::uint64_t>(committed_end, region_.size())));
+}
+
+void CompactionImageCredit::add_source(const SegmentImage* const image) {
+    const auto charged_bytes = image != nullptr ? image->charged_bytes() : 0U;
+    const std::lock_guard lock{mutex_};
+    sources_.push_back(Source{.image = image, .charged_bytes = charged_bytes});
+    credit_bytes_ += charged_bytes;
+}
+
+void CompactionImageCredit::retain_sources(const std::size_t count) noexcept {
+    const std::lock_guard lock{mutex_};
+    while (sources_.size() > count) {
+        credit_bytes_ -= std::min(credit_bytes_, sources_.back().charged_bytes);
+        sources_.pop_back();
+    }
+}
+
+auto CompactionImageCredit::create_output(const std::shared_ptr<MemoryReserve>& reserve)
+    -> std::shared_ptr<SegmentImage> {
+    // The reserve already counts earlier outputs, so the overdraft is exactly what the remaining
+    // sources hold: admission keeps (images - sources) within the budget.
+    const std::lock_guard lock{mutex_};
+    return SegmentImage::create(reserve, kSegmentSizeBytes, credit_bytes_);
+}
+
+void CompactionImageCredit::release_evicted(SegmentImage& image) noexcept {
+    const std::lock_guard lock{mutex_};
+    const auto source = std::ranges::find(sources_, &image, &Source::image);
+    if (source != sources_.end()) {
+        credit_bytes_ -= std::min(credit_bytes_, source->charged_bytes);
+        sources_.erase(source);
+    }
+    image.release_charge();
+}
+
+auto CompactionImageCredit::credit_bytes() const noexcept -> std::uint64_t {
+    const std::lock_guard lock{mutex_};
+    return credit_bytes_;
 }
 
 } // namespace glifistore

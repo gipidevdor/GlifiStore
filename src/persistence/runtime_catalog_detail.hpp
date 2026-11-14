@@ -417,6 +417,10 @@ struct DurableRuntimeCatalog::RuntimeWorker {
 
     // At most one compaction owns a Worker at a time. Guarded by `mutex`.
     bool compaction_active{};
+    // Image credit of the owning compaction (ADR 0046), so that rotation eviction withdraws the
+    // sources it drops. Written under `mutex` and a shared catalog lock; read under the exclusive
+    // catalog lock.
+    std::shared_ptr<CompactionImageCredit> compaction_image_credit;
 
     [[nodiscard]] auto hot_cache_total_bytes() const noexcept -> std::uint64_t;
     void erase_hot_record(std::string_view key, std::uint64_t key_hash) noexcept;

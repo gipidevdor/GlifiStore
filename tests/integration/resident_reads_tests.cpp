@@ -244,7 +244,7 @@ GLIFI_TEST("resident reads keep load-time bytes while compaction still detects o
     GLIFI_REQUIRE(compacted.error->code == glifistore::ErrorCode::checksum_mismatch);
 }
 
-GLIFI_TEST("image eviction at rotation is safe against concurrent durable readers") {
+GLIFI_TEST("image eviction at rotation is safe against concurrent durable readers and compaction") {
     RecoveryTemporaryDirectory temporary;
     static_cast<void>(seed_resident_store(temporary.path()));
     ConcurrentRotationObserver observer;
@@ -291,13 +291,30 @@ GLIFI_TEST("image eviction at rotation is safe against concurrent durable reader
         });
     }
 
+    // Compactions race the rotations: their outputs borrow the sources' image bytes while a
+    // rotation may evict those sources (ADR 0046 credit).
+    std::atomic_size_t compactions{0};
+    std::thread compactor{[&] {
+        while (!stop.load(std::memory_order_acquire)) {
+            if (catalog.compact_worker(0, 0).compacted()) {
+                compactions.fetch_add(1U, std::memory_order_relaxed);
+            }
+        }
+    }};
+
     std::size_t committed{};
+    std::size_t churned{};
     for (std::size_t index = 0; index < kEvictionRotations; ++index) {
         observer.force_segment_full.store(true, std::memory_order_release);
         if (resident_put(catalog, eviction_key(index), eviction_value(index)).committed()) {
             ++committed;
         }
         published.store(index + 1U, std::memory_order_release);
+        // A superseded Record next to each live one makes every sealed Segment worth compacting
+        // into an output that keeps the live Record.
+        if (resident_put(catalog, "churn", eviction_value(index)).committed()) {
+            ++churned;
+        }
     }
     // Keep the readers on the final layout for a moment before stopping them.
     const auto reads_at_end = reads.load(std::memory_order_relaxed);
@@ -305,16 +322,20 @@ GLIFI_TEST("image eviction at rotation is safe against concurrent durable reader
         std::this_thread::yield();
     }
     stop.store(true, std::memory_order_release);
+    compactor.join();
     for (auto& reader : readers) {
         reader.join();
     }
 
     GLIFI_REQUIRE(committed == kEvictionRotations);
+    GLIFI_REQUIRE(churned == kEvictionRotations);
     GLIFI_REQUIRE(wrong_values.load() == 0U);
     GLIFI_REQUIRE(catalog.healthy());
+    GLIFI_REQUIRE(compactions.load() > 0U);
     const auto stats = catalog.memory_reserve_stats();
     GLIFI_REQUIRE(stats.image_evictions > 0U);
-    GLIFI_REQUIRE(stats.image_charged_bytes <= stats.reserve_bytes);
+    // Outputs never borrow bytes an eviction already returned, so images fit the budget.
+    GLIFI_REQUIRE(stats.image_charged_bytes <= stats.image_budget_bytes);
     for (std::size_t index = 0; index < kEvictionRotations; ++index) {
         require_value(catalog, eviction_key(index), eviction_value(index));
     }

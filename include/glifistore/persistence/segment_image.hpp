@@ -15,7 +15,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <span>
+#include <vector>
 
 namespace glifistore {
 
@@ -77,6 +79,47 @@ class SegmentImage final {
   private:
     PageableRegion region_;
     std::uint64_t birth_stamp_;
+};
+
+/**
+ * @brief Image bytes that one compaction's sources still hold, lent to its outputs (ADR 0046).
+ *
+ * An output image is admitted against the reserve with this credit as overdraft, so that the
+ * images left once the sources retire still fit the budget. A rotation may evict a source while
+ * the compaction builds; the eviction withdraws that source's bytes and releases its charge under
+ * the same mutex as an output admission, so an admission never borrows bytes already returned.
+ *
+ * Ownership: created by the compaction under the catalog lock, shared with its Worker for
+ * eviction and with the builder for admission. Sources are identified by address and must stay
+ * pinned while they are registered.
+ */
+class CompactionImageCredit final {
+  public:
+    /// Register a source image with its current charge. Caller holds the catalog lock.
+    void add_source(const SegmentImage* image);
+
+    /// Keep only the first @p count registered sources, before the others are unpinned.
+    void retain_sources(std::size_t count) noexcept;
+
+    /// Allocate an output image that may borrow the credit; null when not admitted.
+    [[nodiscard]] auto create_output(const std::shared_ptr<MemoryReserve>& reserve)
+        -> std::shared_ptr<SegmentImage>;
+
+    /// Release @p image's charge for eviction, withdrawing it from the credit when it is a source.
+    void release_evicted(SegmentImage& image) noexcept;
+
+    /// Bytes still lent to outputs.
+    [[nodiscard]] auto credit_bytes() const noexcept -> std::uint64_t;
+
+  private:
+    struct Source {
+        const SegmentImage* image{};
+        std::uint64_t charged_bytes{};
+    };
+
+    mutable std::mutex mutex_;
+    std::vector<Source> sources_;
+    std::uint64_t credit_bytes_{};
 };
 
 } // namespace glifistore

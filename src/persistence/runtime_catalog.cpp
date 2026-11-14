@@ -497,8 +497,13 @@ auto DurableRuntimeCatalog::evict_resident_images_locked(const RuntimeWorker& wo
                 .image = nullptr,
             });
             // The image stops counting now; its pages return when the last generation that can
-            // still observe it is reclaimed by the Reader epoch protocol.
-            resident->image->release_charge();
+            // still observe it is reclaimed by the Reader epoch protocol. A source of the Worker's
+            // in-flight compaction is also withdrawn from the credit its outputs borrow.
+            if (worker.compaction_image_credit) {
+                worker.compaction_image_credit->release_evicted(*resident->image);
+            } else {
+                resident->image->release_charge();
+            }
             generation_pins_[*victim] = std::move(cold);
             memory_reserve_->note_image_eviction();
             ++evicted;

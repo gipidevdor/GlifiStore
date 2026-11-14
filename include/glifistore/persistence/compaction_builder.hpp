@@ -145,8 +145,9 @@ struct DurableCompactionBuildRequest {
     DurableCompactionPacing pacing{};
     /// Reserve for output images mirrored during the copy; null builds every output cold.
     std::shared_ptr<MemoryReserve> image_reserve{};
-    /// Image bytes held by the sources, which outputs may borrow until the sources retire.
-    std::uint64_t image_credit_bytes{};
+    /// Image bytes held by the sources, which outputs may borrow until the sources retire; null
+    /// admits outputs within the plain budget.
+    std::shared_ptr<CompactionImageCredit> image_credit{};
 };
 
 /// Before the durable intent, failures are not_started and publish no
