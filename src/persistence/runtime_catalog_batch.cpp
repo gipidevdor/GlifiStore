@@ -136,11 +136,8 @@ auto DurableRuntimeCatalog::flush_worker_batch(RuntimeWorker& worker,
 
     worker_lock.lock();
     catalog_lock.lock();
-    const auto current_position =
-        std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), identity.segment_id,
-                         [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                             return entry.segment_id.value < id.value;
-                         });
+    const auto current_position = std::ranges::lower_bound(manifest_.segments, identity.segment_id, {},
+                                                           &ManifestSegmentEntry::segment_id);
     const auto current_pin_index = catalog_index_for_segment(identity.segment_id);
     const bool reservation_valid =
         current_position != manifest_.segments.end() && current_position->segment_id == identity.segment_id &&
@@ -177,11 +174,8 @@ auto DurableRuntimeCatalog::flush_worker_batch(RuntimeWorker& worker,
     atomic_observe_max(worker.batch_metrics.maximum_batch_bytes, pending_bytes);
     worker.batch_metrics.pending_records.store(0, std::memory_order_relaxed);
     worker.batch_metrics.pending_bytes.store(0, std::memory_order_relaxed);
-    const auto position =
-        std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), identity.segment_id,
-                         [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                             return entry.segment_id.value < id.value;
-                         });
+    const auto position = std::ranges::lower_bound(manifest_.segments, identity.segment_id, {},
+                                                   &ManifestSegmentEntry::segment_id);
     if (position == manifest_.segments.end() || position->segment_id != identity.segment_id ||
         position->generation != identity.generation || position->owner_worker != identity.owner_worker) {
         return fail(ErrorCode::corrupted_data,

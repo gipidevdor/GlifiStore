@@ -472,7 +472,7 @@ class Client::Impl final {
             if (job.requests.empty()) {
                 continue;
             }
-            if (active.empty() && std::none_of(jobs.begin(), jobs.end(), [&](const WorkerJob& other) {
+            if (active.empty() && std::ranges::none_of(jobs, [&](const WorkerJob& other) {
                     return &other != &job && !other.requests.empty();
                 })) {
                 auto executed = run_job(job);

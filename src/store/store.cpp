@@ -508,8 +508,8 @@ auto Store::put_batch(const std::span<const PutItem> items) -> std::vector<Statu
         return statuses;
     }
 
-    std::sort(prepared.begin(), prepared.end(),
-              [](const Prepared& left, const Prepared& right) { return left.shard < right.shard; });
+    std::ranges::sort(prepared,
+                      [](const Prepared& left, const Prepared& right) { return left.shard < right.shard; });
     for (std::size_t begin = 0; begin < prepared.size();) {
         const auto shard = prepared[begin].shard;
         std::size_t end = begin + 1U;
@@ -676,8 +676,8 @@ auto Store::erase_batch(const std::span<const EraseItem> items) -> std::vector<S
         return statuses;
     }
 
-    std::sort(prepared.begin(), prepared.end(),
-              [](const Prepared& left, const Prepared& right) { return left.shard < right.shard; });
+    std::ranges::sort(prepared,
+                      [](const Prepared& left, const Prepared& right) { return left.shard < right.shard; });
     for (std::size_t begin = 0; begin < prepared.size();) {
         const auto shard = prepared[begin].shard;
         std::size_t end = begin + 1U;

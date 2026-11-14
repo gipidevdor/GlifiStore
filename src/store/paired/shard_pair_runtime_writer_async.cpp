@@ -259,9 +259,9 @@ void ShardPairRuntime::run_writer_async_batch(WriterAsyncBatchEnv& env) noexcept
         const bool task_expired =
             force_expire || generation_pressure ||
             (maximum_queue_wait_.count() != 0 &&
-             queue_wait_ns >=
-                 static_cast<std::uint64_t>(
-                     std::chrono::duration_cast<std::chrono::nanoseconds>(maximum_queue_wait_).count()));
+             std::cmp_greater_equal(
+                 queue_wait_ns,
+                 std::chrono::duration_cast<std::chrono::nanoseconds>(maximum_queue_wait_).count()));
         env.expired.push_back(task_expired);
         env.service_started.push_back(std::chrono::steady_clock::now());
         env.completions.push_back({.context = queued.context,
@@ -433,8 +433,7 @@ void ShardPairRuntime::run_writer_async_batch(WriterAsyncBatchEnv& env) noexcept
                 // Preserve staged sibling successes; drain-snapshot publishes them.
                 // Overwriting clean ACKs here yields visible generation + error ACK.
                 if (!env.completions[index].error &&
-                    std::find(env.read_mutation_indices.begin(), env.read_mutation_indices.end(), index) !=
-                        env.read_mutation_indices.end()) {
+                    std::ranges::contains(env.read_mutation_indices, index)) {
                     continue;
                 }
                 if (!env.completions[index].error) {
@@ -451,8 +450,7 @@ void ShardPairRuntime::run_writer_async_batch(WriterAsyncBatchEnv& env) noexcept
             for (std::size_t view_index = 0; view_index < env.durable_indices.size(); ++view_index) {
                 const auto index = env.durable_indices[view_index];
                 if (!env.completions[index].error &&
-                    std::find(env.read_mutation_indices.begin(), env.read_mutation_indices.end(), index) !=
-                        env.read_mutation_indices.end()) {
+                    std::ranges::contains(env.read_mutation_indices, index)) {
                     continue;
                 }
                 if (!env.completions[index].error) {
@@ -564,9 +562,7 @@ void ShardPairRuntime::run_writer_async_batch(WriterAsyncBatchEnv& env) noexcept
             } catch (const std::bad_alloc&) {
                 // If already staged into env.read_mutations, do not error-ACK here —
                 // sticky/happy publish must success-ACK once authority is visible.
-                const bool already_staged =
-                    std::find(env.read_mutation_indices.begin(), env.read_mutation_indices.end(), index) !=
-                    env.read_mutation_indices.end();
+                const bool already_staged = std::ranges::contains(env.read_mutation_indices, index);
                 if (current_committed || durable_mutate_entered || post_commit_publication_failure) {
                     post_commit_publication_failure = true;
                 }
@@ -576,9 +572,7 @@ void ShardPairRuntime::run_writer_async_batch(WriterAsyncBatchEnv& env) noexcept
                                              "paired mutation allocation failed");
                 }
             } catch (...) {
-                const bool already_staged =
-                    std::find(env.read_mutation_indices.begin(), env.read_mutation_indices.end(), index) !=
-                    env.read_mutation_indices.end();
+                const bool already_staged = std::ranges::contains(env.read_mutation_indices, index);
                 if (current_committed || durable_mutate_entered || post_commit_publication_failure) {
                     post_commit_publication_failure = true;
                 }

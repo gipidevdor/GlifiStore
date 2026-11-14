@@ -84,7 +84,7 @@ auto FileDescriptor::write_all_at(const std::span<const std::byte> bytes, const 
         if (result == 0) {
             return fail(ErrorCode::io_error, "pwrite made no forward progress");
         }
-        if (static_cast<std::size_t>(result) > chunk) {
+        if (std::cmp_greater(result, chunk)) {
             return fail(ErrorCode::internal_error,
                         "positional write hook returned more bytes than requested");
         }
@@ -119,7 +119,7 @@ auto FileDescriptor::read_exact_at(const std::span<std::byte> bytes, const std::
         if (result == 0) {
             return fail(ErrorCode::corrupted_data, "file ended before the requested extent");
         }
-        if (static_cast<std::size_t>(result) > chunk) {
+        if (std::cmp_greater(result, chunk)) {
             return fail(ErrorCode::internal_error, "positional read hook returned more bytes than requested");
         }
         read += static_cast<std::size_t>(result);

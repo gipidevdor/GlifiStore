@@ -326,7 +326,7 @@ void ShardPairRuntime::run(const std::size_t shard) noexcept try {
             sync_env.hooks.prepare_publish_retry = &prepare_publish_retry;
             drained_sync_turn = run_writer_sync_drain(sync_env);
         }
-        if (drained_sync_turn && (carried_task.has_value() || lane.queue.size() != 0U)) {
+        if (drained_sync_turn && (carried_task.has_value() || !lane.queue.empty())) {
             lane.metrics.sync_async_fairness_turns.fetch_add(1U, std::memory_order_relaxed);
         }
 

@@ -144,19 +144,14 @@ auto segment_identity(const Manifest& manifest, const ManifestSegmentEntry& entr
 }
 
 auto find_catalog_entry(const Manifest& manifest, const SegmentId segment_id) -> const ManifestSegmentEntry* {
-    const auto found = std::lower_bound(manifest.segments.begin(), manifest.segments.end(), segment_id,
-                                        [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                                            return entry.segment_id.value < id.value;
-                                        });
+    const auto found =
+        std::ranges::lower_bound(manifest.segments, segment_id, {}, &ManifestSegmentEntry::segment_id);
     return found != manifest.segments.end() && found->segment_id == segment_id ? &*found : nullptr;
 }
 
 auto find_source_index(const std::span<const ManifestSegmentEntry> sources, const SegmentId segment_id)
     -> std::optional<std::size_t> {
-    const auto found = std::lower_bound(sources.begin(), sources.end(), segment_id,
-                                        [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                                            return entry.segment_id.value < id.value;
-                                        });
+    const auto found = std::ranges::lower_bound(sources, segment_id, {}, &ManifestSegmentEntry::segment_id);
     if (found == sources.end() || found->segment_id != segment_id) {
         return std::nullopt;
     }

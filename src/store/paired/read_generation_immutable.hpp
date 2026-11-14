@@ -135,7 +135,7 @@ class ImmutableReadIndex final {
                 }
             }
         }
-        std::sort(result.begin(), result.end(), record_less);
+        std::ranges::sort(result, record_less);
         return result;
     }
 
@@ -260,9 +260,8 @@ class ImmutableReadIndex final {
         bool durable{};
         if (source.opcode == Opcode::put && source.durable != nullptr) {
             durable = true;
-            const auto found = std::find_if(durable_pins_.begin(), durable_pins_.end(), [&](const auto& pin) {
-                return pin.same_generation(*source.durable);
-            });
+            const auto found = std::ranges::find_if(
+                durable_pins_, [&](const auto& pin) { return pin.same_generation(*source.durable); });
             if (found == durable_pins_.end()) {
                 if (durable_pins_.size() == CompactReadRecord::kNoPin) {
                     throw std::bad_alloc{};
@@ -273,7 +272,7 @@ class ImmutableReadIndex final {
                 pin_index = static_cast<std::uint32_t>(std::distance(durable_pins_.begin(), found));
             }
         } else if (source.opcode == Opcode::put && source.segment != nullptr) {
-            const auto found = std::find(segments_.begin(), segments_.end(), *source.segment);
+            const auto found = std::ranges::find(segments_, *source.segment);
             if (found == segments_.end()) {
                 if (segments_.size() == CompactReadRecord::kNoPin) {
                     throw std::bad_alloc{};

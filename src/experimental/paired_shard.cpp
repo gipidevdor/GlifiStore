@@ -65,7 +65,7 @@ using MutableReadIndex = std::vector<RecordHandle>;
 }
 
 void apply_record(MutableReadIndex& index, RecordHandle record) {
-    const auto position = std::lower_bound(index.begin(), index.end(), record, record_less);
+    const auto position = std::ranges::lower_bound(index, record, record_less);
     if (position != index.end() && (*position)->hash == record->hash && (*position)->key == record->key) {
         *position = std::move(record);
         return;
@@ -132,7 +132,7 @@ class ImmutableReadIndex final {
                 result.push_back(records_[slot]);
             }
         }
-        std::sort(result.begin(), result.end(), record_less);
+        std::ranges::sort(result, record_less);
         return result;
     }
 
@@ -643,7 +643,7 @@ struct VolatileShardPairPrototype::Impl final {
             std::memcpy(mutation.key.data(), key.data(), key.size());
         }
         if (!value.empty()) {
-            std::copy(value.begin(), value.end(), value_span(slot).begin());
+            std::ranges::copy(value, value_span(slot).begin());
         }
         if (!mutations.try_push(slot)) {
             free_slots[free_count++] = slot;

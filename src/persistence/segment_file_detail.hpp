@@ -70,7 +70,7 @@ inline auto preallocate_segment(const FileDescriptor& file) -> Status {
             return persistence_system_error("fcntl(F_PREALLOCATE)");
         }
     }
-    if (store.fst_bytesalloc < static_cast<off_t>(size)) {
+    if (std::cmp_less(store.fst_bytesalloc, size)) {
         return fail(ErrorCode::storage_exhausted, "F_PREALLOCATE did not reserve the complete Segment");
     }
 #elif defined(__OpenBSD__)

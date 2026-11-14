@@ -19,8 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace glifistore {
-namespace detail {
+namespace glifistore::detail {
 
 // Per-Worker durable hot-cache table: Swiss-style flat open addressing with
 // 8-slot control groups, H2 fingerprints, and SIMD/scalar group matching via
@@ -475,5 +474,4 @@ struct HotRecordReservePlan {
     return {.target = target};
 }
 
-} // namespace detail
-} // namespace glifistore
+} // namespace glifistore::detail

@@ -198,7 +198,7 @@ auto UnixListener::bind(const std::filesystem::path& path, const int backlog) ->
     if (path_text.size() >= sizeof(sockaddr_un{}.sun_path)) {
         return fail(ErrorCode::invalid_argument, "Unix socket path exceeds sockaddr_un capacity");
     }
-    if (path_text.find('\0') != std::string::npos) {
+    if (path_text.contains('\0')) {
         return fail(ErrorCode::invalid_argument, "Unix socket path must not contain NUL");
     }
 

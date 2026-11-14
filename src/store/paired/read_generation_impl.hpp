@@ -424,8 +424,8 @@ class DeltaBuilder final {
             return *last_mutable_page_;
         }
         auto& mutable_pages = scratch_->mutable_pages;
-        const auto found_page = std::find_if(mutable_pages.begin(), mutable_pages.end(),
-                                             [&](const auto& entry) { return entry.first == page_index; });
+        const auto found_page =
+            std::ranges::find_if(mutable_pages, [&](const auto& entry) { return entry.first == page_index; });
         if (found_page != mutable_pages.end()) {
             last_mutable_page_index_ = page_index;
             last_mutable_page_ = found_page->second.get();
@@ -448,8 +448,8 @@ class DeltaBuilder final {
             const auto chunk_index = block_index / kDeltaDirectoryChunkBlocks;
             const auto block_offset = block_index % kDeltaDirectoryChunkBlocks;
             auto& mutable_chunks = scratch_->mutable_chunks;
-            auto found_chunk = std::find_if(mutable_chunks.begin(), mutable_chunks.end(),
-                                            [&](const auto& entry) { return entry.first == chunk_index; });
+            auto found_chunk = std::ranges::find_if(
+                mutable_chunks, [&](const auto& entry) { return entry.first == chunk_index; });
             if (found_chunk == mutable_chunks.end()) {
                 std::shared_ptr<DeltaDirectoryChunk> chunk;
                 const bool chunk_exists = directory_chunks_[chunk_index] != nullptr;
@@ -467,8 +467,8 @@ class DeltaBuilder final {
                 found_chunk = std::prev(mutable_chunks.end());
             }
             auto& mutable_blocks = scratch_->mutable_blocks;
-            auto found_block = std::find_if(mutable_blocks.begin(), mutable_blocks.end(),
-                                            [&](const auto& entry) { return entry.first == block_index; });
+            auto found_block = std::ranges::find_if(
+                mutable_blocks, [&](const auto& entry) { return entry.first == block_index; });
             if (found_block == mutable_blocks.end()) {
                 std::shared_ptr<DeltaDirectoryBlock> block;
                 const bool block_exists = found_chunk->second->blocks[block_offset] != nullptr;

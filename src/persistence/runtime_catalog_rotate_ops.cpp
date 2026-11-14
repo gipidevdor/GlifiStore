@@ -178,11 +178,8 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
         end_atomic_stats_publication(rotation_stats_version_, previous_version);
     }};
     std::unique_lock catalog_lock{catalog_mutex_};
-    const auto old_position =
-        std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), worker.active_segment,
-                         [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                             return entry.segment_id.value < id.value;
-                         });
+    const auto old_position = std::ranges::lower_bound(manifest_.segments, worker.active_segment, {},
+                                                       &ManifestSegmentEntry::segment_id);
     if (old_position == manifest_.segments.end() || old_position->segment_id != worker.active_segment ||
         old_position->owner_worker != worker.worker_id || old_position->role != ManifestSegmentRole::active) {
         abandon_pending_batches();
@@ -426,11 +423,8 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
         return io_result;
     }
 
-    const auto current_position =
-        std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), old_entry.segment_id,
-                         [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                             return entry.segment_id.value < id.value;
-                         });
+    const auto current_position = std::ranges::lower_bound(manifest_.segments, old_entry.segment_id, {},
+                                                           &ManifestSegmentEntry::segment_id);
     if (!healthy() || current_position == manifest_.segments.end() || *current_position != old_entry ||
         worker.active_segment != old_entry.segment_id || generation_pins_[old_index] != old_pin ||
         worker.cached_file || !worker.mutation_io_active || !created.file) {

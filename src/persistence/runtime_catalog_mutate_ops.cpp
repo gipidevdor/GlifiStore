@@ -305,11 +305,8 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                           "durable mutation conflicts with an Index owner after rotation"});
             }
             std::shared_lock catalog_lock{catalog_mutex_};
-            const auto position =
-                std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), worker.active_segment,
-                                 [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                                     return entry.segment_id.value < id.value;
-                                 });
+            const auto position = std::ranges::lower_bound(manifest_.segments, worker.active_segment, {},
+                                                           &ManifestSegmentEntry::segment_id);
             if (position == manifest_.segments.end() || position->segment_id != worker.active_segment) {
                 healthy_.store(false, std::memory_order_release);
                 return mutation_failure(
@@ -401,11 +398,8 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                 worker_lock.lock();
             }
             catalog_lock.lock();
-            const auto current_position =
-                std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), identity.segment_id,
-                                 [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                                     return entry.segment_id.value < id.value;
-                                 });
+            const auto current_position = std::ranges::lower_bound(manifest_.segments, identity.segment_id,
+                                                                   {}, &ManifestSegmentEntry::segment_id);
             const auto current_pin_index = catalog_index_for_segment(identity.segment_id);
             const bool reservation_valid = current_position != manifest_.segments.end() &&
                                            current_position->segment_id == identity.segment_id &&

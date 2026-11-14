@@ -372,7 +372,7 @@ extern "C" GS_API gs_status gs_store_get(gs_store* const store, const gs_bytes_v
     if (value->bytes.size() > output_capacity) {
         return make_status(GS_BUFFER_TOO_SMALL, GS_CATEGORY_RESOURCE);
     }
-    if (value->bytes.size() != 0) {
+    if (!value->bytes.empty()) {
         std::memcpy(output, value->bytes.data(), value->bytes.size());
     }
     return ok_status();

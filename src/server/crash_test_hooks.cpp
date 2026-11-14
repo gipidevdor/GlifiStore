@@ -3,11 +3,11 @@
 #include "glifistore/persistence/filesystem.hpp"
 
 #include <array>
+#include <csignal>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <signal.h>
 #include <string>
 #include <string_view>
 #include <unistd.h>

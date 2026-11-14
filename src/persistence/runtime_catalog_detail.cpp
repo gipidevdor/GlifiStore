@@ -190,10 +190,8 @@ auto rotation_manifest(const Manifest& current, const ManifestSegmentEntry& old_
         return unexpected(resources.error());
     }
     Manifest next = current;
-    auto found = std::lower_bound(next.segments.begin(), next.segments.end(), old_active.segment_id,
-                                  [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                                      return entry.segment_id.value < id.value;
-                                  });
+    auto found =
+        std::ranges::lower_bound(next.segments, old_active.segment_id, {}, &ManifestSegmentEntry::segment_id);
     if (found == next.segments.end() || found->segment_id != old_active.segment_id ||
         found->role != ManifestSegmentRole::active) {
         return fail(ErrorCode::corrupted_data, "rotation source is not the catalog active Segment");

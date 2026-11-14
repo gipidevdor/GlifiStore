@@ -424,11 +424,8 @@ auto DurableRuntimeCatalog::maintenance_observation(const std::size_t start_work
             if (entry.record.segment_id == worker.active_segment) {
                 continue;
             }
-            const auto found = std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(),
-                                                entry.record.segment_id,
-                                                [](const ManifestSegmentEntry& segment, const SegmentId id) {
-                                                    return segment.segment_id.value < id.value;
-                                                });
+            const auto found = std::ranges::lower_bound(manifest_.segments, entry.record.segment_id, {},
+                                                        &ManifestSegmentEntry::segment_id);
             if (found == manifest_.segments.end() || found->segment_id != entry.record.segment_id ||
                 found->role != ManifestSegmentRole::sealed || found->owner_worker.value != candidate) {
                 continue;
@@ -485,7 +482,7 @@ auto DurableRuntimeCatalog::snapshot_live_keys() -> Result<std::vector<std::stri
             keys.push_back(std::move(entry.key));
         }
     }
-    std::sort(keys.begin(), keys.end());
+    std::ranges::sort(keys);
     return keys;
 }
 

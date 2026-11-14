@@ -326,8 +326,8 @@ auto ShardPairRuntime::run_writer_sync_drain(WriterSyncDrainEnv& env) noexcept -
                     if (!node->status) {
                         // Keep mid-chunk fail-closed / rewritten not-committed / sticky
                         // unavailable. Only the pre-mutate placeholder may be upgraded.
-                        if (node->status.error().message.find("paired durable batch item not processed") ==
-                            std::string::npos) {
+                        if (!node->status.error().message.contains(
+                                "paired durable batch item not processed")) {
                             continue;
                         }
                     }
@@ -350,8 +350,8 @@ auto ShardPairRuntime::run_writer_sync_drain(WriterSyncDrainEnv& env) noexcept -
                         continue;
                     }
                     if (!node->status) {
-                        if (node->status.error().message.find("paired durable batch item not processed") ==
-                            std::string::npos) {
+                        if (!node->status.error().message.contains(
+                                "paired durable batch item not processed")) {
                             continue;
                         }
                     }

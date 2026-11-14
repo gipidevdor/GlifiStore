@@ -208,10 +208,10 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
 
     HotRecordEntry staged_entry{.value_size = value.size(), .expire_at_ns = expire_at_ns};
     if (!value.empty() && value.size() <= HotRecordEntry::kInlineValueBytes) {
-        std::copy(value.begin(), value.end(), staged_entry.inline_value);
+        std::ranges::copy(value, staged_entry.inline_value);
     } else if (!value.empty()) {
         auto mutable_value = std::make_shared<std::byte[]>(value.size());
-        std::copy(value.begin(), value.end(), mutable_value.get());
+        std::ranges::copy(value, mutable_value.get());
         staged_entry.heap_value = std::move(mutable_value);
     }
     hot_record_staged_bytes += staged_charge;
@@ -474,11 +474,8 @@ auto DurableRuntimeCatalog::sync_worker_file(RuntimeWorker& worker, std::unique_
 
     worker_lock.lock();
     catalog_lock.lock();
-    const auto current_position =
-        std::lower_bound(manifest_.segments.begin(), manifest_.segments.end(), identity.segment_id,
-                         [](const ManifestSegmentEntry& entry, const SegmentId id) {
-                             return entry.segment_id.value < id.value;
-                         });
+    const auto current_position = std::ranges::lower_bound(manifest_.segments, identity.segment_id, {},
+                                                           &ManifestSegmentEntry::segment_id);
     const auto current_pin_index = catalog_index_for_segment(identity.segment_id);
     const bool reservation_valid =
         current_position != manifest_.segments.end() && current_position->segment_id == identity.segment_id &&

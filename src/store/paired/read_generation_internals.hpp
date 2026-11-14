@@ -29,8 +29,7 @@
 #include <unistd.h>
 #endif
 
-namespace glifistore::store::paired {
-inline namespace generation_internals {
+namespace glifistore::store::paired::inline generation_internals {
 
 inline constexpr std::size_t kDeltaPageSlots = 16;
 inline constexpr std::size_t kDeltaDirectoryBlockPages = 16;
@@ -330,7 +329,7 @@ struct ReadRecordView final {
 }
 
 inline void apply_record(MutableReadIndex& index, ReadRecordHandle record) {
-    const auto position = std::lower_bound(index.begin(), index.end(), record, record_less);
+    const auto position = std::ranges::lower_bound(index, record, record_less);
     const bool present = position != index.end() && (*position)->hash == record->hash &&
                          record_key(**position) == record_key(*record);
     if (record->opcode == Opcode::erase) {
@@ -385,7 +384,7 @@ inline void apply_record(MutableReadIndex& index, ReadRecordHandle record) {
         decoded->opcode != record.opcode) {
         return fail(ErrorCode::invalid_reference, "read generation RecordRef identity mismatch");
     }
-    return std::move(*decoded);
+    return *decoded;
 }
 
 // One immutable Delta cell. Ownership of keys and pins is lifted to the
@@ -532,8 +531,8 @@ class DeltaArena final {
         if (!segment_pins_.empty() && same_segment(segment_pins_.back(), record)) {
             return &segment_pins_.back();
         }
-        const auto found = std::find_if(segment_pins_.begin(), segment_pins_.end(),
-                                        [&](const auto& pin) { return same_segment(pin, record); });
+        const auto found =
+            std::ranges::find_if(segment_pins_, [&](const auto& pin) { return same_segment(pin, record); });
         if (found != segment_pins_.end()) {
             return &*found;
         }
@@ -545,8 +544,8 @@ class DeltaArena final {
         if (!durable_pins_.empty() && durable_pins_.back()->same_generation(source)) {
             return durable_pins_.back().get();
         }
-        const auto found = std::find_if(durable_pins_.begin(), durable_pins_.end(),
-                                        [&](const auto& pin) { return pin->same_generation(source); });
+        const auto found = std::ranges::find_if(
+            durable_pins_, [&](const auto& pin) { return pin->same_generation(source); });
         if (found != durable_pins_.end()) {
             return found->get();
         }
@@ -672,6 +671,4 @@ struct KeyBlock final {
     std::size_t used{};
 };
 
-} // namespace generation_internals
-
-} // namespace glifistore::store::paired
+} // namespace glifistore::store::paired::inline generation_internals

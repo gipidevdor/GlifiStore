@@ -255,11 +255,8 @@ auto audit_data_directory(DataDirectory& directory, const Manifest& manifest)
             if (!status) {
                 return unexpected(status.error());
             }
-            const auto found =
-                std::lower_bound(manifest.segments.begin(), manifest.segments.end(), parsed->segment_id,
-                                 [](const ManifestSegmentEntry& candidate, const SegmentId id) {
-                                     return candidate.segment_id.value < id.value;
-                                 });
+            const auto found = std::ranges::lower_bound(manifest.segments, parsed->segment_id, {},
+                                                        &ManifestSegmentEntry::segment_id);
             const bool listed = found != manifest.segments.end() && found->segment_id == parsed->segment_id &&
                                 found->generation == parsed->generation;
             if (!parsed->temporary && listed) {
@@ -341,20 +338,18 @@ auto audit_data_directory(DataDirectory& directory, const Manifest& manifest)
         }
     }
 
-    std::sort(report.issues.begin(), report.issues.end(), issue_less);
+    std::ranges::sort(report.issues, issue_less);
     return report;
 }
 
 auto validate_namespace_for_recovery(const NamespaceAuditReport& report) -> Status {
-    const auto first =
-        std::find_if(report.issues.begin(), report.issues.end(),
-                     [](const NamespaceIssue& issue) { return blocking_for_recovery(issue.kind); });
+    const auto first = std::ranges::find_if(
+        report.issues, [](const NamespaceIssue& issue) { return blocking_for_recovery(issue.kind); });
     if (first == report.issues.end()) {
         return {};
     }
-    const auto blocking_count = static_cast<std::size_t>(
-        std::count_if(report.issues.begin(), report.issues.end(),
-                      [](const NamespaceIssue& issue) { return blocking_for_recovery(issue.kind); }));
+    const auto blocking_count = static_cast<std::size_t>(std::ranges::count_if(
+        report.issues, [](const NamespaceIssue& issue) { return blocking_for_recovery(issue.kind); }));
     return fail(ErrorCode::corrupted_data,
                 "data-directory namespace has " + std::to_string(blocking_count) +
                     " blocking issue(s); first: " + std::string{namespace_issue_name(first->kind)} + " '" +
