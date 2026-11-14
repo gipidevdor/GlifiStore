@@ -5,7 +5,7 @@
 - Deciders: persistence and performance maintainers
 - Applies to: durable whole-Worker compaction, persistence format v1
 - Amends: ADR 0015, ADR 0023
-- Amended by: ADR 0040, ADR 0043
+- Amended by: ADR 0040, ADR 0044
 - Supersedes: none
 
 ## Context
@@ -98,10 +98,10 @@ remaining lease is still a whole v1 transaction and includes intent publication,
 Worker quiescence, Manifest publication, source retirement, intent removal and final audit. Slow
 filesystem metadata or a large retirement/audit remains visible as tail latency.
 
-ADR 0043 replaces the selected-Worker sequence equality restriction with a bounded concurrent Index
-delta, including group and TTL publications. Overflow or changed Manifest/source identities still
-aborts safely. ADR 0040 adds bounded physical-write pacing inside private staging. A shorter cleanup
-protocol and compaction across concurrent rotations remain deferred.
+ADR 0044 replaces the selected-Worker sequence equality restriction with a commit-time conditional
+remap of the oldest sealed prefix and rebases the intent across unrelated rotations; changed source
+identities still abort safely. ADR 0040 adds bounded physical-write pacing inside private staging. A
+shorter cleanup protocol remains deferred.
 
 Automatic recovery now removes only recognized private engine temporaries after the complete
 authoritative scan and synchronizes that cleanup. Unsafe, malformed, linked, canonical or unlisted

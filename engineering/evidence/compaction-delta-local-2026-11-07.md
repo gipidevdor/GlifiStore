@@ -1,6 +1,6 @@
 # Bounded compaction delta — local v1 campaign, 2026-11-07
 
-Authority: [ADR 0043](../../docs/adr/0043-bounded-compaction-delta.md),
+Authority: ADR 0043 (removed; superseded by [ADR 0044](../../docs/adr/0044-bounded-prefix-compaction-remap.md)),
 `GS-PERSIST-DELTA-001`, `HAZ-040`, `GATE-COMPACTION-DELTA`.
 Scope: architectural prototype, local macOS arm64; no hosted CI/release acceptance or E3/E4 claim.
 

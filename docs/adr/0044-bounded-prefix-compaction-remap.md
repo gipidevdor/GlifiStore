@@ -178,6 +178,6 @@ Local evidence is architectural-prototype evidence and does not promote a gate o
 
 - [ADR 0015: Whole-Worker compaction](0015-whole-worker-compaction.md)
 - [ADR 0039: Pre-intent staging](0039-pre-intent-staged-compaction-output.md)
-- [ADR 0043: Bounded compaction delta](0043-bounded-compaction-delta.md)
+- ADR 0043: Bounded compaction delta (removed from the tree; available in Git history)
 - [Durable compaction](../architecture/durable-compaction.md)
 - [Recovery state matrix](../spec/recovery-state-matrix-v1.md)

@@ -12,7 +12,7 @@
   closed and this ADR is accepted)
 - Supersedes: none
 - Depends on: [ADR 0031](paired-reader-writer-shards.md), [ADR 0032](0032-paired-concurrency-embedded-store.md)
-- Related: [ADR 0035](0035-generation-shell-recycling.md) (rejected shell freelist under the
+- Related: ADR 0035 (rejected; removed, see [rejected optimizations](../architecture/hot-path-rejected-optimizations.md)) (rejected shell freelist under the
   *existing* protocol; Alternative A deferred here)
 
 ## Context
@@ -321,7 +321,7 @@ pointer. This ADR stays **proposed**.
 
 - [ADR 0031](paired-reader-writer-shards.md) — paired Reader–Writer; publication and reclaim
 - [ADR 0032](0032-paired-concurrency-embedded-store.md) — embedded paired concurrency
-- [ADR 0035](0035-generation-shell-recycling.md) — rejected shell freelist; deferred full slot pool
+- ADR 0035 (rejected; removed, see [rejected optimizations](../architecture/hot-path-rejected-optimizations.md)) — rejected shell freelist; deferred full slot pool
 - [hot-path-performance-2026-08-01.md](../architecture/hot-path-performance-2026-08-01.md)
 - [hot-path-rejected-optimizations.md](../architecture/hot-path-rejected-optimizations.md)
 - [paired-shard-volatile-prototype.md](../architecture/paired-shard-volatile-prototype.md)

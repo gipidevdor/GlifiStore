@@ -617,7 +617,7 @@ gate. Litmus test e stress non sostituiscono la prova di ownership documentata.
 - [Concurrency and memory model](../spec/concurrency-memory-model.md)
 - [Benchmark standard](../spec/benchmark-standard.md)
 - [ADR 0012](0012-worker-affine-reactors.md)
-- [ADR 0018](0018-bounded-durable-mutation-lanes.md)
+- ADR 0018 (replaced by this ADR; removed, see Git history)
 - [ADR 0030](0030-keyed-worker-routing.md)
 - [Persistence v1](../spec/persistence-v1.md)
 

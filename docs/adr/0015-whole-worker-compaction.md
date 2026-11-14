@@ -4,7 +4,7 @@
 - Date: 2026-07-19
 - Owners: persistence maintainers
 - Related: ADR 0003, ADR 0004, ADR 0008
-- Amended by: ADR 0039, ADR 0043, ADR 0044
+- Amended by: ADR 0039, ADR 0044
 
 ## Context
 
@@ -32,8 +32,9 @@ is durable. `Store::compact()` runs at most one explicit transaction per call.
 Tombstones and obsolete values can be dropped safely because every older sealed source for that
 Worker retires together. Other Workers continue. Temporary space and physical write amplification
 must be preflighted. ADR 0039 moves complete replacement copy, seal and verification before the
-durable intent and global publication lease. ADR 0043 journals bounded concurrent Index changes and
-replays them during final quiescence; overflow or changed Manifest/source identity still aborts.
+durable intent and global publication lease. ADR 0044 narrows the unit to the oldest sealed prefix
+and reconciles concurrent Index changes with a commit-time conditional remap; unrelated rotations
+rebase the intent, while changed source identity still aborts.
 
 ## Compatibility and verification
 

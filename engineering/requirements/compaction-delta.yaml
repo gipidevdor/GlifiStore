@@ -14,7 +14,6 @@ requirements:
     lifetime and recovery ordering remain unchanged.
   autorita:
   - docs/adr/0044-bounded-prefix-compaction-remap.md
-  - docs/adr/0043-bounded-compaction-delta.md
   - docs/architecture/durable-compaction.md
   implementazione:
   - src/persistence/compaction/planner.cpp
