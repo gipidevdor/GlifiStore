@@ -91,6 +91,7 @@ Implementation order for the secure profile: [security roadmap](../security/road
 
 | ADR | Decision | Status | Notes |
 | --- | --- | --- | --- |
-| [0045](0045-memory-resident-durable-reads.md) | Memory-resident durable reads | proposed | gate `GATE-DURABLE-READS` |
+| [0045](0045-memory-resident-durable-reads.md) | Memory-resident durable reads | proposed | amended by 0046; gate `GATE-DURABLE-READS` |
+| [0046](0046-unified-memory-reserve.md) | One memory reserve: pageable Index, resident images | proposed | implemented locally; gate `GATE-DURABLE-READS` |
 | [0036](0036-generation-slot-pool-publish.md) | Generation slot-pool publish/reclaim | proposed | V1–V14 matrix |
 | [0028](0028-per-tenant-data-dir-deferred.md) | Per-tenant data-directory isolation | proposed | deferred |

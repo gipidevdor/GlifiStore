@@ -3,7 +3,7 @@
 Status: descriptive of implemented ownership plus future residency constraints
 Applies to: volatile memory and persistence v1
 Owner: storage-engine maintainers
-Last reviewed: 2026-08-26
+Last reviewed: 2026-11-14
 
 Mutable Index state and volatile Segments are resident in RAM. Durable active and sealed Segments
 are fixed-size files; the runtime keeps bounded descriptors/generation pins and performs positional
@@ -23,8 +23,15 @@ DEAD: retired and reclaimable after safety conditions
 filesystem. Data directories are configurable. Production defaults will follow each OS convention
 without hard-coding paths in the core.
 
-Proposed [ADR 0045](../adr/0045-memory-resident-durable-reads.md) would serve durable GETs from
-bounded in-memory Segment images and keep this positional path for evicted Segments only.
+Proposed [ADR 0045](../adr/0045-memory-resident-durable-reads.md), as amended by
+[ADR 0046](../adr/0046-unified-memory-reserve.md), serves durable GETs from in-memory Segment images
+admitted under one memory reserve, and keeps this positional path for Segments without an image.
+The same reserve governs the Worker Index, which is never refused and is paged to swap or to an
+unlinked spill file beyond it. See the [lean memory algorithm](lean-memory-algorithm.md).
+
+```text
+VALUE RESIDENT: decoded from the Segment image with the cold path's validation, no file read
+```
 
 The current durable runtime does not use `mmap` as its value-access contract. Any future mapping or
 eviction policy must use high/low watermarks, must not invalidate active generation pins, and must
