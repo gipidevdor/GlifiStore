@@ -24,6 +24,7 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace glifistore {
 using namespace glifistore::runtime_catalog_detail;
@@ -420,6 +421,7 @@ auto DurableRuntimeCatalog::maintenance_observation(const std::size_t start_work
             return fail(ErrorCode::corrupted_data, "unread TTL probe catalog metadata is not aligned");
         }
 
+        std::vector<std::byte> probe_scratch;
         for (const auto& entry : worker.index.entries()) {
             if (entry.record.segment_id == worker.active_segment) {
                 continue;
@@ -439,7 +441,7 @@ auto DurableRuntimeCatalog::maintenance_observation(const std::size_t start_work
                             "unread TTL probe generation pin disagrees with the Index");
             }
             ProbeContext context{.now_ns = now_ns, .key_hash = hash_key_routing(entry.key, worker_routing_)};
-            if (auto visited = pin->file.visit_runtime_record(entry.record, &context, probe_visitor);
+            if (auto visited = pin->visit_record(entry.record, probe_scratch, &context, probe_visitor);
                 !visited) {
                 return unexpected(visited.error());
             }

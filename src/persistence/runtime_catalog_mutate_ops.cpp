@@ -374,6 +374,11 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                                     .error =
                                         Error{ErrorCode::segment_full, "blob descriptor rotation quantum"}};
                     } else {
+                        // Mirror first: no reference to this offset exists until the append below
+                        // succeeds and is published, and a failed append leaves the bytes unreachable.
+                        if (active_pin->image) {
+                            active_pin->image->mirror(offset, encoded_record);
+                        }
                         appended = batch_enabled || deferred_commit
                                        ? io_file->append_record(encoded_record)
                                        : io_file->append(encoded_record, options_.commit_sync);

@@ -89,6 +89,8 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
         std::vector<IndexEntry> snapshot_entries;
         // Exact generation pins of the Worker's sealed Segments, in Manifest order.
         std::vector<std::shared_ptr<const RuntimeSegmentGeneration>> source_pins;
+        // Image bytes of each source pin, captured under the catalog lock (ADR 0046 credit).
+        std::vector<std::uint64_t> source_image_bytes;
         bool ownership_claimed{};
         ScopeExit release_ownership{[&] {
             if (ownership_claimed) {
@@ -149,6 +151,7 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                                          "durable compaction source has no matching generation pin"});
                 }
                 source_pins.push_back(pin);
+                source_image_bytes.push_back(pin->image ? pin->image->charged_bytes() : 0U);
             }
             worker.compaction_active = true;
             ownership_claimed = true;
@@ -187,6 +190,11 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                 Error{ErrorCode::internal_error, "durable compaction prefix pin set is incomplete"});
         }
         source_pins.resize(choice->source_count);
+        source_image_bytes.resize(choice->source_count);
+        std::uint64_t source_image_credit_bytes{};
+        for (const auto bytes : source_image_bytes) {
+            source_image_credit_bytes += bytes;
+        }
 
         // Phase B performs the exact scan and the complete staged output
         // copy/seal/verification without a global publication lease. The
@@ -247,7 +255,9 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             {.source_count = choice->source_count,
              .now_ns = now_ns,
              .intent_gate = intent_gate,
-             .pacing = {.bytes_per_second = max_copy_bytes_per_second}});
+             .pacing = {.bytes_per_second = max_copy_bytes_per_second},
+             .image_reserve = options_.limits.resident_reads_enabled ? memory_reserve_ : nullptr,
+             .image_credit_bytes = source_image_credit_bytes});
         if (!built.succeeded()) {
             stats = built.stats;
             stats.snapshot_duration_ns = snapshot_duration_ns;
@@ -312,7 +322,9 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                 std::make_shared<const RuntimeSegmentGeneration>(RuntimeSegmentGeneration{
                     .identity = identity,
                     .selected = prepared.replacement_commits[index],
-                    .file = std::move(*opened),
+                    .file = std::make_shared<const DurableSegmentFile>(std::move(*opened)),
+                    .image = index < prepared.replacement_images.size() ? prepared.replacement_images[index]
+                                                                        : nullptr,
                 }));
         }
         auto installed_manifest = prepared.plan.next_manifest;
@@ -332,8 +344,8 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
             for (std::size_t source_index = 0; source_index < sources.size(); ++source_index) {
                 const auto catalog_index = catalog_index_for_segment(sources[source_index].segment_id);
                 if (!catalog_index || manifest_.segments[*catalog_index] != sources[source_index] ||
-                    *catalog_index >= generation_pins_.size() ||
-                    generation_pins_[*catalog_index] != source_pins[source_index]) {
+                    *catalog_index >= generation_pins_.size() || !generation_pins_[*catalog_index] ||
+                    generation_pins_[*catalog_index]->file != source_pins[source_index]->file) {
                     return false;
                 }
             }
@@ -498,6 +510,14 @@ auto DurableRuntimeCatalog::compact_worker(const std::size_t worker_index, const
                 }
                 next_segments[next_index] = segments_[old_index];
                 next_generation_pins[next_index] = generation_pins_[old_index];
+            }
+            // Retired sources stop counting against the reserve now; Readers still holding
+            // their generations keep the pages until epoch reclamation drops them (ADR 0046).
+            // Outputs borrowed at most these bytes, so no eviction is needed here.
+            for (const auto& source_pin : source_pins) {
+                if (source_pin->image) {
+                    source_pin->image->release_charge();
+                }
             }
             manifest_ = std::move(prepared.plan.next_manifest);
             segments_ = std::move(next_segments);

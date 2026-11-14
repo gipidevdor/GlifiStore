@@ -340,9 +340,8 @@ auto DurableSegmentFile::read_record_into(const RecordRef& reference, std::vecto
     return read_record_into_extent(reference, persisted_.commit.committed_end, bytes, record);
 }
 
-auto DurableSegmentFile::read_record_into_extent(const RecordRef& reference, const std::uint64_t readable_end,
-                                                 std::vector<std::byte>& bytes, RecordView& record) const
-    -> Status {
+auto DurableSegmentFile::validate_reference_extent(const RecordRef& reference,
+                                                   const std::uint64_t readable_end) const -> Status {
     if (!healthy()) {
         return fail(ErrorCode::io_error, "cannot read a poisoned Segment file");
     }
@@ -356,10 +355,12 @@ auto DurableSegmentFile::read_record_into_extent(const RecordRef& reference, con
         readable_end > kSegmentSizeBytes || offset > readable_end || size > readable_end - offset) {
         return fail(ErrorCode::invalid_reference, "Record reference is outside the committed Segment extent");
     }
-    bytes.resize(reference.size.value);
-    if (auto read = file_.read_exact_at(bytes, offset); !read) {
-        return unexpected(read.error());
-    }
+    return {};
+}
+
+auto DurableSegmentFile::decode_referenced_record(const RecordRef& reference,
+                                                  const std::span<const std::byte> bytes,
+                                                  RecordView& record) const -> Status {
     const auto decoded = decode_record(bytes);
     if (!decoded) {
         return unexpected(decoded.error());
@@ -371,6 +372,39 @@ auto DurableSegmentFile::read_record_into_extent(const RecordRef& reference, con
         return fail(ErrorCode::invalid_reference, "Record reference metadata does not match encoded data");
     }
     record = *decoded;
+    return {};
+}
+
+auto DurableSegmentFile::read_record_into_extent(const RecordRef& reference, const std::uint64_t readable_end,
+                                                 std::vector<std::byte>& bytes, RecordView& record) const
+    -> Status {
+    if (auto valid = validate_reference_extent(reference, readable_end); !valid) {
+        return valid;
+    }
+    bytes.resize(reference.size.value);
+    if (auto read = file_.read_exact_at(bytes, reference.offset.value); !read) {
+        return unexpected(read.error());
+    }
+    return decode_referenced_record(reference, bytes, record);
+}
+
+auto DurableSegmentFile::read_committed_records_into(const std::span<std::byte> image) const -> Status {
+    const auto committed_end = static_cast<std::size_t>(persisted_.commit.committed_end);
+    if (image.size() != kSegmentSizeBytes || committed_end < kSegmentHeaderReservedBytes ||
+        committed_end > kSegmentSizeBytes) {
+        return fail(ErrorCode::invalid_argument, "Segment image does not match the committed extent");
+    }
+    if (!healthy()) {
+        return fail(ErrorCode::io_error, "cannot read a poisoned Segment file");
+    }
+    const auto records =
+        image.subspan(kSegmentHeaderReservedBytes, committed_end - kSegmentHeaderReservedBytes);
+    if (records.empty()) {
+        return {};
+    }
+    if (auto read = file_.read_exact_at(records, kSegmentHeaderReservedBytes); !read) {
+        return unexpected(read.error());
+    }
     return {};
 }
 
@@ -409,10 +443,27 @@ auto DurableSegmentFile::visit_runtime_record(const RecordRef& reference, void* 
 
 auto DurableSegmentFile::visit_runtime_record(const RecordRef& reference, std::vector<std::byte>& scratch,
                                               void* context, const RecordVisitor visitor) const -> Status {
+    return visit_runtime_record(reference, scratch, context, visitor, {});
+}
+
+auto DurableSegmentFile::visit_runtime_record(const RecordRef& reference, std::vector<std::byte>& scratch,
+                                              void* context, const RecordVisitor visitor,
+                                              const std::span<const std::byte> resident_image) const
+    -> Status {
     if (!visitor) {
         return fail(ErrorCode::invalid_argument, "Record visitor cannot be null");
     }
     RecordView record{};
+    if (resident_image.size() == kSegmentSizeBytes) {
+        if (auto valid = validate_reference_extent(reference, kSegmentSizeBytes); !valid) {
+            return valid;
+        }
+        const auto encoded = resident_image.subspan(reference.offset.value, reference.size.value);
+        if (auto decoded = decode_referenced_record(reference, encoded, record); !decoded) {
+            return decoded;
+        }
+        return visitor(context, record);
+    }
     if (auto read = read_record_into_extent(reference, kSegmentSizeBytes, scratch, record); !read) {
         return unexpected(read.error());
     }

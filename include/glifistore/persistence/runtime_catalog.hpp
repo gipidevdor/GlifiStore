@@ -6,6 +6,7 @@
 
 #include "glifistore/core/error.hpp"
 #include "glifistore/core/key_hash.hpp"
+#include "glifistore/core/memory_reserve.hpp"
 #include "glifistore/core/types.hpp"
 #include "glifistore/persistence/compaction_builder.hpp"
 #include "glifistore/persistence/filesystem.hpp"
@@ -13,6 +14,7 @@
 #include "glifistore/persistence/namespace_audit.hpp"
 #include "glifistore/persistence/recovery.hpp"
 #include "glifistore/persistence/segment_file.hpp"
+#include "glifistore/persistence/segment_image.hpp"
 #include "glifistore/persistence/store_backup.hpp"
 #include "glifistore/segment/record.hpp"
 #include "glifistore/store/config.hpp"
@@ -447,6 +449,8 @@ class DurableRuntimeCatalog final {
     [[nodiscard]] auto blob_roots() -> Result<std::vector<BlobId>>;
     [[nodiscard]] auto namespace_audit() const -> NamespaceAuditReport;
     [[nodiscard]] auto recovery_stats() const noexcept -> const DurableRecoveryStats&;
+    /// RAM reserve shared by the Worker Indexes and resident Segment images (ADR 0046).
+    [[nodiscard]] auto memory_reserve_stats() const noexcept -> MemoryReserveStats;
     [[nodiscard]] auto hot_cache_stats() const -> std::vector<DurableHotCacheWorkerStats>;
     [[nodiscard]] auto get_path_stats() const -> std::vector<DurableGetPathWorkerStats>;
     [[nodiscard]] auto batch_stats() const -> std::vector<DurableBatchWorkerStats>;
@@ -546,6 +550,17 @@ class DurableRuntimeCatalog final {
         -> Result<std::vector<std::uint32_t>>;
     [[nodiscard]] auto catalog_index_for_segment(SegmentId segment_id) const noexcept
         -> std::optional<std::size_t>;
+    /// Load resident images at open: active Segments, then sealed ones newest-first (ADR 0046).
+    [[nodiscard]] auto load_segment_images(std::span<const std::shared_ptr<RuntimeSegmentGeneration>> pins)
+        -> Status;
+    /// Resident image for a new active Segment or compaction output, or null (ADR 0046).
+    [[nodiscard]] auto create_segment_image() const -> std::shared_ptr<SegmentImage>;
+    /// Republish this Worker's oldest sealed resident generations without their images until
+    /// @p headroom_bytes of image budget are free. Caller holds the catalog mutex exclusively and
+    /// then advances the Worker's read catalog revision. Never fails: a generation that cannot be
+    /// republished keeps its image. Returns the number of images dropped.
+    auto evict_resident_images_locked(const RuntimeWorker& worker, std::uint64_t headroom_bytes) noexcept
+        -> std::size_t;
 
     /// Declared first so cached Segment handles are destroyed before the lock
     /// and anchored directory descriptor.
@@ -554,6 +569,8 @@ class DurableRuntimeCatalog final {
     Manifest manifest_;
     NamespaceAuditReport namespace_audit_;
     std::vector<RecoveredSegmentState> segments_;
+    /// One reserve for derived state: Worker Indexes first, resident images in what remains.
+    std::shared_ptr<MemoryReserve> memory_reserve_;
     std::vector<std::shared_ptr<const RuntimeSegmentGeneration>> generation_pins_;
     /// Dense SegmentId → catalog index. Absent/retired ids store UINT32_MAX.
     /// Keeps GET pin resolution O(1) without changing RecordRef identity.

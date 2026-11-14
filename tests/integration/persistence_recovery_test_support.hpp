@@ -36,6 +36,14 @@ inline constexpr bool kExpectGetPathTiming = true;
 
 inline constexpr auto kNativeConcurrencyDeadline = std::chrono::seconds{30};
 
+/// Runtime options for tests that observe Segment file reads (blocking hooks, on-disk corruption).
+/// Resident images (ADR 0046) serve those reads from memory, so these tests opt out explicitly.
+inline auto cold_read_runtime_options() -> glifistore::DurableRuntimeOptions {
+    glifistore::DurableRuntimeOptions options{};
+    options.limits.resident_reads_enabled = false;
+    return options;
+}
+
 class RecoveryTemporaryDirectory final {
   public:
     RecoveryTemporaryDirectory() {
@@ -379,6 +387,7 @@ using persistence_recovery_test_support::BatchBoundaryObserver;
 using persistence_recovery_test_support::BlockingFilesystemOperation;
 using persistence_recovery_test_support::BlockingRecordRead;
 using persistence_recovery_test_support::BlockingRotationSeal;
+using persistence_recovery_test_support::cold_read_runtime_options;
 using persistence_recovery_test_support::create_private_file;
 using persistence_recovery_test_support::create_segment;
 using persistence_recovery_test_support::kExpectGetPathTiming;

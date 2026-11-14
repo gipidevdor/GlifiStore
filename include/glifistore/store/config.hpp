@@ -45,6 +45,7 @@ inline constexpr std::uint64_t kDefaultMaximumHotCacheStagingBytesPerWorker = 16
 inline constexpr std::size_t kDefaultMaximumHotCacheEntriesPerWorker = 1'000'000;
 inline constexpr std::uint64_t kDefaultMaximumHotCacheValueBytes = 64ULL * 1024ULL;
 inline constexpr std::size_t kDefaultMaximumDeferredTtlReclaimsPerWorker = 1'024;
+inline constexpr std::uint64_t kDefaultMemoryReserveBytes = 1024ULL * 1024ULL * 1024ULL;
 inline constexpr std::uint64_t kDefaultMaintenanceMaxCopyBytesPerCycle = 128ULL * 1024ULL * 1024ULL;
 
 /**
@@ -87,6 +88,14 @@ struct DurableResourceLimits {
     /// validated for configuration compatibility but bound nothing.
     std::size_t max_compaction_delta_entries{4096};
     std::size_t max_compaction_delta_key_bytes{1024 * 1024}; ///< Retired with ADR 0044; see above.
+    /// RAM the durable runtime keeps resident for derived state (ADR 0046). The Index is charged
+    /// first and is never refused: beyond the reserve it is paged to a spill file or to swap.
+    /// Resident Segment images use only what the Index leaves. Zero keeps every Segment cold.
+    std::uint64_t memory_reserve_bytes{kDefaultMemoryReserveBytes};
+    /// Serve durable reads from resident Segment images when the reserve admits them.
+    bool resident_reads_enabled{true};
+    /// Directory for unlinked Index spill files beyond the reserve; empty pages anonymously (swap).
+    std::filesystem::path index_spill_directory{};
 
     auto operator==(const DurableResourceLimits&) const -> bool = default;
 };

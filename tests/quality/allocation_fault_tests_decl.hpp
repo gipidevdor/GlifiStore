@@ -11,7 +11,7 @@ void run_no_post_write_allocation(const glifistore::DurableRuntimeOptions option
 void run_paired_volatile_get_inline_zero_heap();
 void run_exhaustive_read_failures();
 void run_background_allocation_failure_waiters();
-void run_exhaustive_compaction_allocation_failures();
+void run_exhaustive_compaction_allocation_failures(bool resident_images);
 void run_compaction_remap_without_allocation();
 void run_volatile_rotation_allocation_failures();
 void run_volatile_vacuum_publication_allocation_failures();

@@ -13,7 +13,9 @@ void run_exhaustive_allocation_failures(const Scenario& scenario) {
         TemporaryDirectory temporary;
         initialize_store(temporary.path(), scenario.seed);
         WriteBoundaryObserver observer{.force_rotation = scenario.force_rotation};
-        auto runtime = open_runtime(temporary.path(), scenario.options, &observer);
+        auto options = scenario.options;
+        options.limits.resident_reads_enabled = scenario.optional_image_allocations;
+        auto runtime = open_runtime(temporary.path(), options, &observer);
 
         glifistore::DurableMutationResult result;
         allocation_fault::arm(fail_at);
@@ -32,6 +34,14 @@ void run_exhaustive_allocation_failures(const Scenario& scenario) {
             break;
         }
 
+        if (scenario.optional_image_allocations && result.committed()) {
+            // An image allocation failed and the Segment stayed cold: correctness-neutral.
+            require(runtime->healthy(), "optional image allocation failure failed the runtime closed");
+            const auto read = runtime->get(kLongKey);
+            require(read.has_value() && value_text(*read) == kReplacementValue,
+                    "optional image allocation failure lost the committed value");
+            continue;
+        }
         require(result.error.has_value(), "injected allocation failure returned no error");
         require(result.error->code == glifistore::ErrorCode::resource_exhausted,
                 "injected allocation failure was not translated to resource_exhausted");
@@ -226,13 +236,18 @@ void require_recovered_compaction_state(const std::filesystem::path& path) {
     require(runtime->namespace_audit().clean(), "allocation compaction recovery left a dirty namespace");
 }
 
-void run_exhaustive_compaction_allocation_failures() {
+// With resident images disabled every enumerated allocation is mandatory. With them enabled, an
+// output image allocation is optional (ADR 0046): its failure may leave the compaction committed
+// with that output cold, which must stay healthy and readable.
+void run_exhaustive_compaction_allocation_failures(const bool resident_images) {
     constexpr std::size_t kMaximumExpectedAllocations = 512;
+    glifistore::DurableRuntimeOptions options{};
+    options.limits.resident_reads_enabled = resident_images;
     bool completed{};
     for (std::size_t fail_at = 0; fail_at < kMaximumExpectedAllocations; ++fail_at) {
         TemporaryDirectory temporary;
         initialize_compaction_store(temporary.path());
-        auto runtime = open_runtime(temporary.path(), {});
+        auto runtime = open_runtime(temporary.path(), options);
 
         glifistore::DurableCompactionResult result;
         allocation_fault::arm(fail_at);
@@ -253,6 +268,12 @@ void run_exhaustive_compaction_allocation_failures() {
             break;
         }
 
+        if (resident_images && result.compacted()) {
+            require(runtime->healthy(), "optional image allocation failure failed compaction closed");
+            runtime.reset();
+            require_recovered_compaction_state(temporary.path());
+            continue;
+        }
         require(result.error.has_value(), "injected compaction allocation failure returned no error");
         require(result.error->code == glifistore::ErrorCode::resource_exhausted,
                 "injected compaction allocation failure was not resource_exhausted");

@@ -235,6 +235,12 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
                                                      .generation = replacement_entry.generation,
                                                      .owner_worker = replacement_entry.owner_worker,
                                                      .format_version = manifest_.format_version};
+    // ADR 0046: before any persistent write, drop this Worker's oldest sealed images until the next
+    // active image fits. Never fails; the revision advance lets Readers release the dropped pages.
+    if (options_.limits.resident_reads_enabled &&
+        evict_resident_images_locked(worker, kSegmentSizeBytes) != 0U) {
+        static_cast<void>(advance_read_catalog_revision(worker));
+    }
     worker.mutation_io_active = true;
     catalog_lock.unlock();
     if (worker_lock.owns_lock()) {
@@ -317,11 +323,13 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
                                               "sealed Segment changed before generation-pin preparation"}
                                       : sealed_reader.error());
                 } else {
+                    // The sealed generation keeps the image the Writer filled while active.
                     sealed_generation =
                         std::make_shared<const RuntimeSegmentGeneration>(RuntimeSegmentGeneration{
                             .identity = old_identity,
                             .selected = sealed_selected,
-                            .file = std::move(*sealed_reader),
+                            .file = std::make_shared<const DurableSegmentFile>(std::move(*sealed_reader)),
+                            .image = old_pin->image,
                         });
                 }
             }
@@ -365,7 +373,10 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
                             std::make_shared<const RuntimeSegmentGeneration>(RuntimeSegmentGeneration{
                                 .identity = replacement_identity,
                                 .selected = replacement_selected,
-                                .file = std::move(*replacement_reader),
+                                .file = std::make_shared<const DurableSegmentFile>(
+                                    std::move(*replacement_reader)),
+                                // Optional and allocated before publication: null starts cold.
+                                .image = create_segment_image(),
                             });
                     }
                 }
@@ -449,6 +460,9 @@ auto DurableRuntimeCatalog::rotate_active(RuntimeWorker& worker, std::unique_loc
     manifest_ = std::move(*next_manifest);
     segments_[old_index].selected = sealed_selected;
     segments_.push_back({.selected = replacement_selected});
+    if (sealed_generation->image) {
+        sealed_generation->image->seal(sealed_selected.commit.committed_end);
+    }
     generation_pins_[old_index] = std::move(sealed_generation);
     generation_pins_.push_back(std::move(replacement_generation));
     pin_slot_by_segment_id_ = std::move(*next_pin_slots);

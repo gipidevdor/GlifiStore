@@ -31,12 +31,18 @@ void run_all_tests() {
                                         .kind = MutationKind::put_new,
                                         .force_rotation = true,
                                         .options = synchronous});
+    run_exhaustive_allocation_failures({.name = "Segment rotation put with resident images",
+                                        .kind = MutationKind::put_new,
+                                        .force_rotation = true,
+                                        .options = synchronous,
+                                        .optional_image_allocations = true});
     run_exhaustive_read_failures();
     run_no_post_write_allocation(synchronous);
     run_no_post_write_allocation(strict_group);
     run_paired_volatile_get_inline_zero_heap();
     run_background_allocation_failure_waiters();
-    run_exhaustive_compaction_allocation_failures();
+    run_exhaustive_compaction_allocation_failures(false);
+    run_exhaustive_compaction_allocation_failures(true);
     run_compaction_remap_without_allocation();
     run_volatile_rotation_allocation_failures();
     run_volatile_vacuum_publication_allocation_failures();

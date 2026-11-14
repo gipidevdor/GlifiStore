@@ -458,7 +458,8 @@ GLIFI_TEST("blocked durable cold read does not block a mutation on the same Work
             .context = &blocked_read,
             .file_io = {.context = &blocked_read, .read_some_at = &BlockingRecordRead::read_some_at}});
     GLIFI_REQUIRE(directory.has_value());
-    auto runtime = glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory));
+    auto runtime =
+        glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory), 0, cold_read_runtime_options());
     GLIFI_REQUIRE(runtime.has_value());
     blocked_read.arm();
 
@@ -539,7 +540,8 @@ GLIFI_TEST("durable cold read pin survives concurrent source retirement and reli
             .context = &blocked_read,
             .file_io = {.context = &blocked_read, .read_some_at = &BlockingRecordRead::read_some_at}});
     GLIFI_REQUIRE(directory.has_value());
-    auto runtime = glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory));
+    auto runtime =
+        glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory), 0, cold_read_runtime_options());
     GLIFI_REQUIRE(runtime.has_value());
     blocked_read.arm();
 

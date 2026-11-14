@@ -74,6 +74,10 @@ struct Scenario {
     bool seed{};
     bool force_rotation{};
     glifistore::DurableRuntimeOptions options{};
+    /// Keep resident Segment images enabled (ADR 0046). Their allocations are optional: a failure
+    /// may leave the mutation committed with the Segment cold. Otherwise images are disabled so
+    /// that every enumerated allocation is mandatory and must surface resource_exhausted.
+    bool optional_image_allocations{};
 };
 
 struct WriteBoundaryObserver {

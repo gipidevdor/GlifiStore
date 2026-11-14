@@ -49,3 +49,4 @@ accepted residual risks do not imply production readiness.
 | `HAZ-040` | Compaction installs a stale Index or resurrects erased state after concurrent mutations | catastrofica | media | media | aperto | `GS-PERSIST-DELTA-001` |
 | `HAZ-041` | Background compaction cannot keep up and the durable Store stops accepting writes | alta | media | alta | aperto | `GS-PERSIST-DELTA-001`, `GS-PERSIST-AMP-001`, `GS-OPS-DEBT-001` |
 | `HAZ-042` | A durable GET returns bytes that no longer match the persisted Record, or reads a released image | alta | media | media | aperto | `GS-PERF-DREAD-001` |
+| `HAZ-043` | An Index spill-file page fault terminates the process | media | bassa | alta | aperto | `GS-OPS-MEMRES-001` |

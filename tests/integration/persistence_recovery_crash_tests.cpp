@@ -46,7 +46,12 @@ GLIFI_TEST("durable runtime detects post-recovery Record corruption and remains 
         GLIFI_REQUIRE(directory->publish_manifest(recovery_manifest(store_id, 1, {active})).durable());
     }
 
-    auto runtime = glifistore::DurableRuntimeCatalog::open_existing(temporary.path());
+    // A resident image would keep serving the bytes validated at open (HAZ-042); this test asserts
+    // the cold path's detection of later on-disk damage.
+    auto locked = glifistore::DataDirectory::open_and_lock(temporary.path());
+    GLIFI_REQUIRE(locked.has_value());
+    auto runtime =
+        glifistore::DurableRuntimeCatalog::open_locked(std::move(*locked), 0, cold_read_runtime_options());
     GLIFI_REQUIRE(runtime.has_value());
     GLIFI_REQUIRE((*runtime)->get("stable").has_value());
 

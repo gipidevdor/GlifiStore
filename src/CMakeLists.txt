@@ -54,6 +54,7 @@ set(GLIFISTORE_CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/persistence/runtime_catalog_compact.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/segment_file.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/segment_file_io.cpp
+    ${CMAKE_SOURCE_DIR}/src/persistence/segment_image.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/store_verify.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/store_backup.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/store_migrate.cpp
@@ -98,6 +99,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/persistence/segment_file.cpp
     ${CMAKE_SOURCE_DIR}/src/persistence/segment_file_io.cpp
+    ${CMAKE_SOURCE_DIR}/src/persistence/segment_image.cpp
     PROPERTIES COMPILE_DEFINITIONS _GNU_SOURCE)
 endif()
 

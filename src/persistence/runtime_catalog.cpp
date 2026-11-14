@@ -18,14 +18,18 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
+#include <filesystem>
 #include <limits>
 #include <mutex>
 #include <new>
+#include <numeric>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string>
+#include <system_error>
 #include <utility>
+#include <vector>
 
 namespace glifistore {
 using namespace glifistore::runtime_catalog_detail;
@@ -249,10 +253,15 @@ DurableRuntimeCatalog::DurableRuntimeCatalog(DataDirectory directory, DurableRec
                                              DurableRuntimeOptions options)
     : directory_(std::move(directory)), worker_routing_(recovered.manifest.worker_routing()),
       manifest_(std::move(recovered.manifest)), namespace_audit_(std::move(recovered.namespace_audit)),
-      segments_(std::move(recovered.segments)), recovery_stats_(recovered.stats), options_(options) {
+      segments_(std::move(recovered.segments)),
+      memory_reserve_(std::make_shared<MemoryReserve>(options.limits.memory_reserve_bytes,
+                                                      options.limits.index_spill_directory)),
+      recovery_stats_(recovered.stats), options_(options) {
     workers_.reserve(recovered.workers.size());
     for (auto& worker : recovered.workers) {
         auto runtime_worker = std::make_unique<RuntimeWorker>(std::move(worker));
+        // The Index is charged before any image is admitted: it has priority over the reserve.
+        runtime_worker->index.attach_memory_reserve(memory_reserve_);
         if (options_.batch) {
             runtime_worker->batch_sizer.reset(options_.batch->min_records, options_.batch->max_records);
             runtime_worker->pending_group_mutations.reserve(options_.batch->max_records);
@@ -327,6 +336,12 @@ auto DurableRuntimeCatalog::open_locked(DataDirectory directory, const std::uint
     if ((format_manifest->format_version == 2) != static_cast<bool>(options.blob_storage)) {
         return fail(ErrorCode::invalid_argument, "blob Store requires explicit embedded profile");
     }
+    if (!options.limits.index_spill_directory.empty()) {
+        std::error_code status;
+        if (!std::filesystem::is_directory(options.limits.index_spill_directory, status)) {
+            return fail(ErrorCode::invalid_argument, "Index spill directory is not an existing directory");
+        }
+    }
     auto compaction = resolve_interrupted_compaction(directory, recovery_now_ns, options.limits);
     if (!compaction) {
         return unexpected(compaction.error());
@@ -374,7 +389,7 @@ auto DurableRuntimeCatalog::initialize_generation_pins() -> Status {
     if (manifest_.segments.size() != segments_.size()) {
         return fail(ErrorCode::corrupted_data, "runtime Segment catalog is not aligned");
     }
-    std::vector<std::shared_ptr<const RuntimeSegmentGeneration>> pins;
+    std::vector<std::shared_ptr<RuntimeSegmentGeneration>> pins;
     pins.reserve(manifest_.segments.size());
     for (std::size_t index = 0; index < manifest_.segments.size(); ++index) {
         const auto& entry = manifest_.segments[index];
@@ -391,16 +406,106 @@ auto DurableRuntimeCatalog::initialize_generation_pins() -> Status {
             return fail(ErrorCode::corrupted_data,
                         "runtime Segment commit boundary changed while generation pins were built");
         }
-        pins.push_back(std::make_shared<const RuntimeSegmentGeneration>(RuntimeSegmentGeneration{
-            .identity = identity, .selected = segments_[index].selected, .file = std::move(*opened)}));
+        pins.push_back(std::make_shared<RuntimeSegmentGeneration>(
+            RuntimeSegmentGeneration{.identity = identity,
+                                     .selected = segments_[index].selected,
+                                     .file = std::make_shared<const DurableSegmentFile>(std::move(*opened)),
+                                     .image = nullptr}));
+    }
+    if (auto loaded = load_segment_images(pins); !loaded) {
+        return loaded;
     }
     auto pin_slots = prepare_pin_slot_index(manifest_);
     if (!pin_slots) {
         return unexpected(pin_slots.error());
     }
-    generation_pins_ = std::move(pins);
+    generation_pins_.assign(pins.begin(), pins.end());
     pin_slot_by_segment_id_ = std::move(*pin_slots);
     return {};
+}
+
+auto DurableRuntimeCatalog::load_segment_images(
+    const std::span<const std::shared_ptr<RuntimeSegmentGeneration>> pins) -> Status {
+    if (!options_.limits.resident_reads_enabled) {
+        return {};
+    }
+    // Active Segments first: the Writer mirrors every later append into them. Then sealed
+    // Segments by descending Segment ID, which approximates newest data first. Loading stops at
+    // the first refusal; the remaining Segments start cold (ADR 0046).
+    std::vector<std::size_t> order(pins.size());
+    std::iota(order.begin(), order.end(), std::size_t{0});
+    std::ranges::stable_sort(order, [&](const std::size_t left, const std::size_t right) {
+        const bool left_active = manifest_.segments[left].role == ManifestSegmentRole::active;
+        const bool right_active = manifest_.segments[right].role == ManifestSegmentRole::active;
+        if (left_active != right_active) {
+            return left_active;
+        }
+        return manifest_.segments[left].segment_id.value > manifest_.segments[right].segment_id.value;
+    });
+    for (const auto index : order) {
+        auto image = SegmentImage::load(memory_reserve_, *pins[index]->file);
+        if (!image) {
+            return unexpected(image.error());
+        }
+        if (!*image) {
+            break;
+        }
+        pins[index]->image = std::move(*image);
+    }
+    return {};
+}
+
+auto DurableRuntimeCatalog::memory_reserve_stats() const noexcept -> MemoryReserveStats {
+    return memory_reserve_->stats();
+}
+
+auto DurableRuntimeCatalog::create_segment_image() const -> std::shared_ptr<SegmentImage> {
+    return options_.limits.resident_reads_enabled ? SegmentImage::create(memory_reserve_) : nullptr;
+}
+
+auto DurableRuntimeCatalog::evict_resident_images_locked(const RuntimeWorker& worker,
+                                                         const std::uint64_t headroom_bytes) noexcept
+    -> std::size_t {
+    std::size_t evicted{};
+    try {
+        while (true) {
+            const auto stats = memory_reserve_->stats();
+            if (stats.image_charged_bytes <= stats.image_budget_bytes &&
+                headroom_bytes <= stats.image_budget_bytes - stats.image_charged_bytes) {
+                return evicted;
+            }
+            // Oldest image first: compaction outputs are born last, so live-only data stays.
+            std::optional<std::size_t> victim;
+            for (std::size_t index = 0; index < generation_pins_.size(); ++index) {
+                const auto& pin = generation_pins_[index];
+                if (!pin || pin->identity.owner_worker != worker.worker_id || !pin->image ||
+                    manifest_.segments[index].role != ManifestSegmentRole::sealed) {
+                    continue;
+                }
+                if (!victim || pin->image->birth_stamp() < generation_pins_[*victim]->image->birth_stamp()) {
+                    victim = index;
+                }
+            }
+            if (!victim) {
+                return evicted;
+            }
+            const auto& resident = generation_pins_[*victim];
+            auto cold = std::make_shared<const RuntimeSegmentGeneration>(RuntimeSegmentGeneration{
+                .identity = resident->identity,
+                .selected = resident->selected,
+                .file = resident->file,
+                .image = nullptr,
+            });
+            // The image stops counting now; its pages return when the last generation that can
+            // still observe it is reclaimed by the Reader epoch protocol.
+            resident->image->release_charge();
+            generation_pins_[*victim] = std::move(cold);
+            ++evicted;
+        }
+    } catch (...) {
+        // Eviction is an optimization; a failed republication keeps the image resident.
+        return evicted;
+    }
 }
 
 auto DurableRuntimeCatalog::prepare_pin_slot_index(const Manifest& manifest)

@@ -7,10 +7,12 @@
 #include "glifistore/index/index.hpp"
 #include "glifistore/persistence/compaction.hpp"
 #include "glifistore/persistence/filesystem.hpp"
+#include "glifistore/persistence/segment_image.hpp"
 #include "glifistore/segment/segment_header.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -92,6 +94,8 @@ struct PreparedDurableCompaction {
     Manifest old_manifest;
     std::vector<DurableCompactionRemap> remaps;
     std::vector<SelectedSegmentCommit> replacement_commits;
+    /// Resident images aligned with plan.replacements; null entries start cold (ADR 0046).
+    std::vector<std::shared_ptr<SegmentImage>> replacement_images{};
     DurableCompactionCopyStats stats;
 };
 
@@ -139,6 +143,10 @@ struct DurableCompactionBuildRequest {
     std::uint64_t now_ns{};
     DurableCompactionIntentGate intent_gate{};
     DurableCompactionPacing pacing{};
+    /// Reserve for output images mirrored during the copy; null builds every output cold.
+    std::shared_ptr<MemoryReserve> image_reserve{};
+    /// Image bytes held by the sources, which outputs may borrow until the sources retire.
+    std::uint64_t image_credit_bytes{};
 };
 
 /// Before the durable intent, failures are not_started and publish no

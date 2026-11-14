@@ -229,6 +229,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_compaction_remap_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/integration/resident_reads_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_enumeration_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_fileio_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
@@ -369,8 +370,10 @@ if(BUILD_TESTING)
             set_target_properties(glifistore_allocation_fault_tests PROPERTIES CXX_CLANG_TIDY "")
         endif()
         add_test(NAME glifistore_allocation_fault_tests COMMAND glifistore_allocation_fault_tests)
+        # The mutation, rotation and compaction enumerations run with and without resident
+        # images (ADR 0046); every iteration synchronizes real files.
         set_tests_properties(glifistore_allocation_fault_tests PROPERTIES
-            TIMEOUT 180
+            TIMEOUT 480
             LABELS "fault-injection"
         )
         glifistore_xcode_scheme(glifistore_allocation_fault_tests)

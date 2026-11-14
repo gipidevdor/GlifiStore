@@ -173,6 +173,8 @@ GLIFI_TEST("server request timeout closes in-flight cold read and cancels") {
         {.storage_mode = glifistore::StorageMode::durable_sync,
          .data_directory = path,
          .durable_open_mode = glifistore::DurableOpenMode::open_existing,
+         // Cold-path test: resident images (ADR 0046) would bypass the blocked file read.
+         .durable_limits = {.resident_reads_enabled = false},
          .filesystem_hooks = {
              .file_io = {.context = &blocker, .read_some_at = &BlockingColdRead::read_some_at}}});
     GLIFI_REQUIRE(opened.has_value());

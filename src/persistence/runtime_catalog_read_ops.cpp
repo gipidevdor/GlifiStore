@@ -373,8 +373,7 @@ auto DurableRuntimeCatalog::complete_generation_get(
         std::span<const std::byte>{reinterpret_cast<const std::byte*>(key.data()), key.size()};
     ReadContext context{.expected_key = key_bytes, .expected_hash = key_hash, .now_ns = now_ns};
     const auto cold_started = timing_now();
-    auto visited =
-        generation.file.visit_runtime_record(reference, read_scratch, &context, &copy_verified_value);
+    auto visited = generation.visit_record(reference, read_scratch, &context, &copy_verified_value);
     if constexpr (kGetPathTimingEnabled) {
         atomic_saturating_add(metrics.cold_read_ns, timing_elapsed_ns(cold_started));
         atomic_saturating_add(metrics.crc_value_copy_ns, context.crc_value_copy_ns);
@@ -425,8 +424,8 @@ auto DurableRuntimeCatalog::complete_get(PinnedRead read, const detail::ColdRead
         ReadContext context{
             .expected_key = key_bytes, .expected_hash = read.key_hash_, .now_ns = read.now_ns_};
         const auto cold_started = timing_now();
-        auto visited = read.generation_->file.visit_runtime_record(read.reference_, read_scratch, &context,
-                                                                   &copy_verified_value);
+        auto visited =
+            read.generation_->visit_record(read.reference_, read_scratch, &context, &copy_verified_value);
         if constexpr (kGetPathTimingEnabled) {
             atomic_saturating_add(metrics.cold_read_ns, timing_elapsed_ns(cold_started));
             atomic_saturating_add(metrics.crc_value_copy_ns, context.crc_value_copy_ns);

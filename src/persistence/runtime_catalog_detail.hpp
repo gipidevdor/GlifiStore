@@ -2,6 +2,8 @@
 
 #include "glifistore/index/index.hpp"
 #include "glifistore/persistence/runtime_catalog.hpp"
+#include "glifistore/persistence/segment_file.hpp"
+#include "glifistore/persistence/segment_image.hpp"
 #include "persistence/adaptive_batch_sizer.hpp"
 #include "persistence/hot_record_table.hpp"
 #include "persistence/runtime_catalog_quiesce_gate.hpp"
@@ -236,10 +238,24 @@ struct DurableRuntimeCatalog::PendingGroupMutation {
 // carry a RecordRef outside the Worker mutex only as part of a shared ownership
 // of this object. POSIX unlink then retires the catalog name without
 // invalidating an already linearized reader's descriptor.
+//
+// The read-only file handle is shared so that a resident image can be dropped
+// (ADR 0046) by publishing a new generation of the same file without it. Two
+// generations with the same `file` pointer denote the same on-disk generation.
 struct DurableRuntimeCatalog::RuntimeSegmentGeneration {
     SegmentHeaderIdentity identity;
     SelectedSegmentCommit selected;
-    DurableSegmentFile file;
+    std::shared_ptr<const DurableSegmentFile> file;
+    // Optional resident image shared by every generation of this file. It is set
+    // before the generation is first published and never changes afterwards.
+    std::shared_ptr<SegmentImage> image{};
+
+    /// Decode a referenced Record from the image when resident, otherwise from the file.
+    [[nodiscard]] auto visit_record(const RecordRef& reference, std::vector<std::byte>& scratch,
+                                    void* context, const RecordVisitor visitor) const -> Status {
+        return file->visit_runtime_record(reference, scratch, context, visitor,
+                                          image ? image->bytes() : std::span<const std::byte>{});
+    }
 };
 
 struct DeferredTtlReclaim {

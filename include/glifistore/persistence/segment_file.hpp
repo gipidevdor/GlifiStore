@@ -147,6 +147,14 @@ class DurableSegmentFile final {
     /// escapes the synchronous visitor invocation.
     [[nodiscard]] auto visit_runtime_record(const RecordRef& reference, std::vector<std::byte>& scratch,
                                             void* context, RecordVisitor visitor) const -> Status;
+    /// Same contract, decoding from a resident image of this Segment when @p resident_image spans
+    /// a whole Segment (ADR 0045/0046). Reference bounds, CRC32C, format version, sequence and size
+    /// are verified exactly as on the file path; only the positional read is skipped.
+    [[nodiscard]] auto visit_runtime_record(const RecordRef& reference, std::vector<std::byte>& scratch,
+                                            void* context, RecordVisitor visitor,
+                                            std::span<const std::byte> resident_image) const -> Status;
+    /// Copy the committed Record region into @p image at Segment-identical offsets.
+    [[nodiscard]] auto read_committed_records_into(std::span<std::byte> image) const -> Status;
 
     [[nodiscard]] auto identity() const noexcept -> const SegmentHeaderIdentity& {
         return identity_;
@@ -178,6 +186,10 @@ class DurableSegmentFile final {
     [[nodiscard]] auto read_record_into_extent(const RecordRef& reference, std::uint64_t readable_end,
                                                std::vector<std::byte>& bytes, RecordView& record) const
         -> Status;
+    [[nodiscard]] auto validate_reference_extent(const RecordRef& reference, std::uint64_t readable_end) const
+        -> Status;
+    [[nodiscard]] auto decode_referenced_record(const RecordRef& reference, std::span<const std::byte> bytes,
+                                                RecordView& record) const -> Status;
     void poison() noexcept;
 
     FileDescriptor file_;

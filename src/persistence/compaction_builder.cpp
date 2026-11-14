@@ -504,6 +504,12 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
         std::optional<DurableSegmentFile> output;
         std::optional<std::size_t> output_index;
         std::size_t output_group_begin{};
+        // ADR 0046: outputs are mirrored while they are written so that live-only data is born
+        // resident. Each output may borrow the image bytes its sources still hold.
+        std::vector<std::shared_ptr<SegmentImage>> replacement_images;
+        replacement_images.reserve(plan->replacements.size());
+        std::shared_ptr<SegmentImage> output_image;
+        std::uint64_t image_credit_used_bytes{};
         const auto finalize_output = [&](const std::size_t group_end) -> Status {
             if (!output || !output_index || group_end <= output_group_begin) {
                 return fail(ErrorCode::internal_error, "durable compaction output group is incomplete");
@@ -544,6 +550,11 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 }
             }
             replacement_commits.push_back(selected);
+            if (output_image) {
+                output_image->seal(commit.committed_end);
+                image_credit_used_bytes += output_image->charged_bytes();
+            }
+            replacement_images.push_back(std::move(output_image));
             output.reset();
             return {};
         };
@@ -567,6 +578,13 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 }
                 staged_guard.mark_created();
                 output.emplace(std::move(*created));
+                if (request.image_reserve) {
+                    const auto credit_bytes = request.image_credit_bytes > image_credit_used_bytes
+                                                  ? request.image_credit_bytes - image_credit_used_bytes
+                                                  : 0U;
+                    output_image =
+                        SegmentImage::create(request.image_reserve, kSegmentSizeBytes, credit_bytes);
+                }
             }
             if (!output) {
                 return failure(
@@ -612,6 +630,9 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             // Grants are acquired immediately before each bounded physical
             // write. The old Manifest remains the sole authority while this
             // sleeps, so pacing cannot lengthen an ambiguous recovery window.
+            if (output_image) {
+                output_image->mirror(record.output.offset.value, scratch);
+            }
             const auto appended = output.value().append_record(scratch, write_pacing);
             if (!appended.committed()) {
                 return failure(appended.error.value_or(
@@ -710,6 +731,7 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                                                       .old_manifest = std::move(old_authority),
                                                       .remaps = std::move(remaps),
                                                       .replacement_commits = std::move(replacement_commits),
+                                                      .replacement_images = std::move(replacement_images),
                                                       .stats = copy_stats},
                 .error = std::nullopt};
     } catch (const std::bad_alloc&) {
