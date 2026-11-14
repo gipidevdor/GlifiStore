@@ -103,7 +103,8 @@ class MemoryReserve final {
  *
  * Regions below kPageableMappingThresholdBytes live on the heap. Larger Index regions are
  * anonymous mappings while the reserve allows, then spill-file mappings when a spill directory is
- * configured; Image regions are always anonymous. A spill file is unlinked before use, never
+ * configured; Image regions are always anonymous. Every mapping has a PROT_NONE guard page on each
+ * side, so an overrun faults instead of reaching another allocation. A spill file is unlinked before use, never
  * synchronized and never reopened: the Index is derived state rebuilt at open (ADR 0004).
  * Allocation failure throws std::bad_alloc, matching the container behavior it replaces.
  */
@@ -180,5 +181,20 @@ class PageableRegion final {
 
 /// Regions smaller than this stay on the heap: mapping them would waste page-table entries.
 inline constexpr std::size_t kPageableMappingThresholdBytes = std::size_t{1} << 20U;
+
+/// Under AddressSanitizer every Index region is a heap region, so overflows stay instrumented; the
+/// reserve still charges it and no spill file is used. Images stay mapped: they are large, lazily
+/// touched and read only through validated extents.
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+inline constexpr bool kPageableIndexMappingEnabled = false;
+#else
+inline constexpr bool kPageableIndexMappingEnabled = true;
+#endif
+#elif defined(__SANITIZE_ADDRESS__)
+inline constexpr bool kPageableIndexMappingEnabled = false;
+#else
+inline constexpr bool kPageableIndexMappingEnabled = true;
+#endif
 
 } // namespace glifistore

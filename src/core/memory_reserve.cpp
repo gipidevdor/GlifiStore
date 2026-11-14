@@ -30,10 +30,35 @@ auto round_up_to_page(const std::size_t bytes) -> std::size_t {
     return (bytes + page - 1U) / page * page;
 }
 
+// Reserves `payload_bytes` plus one PROT_NONE guard page on each side, then maps the payload over
+// the middle with MAP_FIXED. Overruns and underruns fault instead of touching a neighbour.
+auto reserve_guarded(const std::size_t payload_bytes) noexcept -> std::byte* {
+    const auto page = page_size_bytes();
+    if (payload_bytes > std::numeric_limits<std::size_t>::max() - 2U * page) {
+        return nullptr;
+    }
+    void* const reservation =
+        ::mmap(nullptr, payload_bytes + 2U * page, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    return reservation == MAP_FAILED ? nullptr : static_cast<std::byte*>(reservation) + page;
+}
+
+void unmap_guarded(std::byte* const payload, const std::size_t payload_bytes) noexcept {
+    const auto page = page_size_bytes();
+    static_cast<void>(::munmap(payload - page, payload_bytes + 2U * page));
+}
+
 auto map_anonymous(const std::size_t mapped_bytes) noexcept -> std::byte* {
+    auto* const payload = reserve_guarded(mapped_bytes);
+    if (payload == nullptr) {
+        return nullptr;
+    }
     void* const mapping =
-        ::mmap(nullptr, mapped_bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    return mapping == MAP_FAILED ? nullptr : static_cast<std::byte*>(mapping);
+        ::mmap(payload, mapped_bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+    if (mapping == MAP_FAILED) {
+        unmap_guarded(payload, mapped_bytes);
+        return nullptr;
+    }
+    return payload;
 }
 
 class ScopedDescriptor final {
@@ -92,9 +117,17 @@ auto map_spill_file(const std::filesystem::path& directory, const std::size_t ma
             !preallocate(descriptor.get(), mapped_bytes)) {
             return nullptr;
         }
-        void* const mapping =
-            ::mmap(nullptr, mapped_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, descriptor.get(), 0);
-        return mapping == MAP_FAILED ? nullptr : static_cast<std::byte*>(mapping);
+        auto* const payload = reserve_guarded(mapped_bytes);
+        if (payload == nullptr) {
+            return nullptr;
+        }
+        void* const mapping = ::mmap(payload, mapped_bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED,
+                                     descriptor.get(), 0);
+        if (mapping == MAP_FAILED) {
+            unmap_guarded(payload, mapped_bytes);
+            return nullptr;
+        }
+        return payload;
     } catch (...) {
         return nullptr;
     }
@@ -206,7 +239,7 @@ PageableRegion::~PageableRegion() {
 
 void PageableRegion::reset() noexcept {
     if (mapped_bytes_ != 0U) {
-        static_cast<void>(::munmap(data_, mapped_bytes_));
+        unmap_guarded(data_, mapped_bytes_);
     }
     heap_.reset();
     if (reserve_ && charged_bytes_ != 0U) {
@@ -232,7 +265,8 @@ auto PageableRegion::allocate(const std::size_t bytes, const Use use, std::share
         return region;
     }
     region.use_ = use;
-    const bool mapped = bytes >= kPageableMappingThresholdBytes;
+    const bool mapped =
+        bytes >= kPageableMappingThresholdBytes && (use == Use::image || kPageableIndexMappingEnabled);
     const auto rounded = mapped ? round_up_to_page(bytes) : bytes;
     const auto charged = charge_limit_bytes < rounded
                              ? (mapped ? round_up_to_page(charge_limit_bytes) : charge_limit_bytes)
@@ -260,10 +294,12 @@ auto PageableRegion::allocate(const std::size_t bytes, const Use use, std::share
         return region;
     }
 
+    // The whole rounded size is mapped so that size() is always addressable; a smaller image charge
+    // only reflects the pages its known content can touch.
     if (use == Use::index && !within_reserve && !region.reserve_->spill_directory().empty()) {
-        if (auto* const spilled = map_spill_file(region.reserve_->spill_directory(), charged)) {
+        if (auto* const spilled = map_spill_file(region.reserve_->spill_directory(), rounded)) {
             region.data_ = spilled;
-            region.mapped_bytes_ = charged;
+            region.mapped_bytes_ = rounded;
             region.size_ = bytes;
             region.backing_ = PageableBacking::spill_file;
             region.reserve_->note_index_spilled(charged);
@@ -271,12 +307,12 @@ auto PageableRegion::allocate(const std::size_t bytes, const Use use, std::share
         }
         region.reserve_->note_spill_failure();
     }
-    auto* const anonymous = map_anonymous(charged);
+    auto* const anonymous = map_anonymous(rounded);
     if (anonymous == nullptr) {
         throw std::bad_alloc{};
     }
     region.data_ = anonymous;
-    region.mapped_bytes_ = charged;
+    region.mapped_bytes_ = rounded;
     region.size_ = bytes;
     region.backing_ = PageableBacking::anonymous;
     return region;

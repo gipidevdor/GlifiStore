@@ -126,6 +126,16 @@ template <typename T> class PageableArray final {
         size_ = count;
     }
 
+    /// Resize to exactly @p count elements without writing them. New storage reads as zero bytes
+    /// (fresh mappings are zero-filled lazily, heap regions are zeroed), so no page is touched here.
+    void resize_for_overwrite(const std::size_t count) {
+        if (count != capacity_) {
+            clear();
+            reallocate(count);
+        }
+        size_ = count;
+    }
+
     /// Replace the contents with @p count copies of @p value in storage of exactly that capacity.
     void assign(const std::size_t count, const T& value) {
         if (count != capacity_) {

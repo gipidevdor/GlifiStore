@@ -11,6 +11,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <sys/mman.h>
 #include <system_error>
 #include <unistd.h>
 #include <vector>
@@ -90,11 +91,15 @@ GLIFI_TEST("pageable regions choose heap, anonymous and spill backing from the r
         GLIFI_REQUIRE(all_zero({small.data(), small.size()}));
 
         auto within = Region::allocate(2U * kMiB, Region::Use::index, reserve);
-        GLIFI_REQUIRE(within.backing() == glifistore::PageableBacking::anonymous);
+        GLIFI_REQUIRE(within.backing() == (glifistore::kPageableIndexMappingEnabled
+                                               ? glifistore::PageableBacking::anonymous
+                                               : glifistore::PageableBacking::heap));
         GLIFI_REQUIRE(all_zero({within.data(), within.size()}));
 
         auto beyond = Region::allocate(8U * kMiB, Region::Use::index, reserve);
-        GLIFI_REQUIRE(beyond.backing() == glifistore::PageableBacking::spill_file);
+        GLIFI_REQUIRE(beyond.backing() == (glifistore::kPageableIndexMappingEnabled
+                                               ? glifistore::PageableBacking::spill_file
+                                               : glifistore::PageableBacking::heap));
         GLIFI_REQUIRE(all_zero({beyond.data(), beyond.size()}));
         beyond.data()[beyond.size() - 1U] = std::byte{0x5a};
         GLIFI_REQUIRE(beyond.data()[beyond.size() - 1U] == std::byte{0x5a});
@@ -102,7 +107,8 @@ GLIFI_TEST("pageable regions choose heap, anonymous and spill backing from the r
         GLIFI_REQUIRE(spill.entry_count() == 0U);
 
         const auto stats = reserve->stats();
-        GLIFI_REQUIRE(stats.index_spilled_bytes >= 8U * kMiB);
+        GLIFI_REQUIRE(stats.index_spilled_bytes >=
+                      (glifistore::kPageableIndexMappingEnabled ? 8U * kMiB : 0U));
         GLIFI_REQUIRE(stats.index_charged_bytes >= 10U * kMiB);
 
         // An image is refused once the Index has consumed the reserve.
@@ -116,7 +122,9 @@ GLIFI_TEST("pageable regions choose heap, anonymous and spill backing from the r
     // Without a spill directory, growth beyond the reserve stays anonymous (swap-backed).
     auto no_spill = std::make_shared<glifistore::MemoryReserve>(0U, std::filesystem::path{});
     auto anonymous = Region::allocate(2U * kMiB, Region::Use::index, no_spill);
-    GLIFI_REQUIRE(anonymous.backing() == glifistore::PageableBacking::anonymous);
+    GLIFI_REQUIRE(anonymous.backing() == (glifistore::kPageableIndexMappingEnabled
+                                              ? glifistore::PageableBacking::anonymous
+                                              : glifistore::PageableBacking::heap));
 }
 
 GLIFI_TEST("image regions trim and release their charge without unmapping") {
@@ -142,7 +150,9 @@ GLIFI_TEST("pageable array preserves contents across heap to mapping growth") {
         values.resize(values.size() + 1U);
         values[values.size() - 1U] = value * 3U;
     }
-    GLIFI_REQUIRE(values.backing() == glifistore::PageableBacking::anonymous);
+    GLIFI_REQUIRE(values.backing() == (glifistore::kPageableIndexMappingEnabled
+                                           ? glifistore::PageableBacking::anonymous
+                                           : glifistore::PageableBacking::heap));
     GLIFI_REQUIRE(values.capacity() >= values.size());
     for (std::uint64_t value = 0; value < 300'000U; ++value) {
         GLIFI_REQUIRE(values[value] == value * 3U);
@@ -181,7 +191,7 @@ GLIFI_TEST("Index beyond a zero reserve spills to a file and stays exact") {
             GLIFI_REQUIRE(inserted.has_value());
         }
         const auto stats = reserve->stats();
-        GLIFI_REQUIRE(stats.index_spilled_bytes > 0U);
+        GLIFI_REQUIRE((stats.index_spilled_bytes > 0U) == glifistore::kPageableIndexMappingEnabled);
         GLIFI_REQUIRE(stats.image_budget_bytes == 0U);
         for (std::uint64_t key = 0; key < kKeys; key += 97U) {
             const auto text = "spill-key-with-a-long-heap-suffix-" + std::to_string(key);
@@ -193,4 +203,24 @@ GLIFI_TEST("Index beyond a zero reserve spills to a file and stays exact") {
     }
     GLIFI_REQUIRE(reserve->stats().index_charged_bytes == 0U);
     GLIFI_REQUIRE(spill.entry_count() == 0U);
+}
+
+GLIFI_TEST("mapped regions are bounded by guard pages and map their whole size") {
+    auto reserve = std::make_shared<glifistore::MemoryReserve>(64U * kMiB, std::filesystem::path{});
+    using Region = glifistore::PageableRegion;
+    // A sealed image charged for 1 MiB still maps all of its addressable bytes.
+    auto image = Region::allocate(8U * kMiB, Region::Use::image, reserve, kMiB);
+    GLIFI_REQUIRE(!image.empty());
+    GLIFI_REQUIRE(image.charged_bytes() == kMiB);
+    image.data()[image.size() - 1U] = std::byte{7};
+    GLIFI_REQUIRE(image.data()[image.size() - 1U] == std::byte{7});
+
+    // The page after the payload is reserved PROT_NONE: mapping over it without MAP_FIXED must
+    // not return that address, because the range is already taken.
+    const auto page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+    auto* const after = image.data() + image.size();
+    void* const probe = ::mmap(after, page, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
+    GLIFI_REQUIRE(probe != MAP_FAILED);
+    GLIFI_REQUIRE(probe != static_cast<void*>(after));
+    GLIFI_REQUIRE(::munmap(probe, page) == 0);
 }
