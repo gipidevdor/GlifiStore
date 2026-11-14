@@ -74,6 +74,8 @@ auto ShardPairRuntime::create(Store& store, const PairedConcurrencyConfig& confi
         return fail(ErrorCode::invalid_argument, "paired runtime configuration is invalid");
     }
     const auto routing = detail::StoreAccess::worker_routing(store);
+    // Reader bases are derived Index state: they share the durable Store's memory reserve.
+    const auto memory_reserve = detail::StoreAccess::memory_reserve(store);
     std::vector<std::shared_ptr<const PairReadGeneration>> initial_generations;
     std::vector<std::uint64_t> initial_catalog_revisions;
     std::vector<std::unique_ptr<GenerationSlotPool>> slot_pools;
@@ -97,7 +99,7 @@ auto ShardPairRuntime::create(Store& store, const PairedConcurrencyConfig& confi
         }
         initial_catalog_revisions.push_back(catalog_revision);
         if (config.generation_slot_pool) {
-            auto pool = GenerationSlotPool::create(routing, records);
+            auto pool = GenerationSlotPool::create(routing, records, {}, memory_reserve);
             if (!pool) {
                 return unexpected(std::move(pool.error()));
             }
@@ -106,10 +108,9 @@ auto ShardPairRuntime::create(Store& store, const PairedConcurrencyConfig& confi
             slot_pools.push_back(std::move(*pool));
             continue;
         }
-        Result<std::shared_ptr<const PairReadGeneration>> initial = PairReadGeneration::empty(routing);
-        if (!records.empty()) {
-            initial = PairReadGeneration::from_durable_snapshot(routing, records);
-        }
+        Result<std::shared_ptr<const PairReadGeneration>> initial =
+            records.empty() ? PairReadGeneration::empty(routing, memory_reserve)
+                            : PairReadGeneration::from_durable_snapshot(routing, records, memory_reserve);
         if (!initial) {
             return unexpected(initial.error());
         }

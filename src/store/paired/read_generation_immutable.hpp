@@ -3,25 +3,31 @@
 // ImmutableReadIndex: published generation base index.
 // Structure-debt extraction from read_generation_impl.
 
+#include "glifistore/core/memory_reserve.hpp"
+#include "glifistore/core/pageable_array.hpp"
 #include "store/paired/read_generation_internals.hpp"
 
 namespace glifistore::store::paired {
 
 class ImmutableReadIndex final {
   public:
-    ImmutableReadIndex() {
-        initialize(0, true);
-    }
+    ImmutableReadIndex() : ImmutableReadIndex(std::make_shared<LargeImmutableMappingPool>()) {}
 
-    explicit ImmutableReadIndex(MutableReadIndex source) {
-        initialize(source.size(), true);
+    /// All storage of this base and of every base built from it (merges, snapshot replacements)
+    /// is charged to the pool's memory reserve, like the Worker Index (ADR 0046).
+    explicit ImmutableReadIndex(std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
+        : ImmutableReadIndex(std::move(mapping_pool), 0) {}
+
+    ImmutableReadIndex(MutableReadIndex source, std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
+        : ImmutableReadIndex(std::move(mapping_pool), source.size()) {
         for (const auto& record : source) {
             append(*record);
         }
     }
 
-    explicit ImmutableReadIndex(const std::span<const DurableRuntimeCatalog::PublishedReadRecord> source) {
-        initialize(source.size(), true);
+    ImmutableReadIndex(const std::span<const DurableRuntimeCatalog::PublishedReadRecord> source,
+                       std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
+        : ImmutableReadIndex(std::move(mapping_pool), source.size()) {
         for (const auto& record : source) {
             append({.hash = record.key_hash(),
                     .key = record.key(),
@@ -31,16 +37,9 @@ class ImmutableReadIndex final {
         }
     }
 
-#if defined(__unix__) || defined(__APPLE__)
-    explicit ImmutableReadIndex(std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
-        : records_(RecordAllocator{std::move(mapping_pool)}) {
-        initialize(0, true);
-    }
-
     [[nodiscard]] auto mapping_pool() const -> std::shared_ptr<LargeImmutableMappingPool> {
         return records_.get_allocator().mapping_pool();
     }
-#endif
 
     [[nodiscard]] auto find(const HashedKey& key) const noexcept -> const CompactReadRecord* {
         const auto wanted = fingerprint(key.hash);
@@ -171,8 +170,9 @@ class ImmutableReadIndex final {
                 saturating_add(saturating_multiply(segments_.capacity(), sizeof(SegmentPtr)),
                                saturating_multiply(durable_pins_.capacity(), sizeof(DurableReadPin))),
         };
-        stats.base_key_storage_bytes = saturating_add(
-            saturating_multiply(key_blocks_.capacity(), sizeof(KeyBlock)), allocated_key_storage_bytes_);
+        stats.base_key_storage_bytes =
+            saturating_add(saturating_multiply(key_blocks_.capacity(), sizeof(PageableRegion)),
+                           allocated_key_storage_bytes_);
         auto total = sizeof(ImmutableReadIndex);
         total = saturating_add(total, stats.base_record_storage_bytes);
         total = saturating_add(total, stats.base_lookup_storage_bytes);
@@ -184,6 +184,13 @@ class ImmutableReadIndex final {
 
   private:
     using RecordAllocator = ReleasingLargeAllocator<CompactReadRecord>;
+
+    ImmutableReadIndex(std::shared_ptr<LargeImmutableMappingPool> mapping_pool,
+                       const std::size_t maximum_records)
+        : records_(RecordAllocator{mapping_pool}), control_(mapping_pool->memory_reserve()),
+          record_indices_(mapping_pool->memory_reserve()) {
+        initialize(maximum_records, true);
+    }
 
     [[nodiscard]] static constexpr auto maximum_occupancy(const std::size_t capacity) noexcept
         -> std::size_t {
@@ -210,16 +217,17 @@ class ImmutableReadIndex final {
             }
             capacity_ *= 2U;
         }
-        control_ = std::make_unique_for_overwrite<std::uint8_t[]>(capacity_);
-        record_indices_ = std::make_unique_for_overwrite<std::uint32_t[]>(capacity_);
+        // No element is written here: an incremental builder fills control slots in bounded steps.
+        control_.resize_for_overwrite(capacity_);
+        record_indices_.resize_for_overwrite(capacity_);
         if (initialize_control) {
-            std::fill_n(control_.get(), capacity_, kSwissEmpty);
+            std::fill_n(control_.data(), capacity_, kSwissEmpty);
         }
         records_.reserve(maximum_records);
     }
 
     void initialize_control_slots(const std::size_t first, const std::size_t count) noexcept {
-        std::fill_n(control_.get() + first, count, kSwissEmpty);
+        std::fill_n(control_.data() + first, count, kSwissEmpty);
     }
 
     [[nodiscard]] auto key_at(const CompactReadRecord& record) const noexcept -> std::string_view {
@@ -301,17 +309,18 @@ class ImmutableReadIndex final {
             return nullptr;
         }
         constexpr std::size_t kKeyBlockBytes = std::size_t{64} * 1024U;
-        if (key_blocks_.empty() || key.size() > key_blocks_.back().capacity - key_blocks_.back().used) {
+        if (key_blocks_.empty() || key.size() > key_blocks_.back().size() - key_block_used_) {
             const auto capacity = std::max(kKeyBlockBytes, key.size());
-            auto bytes = std::make_unique<char[]>(capacity);
-            KeyBlock block{.bytes = std::move(bytes), .capacity = capacity};
-            key_blocks_.push_back(std::move(block));
+            key_blocks_.reserve(key_blocks_.size() + 1U);
+            // Region data never moves, so external key pointers stay valid as the vector grows.
+            key_blocks_.push_back(
+                PageableRegion::allocate(capacity, PageableRegion::Use::index, control_.memory_reserve()));
+            key_block_used_ = 0;
             allocated_key_storage_bytes_ = saturating_add(allocated_key_storage_bytes_, capacity);
         }
-        auto& block = key_blocks_.back();
-        auto* destination = block.bytes.get() + block.used;
+        auto* destination = reinterpret_cast<char*>(key_blocks_.back().data()) + key_block_used_;
         std::ranges::copy(key, destination);
-        block.used += key.size();
+        key_block_used_ += key.size();
         key_bytes_ = saturating_add(key_bytes_, key.size());
         return destination;
     }
@@ -340,11 +349,12 @@ class ImmutableReadIndex final {
     std::size_t key_bytes_{};
     std::size_t allocated_key_storage_bytes_{};
     std::vector<CompactReadRecord, RecordAllocator> records_;
-    std::vector<KeyBlock> key_blocks_;
+    std::vector<PageableRegion> key_blocks_;
+    std::size_t key_block_used_{};
     std::vector<SegmentPtr> segments_;
     std::vector<DurableReadPin> durable_pins_;
-    std::unique_ptr<std::uint8_t[]> control_;
-    std::unique_ptr<std::uint32_t[]> record_indices_;
+    PageableArray<std::uint8_t> control_;
+    PageableArray<std::uint32_t> record_indices_;
 
     friend class IncrementalBaseBuilder;
 };

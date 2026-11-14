@@ -14,9 +14,9 @@ gates:
   stato: IMPLEMENTATA
   rischio_residuo: >-
     ADR 0045 and ADR 0046 are proposed. Embedded callers and the glifistored Reader complete resident
-    reads inline; only cold Segments use the executor. Daemon benchmarks against the ADR 0045 targets,
-    TSan eviction runs concurrent with readers and charging of the paired Reader index are
-    outstanding.
+    reads inline; only cold Segments use the executor. The Worker and paired Reader indexes share the
+    reserve. Daemon benchmarks against the ADR 0045 targets and TSan eviction runs concurrent with
+    readers are outstanding.
   riapertura:
   - Any change to acknowledgement, visibility or recovery authority to obtain read speed
   - Image unmap not governed by generation reclamation

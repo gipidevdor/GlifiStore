@@ -20,17 +20,9 @@ namespace glifistore::store::paired {
 
 class IncrementalBaseBuilder final {
   public:
-    explicit IncrementalBaseBuilder(const std::size_t maximum_records
-#if defined(__unix__) || defined(__APPLE__)
-                                    ,
-                                    std::shared_ptr<LargeImmutableMappingPool> mapping_pool
-#endif
-                                    )
-#if defined(__unix__) || defined(__APPLE__)
+    IncrementalBaseBuilder(const std::size_t maximum_records,
+                           std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
         : index_(std::make_unique<ImmutableReadIndex>(std::move(mapping_pool))) {
-#else
-        : index_(std::make_unique<ImmutableReadIndex>()) {
-#endif
         index_->initialize(maximum_records, false);
     }
 

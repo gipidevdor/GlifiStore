@@ -33,9 +33,9 @@ GlifiStore keeps one rule for memory and storage:
 
 `memory_reserve_bytes` is the RAM the Store keeps resident for derived state.
 
-1. **Index first, never refused.** When it outgrows the reserve, new Index arrays are mapped from an
-   unlinked spill file (or left to swap), so the operating system pages them instead of the Store
-   refusing writes.
+1. **Index first, never refused.** The Worker Index and the paired Reader index are charged alike.
+   When they outgrow the reserve, new arrays are mapped from an unlinked spill file (or left to
+   swap), so the operating system pages them instead of the Store refusing writes.
 2. **Images in what remains.** `image budget = reserve − Index`. Admission is a single comparison.
 
 Nothing else competes for the reserve. The paired runtime does not allocate the ADR 0017 hot cache.
@@ -95,6 +95,6 @@ CRC32C verification and the copy into the response.
 - A resident read cannot observe on-disk damage that happens after load (HAZ-042); recovery,
   compaction, backup verification and cold reads still detect it.
 - Spill files can fault on a full or copy-on-write filesystem (HAZ-043).
-- The paired Reader index keeps its own mappings, outside the reserve for now.
+- During a Reader rebuild two bases coexist and both are charged.
 - Image granularity is one Segment; a partially live sealed Segment is resident in full until
   compaction rewrites it.

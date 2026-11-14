@@ -53,12 +53,8 @@ auto PairReadGeneration::start_incremental_merge(std::shared_ptr<const PairReadG
     }
     const auto bounded_post_entries =
         std::min(maximum_post_entries, cut->delta_->maximum_entries() - cut->delta_->size());
-    auto builder = std::make_unique<IncrementalBaseBuilder>(cut->base_->size() + cut->delta_->size()
-#if defined(__unix__) || defined(__APPLE__)
-                                                                ,
-                                                            cut->base_->mapping_pool()
-#endif
-    );
+    auto builder = std::make_unique<IncrementalBaseBuilder>(cut->base_->size() + cut->delta_->size(),
+                                                            cut->base_->mapping_pool());
     auto post_delta = make_empty_delta(cut->delta_->maximum_entries());
     auto state = std::make_unique<PairReadMerge::State>(cut, std::move(builder), std::move(post_delta),
                                                         bounded_post_entries);

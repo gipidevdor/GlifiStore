@@ -30,15 +30,17 @@ GenerationSlotPool::~GenerationSlotPool() {
 
 auto GenerationSlotPool::create(const WorkerRoutingState routing,
                                 const std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
-                                const GenerationSlotFailureHook failure_hook)
+                                const GenerationSlotFailureHook failure_hook,
+                                std::shared_ptr<MemoryReserve> memory_reserve)
     -> Result<std::unique_ptr<GenerationSlotPool>> {
     try {
         auto pool =
             std::unique_ptr<GenerationSlotPool>{new GenerationSlotPool{ConstructionToken{}, failure_hook}};
         Result<const Generation*> initial =
-            records.empty()
-                ? PairReadGeneration::empty_direct(routing, pool->slots_[0].storage)
-                : PairReadGeneration::from_durable_snapshot_direct(routing, records, pool->slots_[0].storage);
+            records.empty() ? PairReadGeneration::empty_direct(routing, pool->slots_[0].storage,
+                                                               std::move(memory_reserve))
+                            : PairReadGeneration::from_durable_snapshot_direct(
+                                  routing, records, pool->slots_[0].storage, std::move(memory_reserve));
         if (!initial) {
             return unexpected(std::move(initial.error()));
         }

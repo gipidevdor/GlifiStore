@@ -4,6 +4,7 @@
 // Structure-debt extraction from read_generation_impl.
 
 #include "glifistore/core/hot_path_phases.hpp"
+#include "glifistore/core/memory_reserve.hpp"
 #include "glifistore/index/swiss_control_group.hpp"
 #include "glifistore/store/paired/generation_slot_pool.hpp"
 #include "glifistore/store/paired/read_generation.hpp"
@@ -24,11 +25,6 @@
 #include <utility>
 #include <vector>
 
-#if defined(__unix__) || defined(__APPLE__)
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
-
 namespace glifistore::store::paired::inline generation_internals {
 
 inline constexpr std::size_t kDeltaPageSlots = 16;
@@ -40,93 +36,104 @@ inline constexpr std::size_t kDeltaDirectoryChunkBlocks = 16;
 inline constexpr std::size_t kFlatDeltaMaximumPages = 32;
 inline constexpr std::size_t kMaximumPublicationBatch = 32;
 inline constexpr std::size_t kDeltaArenaBlockRecords = 64;
-inline constexpr std::size_t kLargeImmutableArrayMappingThreshold = 1U << 20U;
-#if defined(__has_feature)
-#if __has_feature(address_sanitizer)
-inline constexpr bool kLargeImmutableArrayMappingEnabled = false;
-#else
-inline constexpr bool kLargeImmutableArrayMappingEnabled = true;
-#endif
-#elif defined(__SANITIZE_ADDRESS__)
-inline constexpr bool kLargeImmutableArrayMappingEnabled = false;
-#else
-inline constexpr bool kLargeImmutableArrayMappingEnabled = true;
-#endif
+inline constexpr std::size_t kLargeImmutableArrayMappingThreshold = kPageableMappingThresholdBytes;
 inline std::atomic_size_t immutable_base_spare_mapping_payload_bytes{};
 static_assert(kDeltaPageSlots % kSwissGroupSize == 0);
 
-#if defined(__unix__) || defined(__APPLE__)
+// Immutable base rebuilds grow by merge quanta. General-purpose allocators may
+// retain every previously used large size, turning bounded live generations
+// into unbounded resident high-water. Large arrays therefore use pageable
+// regions (ADR 0046) in geometric size classes, charged to the Store memory
+// reserve like the Worker Index. Each immutable-base lineage keeps at most one
+// retired region: successive same-class rebuilds alternate between two bounded
+// buffers instead of paying zero-fill faults every time.
 class LargeImmutableMappingPool final {
   public:
     LargeImmutableMappingPool() noexcept = default;
+
+    explicit LargeImmutableMappingPool(std::shared_ptr<MemoryReserve> reserve) noexcept
+        : reserve_(std::move(reserve)) {}
+
     LargeImmutableMappingPool(const LargeImmutableMappingPool&) = delete;
     auto operator=(const LargeImmutableMappingPool&) -> LargeImmutableMappingPool& = delete;
 
     ~LargeImmutableMappingPool() {
-        std::scoped_lock lock{mutex_};
-        release_locked();
+        immutable_base_spare_mapping_payload_bytes.fetch_sub(spare_.size(), std::memory_order_relaxed);
     }
 
-    [[nodiscard]] auto take(const std::size_t mapped_bytes) noexcept -> void* {
-        std::scoped_lock lock{mutex_};
-        if (base_ == nullptr) {
-            return nullptr;
-        }
-        if (mapped_bytes != mapped_bytes_) {
-            release_locked();
-            return nullptr;
-        }
-        auto* result = base_;
-        immutable_base_spare_mapping_payload_bytes.fetch_sub(payload_bytes_, std::memory_order_relaxed);
-        base_ = nullptr;
-        mapped_bytes_ = 0;
-        payload_bytes_ = 0;
-        return result;
+    [[nodiscard]] auto memory_reserve() const noexcept -> const std::shared_ptr<MemoryReserve>& {
+        return reserve_;
     }
 
-    void put(void* base, const std::size_t mapped_bytes, const std::size_t payload_bytes) noexcept {
+    /// Size class holding @p bytes: exact below the mapping threshold, then powers of two.
+    [[nodiscard]] static auto size_class(const std::size_t bytes) -> std::size_t {
+        if (bytes < kLargeImmutableArrayMappingThreshold) {
+            return bytes;
+        }
+        auto payload_class = kLargeImmutableArrayMappingThreshold;
+        while (payload_class < bytes) {
+            if (payload_class > std::numeric_limits<std::size_t>::max() / 2U) {
+                throw std::bad_array_new_length{};
+            }
+            payload_class *= 2U;
+        }
+        return payload_class;
+    }
+
+    /// Return storage of exactly @p payload_class bytes, reusing the retired region when it fits.
+    [[nodiscard]] auto take(const std::size_t payload_class) -> std::byte* {
         std::scoped_lock lock{mutex_};
-        release_locked();
-        base_ = base;
-        mapped_bytes_ = mapped_bytes;
-        payload_bytes_ = payload_bytes;
-        immutable_base_spare_mapping_payload_bytes.fetch_add(payload_bytes, std::memory_order_relaxed);
+        live_.reserve(live_.size() + 1U);
+        if (spare_.size() == payload_class) {
+            immutable_base_spare_mapping_payload_bytes.fetch_sub(spare_.size(), std::memory_order_relaxed);
+            live_.push_back(std::move(spare_));
+        } else {
+            live_.push_back(PageableRegion::allocate(payload_class, PageableRegion::Use::index, reserve_));
+        }
+        return live_.back().data();
+    }
+
+    /// Retire the region that owns @p data. A large region becomes the spare (freeing the previous
+    /// spare); a small one is freed at once.
+    void put(const std::byte* const data) noexcept {
+        PageableRegion retired;
+        {
+            std::scoped_lock lock{mutex_};
+            const auto found =
+                std::ranges::find_if(live_, [&](const auto& region) { return region.data() == data; });
+            if (found == live_.end()) {
+                std::terminate();
+            }
+            retired = std::move(*found);
+            if (found != std::prev(live_.end())) {
+                *found = std::move(live_.back());
+            }
+            live_.pop_back();
+            if (retired.size() >= kLargeImmutableArrayMappingThreshold) {
+                immutable_base_spare_mapping_payload_bytes.fetch_sub(spare_.size(),
+                                                                     std::memory_order_relaxed);
+                std::swap(spare_, retired);
+                immutable_base_spare_mapping_payload_bytes.fetch_add(spare_.size(),
+                                                                     std::memory_order_relaxed);
+            }
+        }
+        // `retired` (the old spare or a small region) is unmapped outside the lock.
     }
 
   private:
-    void release_locked() noexcept {
-        if (base_ == nullptr) {
-            return;
-        }
-        immutable_base_spare_mapping_payload_bytes.fetch_sub(payload_bytes_, std::memory_order_relaxed);
-        static_cast<void>(::munmap(base_, mapped_bytes_));
-        base_ = nullptr;
-        mapped_bytes_ = 0;
-        payload_bytes_ = 0;
-    }
-
     std::mutex mutex_;
-    void* base_{};
-    std::size_t mapped_bytes_{};
-    std::size_t payload_bytes_{};
+    std::shared_ptr<MemoryReserve> reserve_;
+    // A lineage holds very few large arrays at once (the published base and one being built).
+    std::vector<PageableRegion> live_;
+    PageableRegion spare_;
 };
-#endif
 
-// Immutable base rebuilds grow by merge quanta. General-purpose allocators may
-// retain every previously used large size, turning bounded live generations
-// into unbounded resident high-water. Large arrays therefore use their own
-// anonymous mappings in geometric size classes. Each immutable-base lineage
-// keeps at most one retired mapping: successive same-class rebuilds alternate
-// between two bounded buffers instead of paying zero-fill faults every time.
-// A class change or thread exit unmaps the spare. Guard pages preserve coarse
-// over/underflow detection even outside ASan.
 template <typename T> class ReleasingLargeAllocator {
   public:
     using value_type = T;
     using is_always_equal = std::false_type;
     using propagate_on_container_move_assignment = std::true_type;
 
-#if defined(__unix__) || defined(__APPLE__)
     ReleasingLargeAllocator() : pool_(std::make_shared<LargeImmutableMappingPool>()) {}
 
     explicit ReleasingLargeAllocator(std::shared_ptr<LargeImmutableMappingPool> pool) noexcept
@@ -138,129 +145,38 @@ template <typename T> class ReleasingLargeAllocator {
     [[nodiscard]] auto mapping_pool() const noexcept -> const std::shared_ptr<LargeImmutableMappingPool>& {
         return pool_;
     }
-#else
-    ReleasingLargeAllocator() noexcept = default;
 
-    template <typename U> ReleasingLargeAllocator(const ReleasingLargeAllocator<U>&) noexcept {}
-#endif
-
+    /// Bytes of @p count elements held in pageable regions (zero below the threshold).
     [[nodiscard]] static constexpr auto mapped_storage_bytes(const std::size_t count) noexcept
         -> std::size_t {
-#if defined(__unix__) || defined(__APPLE__)
         if (count <= std::numeric_limits<std::size_t>::max() / sizeof(T)) {
             const auto bytes = count * sizeof(T);
-            return kLargeImmutableArrayMappingEnabled && bytes >= kLargeImmutableArrayMappingThreshold ? bytes
-                                                                                                       : 0U;
+            return bytes >= kLargeImmutableArrayMappingThreshold ? bytes : 0U;
         }
-#else
-        static_cast<void>(count);
-#endif
         return 0U;
     }
-
-#if defined(__unix__) || defined(__APPLE__)
-    struct MappingLayout final {
-        std::size_t page_size{};
-        std::size_t payload_bytes{};
-        std::size_t mapped_bytes{};
-    };
-
-    [[nodiscard]] static auto layout_for(const std::size_t bytes) -> MappingLayout {
-        const auto page_size_value = ::sysconf(_SC_PAGESIZE);
-        if (page_size_value <= 0) {
-            throw std::bad_alloc{};
-        }
-        const auto page_size = static_cast<std::size_t>(page_size_value);
-        if (page_size > std::numeric_limits<std::size_t>::max() / 2U) {
-            throw std::bad_array_new_length{};
-        }
-        auto payload_class = kLargeImmutableArrayMappingThreshold;
-        while (payload_class < bytes) {
-            if (payload_class > std::numeric_limits<std::size_t>::max() / 2U) {
-                throw std::bad_array_new_length{};
-            }
-            payload_class *= 2U;
-        }
-        if (payload_class > std::numeric_limits<std::size_t>::max() - (page_size - 1U)) {
-            throw std::bad_array_new_length{};
-        }
-        const auto payload_bytes = ((payload_class + page_size - 1U) / page_size) * page_size;
-        if (payload_bytes > std::numeric_limits<std::size_t>::max() - 2U * page_size) {
-            throw std::bad_array_new_length{};
-        }
-        return {.page_size = page_size,
-                .payload_bytes = payload_bytes,
-                .mapped_bytes = payload_bytes + 2U * page_size};
-    }
-
-#endif
 
     [[nodiscard]] auto allocate(const std::size_t count) -> T* {
         if (count > std::numeric_limits<std::size_t>::max() / sizeof(T)) {
             throw std::bad_array_new_length{};
         }
-        const auto bytes = count * sizeof(T);
-#if defined(__unix__) || defined(__APPLE__)
-        if (kLargeImmutableArrayMappingEnabled && bytes >= kLargeImmutableArrayMappingThreshold) {
-            const auto layout = layout_for(bytes);
-            auto* mapping = pool_->take(layout.mapped_bytes);
-            if (mapping == nullptr) {
-#if defined(MAP_ANONYMOUS)
-                constexpr auto kAnonymousFlag = MAP_ANONYMOUS;
-#else
-                constexpr auto kAnonymousFlag = MAP_ANON;
-#endif
-                mapping = ::mmap(nullptr, layout.mapped_bytes, PROT_READ | PROT_WRITE,
-                                 MAP_PRIVATE | kAnonymousFlag, -1, 0);
-                if (mapping == MAP_FAILED) {
-                    throw std::bad_alloc{};
-                }
-                auto* trailing_guard =
-                    static_cast<std::byte*>(mapping) + layout.page_size + layout.payload_bytes;
-                if (::mprotect(mapping, layout.page_size, PROT_NONE) != 0 ||
-                    ::mprotect(trailing_guard, layout.page_size, PROT_NONE) != 0) {
-                    static_cast<void>(::munmap(mapping, layout.mapped_bytes));
-                    throw std::bad_alloc{};
-                }
-            }
-            return reinterpret_cast<T*>(static_cast<std::byte*>(mapping) + layout.page_size);
-        }
-#endif
-        return std::allocator<T>{}.allocate(count);
+        static_assert(alignof(T) <= __STDCPP_DEFAULT_NEW_ALIGNMENT__);
+        // Every size goes through the pool so that the whole array is charged to the reserve.
+        return reinterpret_cast<T*>(pool_->take(LargeImmutableMappingPool::size_class(count * sizeof(T))));
     }
 
-    void deallocate(T* pointer, const std::size_t count) noexcept {
-        const auto bytes = count * sizeof(T);
-#if defined(__unix__) || defined(__APPLE__)
-        if (kLargeImmutableArrayMappingEnabled && bytes >= kLargeImmutableArrayMappingThreshold) {
-            try {
-                const auto layout = layout_for(bytes);
-                pool_->put(reinterpret_cast<std::byte*>(pointer) - layout.page_size, layout.mapped_bytes,
-                           layout.payload_bytes);
-                return;
-            } catch (...) {
-                std::terminate();
-            }
-        }
-#endif
-        std::allocator<T>{}.deallocate(pointer, count);
+    void deallocate(T* pointer, [[maybe_unused]] const std::size_t count) noexcept {
+        pool_->put(reinterpret_cast<const std::byte*>(pointer));
     }
 
     template <typename U>
     [[nodiscard]] auto operator==(const ReleasingLargeAllocator<U>& other) const noexcept -> bool {
-#if defined(__unix__) || defined(__APPLE__)
         return pool_ == other.pool_;
-#else
-        static_cast<void>(other);
-        return true;
-#endif
     }
 
   private:
-#if defined(__unix__) || defined(__APPLE__)
     std::shared_ptr<LargeImmutableMappingPool> pool_;
     template <typename> friend class ReleasingLargeAllocator;
-#endif
 };
 
 struct ReadRecord final {

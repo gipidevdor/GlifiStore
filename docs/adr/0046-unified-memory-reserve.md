@@ -47,7 +47,8 @@ be rebuilt or reread. A single reserve can therefore order every memory use by n
 `DurableResourceLimits::memory_reserve_bytes` (default 1 GiB) is the RAM the durable runtime keeps
 resident for derived state. One `MemoryReserve` per Store accounts for two uses, in priority order:
 
-1. **Index** (mandatory). Worker Index slot, control and heap-key arrays are charged unconditionally.
+1. **Index** (mandatory). Worker Index slot, control and heap-key arrays, and every paired Reader
+   index base (records, lookup tables and key blocks), are charged unconditionally.
 2. **Segment images** (optional). Admitted only while `index + images ≤ reserve`.
 
 `image budget = max(0, reserve − index)`. Index growth shrinks the image budget; it is never refused.
@@ -62,8 +63,18 @@ the reserve:
   and never reopened: the Index is rebuilt from the log at open (ADR 0004);
 - otherwise they stay anonymous and the kernel may page them to swap.
 
-Smaller arrays stay on the heap. Allocation failure keeps its existing `resource_exhausted` polarity.
-Index storage built during recovery is charged when the runtime attaches the reserve.
+Smaller arrays stay on the heap and are charged too. Allocation failure keeps its existing
+`resource_exhausted` polarity. Index storage built during recovery is charged when the runtime
+attaches the reserve.
+
+Every mapping, Index or image, has a `PROT_NONE` guard page on each side and maps its whole
+addressable size; an image's charge may be smaller (a sealed Segment's committed bytes). Under
+AddressSanitizer, Index regions are heap regions so that overflows stay instrumented; images stay
+mapped.
+
+The paired Reader index uses the same regions. A Reader base lineage is created with the Store's
+reserve, and every base derived from it (Delta merges, incremental merges, durable snapshot
+replacements) inherits it with its one retired spare region, which stays charged while it is kept.
 
 ### 3. Resident images (amends ADR 0045 §1)
 
@@ -131,15 +142,15 @@ An `index_spill_directory` that is not an existing directory fails open with `in
 - An image page that the kernel has paged out under memory pressure faults on the Reader thread,
   exactly like a paged Index page. The reserve is the operator's tool to keep both resident.
 - Open reads the Segments it makes resident once more after recovery, up to the reserve.
-- Index arrays of 1 MiB or more are mappings even in volatile Stores; AddressSanitizer no longer
-  instruments overflows inside them (the guard is the mapping boundary).
+- Index arrays of 1 MiB or more are mappings even in volatile Stores, bounded by guard pages.
+  AddressSanitizer builds keep them on the heap, so they do not exercise spill files.
 - Memory pressure produces paging, not write refusal. Paged Index lookups are slower; the
   reserve is the operator's tool to keep them resident.
 - A resident read does not re-detect on-disk damage that happens after the bytes were mirrored or
   loaded (HAZ-042). A spill file on a full or copy-on-write filesystem can raise `SIGBUS` when a page
   is first written; Linux and FreeBSD preallocate the file, macOS and OpenBSD do not (HAZ-043).
-- The paired Reader index (`ImmutableReadIndex`) keeps its own anonymous mappings. They are
-  swap-pageable but are not yet charged to the reserve or spilled to a file.
+- Two paired Reader bases can coexist during a rebuild, and both are charged: a rebuild near the
+  reserve shrinks the image budget until the old base is retired.
 - Images are optional, so the exhaustive allocation-fault proofs run with images disabled for the
   mandatory path and separately prove that a failed image allocation leaves a committed, readable
   mutation or compaction.
@@ -155,7 +166,8 @@ unchanged. New configuration fields have defaults; existing Stores open unchange
 Local evidence (architectural prototype, not release evidence):
 
 - unit: reserve priority and overdraft, heap/anonymous/spill backing, unlinked spill files, image
-  charge trimming, pageable-array growth, an Index spilled beyond a zero reserve stays exact;
+  charge trimming, guard pages and full-size mappings, pageable-array growth, an Index spilled
+  beyond a zero reserve stays exact, a Reader base lineage charges and releases the reserve;
 - integration: resident reads across open, append, rotation and compaction; a zero reserve keeps
   everything cold without refusing writes; reopen with images enabled and disabled; the paired
   Reader completes a resident read at prepare and keeps the cold path above its inline limit;
@@ -166,8 +178,8 @@ Local evidence (architectural prototype, not release evidence):
 - benchmark: `glifistore_benchmarks --filter store-durable-get` with and without `--cold-reads`
   (local numbers in the lean memory note; not release evidence).
 
-Still required before acceptance: the full ADR 0045 benchmark set including the daemon, eviction
-concurrent with readers under TSan, and charging the paired Reader index.
+Still required before acceptance: the full ADR 0045 benchmark set including the daemon, and eviction
+concurrent with readers under TSan.
 
 ## References
 

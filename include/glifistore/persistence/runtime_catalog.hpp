@@ -452,8 +452,14 @@ class DurableRuntimeCatalog final {
     [[nodiscard]] auto blob_roots() -> Result<std::vector<BlobId>>;
     [[nodiscard]] auto namespace_audit() const -> NamespaceAuditReport;
     [[nodiscard]] auto recovery_stats() const noexcept -> const DurableRecoveryStats&;
-    /// RAM reserve shared by the Worker Indexes and resident Segment images (ADR 0046).
+    /// RAM reserve shared by the Worker Indexes, the paired Reader indexes and resident Segment
+    /// images (ADR 0046).
     [[nodiscard]] auto memory_reserve_stats() const noexcept -> MemoryReserveStats;
+
+    [[nodiscard]] auto memory_reserve() const noexcept -> const std::shared_ptr<MemoryReserve>& {
+        return memory_reserve_;
+    }
+
     [[nodiscard]] auto hot_cache_stats() const -> std::vector<DurableHotCacheWorkerStats>;
     [[nodiscard]] auto get_path_stats() const -> std::vector<DurableGetPathWorkerStats>;
     [[nodiscard]] auto batch_stats() const -> std::vector<DurableBatchWorkerStats>;

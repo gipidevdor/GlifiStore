@@ -20,11 +20,13 @@ auto PairReadGeneration::publish_incremental_direct(const PairReadGeneration& pr
     return direct_result;
 }
 
-auto PairReadGeneration::empty_direct(const WorkerRoutingState routing, GenerationDirectStorage& storage)
+auto PairReadGeneration::empty_direct(const WorkerRoutingState routing, GenerationDirectStorage& storage,
+                                      std::shared_ptr<MemoryReserve> memory_reserve)
     -> Result<const PairReadGeneration*> try {
     static_assert(sizeof(PairReadGenerationEnableShared) <= GenerationDirectStorage::kBytes);
     static_assert(alignof(PairReadGenerationEnableShared) <= GenerationDirectStorage::kAlignment);
-    auto base = std::make_shared<const ImmutableReadIndex>();
+    auto base = std::make_shared<const ImmutableReadIndex>(
+        std::make_shared<LargeImmutableMappingPool>(std::move(memory_reserve)));
     auto delta = make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries);
     auto* location =
         storage.claim(sizeof(PairReadGenerationEnableShared), alignof(PairReadGenerationEnableShared));
@@ -45,8 +47,14 @@ auto PairReadGeneration::empty_direct(const WorkerRoutingState routing, Generati
 auto PairReadGeneration::from_durable_snapshot_direct(
     const WorkerRoutingState routing,
     const std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
-    GenerationDirectStorage& storage) -> Result<const PairReadGeneration*> {
-    return build_durable_snapshot_direct(routing, records, 0, 0, storage);
+    GenerationDirectStorage& storage, std::shared_ptr<MemoryReserve> memory_reserve)
+    -> Result<const PairReadGeneration*> try {
+    return build_durable_snapshot_direct(
+        routing, records, 0, 0, storage,
+        std::make_shared<LargeImmutableMappingPool>(std::move(memory_reserve)));
+} catch (const std::bad_alloc&) {
+
+    return fail(ErrorCode::resource_exhausted, "direct durable read generation allocation failed");
 }
 
 auto PairReadGeneration::replace_durable_snapshot_direct(
@@ -57,14 +65,14 @@ auto PairReadGeneration::replace_durable_snapshot_direct(
         return fail(ErrorCode::arithmetic_overflow, "read generation epoch exhausted");
     }
     return build_durable_snapshot_direct(previous.routing_, records, previous.epoch_ + 1U,
-                                         previous.visible_through_, storage);
+                                         previous.visible_through_, storage, previous.base_->mapping_pool());
 }
 
 auto PairReadGeneration::build_durable_snapshot_direct(
     const WorkerRoutingState routing,
     const std::span<const DurableRuntimeCatalog::PublishedReadRecord> records, const std::uint64_t epoch,
-    const std::uint64_t visible_floor, GenerationDirectStorage& storage)
-    -> Result<const PairReadGeneration*> try {
+    const std::uint64_t visible_floor, GenerationDirectStorage& storage,
+    std::shared_ptr<LargeImmutableMappingPool> mapping_pool) -> Result<const PairReadGeneration*> try {
     if (epoch > GenerationPublicationToken::kMaximumEpoch) {
         return fail(ErrorCode::arithmetic_overflow, "read generation epoch exhausted");
     }
@@ -74,7 +82,7 @@ auto PairReadGeneration::build_durable_snapshot_direct(
     for (const auto& record : records) {
         visible_through = std::max(visible_through, record.reference().sequence.value);
     }
-    auto base = std::make_shared<const ImmutableReadIndex>(records);
+    auto base = std::make_shared<const ImmutableReadIndex>(records, std::move(mapping_pool));
     auto delta = make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries);
     auto* location =
         storage.claim(sizeof(PairReadGenerationEnableShared), alignof(PairReadGenerationEnableShared));

@@ -9,9 +9,12 @@
 
 namespace glifistore::store::paired {
 
-auto PairReadGeneration::empty(const WorkerRoutingState routing)
+auto PairReadGeneration::empty(const WorkerRoutingState routing,
+                               std::shared_ptr<MemoryReserve> memory_reserve)
     -> Result<std::shared_ptr<const PairReadGeneration>> try {
-    return make_shared_generation(routing, std::make_shared<const ImmutableReadIndex>(),
+    return make_shared_generation(routing,
+                                  std::make_shared<const ImmutableReadIndex>(
+                                      std::make_shared<LargeImmutableMappingPool>(std::move(memory_reserve))),
                                   make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries), 0,
                                   0);
 } catch (const std::bad_alloc&) {
@@ -23,9 +26,13 @@ auto PairReadGeneration::empty(const WorkerRoutingState routing)
 
 auto PairReadGeneration::from_durable_snapshot(
     const WorkerRoutingState routing,
-    const std::span<const DurableRuntimeCatalog::PublishedReadRecord> records)
-    -> Result<std::shared_ptr<const PairReadGeneration>> {
-    return PairReadGeneration::build_durable_snapshot(routing, records, 0, 0);
+    const std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
+    std::shared_ptr<MemoryReserve> memory_reserve) -> Result<std::shared_ptr<const PairReadGeneration>> try {
+    return PairReadGeneration::build_durable_snapshot(
+        routing, records, 0, 0, std::make_shared<LargeImmutableMappingPool>(std::move(memory_reserve)));
+} catch (const std::bad_alloc&) {
+
+    return fail(ErrorCode::resource_exhausted, "durable read generation allocation failed");
 }
 
 auto PairReadGeneration::replace_durable_snapshot(
@@ -39,20 +46,22 @@ auto PairReadGeneration::replace_durable_snapshot(
         return fail(ErrorCode::arithmetic_overflow, "read generation epoch exhausted");
     }
     return PairReadGeneration::build_durable_snapshot(previous->routing_, records, previous->epoch_ + 1U,
-                                                      previous->visible_through_);
+                                                      previous->visible_through_,
+                                                      previous->base_->mapping_pool());
 }
 
 auto PairReadGeneration::build_durable_snapshot(
     const WorkerRoutingState routing,
     const std::span<const DurableRuntimeCatalog::PublishedReadRecord> records, const std::uint64_t epoch,
-    const std::uint64_t visible_floor) -> Result<std::shared_ptr<const PairReadGeneration>> try {
+    const std::uint64_t visible_floor, std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
+    -> Result<std::shared_ptr<const PairReadGeneration>> try {
     auto visible_through = visible_floor;
     for (const auto& record : records) {
         visible_through = std::max(visible_through, record.reference().sequence.value);
     }
-    return make_shared_generation(routing, std::make_shared<const ImmutableReadIndex>(records),
-                                  make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries),
-                                  epoch, visible_through);
+    return make_shared_generation(
+        routing, std::make_shared<const ImmutableReadIndex>(records, std::move(mapping_pool)),
+        make_empty_delta(PairReadGeneration::kMaximumIncrementalDeltaEntries), epoch, visible_through);
 } catch (const std::bad_alloc&) {
 
     return fail(ErrorCode::resource_exhausted, "durable read generation allocation failed");
@@ -100,7 +109,7 @@ auto PairReadGeneration::publish(std::shared_ptr<const PairReadGeneration> previ
     if (next_delta.size() >= merge_delta_entries) {
         auto merged = next_base->records();
         next_delta.for_each([&](const ReadRecordView record) { apply_record(merged, materialize(record)); });
-        next_base = std::make_shared<const ImmutableReadIndex>(std::move(merged));
+        next_base = std::make_shared<const ImmutableReadIndex>(std::move(merged), next_base->mapping_pool());
         next_delta = make_empty_delta(std::max(merge_delta_entries, previous->delta_->maximum_entries()));
     }
     return make_shared_generation(previous->routing_, std::move(next_base), std::move(next_delta),

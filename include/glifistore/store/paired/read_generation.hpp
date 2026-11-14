@@ -70,6 +70,10 @@ struct ReadGenerationMemoryStats final {
 [[nodiscard]] auto immutable_base_spare_mapping_bytes() noexcept -> std::size_t;
 
 class ImmutableReadIndex;
+
+inline namespace generation_internals {
+class LargeImmutableMappingPool;
+} // namespace generation_internals
 class DeltaState;
 class PairReadMerge;
 class GenerationSlotPool;
@@ -83,16 +87,21 @@ class PairReadGeneration {
   public:
     static constexpr std::size_t kMaximumIncrementalDeltaEntries = 40'960;
 
-    [[nodiscard]] static auto empty(WorkerRoutingState routing)
+    /// @p memory_reserve charges this base and every base derived from it (ADR 0046); null leaves
+    /// the lineage uncharged (volatile Stores, tests).
+    [[nodiscard]] static auto empty(WorkerRoutingState routing,
+                                    std::shared_ptr<MemoryReserve> memory_reserve = {})
         -> Result<std::shared_ptr<const PairReadGeneration>>;
 
     [[nodiscard]] static auto
     from_durable_snapshot(WorkerRoutingState routing,
-                          std::span<const DurableRuntimeCatalog::PublishedReadRecord> records)
+                          std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
+                          std::shared_ptr<MemoryReserve> memory_reserve = {})
         -> Result<std::shared_ptr<const PairReadGeneration>>;
 
     // Rebuilds the durable base from one catalog-consistent snapshot while
-    // preserving the logical visibility watermark of erased records.
+    // preserving the logical visibility watermark of erased records. The new base
+    // stays in the previous base's mapping lineage and memory reserve.
     [[nodiscard]] static auto
     replace_durable_snapshot(std::shared_ptr<const PairReadGeneration> previous,
                              std::span<const DurableRuntimeCatalog::PublishedReadRecord> records)
@@ -138,12 +147,13 @@ class PairReadGeneration {
                                                       std::size_t maximum_new_entries) noexcept -> bool;
 
     /// Direct-object constructors for GenerationSlotPool (no shared control block).
-    [[nodiscard]] static auto empty_direct(WorkerRoutingState routing, GenerationDirectStorage& storage)
+    [[nodiscard]] static auto empty_direct(WorkerRoutingState routing, GenerationDirectStorage& storage,
+                                           std::shared_ptr<MemoryReserve> memory_reserve = {})
         -> Result<const PairReadGeneration*>;
-    [[nodiscard]] static auto
-    from_durable_snapshot_direct(WorkerRoutingState routing,
-                                 std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
-                                 GenerationDirectStorage& storage) -> Result<const PairReadGeneration*>;
+    [[nodiscard]] static auto from_durable_snapshot_direct(
+        WorkerRoutingState routing, std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
+        GenerationDirectStorage& storage, std::shared_ptr<MemoryReserve> memory_reserve = {})
+        -> Result<const PairReadGeneration*>;
     [[nodiscard]] static auto
     replace_durable_snapshot_direct(const PairReadGeneration& previous,
                                     std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
@@ -187,13 +197,13 @@ class PairReadGeneration {
     [[nodiscard]] static auto
     build_durable_snapshot(WorkerRoutingState routing,
                            std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
-                           std::uint64_t epoch, std::uint64_t visible_floor)
+                           std::uint64_t epoch, std::uint64_t visible_floor,
+                           std::shared_ptr<LargeImmutableMappingPool> mapping_pool)
         -> Result<std::shared_ptr<const PairReadGeneration>>;
-    [[nodiscard]] static auto
-    build_durable_snapshot_direct(WorkerRoutingState routing,
-                                  std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
-                                  std::uint64_t epoch, std::uint64_t visible_floor,
-                                  GenerationDirectStorage& storage) -> Result<const PairReadGeneration*>;
+    [[nodiscard]] static auto build_durable_snapshot_direct(
+        WorkerRoutingState routing, std::span<const DurableRuntimeCatalog::PublishedReadRecord> records,
+        std::uint64_t epoch, std::uint64_t visible_floor, GenerationDirectStorage& storage,
+        std::shared_ptr<LargeImmutableMappingPool> mapping_pool) -> Result<const PairReadGeneration*>;
     /// Shared/direct publication only. ADR 0036 lab shell allocators live in
     /// experimental/pair_read_generation_shell_access.cpp via ShellAccess.
     [[nodiscard]] static auto publish_incremental_construct(

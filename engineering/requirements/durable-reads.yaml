@@ -55,8 +55,9 @@ requirements:
     memory_reserve_bytes bounds the RAM a durable Store keeps for derived state. The Worker Index is
     charged first and is never refused: arrays beyond the reserve are mapped from an unlinked spill
     file in index_spill_directory, or stay anonymous and swap-pageable when no directory is set.
-    Resident Segment images are admitted only in the remaining budget and evicted oldest-first at
-    rotation, before any persistent write, by republishing the generation without its image.
+    The paired Reader index lineage is charged to the same reserve. Resident Segment images are
+    admitted only in the remaining budget and evicted oldest-first at rotation, before any
+    persistent write, by republishing the generation without its image.
     Allocation failure of an image leaves the Segment cold; no allocation follows a persistent
     publication boundary.
   autorita:
@@ -68,17 +69,20 @@ requirements:
   - include/glifistore/core/pageable_array.hpp
   - src/index/swiss_table.cpp
   - src/index/key_arena.cpp
+  - src/store/paired/read_generation_internals.hpp
+  - src/store/paired/read_generation_immutable.hpp
   - src/persistence/runtime_catalog.cpp
   - include/glifistore/store/config.hpp
   prove:
   - tests/unit/memory_reserve_tests.cpp
+  - tests/unit/pair_read_generation_tests.cpp
   - tests/integration/resident_reads_tests.cpp
   - tests/quality/allocation_fault_core_tests.cpp
   piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
   claim_massimo: architectural-prototype
   evidenze: []
   rischio_residuo:
-  - The paired Reader index keeps its own anonymous mappings outside the reserve
+  - Two paired Reader bases coexist and are both charged while a rebuild is in flight
   - Spill files may raise SIGBUS on a full or copy-on-write filesystem (HAZ-043)
   - No measurement of lookup latency with a paged Index
   hazards: [HAZ-043]

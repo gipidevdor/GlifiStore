@@ -73,6 +73,8 @@ class StoreAccess final {
     [[nodiscard]] static auto durable_read_catalog_revision(const Store& store,
                                                             std::size_t worker_index) noexcept
         -> std::uint64_t;
+    /// The durable Store's memory reserve (ADR 0046); null for volatile Stores.
+    [[nodiscard]] static auto memory_reserve(const Store& store) noexcept -> std::shared_ptr<MemoryReserve>;
     [[nodiscard]] static auto capture_durable_read(Store& store, std::size_t worker_index,
                                                    const HashedKey& key) -> Result<DurablePublishedRead>;
     // A resident Record no larger than `resident_inline_limit_bytes` completes here and

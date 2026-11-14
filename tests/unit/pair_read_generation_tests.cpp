@@ -1,8 +1,11 @@
+#include "glifistore/core/memory_reserve.hpp"
 #include "glifistore/server/pair_read_generation.hpp"
 #include "test.hpp"
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <span>
 #include <string>
@@ -428,4 +431,38 @@ GLIFI_TEST("paired incremental merge rejects publication from another generation
     GLIFI_REQUIRE(!rejected.has_value());
     GLIFI_REQUIRE(rejected.error().code == glifistore::ErrorCode::invalid_argument);
     GLIFI_REQUIRE(glifistore::server::PairReadGeneration::merge_post_entries(**merge) == 0);
+}
+
+GLIFI_TEST("paired read base lineage charges the memory reserve and releases it on retirement") {
+    const glifistore::WorkerRoutingState routing{};
+    auto reserve =
+        std::make_shared<glifistore::MemoryReserve>(std::uint64_t{1} << 30U, std::filesystem::path{});
+    auto segment = std::make_shared<glifistore::Segment>(glifistore::SegmentId{21});
+    {
+        auto generation = glifistore::server::PairReadGeneration::empty(routing, reserve);
+        GLIFI_REQUIRE(generation.has_value());
+        const auto empty_charge = reserve->stats().index_charged_bytes;
+        GLIFI_REQUIRE(empty_charge > 0U);
+
+        // Each publication merges its Delta into a new base; merged bases inherit the reserve.
+        constexpr std::size_t kKeys = 2'000;
+        for (std::size_t index = 0; index < kKeys; ++index) {
+            // Keys longer than the inline capacity exercise the charged key blocks as well.
+            const auto key = "reserve-lineage-key-with-external-bytes-" + std::to_string(index);
+            const glifistore::HashedKey hashed{key, glifistore::hash_key_routing(key, routing)};
+            const auto record = append(*segment, routing, key, "v", index + 1U, glifistore::Opcode::put);
+            const glifistore::server::ReadMutation mutation{
+                .key = hashed, .record = record, .segment = segment, .opcode = glifistore::Opcode::put};
+            generation = glifistore::server::PairReadGeneration::publish(std::move(*generation),
+                                                                         std::span{&mutation, 1}, 1);
+            GLIFI_REQUIRE(generation.has_value());
+        }
+        GLIFI_REQUIRE((*generation)->base_entries() == kKeys);
+        GLIFI_REQUIRE(reserve->stats().index_charged_bytes > empty_charge);
+        const std::string probe{"reserve-lineage-key-with-external-bytes-1999"};
+        const auto found =
+            (*generation)->get(glifistore::HashedKey{probe, glifistore::hash_key_routing(probe, routing)}, 0);
+        GLIFI_REQUIRE(found.has_value());
+    }
+    GLIFI_REQUIRE(reserve->stats().index_charged_bytes == 0U);
 }

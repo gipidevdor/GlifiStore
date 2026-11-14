@@ -151,6 +151,11 @@ auto detail::StoreAccess::durable_read_catalog_revision(const Store& store,
                : 0U;
 }
 
+auto detail::StoreAccess::memory_reserve(const Store& store) noexcept -> std::shared_ptr<MemoryReserve> {
+    return store.impl_ && store.impl_->durable_runtime ? store.impl_->durable_runtime->memory_reserve()
+                                                       : std::shared_ptr<MemoryReserve>{};
+}
+
 auto detail::StoreAccess::capture_durable_read(Store& store, const std::size_t worker_index,
                                                const HashedKey& key) -> Result<DurablePublishedRead> {
     if (worker_index >= store.worker_count() ||

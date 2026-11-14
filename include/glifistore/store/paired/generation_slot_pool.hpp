@@ -174,7 +174,8 @@ class GenerationSlotPool final {
 
     [[nodiscard]] static auto create(WorkerRoutingState routing,
                                      std::span<const DurableRuntimeCatalog::PublishedReadRecord> records = {},
-                                     GenerationSlotFailureHook failure_hook = {})
+                                     GenerationSlotFailureHook failure_hook = {},
+                                     std::shared_ptr<MemoryReserve> memory_reserve = {})
         -> Result<std::unique_ptr<GenerationSlotPool>>;
 
     GenerationSlotPool(const GenerationSlotPool&) = delete;
