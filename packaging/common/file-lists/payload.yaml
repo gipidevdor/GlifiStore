@@ -106,6 +106,8 @@ components:
         kind: file
       - path: "@includedir@/glifistore/core/worker_routing.hpp"
         kind: file
+      - path: "@includedir@/glifistore/persistence/blob.hpp"
+        kind: file
       - path: "@includedir@/glifistore/persistence/compaction_intent.hpp"
         kind: file
       - path: "@includedir@/glifistore/persistence/filesystem.hpp"
@@ -122,9 +124,13 @@ components:
         kind: file
       - path: "@includedir@/glifistore/persistence/store_verify.hpp"
         kind: file
+      - path: "@includedir@/glifistore/segment/record.hpp"
+        kind: file
       - path: "@includedir@/glifistore/segment/segment_header.hpp"
         kind: file
       - path: "@includedir@/glifistore/server/protocol.hpp"
+        kind: file
+      - path: "@includedir@/glifistore/store/blob.hpp"
         kind: file
       - path: "@includedir@/glifistore/store/config.hpp"
         kind: file

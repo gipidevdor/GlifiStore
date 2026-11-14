@@ -145,6 +145,7 @@ install(FILES
     COMPONENT Development
 )
 install(FILES
+    include/glifistore/persistence/blob.hpp
     include/glifistore/persistence/compaction_intent.hpp
     include/glifistore/persistence/filesystem.hpp
     include/glifistore/persistence/filesystem_hooks.hpp
@@ -157,6 +158,7 @@ install(FILES
     COMPONENT Development
 )
 install(FILES
+    include/glifistore/segment/record.hpp
     include/glifistore/segment/segment_header.hpp
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/glifistore/segment"
     COMPONENT Development
@@ -167,6 +169,7 @@ install(FILES
     COMPONENT Development
 )
 install(FILES
+    include/glifistore/store/blob.hpp
     include/glifistore/store/config.hpp
     include/glifistore/store/maintenance_types.hpp
     include/glifistore/store/store.hpp

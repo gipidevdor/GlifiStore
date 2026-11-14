@@ -11,6 +11,7 @@ include/glifistore/client/client.hpp
 include/glifistore/core/error.hpp
 include/glifistore/core/types.hpp
 include/glifistore/core/worker_routing.hpp
+include/glifistore/persistence/blob.hpp
 include/glifistore/persistence/compaction_intent.hpp
 include/glifistore/persistence/filesystem.hpp
 include/glifistore/persistence/filesystem_hooks.hpp
@@ -19,8 +20,10 @@ include/glifistore/persistence/namespace_audit.hpp
 include/glifistore/persistence/resource_limits.hpp
 include/glifistore/persistence/store_backup.hpp
 include/glifistore/persistence/store_verify.hpp
+include/glifistore/segment/record.hpp
 include/glifistore/segment/segment_header.hpp
 include/glifistore/server/protocol.hpp
+include/glifistore/store/blob.hpp
 include/glifistore/store/config.hpp
 include/glifistore/store/maintenance_types.hpp
 include/glifistore/store/store.hpp
