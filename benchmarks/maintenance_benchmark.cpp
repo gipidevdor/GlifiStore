@@ -1154,7 +1154,8 @@ void print_sample(const Sample& sample) {
               << sample.compaction.abandoned_copy_bytes << ','
               << sample.compaction.maximum_snapshot_duration_ns << ','
               << sample.compaction.maximum_commit_gate_duration_ns << ','
-              << sample.compaction_conflict_retries << '\n';
+              << sample.compaction_conflict_retries << ',' << sample.compaction.remapped_records << ','
+              << sample.compaction.superseded_copies << ',' << sample.compaction.manifest_rebases << '\n';
 }
 
 void print_rotation_sample(const RotationSample& sample) {
@@ -1311,7 +1312,8 @@ int main(int argc, char** argv) {
                      "compaction_replayed_records,compaction_delta_overflow_aborts,"
                      "compaction_manifest_conflict_aborts,compaction_abandoned_copy_bytes,"
                      "compaction_maximum_snapshot_ns,compaction_maximum_commit_gate_ns,"
-                     "compaction_conflict_retries\n";
+                     "compaction_conflict_retries,compaction_remapped_records,"
+                     "compaction_superseded_copies,compaction_manifest_rebases\n";
 
         for (std::size_t warmup = 0; warmup < options.warmups; ++warmup) {
             const auto offset = warmup % selected.size();
