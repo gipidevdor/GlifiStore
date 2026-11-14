@@ -88,11 +88,11 @@ The volatile engine under `src/experimental/` is lab-only.
   Residual risk: Accepted ADR 0042 has an opt-in embedded implementation and local checks. Retained tagged compatibility, complete platform/fault/saturation campaigns, telemetry and controlled inline A/B budgets remain open. No E3/E4 certification or daemon/SDK enablement is claimed.
   Typed external values up to 64 MiB, bounded streaming, v2 format refusal, dependency-before-descriptor ordering, recovery, conservative GC, descriptor compaction and fenced backup are implemented. This open gate does not accept the feature for release; further evidence is required.
 
-- [ ] **GATE-COMPACTION-DELTA** — Concurrent whole-Worker compaction preserves v1 authority and bounded foreground work
-  State: `PROVATA_LOCALMENTE` · Release target: `prototype`
+- [ ] **GATE-COMPACTION-DELTA** — Concurrent sealed-prefix compaction preserves v1 authority and bounded foreground work
+  State: `IMPLEMENTATA` · Release target: `prototype`
   Requirements: `GS-PERSIST-DELTA-001`
-  Residual risk: Linux/BSD, combined-workspace integration and controlled tail-latency campaigns pending; no release acceptance
-  Bounded in-memory reconciliation retains exact persistence v1 transitions and existing Reader pins.
+  Residual risk: ADR 0044 replaced the journal on 2026-11-14; the 2026-11-07 local campaign covered the former design and must be repeated (native, sanitizers, allocation, process-kill) before this gate returns to PROVATA_LOCALMENTE. Linux/BSD and tail-latency campaigns pending; no release acceptance
+  Commit-time conditional remap retains exact persistence v1 transitions and existing Reader pins; rotation rebase keeps exactly two authorities.
 
 - [x] **GATE-DURABLE-ACK** — Acknowledgement semantics for durable mutations
   State: `PROVATA_IN_CI` · Release target: `beta`

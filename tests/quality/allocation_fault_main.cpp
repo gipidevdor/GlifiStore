@@ -37,7 +37,7 @@ void run_all_tests() {
     run_paired_volatile_get_inline_zero_heap();
     run_background_allocation_failure_waiters();
     run_exhaustive_compaction_allocation_failures();
-    run_compaction_delta_without_allocation();
+    run_compaction_remap_without_allocation();
     run_volatile_rotation_allocation_failures();
     run_volatile_vacuum_publication_allocation_failures();
     run_index_tombstone_rebuild_allocation_failures();

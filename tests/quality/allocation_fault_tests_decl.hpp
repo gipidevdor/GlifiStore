@@ -12,7 +12,7 @@ void run_paired_volatile_get_inline_zero_heap();
 void run_exhaustive_read_failures();
 void run_background_allocation_failure_waiters();
 void run_exhaustive_compaction_allocation_failures();
-void run_compaction_delta_without_allocation();
+void run_compaction_remap_without_allocation();
 void run_volatile_rotation_allocation_failures();
 void run_volatile_vacuum_publication_allocation_failures();
 void run_index_tombstone_rebuild_allocation_failures();

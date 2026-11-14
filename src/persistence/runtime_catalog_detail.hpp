@@ -3,7 +3,6 @@
 #include "glifistore/index/index.hpp"
 #include "glifistore/persistence/runtime_catalog.hpp"
 #include "persistence/adaptive_batch_sizer.hpp"
-#include "persistence/compaction_delta.hpp"
 #include "persistence/hot_record_table.hpp"
 #include "persistence/runtime_catalog_quiesce_gate.hpp"
 
@@ -394,17 +393,8 @@ struct DurableRuntimeCatalog::RuntimeWorker {
         }
     }
 
-    // Protected by Index ownership (mutex, or exclusive Writer depth). The
-    // compactor detaches only after quiescing that owner. Never owns the journal.
-    runtime_catalog_detail::CompactionDelta* compaction_delta{};
-    // Final publication defers TTL housekeeping; expired GETs still miss.
-    bool compaction_index_frozen{};
-
-    void record_compaction_change(const HashedKey& key, const std::optional<RecordRef>& reference) noexcept {
-        if (compaction_delta != nullptr) {
-            compaction_delta->record(key, reference);
-        }
-    }
+    // At most one compaction owns a Worker at a time. Guarded by `mutex`.
+    bool compaction_active{};
 
     [[nodiscard]] auto hot_cache_total_bytes() const noexcept -> std::uint64_t;
     void erase_hot_record(std::string_view key, std::uint64_t key_hash) noexcept;

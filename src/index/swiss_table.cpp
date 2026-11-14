@@ -423,6 +423,16 @@ auto SwissTableIndex::insert_or_assign(const HashedKey& key, RecordRef ref) -> R
     return IndexMutationResult{.inserted = false, .previous = previous};
 }
 
+auto SwissTableIndex::replace_if_current(const HashedKey& key, const RecordRef& expected,
+                                         const RecordRef replacement) -> bool {
+    const auto index = find_slot_index(key.key, key.hash);
+    if (!index || slots_[*index].ref != expected) {
+        return false;
+    }
+    slots_[*index].ref = replacement;
+    return true;
+}
+
 auto SwissTableIndex::erase(const std::string_view key) -> IndexMutationResult {
     return erase(HashedKey{key, hash_key_routing(key, routing_)});
 }

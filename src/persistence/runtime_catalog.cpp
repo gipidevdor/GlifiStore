@@ -57,9 +57,6 @@ void DurableRuntimeCatalog::RuntimeWorker::erase_hot_record(const std::string_vi
 }
 
 auto DurableRuntimeCatalog::RuntimeWorker::drain_deferred_ttl(const std::size_t limit) -> Status {
-    if (compaction_index_frozen) {
-        return {};
-    }
     if (glifistore::fault::consume_fail(glifistore::fault::Site::deferred_ttl)) {
         return fail(ErrorCode::resource_exhausted, "injected deferred TTL drain failure");
     }
@@ -75,7 +72,6 @@ auto DurableRuntimeCatalog::RuntimeWorker::drain_deferred_ttl(const std::size_t 
             continue;
         }
         const auto erased = index.erase_no_compact(key);
-        record_compaction_change(key, std::nullopt);
         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
             return counted;
         }
@@ -93,9 +89,6 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
     // served; Index removal may wait for a bounded Worker drain.
     erase_hot_record(key);
     get_path_metrics.expired_ttl_gets.fetch_add(1U, std::memory_order_relaxed);
-    if (compaction_index_frozen) {
-        return {};
-    }
 
     if (backlog_limit == 0) {
         const auto current = index.find(key);
@@ -104,7 +97,6 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
             return {};
         }
         const auto erased = index.erase_no_compact(key);
-        record_compaction_change(key, std::nullopt);
         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
             return counted;
         }
@@ -125,7 +117,6 @@ auto DurableRuntimeCatalog::RuntimeWorker::defer_or_reclaim_expired(const Hashed
             return {};
         }
         const auto erased = index.erase_no_compact(key);
-        record_compaction_change(key, std::nullopt);
         if (auto counted = update_live_record_bytes(erased.previous, std::nullopt); !counted) {
             return counted;
         }

@@ -226,7 +226,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_tests.cpp
-        ${CMAKE_SOURCE_DIR}/tests/integration/persistence_compaction_delta_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/integration/persistence_compaction_remap_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_enumeration_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_fileio_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
@@ -340,7 +340,7 @@ if(BUILD_TESTING)
         add_executable(glifistore_allocation_fault_tests
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_harness.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_core_tests.cpp
-            ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_compaction_delta_tests.cpp
+            ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_compaction_remap_tests.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_paired_tests.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_paired_async_tests.cpp
             ${CMAKE_SOURCE_DIR}/tests/quality/allocation_fault_client_tests.cpp

@@ -54,6 +54,10 @@ class Index final {
      */
     [[nodiscard]] auto insert_or_assign(const HashedKey& key, RecordRef ref) -> Result<IndexMutationResult>;
     /**
+     * @brief Retarget an existing entry only while it still equals `expected`; never inserts or allocates.
+     */
+    auto replace_if_current(const HashedKey& key, const RecordRef& expected, RecordRef replacement) -> bool;
+    /**
      * @brief Remove an Index entry and return its former reference, if present.
      */
     auto erase(std::string_view key) -> IndexMutationResult;

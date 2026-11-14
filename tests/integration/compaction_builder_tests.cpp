@@ -7,6 +7,7 @@
 #include "store/store_internal.hpp"
 #include "test.hpp"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -328,11 +329,22 @@ GLIFI_TEST("durable compaction builder copies exact visible Records and preserve
         GLIFI_REQUIRE(built.prepared->stats.pacing_delay_ns == 0);
         GLIFI_REQUIRE(built.prepared->stats.pacing_sleep_count == 0);
         GLIFI_REQUIRE(built.prepared->stats.pacing_burst_bytes == 0);
-        GLIFI_REQUIRE(!built.prepared->index.find("expired").has_value());
-        GLIFI_REQUIRE(built.prepared->index.find("active") == fixture.active);
-        GLIFI_REQUIRE(built.prepared->active_live_record_bytes == fixture.active.size.value);
-        const auto compacted_a = built.prepared->index.find("live-a");
-        const auto compacted_replacement = built.prepared->index.find("replacement");
+        // ADR 0044: the builder returns conditional remaps instead of an Index.
+        const auto remap_for = [&](std::string_view key) -> const glifistore::DurableCompactionRemap* {
+            const auto found =
+                std::ranges::find(built.prepared->remaps, key, &glifistore::DurableCompactionRemap::key);
+            return found == built.prepared->remaps.end() ? nullptr : &*found;
+        };
+        GLIFI_REQUIRE(built.prepared->remaps.size() == 3);
+        GLIFI_REQUIRE(remap_for("active") == nullptr);
+        const auto* expired = remap_for("expired");
+        GLIFI_REQUIRE(expired != nullptr && !expired->output.has_value());
+        const auto* remap_a = remap_for("live-a");
+        const auto* remap_replacement = remap_for("replacement");
+        GLIFI_REQUIRE(remap_a != nullptr && remap_a->source == fixture.live_a);
+        GLIFI_REQUIRE(remap_replacement != nullptr && remap_replacement->source == fixture.replacement);
+        const auto compacted_a = remap_a->output;
+        const auto compacted_replacement = remap_replacement->output;
         GLIFI_REQUIRE(compacted_a.has_value());
         GLIFI_REQUIRE(compacted_replacement.has_value());
         GLIFI_REQUIRE(compacted_a->sequence == fixture.live_a.sequence);
@@ -379,8 +391,7 @@ GLIFI_TEST("durable compaction builder prepares zero-output retirement without f
         GLIFI_REQUIRE(built.prepared->plan.replacements.empty());
         GLIFI_REQUIRE(built.prepared->replacement_commits.empty());
         GLIFI_REQUIRE(built.prepared->stats.records_copied == 0);
-        GLIFI_REQUIRE(built.prepared->index.find("active") == fixture.active);
-        GLIFI_REQUIRE(built.prepared->active_live_record_bytes == fixture.active.size.value);
+        GLIFI_REQUIRE(built.prepared->remaps.empty());
         next = built.prepared->plan.next_manifest;
         GLIFI_REQUIRE(directory->publish_manifest(next).durable());
     }
@@ -401,15 +412,18 @@ GLIFI_TEST("durable compaction rejected intent gate leaves the namespace untouch
     bool gate_called{};
     const glifistore::DurableCompactionIntentGate gate{
         .context = &gate_called,
-        .acquire = [](void* opaque) -> glifistore::Status {
+        .acquire = [](void* opaque) -> glifistore::Result<glifistore::Manifest> {
             *static_cast<bool*>(opaque) = true;
             return glifistore::fail(glifistore::ErrorCode::sequence_conflict,
                                     "injected stale compaction authority");
         },
     };
     auto entries = fixture.index.entries();
-    auto built = glifistore::build_durable_worker_compaction(
-        *directory, fixture.manifest, glifistore::WorkerId{0}, std::move(entries), 100, {}, gate);
+    std::erase_if(entries,
+                  [&](const glifistore::IndexEntry& entry) { return entry.record == fixture.active; });
+    auto built = glifistore::build_durable_worker_compaction(*directory, fixture.manifest,
+                                                             glifistore::WorkerId{0}, std::move(entries), {},
+                                                             {.now_ns = 100, .intent_gate = gate});
     GLIFI_REQUIRE(gate_called);
     GLIFI_REQUIRE(!built.succeeded());
     GLIFI_REQUIRE(built.outcome == glifistore::DurableCompactionBuildOutcome::not_started);
@@ -560,7 +574,7 @@ GLIFI_TEST("durable runtime installs and retires one Worker compaction atomicall
     GLIFI_REQUIRE((*reopened)->get(hot_key, 100)->sequence == 8);
 }
 
-GLIFI_TEST("durable runtime rechecks the inclusive maintenance copy budget at snapshot") {
+GLIFI_TEST("durable runtime bounds the selected prefix by the inclusive maintenance copy budget") {
     CompactionBuildDirectory temporary;
     const auto old = build_manifest();
     {
@@ -575,11 +589,13 @@ GLIFI_TEST("durable runtime rechecks the inclusive maintenance copy budget at sn
     GLIFI_REQUIRE(observation.has_value());
     GLIFI_REQUIRE(observation->candidate_live_record_bytes > 0);
 
+    // ADR 0044: below the Worker's live bytes no prefix of this fixture both
+    // fits the budget and reclaims a Segment, so the attempt is a no-gain.
     const auto rejected = (*runtime)->compact_worker(0, 100, observation->candidate_live_record_bytes - 1U);
     GLIFI_REQUIRE(!rejected.compacted());
-    GLIFI_REQUIRE(rejected.outcome == glifistore::DurableCompactionOutcome::not_compacted);
+    GLIFI_REQUIRE(rejected.outcome == glifistore::DurableCompactionOutcome::not_beneficial);
     GLIFI_REQUIRE(rejected.error.has_value());
-    GLIFI_REQUIRE(rejected.error->code == glifistore::ErrorCode::sequence_conflict);
+    GLIFI_REQUIRE(rejected.error->code == glifistore::ErrorCode::not_found);
     GLIFI_REQUIRE((*runtime)->manifest() == old);
     GLIFI_REQUIRE(!std::filesystem::exists(temporary.path() / glifistore::kCompactionIntentFilename));
 
@@ -595,7 +611,7 @@ GLIFI_TEST("durable runtime builds two compaction outputs and reopens every maxi
         .manifest_generation = 41,
         .worker_count = 1,
         .routing_epoch = 1,
-        .next_segment_id = glifistore::SegmentId{5},
+        .next_segment_id = glifistore::SegmentId{6},
         .next_segment_generation = glifistore::GenerationId{1},
         .segments =
             {
@@ -612,6 +628,10 @@ GLIFI_TEST("durable runtime builds two compaction outputs and reopens every maxi
                  .owner_worker = glifistore::WorkerId{0},
                  .role = glifistore::ManifestSegmentRole::sealed},
                 {.segment_id = glifistore::SegmentId{4},
+                 .generation = glifistore::GenerationId{1},
+                 .owner_worker = glifistore::WorkerId{0},
+                 .role = glifistore::ManifestSegmentRole::sealed},
+                {.segment_id = glifistore::SegmentId{5},
                  .generation = glifistore::GenerationId{1},
                  .owner_worker = glifistore::WorkerId{0},
                  .role = glifistore::ManifestSegmentRole::active},
@@ -632,7 +652,10 @@ GLIFI_TEST("durable runtime builds two compaction outputs and reopens every maxi
         GLIFI_REQUIRE(directory.has_value());
         std::size_t key_index{};
         std::uint64_t sequence{1};
-        const std::vector<std::size_t> group_sizes{22, 21, 21};
+        // ADR 0044 picks the prefix reclaiming the most Segments. With 32/31/1
+        // live Records and a fourth Segment holding only a superseded Record,
+        // the complete sealed set (4 -> 2) strictly beats every shorter prefix.
+        const std::vector<std::size_t> group_sizes{32, 31, 1};
         for (std::size_t segment_index = 0; segment_index < group_sizes.size(); ++segment_index) {
             const auto group_size = group_sizes[segment_index];
             std::vector<TestRecord> records;
@@ -643,8 +666,12 @@ GLIFI_TEST("durable runtime builds two compaction outputs and reopens every maxi
             static_cast<void>(
                 create_records(*directory, manifest, manifest.segments[segment_index], records));
         }
-        const std::vector<TestRecord> no_active_records;
-        static_cast<void>(create_records(*directory, manifest, manifest.segments[3], no_active_records));
+        const std::vector<TestRecord> superseded{
+            {.sequence = sequence++, .key = "superseded", .value = "old"}};
+        static_cast<void>(create_records(*directory, manifest, manifest.segments[3], superseded));
+        const std::vector<TestRecord> active_records{
+            {.sequence = sequence++, .key = "superseded", .value = "new"}};
+        static_cast<void>(create_records(*directory, manifest, manifest.segments[4], active_records));
         GLIFI_REQUIRE(key_index == kRecordCount);
         GLIFI_REQUIRE(directory->publish_manifest(manifest).durable());
     }
@@ -653,6 +680,8 @@ GLIFI_TEST("durable runtime builds two compaction outputs and reopens every maxi
     GLIFI_REQUIRE(runtime.has_value());
     const auto compacted = (*runtime)->compact_worker(0, 0);
     GLIFI_REQUIRE(compacted.compacted());
+    GLIFI_REQUIRE(compacted.stats.source_segments == 4);
+    GLIFI_REQUIRE(compacted.stats.retained_sealed_segments == 0);
     GLIFI_REQUIRE(compacted.stats.source_index_records_verified == kRecordCount);
     GLIFI_REQUIRE(compacted.stats.records_copied == kRecordCount);
     GLIFI_REQUIRE(compacted.stats.bytes_copied == kRecordCount * glifistore::kMaxNormalRecordSize);
@@ -663,7 +692,7 @@ GLIFI_TEST("durable runtime builds two compaction outputs and reopens every maxi
     GLIFI_REQUIRE(next.segments[0].generation == glifistore::GenerationId{2});
     GLIFI_REQUIRE(next.segments[1].segment_id == glifistore::SegmentId{2});
     GLIFI_REQUIRE(next.segments[1].generation == glifistore::GenerationId{2});
-    GLIFI_REQUIRE(next.segments[2] == manifest.segments[3]);
+    GLIFI_REQUIRE(next.segments[2] == manifest.segments[4]);
     GLIFI_REQUIRE((*runtime)->verify_index().has_value());
     runtime->reset();
 

@@ -1,6 +1,7 @@
 # ADR 0043: Bounded concurrent delta for whole-Worker compaction
 
-- Status: accepted
+- Status: superseded
+- Superseded by: ADR 0044 (commit-time conditional remap replaces the journal)
 - Date: 2026-11-07
 - Deciders: storage and concurrency maintainers
 - Applies to: paired runtime durable compaction; persistence v1; wire v2
@@ -97,3 +98,10 @@ its own descriptor roots, value separation and GC proofs.
 - [Durable compaction](../architecture/durable-compaction.md)
 - [Recovery state matrix](../spec/recovery-state-matrix-v1.md)
 - [Large blob proposal](0042-large-blob-storage.md)
+
+## Superseded (2026-11-14)
+
+[ADR 0044](0044-bounded-prefix-compaction-remap.md) removes the journal. Concurrent Index changes are
+reconciled by a conditional remap after the next Manifest is durable, so no foreground rate can
+exhaust a budget. `max_compaction_delta_entries` and `max_compaction_delta_key_bytes` remain
+validated configuration fields with no effect; delta telemetry fields report zero.

@@ -39,7 +39,14 @@ constexpr std::string_view kCrashValue{"crash-value"};
 constexpr std::string_view kRotateKey{"rotate-key"};
 constexpr std::uint64_t kCompactionHistoryNowNs{1'000};
 constexpr std::size_t kCompactionHistoryKeyCount{8};
-constexpr std::size_t kMultiOutputHistoryKeyCount{64};
+// ADR 0044 selects the shortest prefix among equal estimated reclaim. A Segment holds 63 maximum
+// Records, so the multi-output fixtures keep more than 63 live Records in the first two sealed
+// Segments: only the complete three-Segment set (two outputs) then reclaims a Segment.
+constexpr std::size_t kMultiOutputHistoryKeyCount{88};
+constexpr std::array<std::size_t, 3> kMultiOutputRandomSegmentOperations{44, 44, 32};
+constexpr std::size_t kMultiOutputRandomOperationCount{kMultiOutputHistoryKeyCount + 32U};
+constexpr std::array<std::size_t, 3> kMultiOutputBuildGroupSizes{44, 30, 6};
+constexpr std::size_t kMultiOutputBuildKeyCount{80};
 constexpr std::size_t kMaxRandomCampaignIterations{10'000};
 constexpr std::array<std::string_view, 9> kRandomCampaignBoundaries{
     "sync_directory#1", "write_record#1",     "write_record#32",  "preallocate_segment#2",
@@ -537,7 +544,7 @@ struct MultiOutputRandomHistory {
 
 [[nodiscard]] auto generated_multi_output_history(const std::uint64_t seed) -> MultiOutputRandomHistory {
     MultiOutputRandomHistory history;
-    history.operations.reserve(96);
+    history.operations.reserve(kMultiOutputRandomOperationCount);
     std::array<std::size_t, kMultiOutputHistoryKeyCount> key_order{};
     for (std::size_t index = 0; index < key_order.size(); ++index) {
         key_order[index] = index;
@@ -596,12 +603,12 @@ void seed_multi_output_compaction_build(const std::filesystem::path& data_dir) {
         }
         return std::move(*created.file);
     };
-    constexpr std::array<std::size_t, 3> kGroupSizes{22, 21, 21};
     std::size_t key_index{};
     std::uint64_t sequence{1};
-    for (std::size_t segment_index = 0; segment_index < kGroupSizes.size(); ++segment_index) {
+    for (std::size_t segment_index = 0; segment_index < kMultiOutputBuildGroupSizes.size(); ++segment_index) {
         auto segment = create(old.segments[segment_index]);
-        for (std::size_t group_index = 0; group_index < kGroupSizes[segment_index]; ++group_index) {
+        for (std::size_t group_index = 0; group_index < kMultiOutputBuildGroupSizes[segment_index];
+             ++group_index) {
             const auto key = multi_output_build_key(key_index++);
             append_record(segment, sequence++, key, multi_output_build_value(), glifistore::Opcode::put, 0,
                           false);
@@ -611,7 +618,7 @@ void seed_multi_output_compaction_build(const std::filesystem::path& data_dir) {
         }
     }
     static_cast<void>(create(old.segments.back()));
-    if (key_index != 64 || !directory->publish_manifest(old).durable()) {
+    if (key_index != kMultiOutputBuildKeyCount || !directory->publish_manifest(old).durable()) {
         throw std::runtime_error("failed to publish complete multi-output build seed");
     }
 }
@@ -638,15 +645,17 @@ void seed_multi_output_random_compaction(const std::filesystem::path& data_dir, 
     };
 
     const auto history = generated_multi_output_history(seed);
-    if (history.operations.size() != 96) {
+    if (history.operations.size() != kMultiOutputRandomOperationCount) {
         throw std::runtime_error("randomized multi-output history has the wrong operation count");
     }
     std::string value(multi_output_random_value_size(), 'a');
     std::uint64_t sequence{1};
-    for (std::size_t segment_index = 0; segment_index < 3; ++segment_index) {
+    std::size_t operation_index{};
+    for (std::size_t segment_index = 0; segment_index < kMultiOutputRandomSegmentOperations.size();
+         ++segment_index) {
         auto segment = create(old.segments[segment_index]);
-        for (std::size_t operation_index = segment_index * 32U; operation_index < (segment_index + 1U) * 32U;
-             ++operation_index) {
+        const auto segment_end = operation_index + kMultiOutputRandomSegmentOperations[segment_index];
+        for (; operation_index < segment_end; ++operation_index) {
             const auto& operation = history.operations[operation_index];
             const auto key = multi_output_random_key(operation.key_index);
             if (operation.opcode == glifistore::Opcode::put) {
@@ -853,7 +862,7 @@ enum class RecoveryExpectation { absent, optional, present };
             return false;
         }
         const auto& expected_value = multi_output_build_value();
-        for (std::size_t key_index = 0; key_index < 64; ++key_index) {
+        for (std::size_t key_index = 0; key_index < kMultiOutputBuildKeyCount; ++key_index) {
             const auto key = multi_output_build_key(key_index);
             const auto found = (*runtime)->get(key);
             if (!found || found->bytes.size() != expected_value.size() ||

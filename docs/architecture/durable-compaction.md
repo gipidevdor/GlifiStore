@@ -3,11 +3,11 @@
 This document defines the v1 compaction invariants. The current tree implements the deterministic
 planner, its resource gates, a checksummed intent codec embedding both exact manifest authorities,
 descriptor-relative intent publication/removal primitives, and restart recovery of an interrupted
-transaction. The durable builder now prepares the replacement Index, copies, seals and revalidates
-private staged outputs, then installs the intent and promotes those outputs; it also supports
-zero-output retirement. The internal durable
-runtime now installs the prepared manifest, commit catalog, and Worker Index atomically, retires the
-old sources, and fails closed whenever restart must complete recovery. Explicit Store-level
+transaction. The durable builder copies, seals and revalidates private staged outputs for the
+selected sealed prefix, then installs the intent and promotes those outputs; it also supports
+zero-output retirement. The internal durable runtime publishes the next manifest, conditionally
+remaps the live Worker Index onto the copies, installs the commit catalog, retires the old sources,
+and fails closed whenever restart must complete recovery. Explicit Store-level
 scheduling is available through `Store::compact()`. An optional Store-owned
 [MaintenanceController](maintenance-controller.md) (ADR 0023) may observe and schedule that primitive
 under explicit modes and budgets. The single-output online kill/fault matrix is complete.
@@ -18,30 +18,37 @@ An additional fixed-seed profile exercises randomized multi-output PUT/overwrite
 histories across old- and next-authority checkpoints. Native power-loss campaigns remain
 certification work.
 
-## Why the complete sealed history is one unit
+## Why the unit is the oldest sealed prefix
 
-Compacting one sealed Segment independently is unsafe. If it discards a tombstone while an older
-put remains in another Segment, recovery can resurrect the deleted value. The same issue applies to
-expired or superseded puts. One compaction transaction consequently selects every sealed Segment
-owned by one Worker. The active Segment is never rewritten by that transaction.
+Compacting an arbitrary sealed Segment independently is unsafe. If it discards a tombstone while an
+older put remains in another Segment, recovery can resurrect the deleted value. The same issue
+applies to expired or superseded puts (TTL removal writes no tombstone). One transaction therefore
+selects the **oldest `k` sealed Segments** of one Worker ([ADR 0044](../adr/0044-bounded-prefix-compaction-remap.md)).
+Recovery requires a Worker's Segments, in Manifest order, to carry strictly increasing sequence
+ranges, so every Record outside the prefix is newer than every Record inside it. A key whose latest
+Record lies outside the prefix keeps that winner; a key whose latest Record is a prefix tombstone or
+expired put has every older Record inside the prefix too, so dropping all of them leaves it absent.
+`k` equal to the complete sealed set is the original whole-Worker transaction; the v2 blob profile
+always uses it. The active Segment is never rewritten.
 
 The transaction copies only currently visible, non-expired puts whose `RecordRef` points into the
-selected sealed set. Because every obsolete sealed Record for the Worker is retired together, no
-discarded tombstone is needed to suppress a retained older value. Records are copied in increasing
-sequence order and retain their v1 sequence, opcode, value type, flags, key hash, expiration, key,
-and value.
+selected prefix. Records are copied in increasing sequence order and retain their v1 sequence,
+opcode, value type, flags, key hash, expiration, key, and value.
 
 ## Identity and manifest plan
 
 Outputs reuse the earliest source Segment IDs, increment their generations, remain sealed, and keep
-their Worker owner. Surplus source entries disappear from the next manifest. The active entry,
-`next_segment_id`, routing metadata, and every other Worker entry remain unchanged. This preserves
+their Worker owner. Surplus source entries disappear from the next manifest. Sealed entries after the
+prefix, the active entry, `next_segment_id`, routing metadata, and every other Worker entry remain
+unchanged. The transition is therefore determined by `(k, m)`; the validator derives both from the
+exact old and next Manifests, and intent recovery uses the derived `k` to name obsolete sources. This preserves
 global Segment-ID ordering and keeps compacted sequence ranges before the Worker's active Segment
 without changing Manifest, Segment, commit-slot, or Record v1 formats.
 
 The planner rejects:
 
-- a Worker without a sealed set or an output count larger than that set;
+- a Worker without a sealed set, a prefix longer than that set, or an output count larger than the
+  prefix;
 - exhausted manifest or selected Segment generations;
 - plans that reclaim no physical Segment;
 - temporary allocation, peak Store size, or physical write amplification outside
@@ -64,11 +71,12 @@ The implementation must use this order:
 briefly lock target Worker + catalog
   -> copy owning Index entries and pin exact sealed generations
   -> release both locks
-  -> collect and verify visible source Records
-  -> prepare replacement Index publication without post-commit allocation
+  -> select the oldest sealed prefix within the copy budget (ADR 0044)
+  -> collect and verify visible prefix Records
   -> create private replacement temporaries
   -> fill, synchronize, seal, and validate every replacement temporary
-  -> acquire the old/next publication lease and revalidate the old Manifest
+  -> acquire the publication lease; rebase the identical prefix plan onto the
+     current authority when unrelated rotations advanced it
   -> publish and directory-sync an exact compaction intent
   -> rename every replacement temporary to its canonical identity
   -> directory sync once for the complete promoted name batch
@@ -77,7 +85,8 @@ briefly lock target Worker + catalog
   -> prepare the complete non-allocating in-memory publication
   -> mark the target Worker commit-gated and release both locks
   -> atomically publish and directory-sync the next v1 Manifest with no mutex held
-  -> re-lock, merge retained commit metadata, and publish prepared in-memory state
+  -> re-lock the Worker and conditionally remap every prefix reference to its copy
+  -> lock the catalog, merge retained commit metadata, and publish prepared catalog state
   -> clear the commit gate and release both locks
   -> unlink every old source name
   -> directory sync
@@ -96,15 +105,17 @@ by the authoritative Manifest and are recognized only as disposable engine tempo
 Before acquiring the lease and publishing that intent, the builder verifies the manifest snapshot,
 validates
 every snapshot Index reference against its catalog identity and routed source Record, drops expired
-sealed source puts at the supplied Store time (counted in `expired_records_dropped`), and constructs
-the complete replacement Index. It then creates, copies, seals and checksum-validates every output
-under its private temporary name. Active-Segment Index entries are preserved by identity without a TTL
-visit; those expired keys remain until lazy GET reclaim or the next recovery rebuild. Source
+sealed source puts at the supplied Store time (counted in `expired_records_dropped`), and records
+one conditional remap per selected Record: `(key, source RecordRef, output RecordRef)`, or no output
+for a dropped expired put. It then creates, copies, seals and checksum-validates every output
+under its private temporary name. Index entries outside the prefix are never touched; expired keys
+there remain until lazy GET reclaim, a later transaction, or the next recovery rebuild. Source
 entries are ordered by their preserved sequence; one reusable Record buffer avoids per-read
 allocation. Encoded v1 Record bytes are copied exactly into the planned Segment boundaries and
 checked against exact record-count, extent, sequence, source CRC and output CRC metadata. The
 placement vector holds a compact source-vector index instead of duplicating owning keys and
-`RecordRef`s. Thus success requires no Index allocation after the future manifest commit. A
+`RecordRef`s. The remap after the future manifest commit performs in-place slot updates only, so it
+neither allocates nor fails. A
 pre-intent failure removes private temporaries and remains `not_started`; a post-intent failure is
 explicitly `recovery_required` and restart rolls exact temporary and canonical outputs back under
 the old authority.
@@ -170,32 +181,35 @@ observes either names still awaiting cleanup or their durable removal.
 Compaction must not run in a mutation or acknowledgement critical path. The implemented internal
 `compact_worker` takes a brief owning snapshot, then performs source reads, CRC validation,
 replacement writes, sealing, and reopen validation without the target Worker or catalog lock. On the
-mutex-elided exclusive Writer path, Phase A arms the Worker-local `compaction_commit_active` gate and
-waits for `hot_path_depth == 0` before enumerating the Index (shared catalog lock alone does not
-serialize exclusive mutates that skip `worker.mutex`); the gate is cleared before Phase B so ordinary
+mutex-elided exclusive Writer path, Phase A arms the Worker's `IndexQuiesceGate` and waits for its
+Writer depth to drain before enumerating the Index (shared catalog lock alone does not serialize
+exclusive mutates that skip `worker.mutex`); the gate is disarmed before Phase B so ordinary
 mutations continue during the unlocked build. Reads and ordinary mutations continue on that Worker
-during Phase B. ADR 0043 records post-snapshot Index changes in a bounded, preallocated delta.
-Overflow, a pending/closing group, or changed Manifest/source identity causes a finite `sequence_conflict`, durable removal of replacement files and intent under the still
-authoritative old manifest, and no fail-close unless rollback itself becomes uncertain. Publication
-uses a non-waiting Worker try-lock and the catalog-exclusive lock only to validate and prepare
-already-reserved vectors. It then installs a Worker-local logical commit gate and releases every
-physical mutex before quiesce waits and the durable manifest write, sync, rename, and directory
-sync. On the mutex-elided exclusive Writer path it waits for `hot_path_depth == 0` (and otherwise
-for `!mutation_io_active`) only after that unlock, then reacquires the locks and revalidates
-batch / Manifest / source pins; conflict aborts with finite `sequence_conflict` and rolls back
-replacements under the old authority — holding catalog across the depth wait would deadlock a
-mutate that already entered the hot path and needs shared catalog after append. Reads continue
-through the old Index and pinned sources. Mutations on that Worker receive a finite
-`sequence_conflict`; flush paths wait on a condition variable that releases the Worker mutex.
-Before Manifest I/O, the drained Worker freezes TTL Index housekeeping and detaches the delta.
-The private replacement Index has worst-case replay capacity reserved before intent publication.
-Replay runs without Worker/catalog mutexes; it applies recorded references/erasures in order and
-updates active/sealed live byte counts independently of copy bytes. Expired GETs still miss while
-housekeeping is deferred. See [ADR 0043](../adr/0043-bounded-compaction-delta.md) for ownership,
-entry/key limits, telemetry and abort obligations.
-After durable publication, the runtime reacquires the locks, refreshes retained commit metadata
-that other Workers may have advanced, performs the allocation-free in-memory switch, and clears
-the gate. Source retirement and final audit also run unlocked.
+during Phase B and record nothing for compaction ([ADR 0044](../adr/0044-bounded-prefix-compaction-remap.md)
+replaced the ADR 0043 journal). A pending/closing group at snapshot or changed source identity causes a
+finite `sequence_conflict`, durable removal of replacement files and intent under the still
+authoritative old manifest, and no fail-close unless rollback itself becomes uncertain. Unrelated
+rotations during the build do not: the intent is rebased onto the current authority when every
+source is still the Worker's oldest sealed prefix. Publication uses a non-waiting Worker try-lock and
+the catalog-exclusive lock only to validate and prepare already-reserved vectors. It then arms the
+Worker-local commit gate and releases every physical mutex before quiesce waits and the durable
+manifest write, sync, rename, and directory sync. On the mutex-elided exclusive Writer path it waits
+for the gate's Writer depth to drain (and otherwise for `!mutation_io_active`) only after that
+unlock, then reacquires the locks and revalidates the rebased authority and source pins; conflict
+aborts with finite `sequence_conflict` and rolls back replacements under the old authority — holding
+catalog across the depth wait would deadlock a mutate that already entered the hot path and needs
+shared catalog after append. Reads continue through the unchanged Index and pinned sources.
+Mutations on that Worker receive a finite `sequence_conflict`; flush paths wait on a condition
+variable that releases the Worker mutex.
+
+After durable publication, with the gate still armed, the runtime locks the Worker and applies the
+conditional remap: an Index entry still equal to its source reference moves to the copy (and a
+matching hot-cache row follows it); an expired drop still current is erased and its live bytes
+subtracted; any other entry was superseded during the build and keeps its newer reference, leaving
+the copy as dead output bytes. Live byte counters need no other change because source and copy are
+both sealed. It then locks the catalog, refreshes retained commit metadata that other Workers may
+have advanced, installs the next catalog, and disarms the gate. Source retirement and final audit
+run unlocked.
 
 Persistence v1 admits exactly the old and next manifest authorities. A Store-wide logical
 publication lease preserves that invariant without holding the publication mutex itself through

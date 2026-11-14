@@ -603,7 +603,6 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                             .error = published.error()};
                 }
                 // Index authority applied: advance durable_through before secondary work.
-                worker.record_compaction_change(hashed, reference);
                 worker.durable_through = committed_sequence;
                 try {
                     if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {
@@ -643,7 +642,6 @@ auto DurableRuntimeCatalog::mutate(const std::span<const std::byte> key,
                 }
             } else {
                 const auto erased = worker.index.erase_no_compact(hashed);
-                worker.record_compaction_change(hashed, std::nullopt);
                 worker.durable_through = committed_sequence;
                 try {
                     if (glifistore::fault::consume_fail(glifistore::fault::Site::index_account)) {

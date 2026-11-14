@@ -52,6 +52,13 @@ class SwissTableIndex final {
      */
     [[nodiscard]] auto insert_or_assign(const HashedKey& key, RecordRef ref) -> Result<IndexMutationResult>;
     /**
+     * @brief Retarget an existing entry only while it still equals `expected`.
+     *
+     * Never inserts, allocates, or rehashes; returns whether the slot changed.
+     * Used by compaction to move references onto their copies (ADR 0044).
+     */
+    auto replace_if_current(const HashedKey& key, const RecordRef& expected, RecordRef replacement) -> bool;
+    /**
      * @brief Remove an Index entry and return its former reference, if present.
      */
     auto erase(std::string_view key) -> IndexMutationResult;

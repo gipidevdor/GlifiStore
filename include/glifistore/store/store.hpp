@@ -52,10 +52,15 @@ struct CompactionResult {
     std::uint64_t transient_metadata_lower_bound_bytes{};
     std::uint64_t snapshot_duration_ns{};    ///< Time capturing the compaction snapshot.
     std::uint64_t commit_gate_duration_ns{}; ///< Time spent in the final compaction commit gate.
-    /// Time replaying concurrent Index changes into the replacement.
+    /// Retired with ADR 0044, which removed the concurrent-mutation journal; always zero.
     std::uint64_t delta_replay_duration_ns{};
-    std::uint64_t delta_records{};   ///< Journal entries replayed for concurrent mutations.
-    std::uint64_t delta_key_bytes{}; ///< Key bytes retained by the compaction delta journal.
+    std::uint64_t delta_records{};            ///< Retired with ADR 0044; always zero.
+    std::uint64_t delta_key_bytes{};          ///< Retired with ADR 0044; always zero.
+    std::uint64_t source_segments{};          ///< Oldest sealed Segments selected as the compaction prefix.
+    std::uint64_t retained_sealed_segments{}; ///< Newer sealed Segments left outside the prefix.
+    std::uint64_t remapped_records{};         ///< Index entries retargeted to their copy at commit.
+    std::uint64_t superseded_copies{}; ///< Copies already superseded by a concurrent mutation (dead bytes).
+    std::uint64_t manifest_rebases{};  ///< 1 when the intent was rebased onto a newer authority.
 };
 
 /**

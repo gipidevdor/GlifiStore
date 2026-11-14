@@ -15,7 +15,7 @@ Generated from `engineering/gates/`. See also the derived
 | `GATE-BLOB-WIRE` | public_contract | `NON_INIZIATA` | `beta` | `GS-PROTO-BLOB-001` |
 | `GATE-C-ABI-V1` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-CABI-001` |
 | `GATE-CMAKE-INSTALL` | distribution_lifecycle | `PROVATA_IN_CI` | `alpha` | `GS-CORE-API-001`, `GS-CORE-BUILD-001` |
-| `GATE-COMPACTION-DELTA` | durability_recovery | `PROVATA_LOCALMENTE` | `prototype` | `GS-PERSIST-DELTA-001` |
+| `GATE-COMPACTION-DELTA` | durability_recovery | `IMPLEMENTATA` | `prototype` | `GS-PERSIST-DELTA-001` |
 | `GATE-CONCURRENCY-SPEC` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-CONCUR-PAIR-001`, `GS-CONCUR-COMBINE-001`, `GS-CONCUR-LIN-001`, `GS-CONCUR-FAULT-001`, `GS-CONCUR-MEM-001`, `GS-CONCUR-TLA-001`, `GS-CONCUR-LIVE-001`, `GS-CONCUR-LEGACY-001`, `GS-PROTO-WIRE-001`, `GS-PROTO-ERROR-001`, `GS-CORE-CLOSE-001` |
 | `GATE-CONFIG` | operations_security | `PROVATA_IN_CI` | `alpha` | `GS-OPS-CONFIG-001` |
 | `GATE-DISK-WIRE-VERSIONS` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-FIXTURE-001`, `GS-COMPAT-NN1-001`, `GS-PROTO-WIRE-001` |

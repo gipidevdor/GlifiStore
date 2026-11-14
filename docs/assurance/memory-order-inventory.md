@@ -1,7 +1,7 @@
 Status: descriptive
 Applies to: repository version `0.1.x` (Phase B1)
 Owner: maintainers
-Last reviewed: 2026-11-13
+Last reviewed: 2026-11-14
 
 # Atomics and memory-order inventory
 
@@ -11,17 +11,17 @@ Requirement: `GS-CONCUR-MEM-001`.
 
 The machine-checked companion
 [`engineering/evidence/memory-order-inventory-2026-08-30.json`](../../engineering/evidence/memory-order-inventory-2026-08-30.json)
-records all 1,207 explicit `std::memory_order_*` occurrences in production headers/sources with exact
+records all 1,202 explicit `std::memory_order_*` occurrences in production headers/sources with exact
 file, line, object expression, operation, writer/readers, protected data, required happens-before,
 invariant, and positive `relaxed` justification. It is regenerated and checked by
 `engineering/tools/audit_memory_orders.py`; a new source occurrence, an unsupported order, an ambiguous
 domain, or stale evidence fails closed. This is coverage of the audit inventory, not a formal proof that
 each argument is correct.
 
-The current inventory covers 18 domains, including bounded compaction-journal overflow and owning
-blob-read materialization admission. Journal entries require the separate commit-gate ownership
-handoff; the overflow flag alone does not publish them. The blob byte counter reserves capacity
-without publishing another read's payload. These arguments are recorded in the
+The current inventory covers 17 domains, including owning blob-read materialization admission. The
+blob byte counter reserves capacity without publishing another read's payload. ADR 0044 retired the
+bounded compaction journal and its overflow flag; the commit-time remap is ordered by the Worker mutex
+and the Index quiesce gate. These arguments are recorded in the
 [concurrency memory model](../spec/concurrency-memory-model.md#8-atomics-and-memory-ordering).
 
 ## 1. Paired ReadGeneration publication

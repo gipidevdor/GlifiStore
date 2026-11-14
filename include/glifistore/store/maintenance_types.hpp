@@ -150,10 +150,13 @@ struct DurableRotationStats {
 struct DurableCompactionMetrics {
     std::uint64_t attempts{};
     std::uint64_t completed{};
-    std::uint64_t delta_overflow_aborts{};
+    std::uint64_t delta_overflow_aborts{}; ///< Retired with ADR 0044; always zero.
     std::uint64_t manifest_conflict_aborts{};
     std::uint64_t abandoned_copy_bytes{};
-    std::uint64_t replayed_records{};
+    std::uint64_t replayed_records{}; ///< Retired with ADR 0044; always zero.
+    std::uint64_t remapped_records{};
+    std::uint64_t superseded_copies{};
+    std::uint64_t manifest_rebases{};
     std::uint64_t maximum_snapshot_duration_ns{};
     std::uint64_t maximum_commit_gate_duration_ns{};
 };

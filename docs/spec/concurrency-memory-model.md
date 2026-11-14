@@ -162,10 +162,10 @@ Memory orders are chosen for a specific publication relation:
   sequence loads until they see the same even value. No census field may be used to authorize
   reclamation, visibility, admission, or dereference;
 - queue cell sequence numbers use release publication and acquire consumption; enqueue/dequeue positions may use relaxed arithmetic because cell sequence is the handoff barrier;
-- the bounded compaction journal has one serialized Index publisher. Its sticky overflow flag uses
-  release/acquire to report exhaustion; the commit gate must separately drain publishers before
-  reading non-atomic journal entries or replaying them. The publisher's relaxed overflow check does
-  not grant the compactor access to those entries;
+- durable compaction (ADR 0044) shares no atomic with foreground publishers: the commit-time
+  reference remap runs under the Worker mutex after the commit gate has drained Writers, so the
+  mutex and the gate below order every Index access. The retired ADR 0043 journal had no other
+  synchronization role;
 - the durable Worker Index gate (`IndexQuiesceGate`) is a Dekker handshake between the mutex-elided
   exclusive Writer (`depth += 1`, then read holders) and an exclusive Index owner (`holders += 1`,
   then read depth). All four accesses are `seq_cst`; acquire/release would admit the

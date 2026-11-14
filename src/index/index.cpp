@@ -50,6 +50,11 @@ auto Index::insert_or_assign(const HashedKey& key, RecordRef ref) -> Result<Inde
     return table_.insert_or_assign(key, ref);
 }
 
+auto Index::replace_if_current(const HashedKey& key, const RecordRef& expected, const RecordRef replacement)
+    -> bool {
+    return table_.replace_if_current(key, expected, replacement);
+}
+
 auto Index::erase(const std::string_view key) -> IndexMutationResult {
     return table_.erase(key);
 }

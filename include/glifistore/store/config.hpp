@@ -82,11 +82,11 @@ struct DurableResourceLimits {
     /// Bounded Index/hot-cache TTL reclaim backlog drained by Worker maintenance
     /// paths (mutate, prepare_get). Zero forces synchronous reclaim on expire.
     std::size_t max_deferred_ttl_reclaims_per_worker{kDefaultMaximumDeferredTtlReclaimsPerWorker};
-    /// Per-compaction metadata journal. Zero disables tolerance of concurrent
-    /// Index changes. Exhaustion aborts compaction without rejecting mutations.
-    std::size_t max_compaction_delta_entries{
-        4096}; ///< Maximum concurrent-mutation journal entries per compaction.
-    std::size_t max_compaction_delta_key_bytes{1024 * 1024}; ///< Maximum key bytes retained by that journal.
+    /// Retired with ADR 0044: compaction reconciles concurrent Index changes by
+    /// a conditional remap at commit and keeps no journal. Both limits are still
+    /// validated for configuration compatibility but bound nothing.
+    std::size_t max_compaction_delta_entries{4096};
+    std::size_t max_compaction_delta_key_bytes{1024 * 1024}; ///< Retired with ADR 0044; see above.
 
     auto operator==(const DurableResourceLimits&) const -> bool = default;
 };

@@ -40,7 +40,7 @@ alternatives, decision, consequences, compatibility impact, verification, and re
 | [0012](0012-worker-affine-reactors.md) | One Reactor/executor per Worker; one-time connection handoff | amended | amended by 0031: Reactor is the Reader half of a mandatory pair |
 | [0013](0013-native-wire-protocol-v2.md) | Explicit native binary protocol v2 | accepted | exposes 0006 and 0012 |
 | [0014](0014-crc32c.md) | CRC32C Castagnoli parameters and role | accepted | persistent-format dependency |
-| [0015](0015-whole-worker-compaction.md) | Whole-Worker sealed-history durable compaction | amended | preserves 0003/0004/0008; amended by 0039 |
+| [0015](0015-whole-worker-compaction.md) | Whole-Worker sealed-history durable compaction | amended | preserves 0003/0004/0008; amended by 0039 and 0044 (oldest sealed prefix) |
 | [0016](0016-bounded-cold-read-executor.md) | Bounded async durable cold reads outside Reactors | accepted | amends 0012; preserves 0013 ordering |
 | [0017](0017-bounded-durable-hot-cache.md) | Bounded durable hot cache with pinned active fallback | accepted | preserves 0008; builds on 0016 |
 | [0018](0018-bounded-durable-mutation-lanes.md) | Bounded Worker-affine durable mutation lanes | amended | replaced incrementally by the one-Writer SPSC lane in 0031 |
@@ -68,7 +68,8 @@ alternatives, decision, consequences, compatibility impact, verification, and re
 | [0040](0040-pre-intent-compaction-write-pacing.md) | Pace bounded private compaction writes before durable authority | accepted | amends 0023/0039; no persistent-format change |
 | [0041](0041-bounded-network-security-lifecycles.md) | Bounded TLS/output lifetimes, denied-attempt quotas and audit emission | accepted | amends 0012/0019/0020/0022; preserves v1/v2 and Store ACK points |
 | [0042](0042-large-blob-storage.md) | Immutable external blobs up to 64 MiB behind an opt-in persistence v2 boundary | accepted | Blob File v1; opt-in embedded persistence v2; wire unchanged |
-| [0043](0043-bounded-compaction-delta.md) | Bounded concurrent delta for whole-Worker compaction | accepted | Persistence v1; exact old/next authority; bounded replay |
+| [0043](0043-bounded-compaction-delta.md) | Bounded concurrent delta for whole-Worker compaction | superseded | superseded by 0044 for the runtime path; limits kept for configuration compatibility |
+| [0044](0044-bounded-prefix-compaction-remap.md) | Oldest sealed-prefix compaction, commit-time conditional remap, rebase over rotations | accepted | amends 0015/0039; supersedes 0043; Persistence v1, wire v2 unchanged |
 
 Official TCP client error taxonomy, automatic retries, and deadline behavior are governed by
 [ADR 0019](0019-client-error-retry-timeout.md) and [client semantics v1](../spec/client-semantics-v1.md).

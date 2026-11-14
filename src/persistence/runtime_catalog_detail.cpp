@@ -349,19 +349,22 @@ auto resolve_interrupted_compaction(DataDirectory& directory, const std::uint64_
     if (!recovered) {
         return unexpected(recovered.error());
     }
-    const auto replacement_count = validate_durable_compaction_transition(
-        intent->old_manifest, intent->next_manifest, intent->worker_id);
-    if (!replacement_count) {
-        return unexpected(replacement_count.error());
+    // ADR 0044: the intent names the oldest `source_count` sealed Segments of
+    // its Worker; later sealed Segments are retained by both authorities.
+    const auto shape =
+        derive_durable_compaction_shape(intent->old_manifest, intent->next_manifest, intent->worker_id);
+    if (!shape) {
+        return unexpected(shape.error());
     }
     std::vector<ManifestSegmentEntry> sources;
     std::vector<ManifestSegmentEntry> replacements;
     for (const auto& entry : intent->old_manifest.segments) {
-        if (entry.owner_worker != intent->worker_id || entry.role != ManifestSegmentRole::sealed) {
+        if (entry.owner_worker != intent->worker_id || entry.role != ManifestSegmentRole::sealed ||
+            sources.size() == shape->source_count) {
             continue;
         }
         sources.push_back(entry);
-        if (replacements.size() < *replacement_count) {
+        if (replacements.size() < shape->replacement_count) {
             auto replacement = entry;
             ++replacement.generation.value;
             replacements.push_back(replacement);

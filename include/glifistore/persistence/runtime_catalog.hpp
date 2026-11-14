@@ -593,10 +593,11 @@ class DurableRuntimeCatalog final {
     std::atomic_uint64_t maximum_rotation_total_ns_{};
     std::atomic_uint64_t compaction_attempts_{};
     std::atomic_uint64_t compactions_completed_{};
-    std::atomic_uint64_t compaction_delta_overflows_{};
     std::atomic_uint64_t compaction_manifest_conflicts_{};
     std::atomic_uint64_t compaction_abandoned_copy_bytes_{};
-    std::atomic_uint64_t compaction_replayed_records_{};
+    std::atomic_uint64_t compaction_remapped_records_{};
+    std::atomic_uint64_t compaction_superseded_copies_{};
+    std::atomic_uint64_t compaction_manifest_rebases_{};
     std::atomic_uint64_t maximum_compaction_snapshot_ns_{};
     std::atomic_uint64_t maximum_compaction_commit_gate_ns_{};
     std::atomic_uint64_t last_rotation_final_record_commit_ns_{};

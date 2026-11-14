@@ -195,11 +195,31 @@ class StagedSegmentGuard final {
 
 } // namespace
 
+auto durable_compaction_prefix_entries(const Manifest& current, const WorkerId worker_id,
+                                       const std::size_t source_count, std::vector<IndexEntry> entries)
+    -> std::vector<IndexEntry> {
+    std::vector<ManifestSegmentEntry> prefix;
+    for (const auto& entry : current.segments) {
+        if (entry.owner_worker == worker_id && entry.role == ManifestSegmentRole::sealed &&
+            (source_count == 0 || prefix.size() < source_count)) {
+            prefix.push_back(entry);
+        }
+    }
+    std::erase_if(entries, [&](const IndexEntry& entry) {
+        const auto source = find_source_index(prefix, entry.record.segment_id);
+        return !source || prefix[*source].generation != entry.record.generation;
+    });
+    return entries;
+}
+
 auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& current,
                                      const WorkerId worker_id, std::vector<IndexEntry> entries,
-                                     const std::uint64_t now_ns, const DurableResourceLimits& limits,
-                                     const DurableCompactionIntentGate intent_gate,
-                                     const DurableCompactionPacing pacing) -> DurableCompactionBuildResult {
+                                     const DurableResourceLimits& limits,
+                                     const DurableCompactionBuildRequest& request)
+    -> DurableCompactionBuildResult {
+    const auto now_ns = request.now_ns;
+    const auto& intent_gate = request.intent_gate;
+    const auto& pacing = request.pacing;
     bool recovery_required{};
     DurableCompactionCopyStats copy_stats{};
     BoundedByteRateLimiter copy_rate_limiter{pacing.bytes_per_second};
@@ -236,7 +256,8 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
         if (!authority) {
             return failure(authority.error());
         }
-        if (*authority != current) {
+        if (authority->store_id != current.store_id ||
+            authority->manifest_generation < current.manifest_generation) {
             return failure(Error{ErrorCode::sequence_conflict,
                                  "durable compaction manifest snapshot is no longer authoritative"});
         }
@@ -249,14 +270,34 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             return failure(existing_intent.error());
         }
 
+        // ADR 0044: the oldest `source_count` sealed Segments of the Worker, in
+        // Manifest (sequence) order; zero selects the complete sealed set.
         std::vector<ManifestSegmentEntry> sources;
+        std::size_t sealed_count{};
         for (const auto& entry : current.segments) {
-            if (entry.owner_worker == worker_id && entry.role == ManifestSegmentRole::sealed) {
+            if (entry.owner_worker != worker_id || entry.role != ManifestSegmentRole::sealed) {
+                continue;
+            }
+            ++sealed_count;
+            if (request.source_count == 0 || sources.size() < request.source_count) {
                 sources.push_back(entry);
             }
         }
         if (sources.empty()) {
             return failure(Error{ErrorCode::not_found, "durable Worker has no sealed Segments to compact"});
+        }
+        if (request.source_count != 0 && sources.size() != request.source_count) {
+            return failure(Error{ErrorCode::invalid_argument,
+                                 "durable compaction prefix exceeds the Worker's sealed Segment set"});
+        }
+        copy_stats.source_segments = sources.size();
+        copy_stats.retained_sealed_segments = sealed_count - sources.size();
+        for (const auto& source : sources) {
+            const auto* authoritative = find_catalog_entry(*authority, source.segment_id);
+            if (authoritative == nullptr || *authoritative != source) {
+                return failure(Error{ErrorCode::sequence_conflict,
+                                     "durable compaction source is no longer authoritative"});
+            }
         }
 
         std::map<BlobId, std::uint64_t> source_blobs;
@@ -295,42 +336,23 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
         }
 
         const auto routing = current.worker_routing();
-        Index prepared_index{routing};
-        if (auto reserved = prepared_index.reserve(entries.size()); !reserved) {
-            return failure(reserved.error());
-        }
         std::vector<IndexEntry> source_entries;
         source_entries.reserve(entries.size());
-        std::uint64_t active_live_record_bytes{};
+        std::vector<DurableCompactionRemap> remaps;
         for (auto& entry : entries) {
             const auto key_hash = hash_key_routing(entry.key, routing);
-            const HashedKey hashed{.key = entry.key, .hash = key_hash};
             if (route_worker(key_hash, current.worker_count) != worker_id.value) {
                 return failure(Error{ErrorCode::corrupted_data,
                                      "durable compaction Index routing or hash is inconsistent"});
             }
             const auto* catalog_entry = find_catalog_entry(current, entry.record.segment_id);
             if (catalog_entry == nullptr || catalog_entry->generation != entry.record.generation ||
-                catalog_entry->owner_worker != worker_id) {
+                catalog_entry->owner_worker != worker_id ||
+                !find_source_index(sources, entry.record.segment_id)) {
                 return failure(Error{ErrorCode::corrupted_data,
                                      "durable compaction Index references an invalid catalog identity"});
             }
-            if (catalog_entry->role == ManifestSegmentRole::sealed) {
-                source_entries.push_back(std::move(entry));
-                continue;
-            }
-            auto inserted = prepared_index.insert_or_assign(hashed, entry.record);
-            if (!inserted || !inserted->inserted) {
-                return failure(inserted ? Error{ErrorCode::corrupted_data,
-                                                "durable compaction active Index key conflicted"}
-                                        : inserted.error());
-            }
-            if (entry.record.size.value >
-                std::numeric_limits<std::uint64_t>::max() - active_live_record_bytes) {
-                return failure(Error{ErrorCode::arithmetic_overflow,
-                                     "durable compaction active live Record byte count overflows uint64_t"});
-            }
-            active_live_record_bytes += entry.record.size.value;
+            source_entries.push_back(std::move(entry));
         }
         entries = {};
 
@@ -398,6 +420,10 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             copy_stats.source_bytes_verified += entry.record.size.value;
             if (context.expired) {
                 ++copy_stats.expired_records_dropped;
+                remaps.push_back({.key = std::move(entry.key),
+                                  .key_hash = key_hash,
+                                  .source = entry.record,
+                                  .output = std::nullopt});
                 continue;
             }
             if (context.blob) {
@@ -433,7 +459,7 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
         }
 
         auto plan = plan_durable_worker_compaction(current, worker_id, layout.segment_count(), limits,
-                                                   blob_reclaim_bytes);
+                                                   blob_reclaim_bytes, sources.size());
         if (!plan) {
             return failure(plan.error());
         }
@@ -449,13 +475,6 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                              .size = source.record.size,
                              .sequence = source.record.sequence,
                              .generation = replacement.generation};
-            const HashedKey hashed{.key = source.key, .hash = hash_key_routing(source.key, routing)};
-            auto inserted = prepared_index.insert_or_assign(hashed, record.output);
-            if (!inserted || !inserted->inserted) {
-                return failure(inserted ? Error{ErrorCode::corrupted_data,
-                                                "durable compaction replacement Index key conflicted"}
-                                        : inserted.error());
-            }
         }
 
         const DurableCompactionIntent intent{
@@ -632,37 +651,54 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
             !accounted) {
             return failure(accounted.error());
         }
-        if (intent_gate.prepare_index != nullptr) {
-            if (auto reserved = intent_gate.prepare_index(intent_gate.context, prepared_index); !reserved) {
-                return failure(reserved.error());
-            }
+        // Copied keys move into the remap list only after the copy and output
+        // verification above, which still read them through source_entries.
+        remaps.reserve(remaps.size() + packed.size());
+        for (const auto& record : packed) {
+            auto& source = source_entries[record.source_index];
+            const auto key_hash = hash_key_routing(source.key, routing);
+            remaps.push_back({.key = std::move(source.key),
+                              .key_hash = key_hash,
+                              .source = source.record,
+                              .output = record.output});
         }
-        const auto replay_index_stats = prepared_index.stats();
-        auto accounted_index =
-            checked_add(static_cast<std::uint64_t>(replay_index_stats.table_allocated_bytes),
-                        static_cast<std::uint64_t>(replay_index_stats.arena_allocated_bytes),
-                        "durable compaction transient Index accounting overflow");
-        if (!accounted_index) {
-            return failure(accounted_index.error());
+        source_entries = {};
+        if (auto accounted = add_capacity_bytes(copy_stats.transient_metadata_lower_bound_bytes,
+                                                remaps.capacity(), sizeof(DurableCompactionRemap));
+            !accounted) {
+            return failure(accounted.error());
         }
-        auto accounted_total = checked_add(copy_stats.transient_metadata_lower_bound_bytes, *accounted_index,
-                                           "durable compaction transient metadata accounting overflow");
-        if (!accounted_total) {
-            return failure(accounted_total.error());
-        }
-        copy_stats.transient_metadata_lower_bound_bytes = *accounted_total;
         copy_stats.pre_intent_duration_ns = elapsed_ns(build_started);
 
         // The expensive copy and full output verification are complete while
         // Mold is the only authority. The existing private temporary names are
         // non-authoritative and recovery-safe. Acquire the publication lease
-        // only for intent -> promotion -> Manifest.
+        // only for intent -> promotion -> Manifest. ADR 0044: when rotations
+        // advanced the authority meanwhile, rebase the identical prefix plan.
+        Manifest old_authority = current;
         if (intent_gate.acquire != nullptr) {
-            if (auto acquired = intent_gate.acquire(intent_gate.context); !acquired) {
+            auto acquired = intent_gate.acquire(intent_gate.context);
+            if (!acquired) {
                 return failure(acquired.error());
             }
+            old_authority = std::move(*acquired);
         }
-        const auto published = directory.publish_compaction_intent(intent, limits.max_manifest_bytes);
+        if (old_authority != current) {
+            auto rebased = plan_durable_worker_compaction(old_authority, worker_id, plan->replacements.size(),
+                                                          limits, blob_reclaim_bytes, sources.size());
+            if (!rebased) {
+                return failure(rebased.error());
+            }
+            if (rebased->sources != plan->sources || rebased->replacements != plan->replacements) {
+                return failure(Error{ErrorCode::sequence_conflict,
+                                     "durable compaction prefix changed before intent publication"});
+            }
+            plan = std::move(rebased);
+            copy_stats.manifest_rebases = 1;
+        }
+        const DurableCompactionIntent rebased_intent{
+            .worker_id = worker_id, .old_manifest = old_authority, .next_manifest = plan->next_manifest};
+        const auto published = directory.publish_compaction_intent(rebased_intent, limits.max_manifest_bytes);
         if (!published.durable()) {
             recovery_required = published.outcome == CompactionIntentPublicationOutcome::indeterminate;
             return failure(published.error.value_or(
@@ -676,8 +712,8 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
 
         return {.outcome = DurableCompactionBuildOutcome::prepared,
                 .prepared = PreparedDurableCompaction{.plan = std::move(*plan),
-                                                      .index = std::move(prepared_index),
-                                                      .active_live_record_bytes = active_live_record_bytes,
+                                                      .old_manifest = std::move(old_authority),
+                                                      .remaps = std::move(remaps),
                                                       .replacement_commits = std::move(replacement_commits),
                                                       .stats = copy_stats},
                 .error = std::nullopt};
@@ -707,8 +743,24 @@ auto build_durable_worker_compaction(DataDirectory& directory, const Manifest& c
                 Error{ErrorCode::corrupted_data, "durable compaction Index snapshot is inconsistent"});
         }
     }
-    return build_durable_worker_compaction(directory, current, worker_id, std::move(entries), now_ns, limits,
-                                           {}, {});
+    if (worker_id.value >= current.worker_count) {
+        return build_failure(
+            DurableCompactionBuildOutcome::not_started,
+            Error{ErrorCode::invalid_argument, "durable compaction Worker is outside the manifest"});
+    }
+    for (const auto& entry : entries) {
+        const auto* catalog_entry = find_catalog_entry(current, entry.record.segment_id);
+        if (catalog_entry == nullptr || catalog_entry->generation != entry.record.generation ||
+            catalog_entry->owner_worker != worker_id) {
+            return build_failure(DurableCompactionBuildOutcome::not_started,
+                                 Error{ErrorCode::corrupted_data,
+                                       "durable compaction Index references an invalid catalog identity"});
+        }
+    }
+    return build_durable_worker_compaction(
+        directory, current, worker_id,
+        durable_compaction_prefix_entries(current, worker_id, 0, std::move(entries)), limits,
+        {.now_ns = now_ns});
 }
 
 } // namespace glifistore

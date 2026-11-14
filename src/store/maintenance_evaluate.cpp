@@ -237,16 +237,13 @@ void MaintenanceController::evaluate_once() {
         }
     }
 
-    if (!under_pressure && observation.durable && config.max_copy_bytes_per_cycle > 0 &&
-        observation.candidate_live_record_bytes > config.max_copy_bytes_per_cycle) {
-        const std::lock_guard lock{mutex_};
-        last_eval_duration_ns_ = elapsed_ns(eval_started);
-        record_skip(MaintenanceSkipReason::copy_budget, MaintenanceState::suspended,
-                    MaintenanceActivationReason::copy_budget);
-        return;
-    }
-
+    // ADR 0044: a durable Worker larger than the per-cycle copy budget is no
+    // longer skipped; the runtime compacts the oldest sealed prefix that fits.
+    // `candidate_copy_bytes` bounds what this cycle can copy.
     std::uint64_t max_copy_bytes = under_pressure ? 0 : config.max_copy_bytes_per_cycle;
+    const auto candidate_copy_bytes = max_copy_bytes == 0
+                                          ? observation.candidate_live_record_bytes
+                                          : std::min(observation.candidate_live_record_bytes, max_copy_bytes);
     if (!under_pressure) {
         const std::lock_guard lock{mutex_};
         refresh_rate_window_locked(std::chrono::steady_clock::now());
@@ -270,8 +267,7 @@ void MaintenanceController::evaluate_once() {
             // A later candidate in an already-consumed window still waits for
             // refresh, preventing adjacent compactions from each taking a new
             // initial burst.
-            if (rate_window_bytes_copied_ != 0U && observation.durable &&
-                observation.candidate_live_record_bytes > *remaining) {
+            if (rate_window_bytes_copied_ != 0U && observation.durable && candidate_copy_bytes > *remaining) {
                 last_eval_duration_ns_ = elapsed_ns(eval_started);
                 record_skip(MaintenanceSkipReason::rate_budget, MaintenanceState::suspended,
                             MaintenanceActivationReason::rate_budget);

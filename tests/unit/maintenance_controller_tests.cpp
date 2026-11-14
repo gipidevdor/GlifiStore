@@ -229,7 +229,7 @@ GLIFI_TEST("normal dead-byte threshold is inclusive and pressure bypasses it") {
     controller.stop();
 }
 
-GLIFI_TEST("normal copy budget preflights one candidate and pressure bypasses it") {
+GLIFI_TEST("normal copy budget bounds one prefix transaction and pressure bypasses it") {
     glifistore::MaintenanceConfig config{};
     GLIFI_REQUIRE(config.max_copy_bytes_per_cycle == glifistore::kDefaultMaintenanceMaxCopyBytesPerCycle);
     config.mode = glifistore::MaintenanceMode::background;
@@ -264,28 +264,30 @@ GLIFI_TEST("normal copy budget preflights one candidate and pressure bypasses it
                                 -> glifistore::Result<glifistore::CompactionResult> {
         observed_copy_limit->store(max_copy_bytes, std::memory_order_relaxed);
         compact_calls->fetch_add(1, std::memory_order_release);
-        return glifistore::CompactionResult{};
+        // A useful prefix transaction: no-gain backoff must not hide later calls.
+        return glifistore::CompactionResult{.compacted = true, .worker_index = 0};
     });
     controller.start();
 
+    // ADR 0044: a candidate above the per-cycle budget is no longer skipped;
+    // the runtime receives the budget and compacts the oldest prefix that fits.
     const auto over_deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
     while (std::chrono::steady_clock::now() < over_deadline &&
-           controller.snapshot().last_skip_reason != glifistore::MaintenanceSkipReason::copy_budget) {
+           compact_calls->load(std::memory_order_acquire) < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds{5});
     }
-    GLIFI_REQUIRE(controller.snapshot().last_skip_reason == glifistore::MaintenanceSkipReason::copy_budget);
-    GLIFI_REQUIRE(controller.snapshot().last_activation_reason ==
-                  glifistore::MaintenanceActivationReason::copy_budget);
-    GLIFI_REQUIRE(compact_calls->load(std::memory_order_relaxed) == 0);
+    GLIFI_REQUIRE(compact_calls->load(std::memory_order_acquire) == 1);
+    GLIFI_REQUIRE(observed_copy_limit->load(std::memory_order_relaxed) == 1'000);
+    GLIFI_REQUIRE(controller.snapshot().last_skip_reason != glifistore::MaintenanceSkipReason::copy_budget);
 
     candidate_live_bytes->store(1'000, std::memory_order_relaxed);
     controller.request_evaluate();
     const auto equal_deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
     while (std::chrono::steady_clock::now() < equal_deadline &&
-           compact_calls->load(std::memory_order_acquire) < 1) {
+           compact_calls->load(std::memory_order_acquire) < 2) {
         std::this_thread::sleep_for(std::chrono::milliseconds{5});
     }
-    GLIFI_REQUIRE(compact_calls->load(std::memory_order_acquire) == 1);
+    GLIFI_REQUIRE(compact_calls->load(std::memory_order_acquire) == 2);
     GLIFI_REQUIRE(observed_copy_limit->load(std::memory_order_relaxed) == 1'000);
 
     candidate_live_bytes->store(1'001, std::memory_order_relaxed);
@@ -293,10 +295,10 @@ GLIFI_TEST("normal copy budget preflights one candidate and pressure bypasses it
     controller.request_evaluate();
     const auto pressure_deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
     while (std::chrono::steady_clock::now() < pressure_deadline &&
-           compact_calls->load(std::memory_order_acquire) < 2) {
+           compact_calls->load(std::memory_order_acquire) < 3) {
         std::this_thread::sleep_for(std::chrono::milliseconds{5});
     }
-    GLIFI_REQUIRE(compact_calls->load(std::memory_order_acquire) == 2);
+    GLIFI_REQUIRE(compact_calls->load(std::memory_order_acquire) == 3);
     GLIFI_REQUIRE(observed_copy_limit->load(std::memory_order_relaxed) == 0);
     GLIFI_REQUIRE(controller.snapshot().pressure == glifistore::MaintenancePressureLevel::pressure);
     controller.stop();

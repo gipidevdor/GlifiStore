@@ -4,7 +4,7 @@
 - Date: 2026-07-19
 - Owners: persistence maintainers
 - Related: ADR 0003, ADR 0004, ADR 0008
-- Amended by: ADR 0039, ADR 0043
+- Amended by: ADR 0039, ADR 0043, ADR 0044
 
 ## Context
 
@@ -46,3 +46,11 @@ specified in [Crash-safe durable compaction](../architecture/durable-compaction.
 [ADR 0042](0042-large-blob-storage.md) amends this decision for the explicit v2 blob profile.
 V2 permits descriptor-history compaction without a Segment-count gain when verified obsolete blob bytes satisfy the existing write-amplification budget. The v2 active log rotates before a blob PUT once it contains 32 Records; legacy v1 policy is unchanged.
 Acceptance of that ADR does not close its implementation/evidence gate or establish E3/E4 certification.
+
+## Sealed-prefix amendment (2026-11-14)
+
+[ADR 0044](0044-bounded-prefix-compaction-remap.md) generalizes the unit to the oldest `k` sealed
+Segments of one Worker. Because every Record outside that prefix is newer than every Record inside
+it, obsolete prefix Records (including tombstones and expired puts) can be dropped without
+resurrection; `k` equal to the complete sealed set is this decision. The v2 blob profile keeps the
+complete set.

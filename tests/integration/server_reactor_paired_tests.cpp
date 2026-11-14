@@ -620,6 +620,9 @@ GLIFI_TEST("paired Reader refreshes compacted durable pins and retires the old g
     GLIFI_REQUIRE(opened.has_value());
     auto& store = **opened;
 
+    // A live anchor in the oldest Segment makes ADR 0044 select both sealed
+    // Segments, so the refreshed Record moves to a different Segment.
+    GLIFI_REQUIRE(store.put("refresh-key-anchor", bytes("anchor")).has_value());
     GLIFI_REQUIRE(store.put("refresh-key", bytes("old")).has_value());
     blocker.force_next_record_write_full();
     GLIFI_REQUIRE(store.put("refresh-key", bytes("current")).has_value());
@@ -738,6 +741,9 @@ GLIFI_TEST("ADR 0036 V8 candidate preserves durable cold pin across compacted sl
     GLIFI_REQUIRE(opened.has_value());
     auto& store = **opened;
 
+    // A live anchor in the oldest Segment makes ADR 0044 select both sealed
+    // Segments, so the refreshed Record moves to a different Segment.
+    GLIFI_REQUIRE(store.put("slot-refresh-anchor", bytes("anchor")).has_value());
     GLIFI_REQUIRE(store.put("slot-refresh", bytes("old")).has_value());
     blocker.force_next_record_write_full();
     GLIFI_REQUIRE(store.put("slot-refresh", bytes("current")).has_value());

@@ -5,8 +5,44 @@
 
 namespace glifistore {
 
-auto validate_durable_compaction_transition(const Manifest& current, const Manifest& next,
-                                            const WorkerId worker_id) -> Result<std::size_t> {
+auto canonical_durable_compaction_manifest(const Manifest& current, const WorkerId worker_id,
+                                           const DurableCompactionShape shape) -> Result<Manifest> {
+    Manifest expected = current;
+    if (current.manifest_generation == std::numeric_limits<std::uint64_t>::max()) {
+        return fail(ErrorCode::arithmetic_overflow, "durable compaction manifest generation is exhausted");
+    }
+    ++expected.manifest_generation;
+    expected.segments.clear();
+    expected.segments.reserve(current.segments.size() - (shape.source_count - shape.replacement_count));
+
+    std::size_t sealed_seen{};
+    for (const auto& entry : current.segments) {
+        const bool selected = entry.owner_worker == worker_id && entry.role == ManifestSegmentRole::sealed &&
+                              sealed_seen < shape.source_count;
+        if (!selected) {
+            expected.segments.push_back(entry);
+            continue;
+        }
+        const auto position = sealed_seen++;
+        if (position >= shape.replacement_count) {
+            continue;
+        }
+        if (entry.generation.value == std::numeric_limits<std::uint32_t>::max()) {
+            return fail(ErrorCode::arithmetic_overflow, "durable compaction Segment generation is exhausted");
+        }
+        auto replacement = entry;
+        ++replacement.generation.value;
+        expected.segments.push_back(replacement);
+    }
+    if (sealed_seen != shape.source_count) {
+        return fail(ErrorCode::invalid_argument,
+                    "durable compaction prefix exceeds the Worker's sealed Segment set");
+    }
+    return expected;
+}
+
+auto derive_durable_compaction_shape(const Manifest& current, const Manifest& next, const WorkerId worker_id)
+    -> Result<DurableCompactionShape> {
     if (!encoded_manifest_size(current) || !encoded_manifest_size(next)) {
         return fail(ErrorCode::invalid_argument,
                     "durable compaction transition contains an invalid v1 manifest");
@@ -22,49 +58,65 @@ auto validate_durable_compaction_transition(const Manifest& current, const Manif
                     "durable compaction transition changes immutable catalog metadata");
     }
 
-    std::vector<ManifestSegmentEntry> sources;
+    // The Worker's sealed entries, in Manifest (and therefore sequence) order.
+    std::vector<ManifestSegmentEntry> current_sealed;
+    std::vector<ManifestSegmentEntry> next_sealed;
     for (const auto& entry : current.segments) {
         if (entry.owner_worker == worker_id && entry.role == ManifestSegmentRole::sealed) {
-            sources.push_back(entry);
+            current_sealed.push_back(entry);
         }
     }
-    if (sources.empty() || next.segments.size() > current.segments.size()) {
+    for (const auto& entry : next.segments) {
+        if (entry.owner_worker == worker_id && entry.role == ManifestSegmentRole::sealed) {
+            next_sealed.push_back(entry);
+        }
+    }
+    if (current_sealed.empty() || next_sealed.size() > current_sealed.size()) {
         return fail(ErrorCode::invalid_argument,
                     "durable compaction transition has no sealed source set or grows the catalog");
     }
-    const auto retained_entries = current.segments.size() - sources.size();
-    if (next.segments.size() < retained_entries) {
-        return fail(ErrorCode::invalid_argument,
-                    "durable compaction transition removes a non-source catalog entry");
-    }
-    const auto output_count = next.segments.size() - retained_entries;
 
-    Manifest expected = current;
-    expected.manifest_generation = next.manifest_generation;
-    expected.segments.clear();
-    expected.segments.reserve(next.segments.size());
-    std::size_t replacements_remaining = output_count;
-    for (const auto& entry : current.segments) {
-        if (entry.owner_worker != worker_id || entry.role != ManifestSegmentRole::sealed) {
-            expected.segments.push_back(entry);
-            continue;
+    // A replacement keeps its source identity with the next generation, so it
+    // is distinguishable from an unchanged retained entry.
+    std::size_t replacement_count{};
+    while (replacement_count < next_sealed.size()) {
+        const auto& source = current_sealed[replacement_count];
+        const auto& candidate = next_sealed[replacement_count];
+        if (candidate.segment_id != source.segment_id ||
+            source.generation.value == std::numeric_limits<std::uint32_t>::max() ||
+            candidate.generation.value != source.generation.value + 1U) {
+            break;
         }
-        if (replacements_remaining == 0) {
-            continue;
-        }
-        if (entry.generation.value == std::numeric_limits<std::uint32_t>::max()) {
-            return fail(ErrorCode::arithmetic_overflow, "durable compaction Segment generation is exhausted");
-        }
-        auto replacement = entry;
-        ++replacement.generation.value;
-        expected.segments.push_back(replacement);
-        --replacements_remaining;
+        ++replacement_count;
     }
-    if (expected != next) {
+    const auto retained_count = next_sealed.size() - replacement_count;
+    const DurableCompactionShape shape{.source_count = current_sealed.size() - retained_count,
+                                       .replacement_count = replacement_count};
+    if (shape.source_count == 0 || shape.replacement_count > shape.source_count) {
+        return fail(ErrorCode::invalid_argument, "durable compaction transition has no canonical prefix");
+    }
+    auto expected = canonical_durable_compaction_manifest(current, worker_id, shape);
+    if (!expected) {
+        return unexpected(expected.error());
+    }
+    if (*expected != next) {
         return fail(ErrorCode::invalid_argument,
-                    "durable compaction next manifest is not the canonical sealed-set replacement");
+                    "durable compaction next manifest is not the canonical sealed-prefix replacement");
     }
-    return output_count;
+    if (current.format_version == 2 && shape.source_count != current_sealed.size()) {
+        return fail(ErrorCode::invalid_argument,
+                    "blob-profile durable compaction must replace the complete sealed set");
+    }
+    return shape;
+}
+
+auto validate_durable_compaction_transition(const Manifest& current, const Manifest& next,
+                                            const WorkerId worker_id) -> Result<std::size_t> {
+    auto shape = derive_durable_compaction_shape(current, next, worker_id);
+    if (!shape) {
+        return unexpected(shape.error());
+    }
+    return shape->replacement_count;
 }
 
 } // namespace glifistore

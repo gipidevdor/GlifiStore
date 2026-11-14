@@ -119,7 +119,10 @@ GLIFI_TEST("blocked durable compaction build permits same-Worker reads and mutat
     GLIFI_REQUIRE(ttl_updated.committed());
     GLIFI_REQUIRE(compaction.compacted());
     GLIFI_REQUIRE(!compaction.error.has_value());
-    GLIFI_REQUIRE(compaction.stats.delta_records == 3);
+    // ADR 0044: "changing", "erase-me" and "ttl-key" were superseded during the
+    // build; only "stable" is retargeted to its copy.
+    GLIFI_REQUIRE(compaction.stats.superseded_copies == 3);
+    GLIFI_REQUIRE(compaction.stats.remapped_records == 1);
     GLIFI_REQUIRE((*runtime)->healthy());
     const auto current = (*runtime)->get(key);
     GLIFI_REQUIRE(current.has_value());
@@ -137,7 +140,7 @@ GLIFI_TEST("blocked durable compaction build permits same-Worker reads and mutat
     GLIFI_REQUIRE((*runtime)->namespace_audit().clean());
 }
 
-GLIFI_TEST("blocked pre-intent compaction copy lets an unrelated rotation commit") {
+GLIFI_TEST("blocked pre-intent compaction copy rebases over an unrelated rotation") {
     RecoveryTemporaryDirectory temporary;
     const auto store_id = recovery_store_id();
     const std::vector entries{
@@ -230,9 +233,11 @@ GLIFI_TEST("blocked pre-intent compaction copy lets an unrelated rotation commit
     GLIFI_REQUIRE(in_flight_rotation_stats.final_record_commit_attempts == 1);
     GLIFI_REQUIRE(in_flight_rotation_stats.last_total_duration_ns > 0);
     GLIFI_REQUIRE(rotation.committed());
-    GLIFI_REQUIRE(compaction.outcome == glifistore::DurableCompactionOutcome::not_compacted);
-    GLIFI_REQUIRE(compaction.error.has_value());
-    GLIFI_REQUIRE(compaction.error->code == glifistore::ErrorCode::sequence_conflict);
+    // ADR 0044: the rotation only appended Worker 1 Segments, so the staged
+    // Worker 0 prefix is rebased onto the newer authority instead of aborting.
+    GLIFI_REQUIRE(compaction.compacted());
+    GLIFI_REQUIRE(compaction.stats.manifest_rebases == 1);
+    GLIFI_REQUIRE(compaction.stats.abandoned_copy_bytes == 0);
     const auto rotation_stats = (*runtime)->rotation_stats();
     GLIFI_REQUIRE(rotation_stats.attempts == 1);
     GLIFI_REQUIRE(rotation_stats.committed == 1);
@@ -254,8 +259,10 @@ GLIFI_TEST("blocked pre-intent compaction copy lets an unrelated rotation commit
     GLIFI_REQUIRE(rotation_stats.total_final_record_commit_duration_ns ==
                   rotation_stats.last_final_record_commit_duration_ns);
     GLIFI_REQUIRE((*runtime)->healthy());
-    GLIFI_REQUIRE((*runtime)->manifest().segments.size() == 5);
+    GLIFI_REQUIRE((*runtime)->manifest().segments.size() == 4);
     GLIFI_REQUIRE((*runtime)->namespace_audit().clean());
+    GLIFI_REQUIRE(owned_text(*(*runtime)->get(compacted_key)) == "first");
+    GLIFI_REQUIRE(owned_text(*(*runtime)->get(second_compacted_key)) == "second");
     const auto visible = (*runtime)->get(rotating_key);
     GLIFI_REQUIRE(visible.has_value());
     GLIFI_REQUIRE(owned_text(*visible) == "value");
@@ -266,7 +273,8 @@ GLIFI_TEST("blocked pre-intent compaction copy lets an unrelated rotation commit
     const auto durable = (*reopened)->get(rotating_key);
     GLIFI_REQUIRE(durable.has_value());
     GLIFI_REQUIRE(owned_text(*durable) == "value");
-    GLIFI_REQUIRE((*reopened)->manifest().segments.size() == 5);
+    GLIFI_REQUIRE(owned_text(*(*reopened)->get(compacted_key)) == "first");
+    GLIFI_REQUIRE((*reopened)->manifest().segments.size() == 4);
     GLIFI_REQUIRE((*reopened)->namespace_audit().clean());
 }
 

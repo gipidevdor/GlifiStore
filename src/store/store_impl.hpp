@@ -86,6 +86,8 @@ inline auto public_compaction_result(const std::size_t worker_index, DurableComp
             .delta_replay_duration_ns = result.stats.delta_replay_duration_ns,
             .delta_records = result.stats.delta_records,
             .delta_key_bytes = result.stats.delta_key_bytes,
+            .source_segments = result.stats.source_segments,
+            .retained_sealed_segments = result.stats.retained_sealed_segments,
         };
     }
     if (!result.compacted()) {
@@ -115,6 +117,11 @@ inline auto public_compaction_result(const std::size_t worker_index, DurableComp
         .delta_replay_duration_ns = result.stats.delta_replay_duration_ns,
         .delta_records = result.stats.delta_records,
         .delta_key_bytes = result.stats.delta_key_bytes,
+        .source_segments = result.stats.source_segments,
+        .retained_sealed_segments = result.stats.retained_sealed_segments,
+        .remapped_records = result.stats.remapped_records,
+        .superseded_copies = result.stats.superseded_copies,
+        .manifest_rebases = result.stats.manifest_rebases,
     };
 }
 
