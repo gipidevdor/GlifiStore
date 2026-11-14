@@ -115,29 +115,31 @@ constexpr auto kCrc32cTable = make_crc32c_table();
 #endif
 }
 
+constexpr std::size_t kRecordChecksumOffset = 20U;
+constexpr std::size_t kRecordChecksumBytes = 4U;
+
 } // namespace
 
 auto crc32c(const std::span<const std::byte> bytes) noexcept -> std::uint32_t {
     return ~crc32c_update(kCrc32cInit, bytes);
 }
 
+auto crc32c_with_zeroed_field(const std::span<const std::byte> bytes, const std::size_t field_offset,
+                              const std::size_t field_bytes) noexcept -> std::uint32_t {
+    static constexpr std::array<std::byte, 16> kZeros{};
+    const auto prefix_bytes = std::min(field_offset, bytes.size());
+    const auto zeroed_bytes = std::min(field_bytes, bytes.size() - prefix_bytes);
+    auto crc = crc32c_update(kCrc32cInit, bytes.first(prefix_bytes));
+    for (auto remaining = zeroed_bytes; remaining != 0;) {
+        const auto chunk = std::min(remaining, kZeros.size());
+        crc = crc32c_update(crc, std::span<const std::byte>{kZeros}.first(chunk));
+        remaining -= chunk;
+    }
+    return ~crc32c_update(crc, bytes.subspan(prefix_bytes + zeroed_bytes));
+}
+
 auto crc32c_with_zeroed_checksum_field(const std::span<const std::byte> bytes) noexcept -> std::uint32_t {
-    constexpr std::size_t kChecksumOffset = 20U;
-    constexpr std::size_t kChecksumSize = 4U;
-    std::uint32_t crc = kCrc32cInit;
-    if (bytes.size() >= kChecksumOffset) {
-        crc = crc32c_update(crc, bytes.first(kChecksumOffset));
-    }
-    if (bytes.size() > kChecksumOffset) {
-        const std::array<std::byte, kChecksumSize> zeros{};
-        const auto zeroed =
-            std::span<const std::byte>{zeros}.first(std::min(kChecksumSize, bytes.size() - kChecksumOffset));
-        crc = crc32c_update(crc, zeroed);
-        if (bytes.size() > kChecksumOffset + kChecksumSize) {
-            crc = crc32c_update(crc, bytes.subspan(kChecksumOffset + kChecksumSize));
-        }
-    }
-    return ~crc;
+    return crc32c_with_zeroed_field(bytes, kRecordChecksumOffset, kRecordChecksumBytes);
 }
 
 } // namespace glifistore

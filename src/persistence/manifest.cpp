@@ -29,13 +29,6 @@ auto all_zero(std::span<const std::byte> bytes) -> bool {
     return std::ranges::all_of(bytes, [](std::byte value) { return value == std::byte{0}; });
 }
 
-auto checksum_with_zeroed_field(std::span<const std::byte> bytes) -> std::uint32_t {
-    std::vector<std::byte> copy(bytes.begin(), bytes.end());
-    std::fill_n(copy.begin() + static_cast<std::ptrdiff_t>(kManifestChecksumOffset), kChecksumBytes,
-                std::byte{0});
-    return crc32c(copy);
-}
-
 auto manifest_size_for_count(std::size_t segment_count) -> Result<std::size_t> {
     if (segment_count > kMaximumManifestSegmentCount) {
         return fail(ErrorCode::invalid_argument, "manifest Segment count exceeds the supported limit");
@@ -173,7 +166,8 @@ auto encode_manifest(const std::span<std::byte> out, const Manifest& manifest) -
         put_u16(encoded, offset + 16, static_cast<std::uint16_t>(segment.role));
         put_u16(encoded, offset + 18, 0);
     }
-    put_u32(encoded, kManifestChecksumOffset, checksum_with_zeroed_field(encoded));
+    put_u32(encoded, kManifestChecksumOffset,
+            crc32c_with_zeroed_field(encoded, kManifestChecksumOffset, kChecksumBytes));
     std::memcpy(out.data(), encoded.data(), encoded.size());
     return {};
 }
@@ -215,7 +209,8 @@ auto decode_manifest(const std::span<const std::byte> bytes) -> Result<Manifest>
     if (get_u32(bytes, 8) != *expected_size || bytes.size() != *expected_size) {
         return fail(ErrorCode::invalid_record, "manifest encoded extent is inconsistent");
     }
-    if (get_u32(bytes, kManifestChecksumOffset) != checksum_with_zeroed_field(bytes)) {
+    if (get_u32(bytes, kManifestChecksumOffset) !=
+        crc32c_with_zeroed_field(bytes, kManifestChecksumOffset, kChecksumBytes)) {
         return fail(ErrorCode::checksum_mismatch, "manifest checksum mismatch");
     }
 

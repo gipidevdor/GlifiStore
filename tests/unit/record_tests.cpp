@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -23,6 +24,32 @@ void put_u32(std::span<std::byte> out, std::size_t offset, std::uint32_t value) 
 }
 
 } // namespace
+
+GLIFI_TEST("crc32c with a zeroed field matches copying and zeroing the field") {
+    std::vector<std::byte> bytes(300);
+    for (std::size_t index = 0; index < bytes.size(); ++index) {
+        bytes[index] = static_cast<std::byte>((index * 131U + 7U) & 0xFFU);
+    }
+    const auto reference = [&](const std::size_t size, const std::size_t offset, const std::size_t width) {
+        std::vector<std::byte> copy(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(size));
+        const auto begin = std::min(offset, size);
+        const auto end = begin + std::min(width, size - begin);
+        std::fill(copy.begin() + static_cast<std::ptrdiff_t>(begin),
+                  copy.begin() + static_cast<std::ptrdiff_t>(end), std::byte{0});
+        return glifistore::crc32c(copy);
+    };
+    for (const std::size_t size : {0U, 1U, 4U, 20U, 23U, 24U, 56U, 64U, 128U, 300U}) {
+        for (const std::size_t offset : {0U, 3U, 20U, 56U, 80U, 124U, 299U, 400U}) {
+            for (const std::size_t width : {0U, 1U, 4U, 17U, 40U}) {
+                const auto view = std::span<const std::byte>{bytes}.first(size);
+                GLIFI_REQUIRE(glifistore::crc32c_with_zeroed_field(view, offset, width) ==
+                              reference(size, offset, width));
+            }
+        }
+    }
+    const auto record = std::span<const std::byte>{bytes}.first(64);
+    GLIFI_REQUIRE(glifistore::crc32c_with_zeroed_checksum_field(record) == reference(64, 20, 4));
+}
 
 GLIFI_TEST("record v1 matches its golden binary-key fixture") {
     static constexpr std::array key{std::byte{0x00}, std::byte{0x6B}, std::byte{0xFF}};

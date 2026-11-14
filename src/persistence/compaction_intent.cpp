@@ -26,12 +26,6 @@ auto all_zero(const std::span<const std::byte> bytes) -> bool {
     return std::ranges::all_of(bytes, [](const std::byte value) { return value == std::byte{0}; });
 }
 
-auto checksum_with_zeroed_field(const std::span<const std::byte> bytes) -> std::uint32_t {
-    std::vector<std::byte> copy(bytes.begin(), bytes.end());
-    std::fill_n(copy.begin() + static_cast<std::ptrdiff_t>(kChecksumOffset), kChecksumBytes, std::byte{0});
-    return crc32c(copy);
-}
-
 auto validate_intent(const DurableCompactionIntent& intent) -> Status {
     const auto transition =
         validate_durable_compaction_transition(intent.old_manifest, intent.next_manifest, intent.worker_id);
@@ -93,7 +87,7 @@ auto encode_compaction_intent(const std::span<std::byte> out, const DurableCompa
     std::memcpy(encoded.data() + kCompactionIntentHeaderBytes, old_manifest->data(), old_manifest->size());
     std::memcpy(encoded.data() + kCompactionIntentHeaderBytes + old_manifest->size(), next_manifest->data(),
                 next_manifest->size());
-    put_u32(encoded, kChecksumOffset, checksum_with_zeroed_field(encoded));
+    put_u32(encoded, kChecksumOffset, crc32c_with_zeroed_field(encoded, kChecksumOffset, kChecksumBytes));
     std::memcpy(out.data(), encoded.data(), encoded.size());
     return {};
 }
@@ -131,7 +125,7 @@ auto decode_compaction_intent(const std::span<const std::byte> bytes) -> Result<
     if (bytes.size() != expected || get_u32(bytes, 8) != expected) {
         return fail(ErrorCode::invalid_record, "compaction intent encoded extent is inconsistent");
     }
-    if (get_u32(bytes, kChecksumOffset) != checksum_with_zeroed_field(bytes)) {
+    if (get_u32(bytes, kChecksumOffset) != crc32c_with_zeroed_field(bytes, kChecksumOffset, kChecksumBytes)) {
         return fail(ErrorCode::checksum_mismatch, "compaction intent checksum mismatch");
     }
     auto old_manifest = decode_manifest(bytes.subspan(kCompactionIntentHeaderBytes, old_size));

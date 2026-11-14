@@ -26,15 +26,6 @@ auto all_zero(std::span<const std::byte> bytes) -> bool {
     return std::ranges::all_of(bytes, [](std::byte value) { return value == std::byte{0}; });
 }
 
-template <std::size_t Size>
-auto checksum_with_zeroed_field(std::span<const std::byte> bytes, std::size_t checksum_offset)
-    -> std::uint32_t {
-    std::array<std::byte, Size> copy{};
-    std::memcpy(copy.data(), bytes.data(), Size);
-    std::fill_n(copy.begin() + static_cast<std::ptrdiff_t>(checksum_offset), kChecksumBytes, std::byte{0});
-    return crc32c(copy);
-}
-
 auto validate_identity(const SegmentHeaderIdentity& identity) -> Status {
     if (identity.format_version != 1 && identity.format_version != 2) {
         return fail(ErrorCode::invalid_argument, "unsupported Segment header version");
@@ -99,7 +90,8 @@ auto encode_segment_commit_slot(const std::span<std::byte> out, const SegmentCom
     put_u64(encoded, 32, commit.first_sequence.value);
     put_u64(encoded, 40, commit.last_sequence.value);
     put_u32(encoded, kCommitChecksumOffset,
-            checksum_with_zeroed_field<kSegmentCommitSlotBytes>(encoded, kCommitChecksumOffset));
+            crc32c_with_zeroed_field(std::span<const std::byte>{encoded}.first(kSegmentCommitSlotBytes),
+                                     kCommitChecksumOffset, kChecksumBytes));
     std::memcpy(out.data(), encoded.data(), encoded.size());
     return {};
 }
@@ -116,7 +108,8 @@ auto decode_segment_commit_slot(const std::span<const std::byte> bytes) -> Resul
         return invalid_slot();
     }
     if (get_u32(encoded, kCommitChecksumOffset) !=
-        checksum_with_zeroed_field<kSegmentCommitSlotBytes>(encoded, kCommitChecksumOffset)) {
+        crc32c_with_zeroed_field(std::span<const std::byte>{encoded}.first(kSegmentCommitSlotBytes),
+                                 kCommitChecksumOffset, kChecksumBytes)) {
         return invalid_slot();
     }
     if (get_u16(encoded, 4) != kSegmentCommitFormatVersion) {
@@ -168,7 +161,8 @@ auto encode_segment_header(const std::span<std::byte> out, const SegmentHeader& 
     put_u32(encoded, 44, header.identity.owner_worker.value);
     put_u32(encoded, 48, 0);
     put_u32(encoded, kImmutableChecksumOffset,
-            checksum_with_zeroed_field<kSegmentImmutableHeaderBytes>(encoded, kImmutableChecksumOffset));
+            crc32c_with_zeroed_field(std::span<const std::byte>{encoded}.first(kSegmentImmutableHeaderBytes),
+                                     kImmutableChecksumOffset, kChecksumBytes));
 
     for (std::size_t index = 0; index < header.commits.size(); ++index) {
         if (!header.commits[index]) {
@@ -201,7 +195,8 @@ auto decode_segment_header(const std::span<const std::byte> bytes) -> Result<Dec
         return fail(ErrorCode::invalid_record, "segment header fields or reserved bytes are invalid");
     }
     if (get_u32(encoded, kImmutableChecksumOffset) !=
-        checksum_with_zeroed_field<kSegmentImmutableHeaderBytes>(encoded, kImmutableChecksumOffset)) {
+        crc32c_with_zeroed_field(std::span<const std::byte>{encoded}.first(kSegmentImmutableHeaderBytes),
+                                 kImmutableChecksumOffset, kChecksumBytes)) {
         return fail(ErrorCode::checksum_mismatch, "segment identity checksum mismatch");
     }
 
