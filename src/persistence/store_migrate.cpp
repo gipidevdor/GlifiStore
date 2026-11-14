@@ -1,5 +1,6 @@
 #include "glifistore/persistence/store_migrate.hpp"
 
+#include "glifistore/core/text_encoding.hpp"
 #include "glifistore/core/types.hpp"
 #include "glifistore/core/worker_routing.hpp"
 #include "glifistore/persistence/filesystem_hooks.hpp"
@@ -25,28 +26,6 @@ namespace {
 constexpr std::string_view kCheckpointMagic = "GlifiStore/migrate-state/1";
 constexpr std::size_t kCheckpointMetadataAllowance = 1U << 10U;
 constexpr std::size_t kMaximumCheckpointBytes = 2U * kMaxNormalRecordSize + kCheckpointMetadataAllowance;
-
-[[nodiscard]] auto to_hex(const StoreId& store_id) -> std::string {
-    static constexpr char kDigits[] = "0123456789abcdef";
-    std::string out(store_id.size() * 2, '\0');
-    for (std::size_t index = 0; index < store_id.size(); ++index) {
-        const auto value = static_cast<unsigned>(store_id[index]);
-        out[index * 2] = kDigits[(value >> 4) & 0xf];
-        out[index * 2 + 1] = kDigits[value & 0xf];
-    }
-    return out;
-}
-
-[[nodiscard]] auto key_to_hex(const std::string_view key) -> std::string {
-    static constexpr char kDigits[] = "0123456789abcdef";
-    std::string out(key.size() * 2, '\0');
-    for (std::size_t index = 0; index < key.size(); ++index) {
-        const auto value = static_cast<unsigned char>(key[index]);
-        out[index * 2] = kDigits[(value >> 4) & 0xf];
-        out[index * 2 + 1] = kDigits[value & 0xf];
-    }
-    return out;
-}
 
 [[nodiscard]] auto hex_to_key(const std::string_view hex) -> Result<std::string> {
     if ((hex.size() % 2U) != 0U) {
@@ -274,11 +253,11 @@ struct CheckpointFieldsSeen {
             return fail(ErrorCode::io_error, "unable to create migrate checkpoint temporary");
         }
         output << kCheckpointMagic << '\n'
-               << "source_store_id=" << to_hex(source_store_id) << '\n'
+               << "source_store_id=" << to_lower_hex(std::span<const std::byte>{source_store_id}) << '\n'
                << "source_worker_count=" << source_worker_count << '\n'
                << "target_worker_count=" << target_worker_count << '\n'
                << "keys_copied=" << keys_copied << '\n'
-               << "last_key_hex=" << key_to_hex(last_key) << '\n'
+               << "last_key_hex=" << to_lower_hex(last_key) << '\n'
                << "phase=copying\n";
         if (!output) {
             return fail(ErrorCode::io_error, "unable to write migrate checkpoint temporary");
@@ -393,7 +372,7 @@ auto migrate_durable_store(const std::filesystem::path& source, const std::files
     report.source_worker_count = report.source_verification.manifest.worker_count;
 
     const auto source_store_id = report.source_verification.manifest.store_id;
-    const auto source_store_id_hex = to_hex(source_store_id);
+    const auto source_store_id_hex = to_lower_hex(std::span<const std::byte>{source_store_id});
 
     std::optional<MigrateCheckpoint> resume;
     std::error_code checkpoint_error;

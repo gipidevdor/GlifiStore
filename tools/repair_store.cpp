@@ -1,4 +1,5 @@
 #include "cli/arguments.hpp"
+#include "glifistore/core/text_encoding.hpp"
 #include "glifistore/persistence/store_repair.hpp"
 
 #include <array>
@@ -79,41 +80,6 @@ void print_help(const std::string_view program) {
     return "unknown";
 }
 
-[[nodiscard]] auto json_escape(const std::string_view text) -> std::string {
-    std::string out;
-    out.reserve(text.size() + 8);
-    for (const char ch : text) {
-        switch (ch) {
-        case '\\':
-            out += "\\\\";
-            break;
-        case '"':
-            out += "\\\"";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(ch) < 0x20U) {
-                constexpr char kDigits[] = "0123456789abcdef";
-                out += "\\u00";
-                out += kDigits[(static_cast<unsigned char>(ch) >> 4) & 0xf];
-                out += kDigits[static_cast<unsigned char>(ch) & 0xf];
-            } else {
-                out += ch;
-            }
-            break;
-        }
-    }
-    return out;
-}
-
 void write_text_ok(std::ostream& out, const glifistore::DurableStoreRepairReport& report) {
     out << "status=ok\n"
         << "source=" << report.source.string() << '\n'
@@ -128,10 +94,10 @@ void write_text_ok(std::ostream& out, const glifistore::DurableStoreRepairReport
 
 void write_json_ok(std::ostream& out, const glifistore::DurableStoreRepairReport& report) {
     out << '{' << "\"status\":\"ok\","
-        << "\"source\":\"" << json_escape(report.source.string()) << "\","
-        << "\"workspace\":\"" << json_escape(report.workspace.string()) << "\","
-        << "\"repaired_store\":\"" << json_escape(report.repaired_store.string()) << "\","
-        << "\"quarantine\":\"" << json_escape(report.quarantine_directory.string()) << "\","
+        << "\"source\":\"" << glifistore::json_escape(report.source.string()) << "\","
+        << "\"workspace\":\"" << glifistore::json_escape(report.workspace.string()) << "\","
+        << "\"repaired_store\":\"" << glifistore::json_escape(report.repaired_store.string()) << "\","
+        << "\"quarantine\":\"" << glifistore::json_escape(report.quarantine_directory.string()) << "\","
         << "\"catalog_files_copied\":" << report.catalog_files_copied << ','
         << "\"catalog_bytes_copied\":" << report.catalog_bytes_copied << ','
         << "\"quarantined_files\":" << report.quarantined.size() << ','
@@ -141,11 +107,11 @@ void write_json_ok(std::ostream& out, const glifistore::DurableStoreRepairReport
 void write_json_error(std::ostream& out, const std::string_view source, const std::string_view workspace,
                       const glifistore::Error& error) {
     out << '{' << "\"status\":\"error\","
-        << "\"source\":\"" << json_escape(source) << "\","
-        << "\"workspace\":\"" << json_escape(workspace) << "\","
+        << "\"source\":\"" << glifistore::json_escape(source) << "\","
+        << "\"workspace\":\"" << glifistore::json_escape(workspace) << "\","
         << "\"error\":{"
         << "\"code\":\"" << error_code_name(error.code) << "\","
-        << "\"message\":\"" << json_escape(error.message) << "\""
+        << "\"message\":\"" << glifistore::json_escape(error.message) << "\""
         << "}}\n";
 }
 

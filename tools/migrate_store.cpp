@@ -1,4 +1,5 @@
 #include "cli/arguments.hpp"
+#include "glifistore/core/text_encoding.hpp"
 #include "glifistore/persistence/store_migrate.hpp"
 #include "glifistore/store/config.hpp"
 
@@ -83,41 +84,6 @@ void print_help(const std::string_view program) {
     return "unknown";
 }
 
-[[nodiscard]] auto json_escape(const std::string_view text) -> std::string {
-    std::string out;
-    out.reserve(text.size() + 8);
-    for (const char ch : text) {
-        switch (ch) {
-        case '\\':
-            out += "\\\\";
-            break;
-        case '"':
-            out += "\\\"";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(ch) < 0x20U) {
-                constexpr char kDigits[] = "0123456789abcdef";
-                out += "\\u00";
-                out += kDigits[(static_cast<unsigned char>(ch) >> 4) & 0xf];
-                out += kDigits[static_cast<unsigned char>(ch) & 0xf];
-            } else {
-                out += ch;
-            }
-            break;
-        }
-    }
-    return out;
-}
-
 void write_text_ok(std::ostream& out, const glifistore::DurableStoreMigrateReport& report) {
     out << "status=ok\n"
         << "source=" << report.source.string() << '\n'
@@ -132,8 +98,8 @@ void write_text_ok(std::ostream& out, const glifistore::DurableStoreMigrateRepor
 
 void write_json_ok(std::ostream& out, const glifistore::DurableStoreMigrateReport& report) {
     out << '{' << "\"status\":\"ok\","
-        << "\"source\":\"" << json_escape(report.source.string()) << "\","
-        << "\"destination\":\"" << json_escape(report.destination.string()) << "\","
+        << "\"source\":\"" << glifistore::json_escape(report.source.string()) << "\","
+        << "\"destination\":\"" << glifistore::json_escape(report.destination.string()) << "\","
         << "\"source_workers\":" << report.source_worker_count << ','
         << "\"target_workers\":" << report.target_worker_count << ','
         << "\"keys_copied\":" << report.keys_copied << ',' << "\"keys_skipped\":" << report.keys_skipped
@@ -144,11 +110,11 @@ void write_json_ok(std::ostream& out, const glifistore::DurableStoreMigrateRepor
 void write_json_error(std::ostream& out, const std::string_view source, const std::string_view destination,
                       const glifistore::Error& error) {
     out << '{' << "\"status\":\"error\","
-        << "\"source\":\"" << json_escape(source) << "\","
-        << "\"destination\":\"" << json_escape(destination) << "\","
+        << "\"source\":\"" << glifistore::json_escape(source) << "\","
+        << "\"destination\":\"" << glifistore::json_escape(destination) << "\","
         << "\"error\":{"
         << "\"code\":\"" << error_code_name(error.code) << "\","
-        << "\"message\":\"" << json_escape(error.message) << "\""
+        << "\"message\":\"" << glifistore::json_escape(error.message) << "\""
         << "}}\n";
 }
 

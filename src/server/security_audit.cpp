@@ -1,5 +1,7 @@
 #include "glifistore/server/security_audit.hpp"
 
+#include "glifistore/core/text_encoding.hpp"
+
 #include <array>
 #include <cerrno>
 #include <chrono>
@@ -157,44 +159,8 @@ auto process_sink() noexcept -> std::shared_ptr<SecurityAuditSink> {
     return sink;
 }
 
-[[nodiscard]] auto json_escape(const std::string_view text) -> std::string {
-    std::string out;
-    const auto limit = text.size() > kMaxLoggedFieldBytes ? kMaxLoggedFieldBytes : text.size();
-    out.reserve(limit + 16U);
-    for (std::size_t index = 0; index < limit; ++index) {
-        const char ch = text[index];
-        switch (ch) {
-        case '\\':
-            out += "\\\\";
-            break;
-        case '"':
-            out += "\\\"";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(ch) < 0x20U) {
-                constexpr char kDigits[] = "0123456789abcdef";
-                out += "\\u00";
-                out += kDigits[(static_cast<unsigned char>(ch) >> 4) & 0xf];
-                out += kDigits[static_cast<unsigned char>(ch) & 0xf];
-            } else {
-                out.push_back(ch);
-            }
-            break;
-        }
-    }
-    if (text.size() > kMaxLoggedFieldBytes) {
-        out += "...";
-    }
-    return out;
+[[nodiscard]] auto escape_log_field(const std::string_view text) -> std::string {
+    return json_escape_bounded(text, kMaxLoggedFieldBytes);
 }
 
 [[nodiscard]] auto epoch_seconds() noexcept -> std::int64_t {
@@ -240,17 +206,17 @@ void SecurityAudit::write_event(const std::string_view event, const std::string_
         }
         if (!principal.empty()) {
             line += ",\"principal\":\"";
-            line += json_escape(principal);
+            line += escape_log_field(principal);
             line += '"';
         }
         if (!opcode.empty()) {
             line += ",\"opcode\":\"";
-            line += json_escape(opcode);
+            line += escape_log_field(opcode);
             line += '"';
         }
         if (!reason.empty()) {
             line += ",\"reason\":\"";
-            line += json_escape(reason);
+            line += escape_log_field(reason);
             line += '"';
         }
         line += "}\n";

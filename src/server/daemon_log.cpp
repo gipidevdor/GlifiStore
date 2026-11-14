@@ -1,6 +1,7 @@
 #include "glifistore/server/daemon_log.hpp"
 
 #include "glifistore/core/error.hpp"
+#include "glifistore/core/text_encoding.hpp"
 
 #include <cctype>
 #include <chrono>
@@ -19,44 +20,8 @@ constexpr std::size_t kMaxLoggedFieldBytes = 256U;
     return text;
 }
 
-[[nodiscard]] auto json_escape(const std::string_view text) -> std::string {
-    std::string out;
-    const auto limit = text.size() > kMaxLoggedFieldBytes ? kMaxLoggedFieldBytes : text.size();
-    out.reserve(limit + 16U);
-    for (std::size_t index = 0; index < limit; ++index) {
-        const char ch = text[index];
-        switch (ch) {
-        case '\\':
-            out += "\\\\";
-            break;
-        case '"':
-            out += "\\\"";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(ch) < 0x20U) {
-                constexpr char kDigits[] = "0123456789abcdef";
-                out += "\\u00";
-                out += kDigits[(static_cast<unsigned char>(ch) >> 4) & 0xf];
-                out += kDigits[static_cast<unsigned char>(ch) & 0xf];
-            } else {
-                out.push_back(ch);
-            }
-            break;
-        }
-    }
-    if (text.size() > kMaxLoggedFieldBytes) {
-        out += "...";
-    }
-    return out;
+[[nodiscard]] auto escape_log_field(const std::string_view text) -> std::string {
+    return json_escape_bounded(text, kMaxLoggedFieldBytes);
 }
 
 [[nodiscard]] auto epoch_seconds() noexcept -> std::int64_t {
@@ -236,7 +201,7 @@ void DaemonLog::write_json_prefix(std::string& line, const std::string_view even
     line += ",\"event\":\"";
     line += event;
     line += "\",\"program\":\"";
-    line += json_escape(program_);
+    line += escape_log_field(program_);
     line += '"';
 }
 
@@ -262,7 +227,7 @@ void DaemonLog::emit_listen(const std::string_view bind_address, const std::uint
     line.reserve(256U);
     write_json_prefix(line, "listen");
     line += ",\"bind\":\"";
-    line += json_escape(bind_address);
+    line += escape_log_field(bind_address);
     line += '"';
     if (cleartext_port != 0) {
         line += ",\"cleartext_port\":";
@@ -274,13 +239,13 @@ void DaemonLog::emit_listen(const std::string_view bind_address, const std::uint
     }
     if (!unix_socket_path.empty()) {
         line += ",\"unix_socket\":\"";
-        line += json_escape(unix_socket_path);
+        line += escape_log_field(unix_socket_path);
         line += '"';
     }
     line += ",\"executors\":";
     line += std::to_string(executors);
     line += ",\"storage\":\"";
-    line += json_escape(storage_mode);
+    line += escape_log_field(storage_mode);
     line += "\"}\n";
     std::cerr << line;
 }
@@ -327,9 +292,9 @@ void DaemonLog::emit_maintenance_fault(const MaintenanceState state, const std::
     line += ",\"maintenance_state\":\"";
     line += maintenance_state_label(state);
     line += "\",\"error_code\":\"";
-    line += json_escape(error_code);
+    line += escape_log_field(error_code);
     line += "\",\"error_message\":\"";
-    line += json_escape(error_message);
+    line += escape_log_field(error_message);
     line += "\"}\n";
     std::cerr << line;
 }
@@ -405,9 +370,9 @@ void DaemonLog::emit_executor_failure(const std::string_view error_code,
     line.reserve(256U);
     write_json_prefix(line, "executor_failure");
     line += ",\"error_code\":\"";
-    line += json_escape(error_code);
+    line += escape_log_field(error_code);
     line += "\",\"error_message\":\"";
-    line += json_escape(error_message);
+    line += escape_log_field(error_message);
     line += "\"}\n";
     std::cerr << line;
 }

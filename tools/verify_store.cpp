@@ -1,4 +1,5 @@
 #include "cli/arguments.hpp"
+#include "glifistore/core/text_encoding.hpp"
 #include "glifistore/core/types.hpp"
 #include "glifistore/persistence/store_verify.hpp"
 
@@ -32,18 +33,6 @@ void print_help(const std::string_view program) {
     glifistore::cli::write_help(std::cout, program,
                                 "Verify a GlifiStore durable data directory (read-only, exclusive lock).",
                                 "[OPTIONS] <DATA-DIRECTORY>", kOptionSpecs);
-}
-
-[[nodiscard]] auto to_hex(const std::span<const std::byte> bytes) -> std::string {
-    static constexpr char kDigits[] = "0123456789abcdef";
-    std::string out;
-    out.resize(bytes.size() * 2);
-    for (std::size_t index = 0; index < bytes.size(); ++index) {
-        const auto value = static_cast<unsigned>(bytes[index]);
-        out[index * 2] = kDigits[(value >> 4) & 0xf];
-        out[index * 2 + 1] = kDigits[value & 0xf];
-    }
-    return out;
 }
 
 [[nodiscard]] auto error_code_name(const glifistore::ErrorCode code) -> std::string_view {
@@ -90,41 +79,6 @@ void print_help(const std::string_view program) {
     return "unknown";
 }
 
-[[nodiscard]] auto json_escape(const std::string_view text) -> std::string {
-    std::string out;
-    out.reserve(text.size() + 8);
-    for (const char ch : text) {
-        switch (ch) {
-        case '\\':
-            out += "\\\\";
-            break;
-        case '"':
-            out += "\\\"";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(ch) < 0x20U) {
-                constexpr char kDigits[] = "0123456789abcdef";
-                out += "\\u00";
-                out += kDigits[(static_cast<unsigned char>(ch) >> 4) & 0xf];
-                out += kDigits[static_cast<unsigned char>(ch) & 0xf];
-            } else {
-                out += ch;
-            }
-            break;
-        }
-    }
-    return out;
-}
-
 [[nodiscard]] auto role_name(const glifistore::ManifestSegmentRole role) -> std::string_view {
     switch (role) {
     case glifistore::ManifestSegmentRole::active:
@@ -148,7 +102,7 @@ void print_help(const std::string_view program) {
 void write_text_ok(std::ostream& out, const glifistore::DurableStoreVerifyReport& report) {
     out << "status=ok\n"
         << "path=" << report.path.string() << '\n'
-        << "store_id=" << to_hex(std::span{report.manifest.store_id}) << '\n'
+        << "store_id=" << glifistore::to_lower_hex(std::span{report.manifest.store_id}) << '\n'
         << "manifest_generation=" << report.manifest.manifest_generation << '\n'
         << "worker_count=" << report.manifest.worker_count << '\n'
         << "segment_count=" << report.manifest.segments.size() << '\n'
@@ -170,8 +124,8 @@ void write_text_ok(std::ostream& out, const glifistore::DurableStoreVerifyReport
 
 void write_json_ok(std::ostream& out, const glifistore::DurableStoreVerifyReport& report) {
     out << '{' << "\"status\":\"ok\","
-        << "\"path\":\"" << json_escape(report.path.string()) << "\","
-        << "\"store_id\":\"" << to_hex(std::span{report.manifest.store_id}) << "\","
+        << "\"path\":\"" << glifistore::json_escape(report.path.string()) << "\","
+        << "\"store_id\":\"" << glifistore::to_lower_hex(std::span{report.manifest.store_id}) << "\","
         << "\"manifest_generation\":" << report.manifest.manifest_generation << ','
         << "\"worker_count\":" << report.manifest.worker_count << ','
         << "\"segment_count\":" << report.manifest.segments.size() << ','
@@ -200,10 +154,10 @@ void write_json_ok(std::ostream& out, const glifistore::DurableStoreVerifyReport
 
 void write_json_error(std::ostream& out, const std::string_view path, const glifistore::Error& error) {
     out << '{' << "\"status\":\"error\","
-        << "\"path\":\"" << json_escape(path) << "\","
+        << "\"path\":\"" << glifistore::json_escape(path) << "\","
         << "\"error\":{"
         << "\"code\":\"" << error_code_name(error.code) << "\","
-        << "\"message\":\"" << json_escape(error.message) << "\""
+        << "\"message\":\"" << glifistore::json_escape(error.message) << "\""
         << "}}\n";
 }
 
