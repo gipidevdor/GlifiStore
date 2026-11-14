@@ -1,9 +1,6 @@
-Status: normative for official GlifiStore TCP clients
-Applies to: wire protocol v2 clients (C++, Python, Perl, Go, Erlang, Ruby)
-Owner: networking maintainers
-Last reviewed: 2026-11-07
+# Client semantics v1
 
-# Client semantics v1 — errors, retry, and timeouts
+**Normative** · wire protocol v2 clients (C++, Python, Perl, Go, Erlang, Ruby) · reviewed 2026-11-07
 
 This specification freezes the **observable** failure, retry, and deadline behavior that every
 official GlifiStore TCP client must implement. It complements
@@ -13,7 +10,7 @@ official GlifiStore TCP client must implement. It complements
 The embedded Store API and daemon-internal error codes are out of scope except where they appear as
 wire statuses. Protocol v2 has no authentication or protocol-level timeout field. Optional outer
 TLS 1.3 (ADR 0020) is a transport concern and does not add wire opcodes; client TLS connect options
-follow [secure-profile.md](../security/secure-profile.md).
+follow the [secure profile reference](../security/secure-profile.md).
 
 ## 1. Clocks and deadline kinds
 

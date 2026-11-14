@@ -1,9 +1,9 @@
-# GlifiStore Persistence v1
+# Persistence v1
 
-Status: normative master specification
-Applies to: persistent format family v1
-Owner: persistence maintainers
-Last reviewed: 2026-07-19
+**Normative** · persistent format family v1 · reviewed 2026-07-19
+
+The master specification of persistent format family v1: namespace, artifacts, checksums, recovery
+authority, publication rules, durability modes and compatibility.
 
 ## 1. Scope and authority
 
@@ -12,7 +12,9 @@ This document defines the durable namespace, compatibility boundary, recovery au
 - [Segment and Record format](../architecture/segment-format.md)
 - [Manifest format](../architecture/manifest-format.md)
 
-Ordering and failure semantics are defined by [Durability and recovery](../architecture/durability-recovery.md). If a roadmap or overview conflicts with these documents, this specification and the exact format documents win.
+Ordering and failure semantics are defined by the
+[durability and recovery contract](../architecture/durability-recovery.md). If a roadmap or overview
+conflicts with these documents, this specification and the exact format documents win.
 
 Persistent bytes are always encoded and decoded field by field. C++ object layout, native endianness, padding, and enum representation are never persistent format.
 
@@ -30,7 +32,7 @@ A durable Store exclusively owns its data directory while open. Version 1 recogn
 | `.glifistore.compaction` | durable compaction intent v1 |
 | `.glifistore.compaction.tmp` | temporary compaction-intent publication |
 | `segment-<id>-<generation>.glifi` | published Segment file |
-| `.segment-<id>-<generation>.tmp` | temporary Segment creation |
+| `.segment-<id>-<generation>.glifi.tmp` | temporary Segment creation |
 
 `<id>` is exactly 16 lowercase hexadecimal digits and `<generation>` exactly eight. A filename is not identity authority: the decoded Store ID, Segment ID, generation, owner, and versions must agree with the manifest and name.
 
@@ -125,21 +127,22 @@ normative in the [recovery state-transition matrix v1](recovery-state-matrix-v1.
 
 Stable files are never incrementally rewritten as a namespace transaction. Publication uses a temporary file in the same directory, complete write, required file synchronization, atomic rename, and required directory synchronization.
 
-Whole-Worker compaction (ADR 0039) may build complete replacement Segment contents under recognized
-private `.segment-<id>-<generation>.glifi.tmp` names while the old Manifest remains the sole
-authority. Each staged file is synchronized, sealed and verified before the publication lease and
-before the v1 compaction intent. After the exact intent is durable, all planned temporaries are
-renamed to their canonical names and one directory synchronization orders that promotion before
-the next Manifest. A crash before intent leaves only disposable temporaries; ordinary recovery
-removes them only after a complete scan of the authoritative Manifest. A crash after intent is
-resolved exclusively by the old/next authority rules in the recovery matrix.
+Durable compaction of the oldest sealed prefix of one Worker (ADR 0039, amended by
+[ADR 0044](../adr/0044-bounded-prefix-compaction-remap.md)) may build complete replacement Segment
+contents under recognized private `.segment-<id>-<generation>.glifi.tmp` names while the old
+Manifest remains the sole authority. Each staged file is synchronized, sealed and verified before
+the publication lease and before the v1 compaction intent. After the exact intent is durable, all
+planned temporaries are renamed to their canonical names and one directory synchronization orders
+that promotion before the next Manifest. A crash before intent leaves only disposable temporaries;
+ordinary recovery removes them only after a complete scan of the authoritative Manifest. A crash
+after intent is resolved exclusively by the old/next authority rules in the recovery matrix.
 
 Record bytes are ordered before the commit slot that authorizes them. Outside initial bootstrap,
 Segment creation is durable before a Manifest can reference it. Bootstrap may publish its initial
 Manifest first only while the identical durable bootstrap intent authorizes creation of every
 missing exact pristine Segment. A Manifest that removes old Segments is durable before those
 Segments may be deleted. Exact filesystem primitives and supported-platform assumptions are
-defined in [Persistence filesystem](../architecture/persistence-filesystem.md).
+defined in the [persistence filesystem layer](../architecture/persistence-filesystem.md).
 
 ## 10. Durability modes
 

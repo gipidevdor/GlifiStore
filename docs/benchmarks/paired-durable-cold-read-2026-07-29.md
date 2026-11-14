@@ -1,81 +1,88 @@
-# Paired durable cold-read — audit del 2026-07-29
+# Paired durable cold-read audit
 
-## Perimetro
+**Historical** · macOS arm64, paired daemon, Release · 2026-07-29
 
-Audit su macOS arm64, AppleClang 21, Release, protocollo raw-wire, routing owner-bound, chiavi 16 B e
-valori 64 B. Il confronto parte dal percorso durable-periodic precedente al commit SPSC cold-read e
-arriva al worktree `a65e454` con due ulteriori ottimizzazioni:
+## Scope
 
-- un I/O helper e una SPSC privata per `ShardPair`, senza mutex/condition variable globale;
-- scratch di record verificato riusabile e consumer-private per lane;
-- cancellazione tramite epoch preallocata per connection slot, senza `shared_ptr`/allocazione per GET.
+Audit on macOS arm64, AppleClang 21, Release, raw-wire protocol, owner-bound routing, 16 B keys and
+64 B values. The comparison starts from the durable-periodic path preceding the SPSC cold-read
+commit and ends at worktree `a65e454` with two further optimizations:
 
-I raw summary locali sono in
+- one I/O helper and one private SPSC per `ShardPair`, without a global mutex/condition variable;
+- a reusable, verified record scratch, consumer-private per lane;
+- cancellation through a preallocated epoch per connection slot, without a `shared_ptr` or an
+  allocation per GET.
+
+The local raw summaries are in
 `benchmark-results/paired-shards/a65e454-dirty/macos-arm64/2026-07-29-durable-cold-read/`.
-Non essendoci hard affinity su macOS e non essendo i run alternati, variazioni inferiori a circa il
-5% sono indicative, non conclusive.
+Because macOS has no hard affinity and the runs are not alternated, variations below about 5% are
+indicative, not conclusive.
 
-## Risultati
+## Results
 
-| Workload | Topologia | Prima | Dopo | Δ throughput | p50 prima/dopo | p99 prima/dopo | p99.9 prima/dopo |
+| Workload | Topology | Before | After | Δ throughput | p50 before/after | p99 before/after | p99.9 before/after |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| GET-only, pipeline 32 | 1 pair / 8 client | 162.351 | 179.973 ops/s | +10,9% | 961 / 924 µs | 2,30 / 2,06 ms | 3,07 / 2,41 ms |
-| GET-only, pipeline 32 | 4 pair / 8 client | 159.791 | 159.108 ops/s | -0,4% | 885 / 864 µs | 2,19 / 2,06 ms | 2,93 / 3,49 ms |
-| GET-only, pipeline 1 | 1 pair / 8 client | 99.209 | 94.677 ops/s | -4,6% | 82 / 78 µs | 185 / 156 µs | 261 / 212 µs |
-| 99% GET / 1% PUT | 1 pair / 8 client | 143.796 | 167.718 ops/s | +16,6% | 797 / 809 µs | 4,08 / 3,89 ms | 5,49 / 5,37 ms |
+| GET-only, pipeline 32 | 1 pair / 8 clients | 162,351 | 179,973 ops/s | +10.9% | 961 / 924 µs | 2.30 / 2.06 ms | 3.07 / 2.41 ms |
+| GET-only, pipeline 32 | 4 pair / 8 clients | 159,791 | 159,108 ops/s | -0.4% | 885 / 864 µs | 2.19 / 2.06 ms | 2.93 / 3.49 ms |
+| GET-only, pipeline 1 | 1 pair / 8 clients | 99,209 | 94,677 ops/s | -4.6% | 82 / 78 µs | 185 / 156 µs | 261 / 212 µs |
+| 99% GET / 1% PUT | 1 pair / 8 clients | 143,796 | 167,718 ops/s | +16.6% | 797 / 809 µs | 4.08 / 3.89 ms | 5.49 / 5.37 ms |
 
-Lo scratch riusabile, isolato prima della cancellazione a epoch, ha portato il GET-only 1-pair da
-168.320 a 178.890 ops/s (+6,3%) e ha ridotto p95/p99/p99.9. L'epoch elimina un'altra allocazione e
-il relativo refcount, con un guadagno più piccolo ma con ownership più semplice e bounded.
+The reusable scratch, isolated before the epoch cancellation, took the 1-pair GET-only from 168,320
+to 178,890 ops/s (+6.3%) and reduced p95/p99/p99.9. The epoch removes another allocation and its
+refcount, with a smaller gain but simpler, bounded ownership.
 
-## Giudizio
+## Assessment
 
-Il blocco chiude la regressione locale del cold GET single-pair e migliora il mixed workload senza
-spostare I/O sotto lock. Non chiude il gate di scalabilità durable: a 32 client e pipeline 32, una
-coppia produce 180.484 ops/s e quattro coppie 176.309 ops/s. Lo stesso harness volatile raggiunge
-3,76 Mops/s a quattro coppie, quindi il limite è specifico del materialization path durevole, non del
-solo reactor TCP.
+The block closes the local single-pair cold GET regression and improves the mixed workload without
+moving I/O under a lock. It does not close the durable scalability gate: at 32 clients and
+pipeline 32, one pair produces 180,484 ops/s and four pairs 176,309 ops/s. The same volatile harness
+reaches 3.76 Mops/s at four pairs, so the limit is specific to the durable materialization path, not
+to the TCP reactor alone.
 
-Il profilo corrente compie ancora, per ogni cold GET:
+The current profile still performs, for every cold GET:
 
-1. copia del `PublishedReadRecord` con incremento del pin `shared_ptr`;
-2. allocazione del pImpl `PreparedColdRead`;
-3. `pread` e verifica completa Record/CRC;
-4. allocazione e copia del valore in `OwnedValue`;
-5. wakeup I/O→Reader e copia nella coda di output del socket.
+1. a copy of the `PublishedReadRecord` with an increment of the `shared_ptr` pin;
+2. an allocation of the `PreparedColdRead` pImpl;
+3. a `pread` and a full Record/CRC verification;
+4. an allocation and copy of the value into `OwnedValue`;
+5. an I/O→Reader wakeup and a copy into the socket output queue.
 
-La singola lane I/O per coppia paga handoff/wakeup per ogni record. Aggiungere thread alla stessa
-coppia violerebbe SPSC/ownership e maschererebbe il problema; la direzione corretta è ridurre
-materializzazioni, copie e syscall, poi misurare batching/io_uring su Linux mantenendo l'ordering.
+The single I/O lane per pair pays a handoff/wakeup for every record. Adding threads to the same pair
+would violate SPSC/ownership and mask the problem; the right direction is to reduce
+materializations, copies and syscalls, then measure batching/io_uring on Linux while preserving
+ordering.
 
 ## Safety gate
 
-- CTest completo: 37/37, incluse matrici crash e allocation fault;
-- suite Debug: 453/453;
+- full CTest: 37/37, including crash and allocation fault matrices;
+- Debug suite: 453/453;
 - ASan/UBSan: 453/453;
 - TSan: 453/453;
-- late completion/connection-slot reuse e shutdown con pin in-flight restano coperti;
-- il nuovo scratch ha un test esplicito di riuso della capacità e validazione del valore.
+- late completion/connection-slot reuse and shutdown with in-flight pins remain covered;
+- the new scratch has an explicit test of capacity reuse and value validation.
 
-## Priorità successive
+## Next priorities
 
-1. **P0 — cold-read lease:** eliminare pImpl e refcount per richiesta con slot preallocati e QSBR che
-   copra I/O e risposta, senza far uscire `RecordRef` o file handle non pinnati.
-2. **P0 — get-into/scatter-gather:** una sola materializzazione bounded del valore e response lifetime
-   esplicito; TLS richiede un percorso separato perché non preserva automaticamente iovec esterni.
-3. **P1 — platform backend:** misurare `io_uring` su Linux e batching di completion; macOS mantiene il
-   backend portabile finché un backend nativo dimostra una coda migliore.
-4. **P1 — osservabilità:** contatori per lane (submit, wake, batch, service, scratch growth, bytes copied)
-   e benchmark alternato 1/2/4/8 pair con CPU/NUMA affinity reale su Linux.
+1. **P0 — cold-read lease:** remove the pImpl and the per-request refcount with preallocated slots
+   and a QSBR that covers I/O and response, without letting `RecordRef` or unpinned file handles
+   escape.
+2. **P0 — get-into/scatter-gather:** a single bounded materialization of the value and an explicit
+   response lifetime; TLS requires a separate path because it does not automatically preserve
+   external iovecs.
+3. **P1 — platform backend:** measure `io_uring` on Linux and completion batching; macOS keeps the
+   portable backend until a native backend shows a better tail.
+4. **P1 — observability:** per-lane counters (submit, wake, batch, service, scratch growth, bytes
+   copied) and an alternating 1/2/4/8 pair benchmark with real CPU/NUMA affinity on Linux.
 
-Il P0 refresh è chiuso dal protocollo per-shard documentato nell'ADR e dal relativo audit A/B in
+The P0 refresh is closed by the per-shard protocol documented in the ADR and by its A/B audit in
 `paired-generation-refresh-2026-07-29.md`.
 
-Aggiornamento 2026-07-29: i punti 1 e 2 sono stati chiusi rispettivamente dai gate
-`paired-borrowed-cold-read-2026-07-29.md` e `paired-scatter-output-2026-07-29.md`; scatter è adattivo,
-mentre TLS e connessioni pipelined restano contigui per contratto e benchmark.
+Update 2026-07-29: items 1 and 2 were closed by the gates
+`paired-borrowed-cold-read-2026-07-29.md` and `paired-scatter-output-2026-07-29.md` respectively;
+scatter is adaptive, while TLS and pipelined connections stay contiguous by contract and by
+benchmark.
 
-Aggiornamento 2026-08-01 (adozione paired): il punto 3 resta **deferred** per 0.1.0 — nessun A/B che
-dimostri coda/syscall migliori senza rischio su ordering/ack
-([`paired-shards-plan.md`](paired-shards-plan.md)). Il punto 4 è coperto dal harness Linux hard-pinned
-in attesa di `glifistore-linux-perf` ([`paired-shards-linux-p1.md`](paired-shards-linux-p1.md)).
+Update 2026-08-01 (paired adoption): item 3 stays **deferred** for 0.1.0 — no A/B shows a better
+tail or fewer syscalls without risk to ordering/ack
+([`paired-shards-plan.md`](paired-shards-plan.md)). Item 4 is covered by the hard-pinned Linux
+harness awaiting `glifistore-linux-perf` ([`paired-shards-linux-p1.md`](paired-shards-linux-p1.md)).

@@ -1,16 +1,18 @@
 # Format compatibility matrix
 
-This document records the formats understood by the current `0.1.x` code line. It is the development
-reader/writer matrix for persistence and wire codecs. Released migration policy is separate and is
-not implied by this matrix.
+**Descriptive** · persistence and wire codecs of the 0.1.x code line
 
-Default durable persistence remains family v1. ADR 0042 adds an explicit embedded-only blob
-profile in family v2; opening a v1 Store never upgrades it. Within either profile, durable policies
-share that profile's bytes and differ in acknowledgement timing. Blob payload installation is
-strict even for periodic descriptor commits.
+The formats the current 0.1.x code line reads and writes: the development reader/writer matrix for
+persistence and wire codecs. Released migration policy is separate, and this matrix does not imply
+it.
 
-Format versions are independent. A library version never implies that manifest, Segment, Record,
-and wire versions advance together.
+Default durable persistence stays in format family v1. ADR 0042 adds an explicit embedded-only blob
+profile in family v2; opening a v1 Store never upgrades it. Within either profile, the durable
+policies share that profile's bytes and differ in acknowledgement timing. Blob payload installation
+is strict even for periodic descriptor commits.
+
+Format versions are independent. A library version never implies that the Manifest, Segment,
+Record and wire versions advance together.
 
 ## Default v1 codecs
 
@@ -25,11 +27,11 @@ and wire versions advance together.
 | Compaction intent | 1 | Exact v1 only | Emits v1 | [`compaction_intent_v1.hex`](../../tests/fixtures/compaction_intent_v1.hex), decode-only compatibility, exact encoder, and interrupted-recovery tests | Internal codec complete |
 | Native wire protocol | 2 | Exact v2 only | Emits v2 | [`wire_requests_v2.hex`](../../tests/fixtures/wire_requests_v2.hex), [`wire_responses_v2.hex`](../../tests/fixtures/wire_responses_v2.hex), malformed-frame tests, and cross-SDK fixture verification | Experimental codec complete |
 
-For persistent codecs, “exact” means that unknown required versions, sizes, flags, and non-zero
-reserved bytes are rejected. Wire v2 likewise rejects non-zero flags/reserved fields and
-non-canonical opcode-specific key, value, expiry, and target-Worker combinations.
-Record v1 additionally requires the minimal 8-byte-aligned extent and zero alignment padding, so
-one logical Record cannot have multiple correctly checksummed encodings.
+For persistent codecs, “exact” means that unknown required versions, sizes, flags and non-zero
+reserved bytes are rejected. Wire v2 likewise rejects non-zero flags and reserved fields, and
+non-canonical opcode-specific key, value, expiry and target-Worker combinations. Record v1 also
+requires the minimal 8-byte-aligned extent and zero alignment padding, so one logical Record cannot
+have several correctly checksummed encodings.
 
 ## Opt-in blob profile
 
@@ -44,11 +46,11 @@ one logical Record cannot have multiple correctly checksummed encodings.
 | Compaction intent | 2 | Both embedded Manifests must have the same v2 profile |
 | Blob file / BlobRef | 1 / 1 | Separate explicit codecs, not arbitrary value prefixes |
 
-The new engine can decode both profiles but admits v2 only through the explicit paired durable
-embedded configuration. Earlier v1 engines reject the v2 Manifest. Wire v2, daemon, SDK and C ABI
-blob enablement are deferred. Independent fixtures come from
-[`generate_blob_fixtures.py`](../../scripts/generate_blob_fixtures.py); local tests do not establish
-released cross-version compatibility or E3/E4 certification.
+The current engine decodes both profiles but admits v2 only through the explicit paired durable
+embedded configuration. Earlier v1 engines reject the v2 Manifest. Blob enablement for wire v2, the
+daemon, the SDKs and the C ABI is deferred. Independent fixtures come from
+[`generate_blob_fixtures.py`](../../scripts/generate_blob_fixtures.py); local tests establish
+neither released cross-version compatibility nor E3/E4 certification.
 
 ## Reader/writer matrix
 
@@ -65,26 +67,21 @@ released cross-version compatibility or E3/E4 certification.
 | Any pre-v1 persistent artifact | Unsupported; no legacy persistent format was released |
 | Any future persistent version | Unsupported until a reader row, fixture, and migration decision are added |
 
-The manifest pins all persistent component versions. Mixing a manifest v1 catalog with a Segment,
-header, commit slot, or Record version not declared and supported by that manifest is an incompatible
-Store.
+The Manifest pins every persistent component version. A Manifest v1 catalog mixed with a Segment,
+header, commit-slot or Record version that the Manifest does not declare and support is an
+incompatible Store.
 
-## Upgrade and downgrade policy
+## Upgrade and downgrade
 
-Published operator policy lives in [version lifecycle](version-lifecycle.md) and
-[ADR 0024](../adr/0024-offline-worker-migration.md). Summary for the current `0.x` / persistence v1
-line:
+The operator policy for the 0.x / persistence v1 line (same-directory reopen, offline Worker-count
+change with `glifistore_migrate_store`, fail-closed downgrade) is in
+[version lifecycle](version-lifecycle.md) and [ADR 0024](../adr/0024-offline-worker-migration.md).
 
-- Same-directory **reopen** across binaries that implement Manifest/Segment/Record v1 is the
-  supported upgrade path when Worker count is unchanged.
-- Worker-count changes require offline `glifistore_migrate_store` into a new destination Store.
-- Newer required format versions fail closed on older binaries; there is no automatic downgrade
-  rewrite.
-- Cross-release tagged artifact drops use `tests/fixtures/released/<label>/` and
-  `scripts/package-release-compatibility-artifacts.sh`. CI job `released-artifact-compat`
-  (workflow `.github/workflows/release-compat.yml`) decodes in-tree labels, packages a per-commit
-  self artifact on push/PR, and on version tags packages + uploads `released/<label>/`. Committing
-  tagged trees into the permanent fixture drop remains a release-process step.
+Cross-release tagged artifact drops use `tests/fixtures/released/<label>/` and
+`scripts/package-release-compatibility-artifacts.sh`. CI job `released-artifact-compat` (workflow
+`.github/workflows/release-compat.yml`) decodes in-tree labels, packages a per-commit self artifact
+on push and pull request, and on version tags packages and uploads `released/<label>/`. Committing
+tagged trees into the permanent fixture drop is a release-process step.
 
 Before the first durable alpha release, every writer version must still have:
 
@@ -95,19 +92,20 @@ Before the first durable alpha release, every writer version must still have:
 5. release notes identifying the oldest readable and writable versions.
 
 A future writer must not overwrite an older Store until compatibility has been decided and all
-required source artifacts have been validated. An older binary encountering a correctly checksummed
-newer required version fails closed. Read-only salvage, downgrade export, and destructive repair are
-separate operator workflows.
+required source artifacts have been validated. Read-only salvage, downgrade export and destructive
+repair are separate operator workflows.
 
 ## Limits of current evidence
 
-Fixtures are emitted by `scripts/generate_format_fixtures.py` and checked by decode-only tests in
-`tests/unit/format_compatibility_tests.cpp`. Exact encoder tests bind production output to the same
-canonical bytes. Durable Store round-trip reopen and on-disk Segment header prefixes are covered.
-Cross-release binary compatibility uses the optional `tests/fixtures/released/<label>/` trees and
-`tests/unit/released_artifact_compat_tests.cpp`; packaging is
-`scripts/package-release-compatibility-artifacts.sh`. Wire fixtures are generated independently,
-verified against the C++ codec, and compared byte-for-byte with every official SDK. Crash recovery
-for the persistent v1 runtime is in the `glifistore_crash_persistence` CTest target and
-[durability and recovery](durability-recovery.md). Offline Worker reshard evidence is in
-`tests/unit/store_migrate_tests.cpp` and [store-migration](store-migration.md).
+`scripts/generate_format_fixtures.py` emits the fixtures, and decode-only tests in
+`tests/unit/format_compatibility_tests.cpp` check them. Exact encoder tests bind production output
+to the same canonical bytes. Durable Store round-trip reopen and on-disk Segment header prefixes are
+covered. Cross-release binary compatibility uses the optional `tests/fixtures/released/<label>/`
+trees and `tests/unit/released_artifact_compat_tests.cpp`, packaged by
+`scripts/package-release-compatibility-artifacts.sh`.
+
+Wire fixtures are generated independently, verified against the C++ codec and compared byte for byte
+with every official SDK. Crash recovery for the persistent v1 runtime is covered by the
+`glifistore_crash_persistence` CTest target; see [durability and recovery](durability-recovery.md).
+Offline Worker reshard evidence is in `tests/unit/store_migrate_tests.cpp` and
+[store migration](store-migration.md).

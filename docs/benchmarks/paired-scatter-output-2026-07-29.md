@@ -1,101 +1,105 @@
-# Paired cold-read scatter output — 2026-07-29
+# Paired cold-read scatter output
 
-## Esito
+**Historical** · macOS arm64, paired daemon, Release · 2026-07-29
 
-**Accettato in forma adattiva e confinata.** Il cold GET cleartext non copia più
-`OwnedValue` nel buffer della connessione quando il payload è almeno 4 KiB e la connessione non ha
-dimostrato uso della pipeline. Header e valore restano due extent owning stabili fino al completo
-drain tramite `sendmsg`. TLS conserva il frame contiguo perché `SSL_write` non offre lo stesso
-contratto scatter/gather.
+## Outcome
 
-Non è uno zero-copy end-to-end: il helper cold legge e verifica ancora il Record nel proprio scratch
-e materializza un `OwnedValue`. Il blocco elimina esattamente la copia successiva
-`OwnedValue -> Connection::output` nel caso ammesso.
+**Accepted in an adaptive, confined form.** The cleartext cold GET no longer copies `OwnedValue`
+into the connection buffer when the payload is at least 4 KiB and the connection has not shown
+pipeline use. Header and value stay as two stable owning extents until fully drained through
+`sendmsg`. TLS keeps the contiguous frame because `SSL_write` does not offer the same scatter/gather
+contract.
 
-Il candidato scatter indiscriminato è stato respinto. Su valori da 64 B ha perso il 14,9% di
-throughput a pipeline 1 e il 3,1% a pipeline 32; sui valori da 64 KiB una singola lease ha inoltre
-serializzato la pipeline 8. La versione accettata applica quindi due decisioni misurate:
+It is not an end-to-end zero-copy: the cold helper still reads and verifies the Record in its own
+scratch and materializes an `OwnedValue`. The block removes exactly the following copy,
+`OwnedValue -> Connection::output`, in the admitted case.
 
-- sotto 4 KiB usa il percorso contiguo, perché il costo fisso di `sendmsg` supera la copia;
-- dopo aver osservato più Store request nello stesso input turn, la connessione resta contigua per
-  preservare l'overlap fra output e cold read successivo;
-- il percorso scatter conserva una sola lease bounded, disarma il read interest durante una write
-  parziale e non introduce una coda multi-extent o allocazioni di framing per risposta.
+The indiscriminate scatter candidate was rejected. On 64 B values it lost 14.9% of throughput at
+pipeline 1 and 3.1% at pipeline 32; on 64 KiB values a single lease also serialized pipeline 8. The
+accepted version therefore applies two measured decisions:
 
-## Invarianti di ownership e backpressure
+- below 4 KiB it uses the contiguous path, because the fixed cost of `sendmsg` exceeds the copy;
+- after observing more than one Store request in the same input turn, the connection stays
+  contiguous to preserve the overlap between output and the next cold read;
+- the scatter path keeps a single bounded lease, disarms the read interest during a partial write
+  and introduces neither a multi-extent queue nor framing allocations per response.
 
-- socket e lease appartengono esclusivamente al Reader/Reactor;
-- la lease possiede l'`OwnedValue`; nessun `RecordRef`, descriptor o pin di generation viene usato
-  dopo il rilascio della lease QSBR del task I/O;
-- una response contigua già accodata precede sempre header e valore scatter nello stesso `sendmsg`;
-- offset di buffer, header e valore avanzano separatamente attraverso short write ed `EAGAIN`;
-- il watermark `maximum_output_bytes` include tutti gli extent pending;
-- con lease attiva il socket non viene letto: la pressione resta nel receive buffer del kernel e la
-  memoria utente non cresce senza limite;
-- close, timeout, hangup, shutdown drain e slot reuse considerano e distruggono la lease;
-- il Writer non scrive mai sul socket e non acquisisce lock di catalogo per il drain.
+## Ownership and backpressure invariants
 
-Metriche aggregate e per Reactor: `output_scatter_responses`, `output_scatter_bytes`,
+- socket and lease belong exclusively to the Reader/Reactor;
+- the lease owns the `OwnedValue`; no `RecordRef`, descriptor or generation pin is used after the
+  release of the I/O task's QSBR lease;
+- an already queued contiguous response always precedes the scatter header and value in the same
+  `sendmsg`;
+- buffer, header and value offsets advance separately across short writes and `EAGAIN`;
+- the `maximum_output_bytes` watermark includes all pending extents;
+- with an active lease the socket is not read: the pressure stays in the kernel receive buffer and
+  user memory does not grow without bound;
+- close, timeout, hangup, shutdown drain and slot reuse consider and destroy the lease;
+- the Writer never writes to the socket and does not take catalog locks for the drain.
+
+Aggregate and per-Reactor metrics: `output_scatter_responses`, `output_scatter_bytes`,
 `output_scatter_partial_writes`, `output_scatter_completions`.
 
-## A/B macOS arm64
+## macOS arm64 A/B
 
-Release Apple LLVM 21, una pair, quattro client, durable-periodic 1000 ms, key 16 B. I raw result
-sono in `benchmarks/results/paired-scatter-output-2026-07-29/`. Sono run sequenziali non pinned e il
-campione da 64 KiB ha tre ripetizioni: le code sono evidenza locale, non un claim cross-platform.
+Release Apple LLVM 21, one pair, four clients, durable-periodic 1000 ms, key 16 B. The raw results
+are in `benchmarks/results/paired-scatter-output-2026-07-29/`. They are sequential, unpinned runs
+and the 64 KiB sample has three repetitions: the tails are local evidence, not a cross-platform
+claim.
 
-### Perché il candidato indiscriminato è stato respinto
+### Why the indiscriminate candidate was rejected
 
-| workload 64 B | baseline borrowed | scatter sempre | delta throughput |
+| 64 B workload | borrowed baseline | always scatter | throughput delta |
 |---|---:|---:|---:|
-| GET p1 | 112.984/s | 96.176/s | -14,9% |
-| GET p32 | 186.012/s | 180.333/s | -3,1% |
-| GET/PUT 99/1 p32 | 173.874/s | 159.199/s | -8,4% |
+| GET p1 | 112,984/s | 96,176/s | -14.9% |
+| GET p32 | 186,012/s | 180,333/s | -3.1% |
+| GET/PUT 99/1 p32 | 173,874/s | 159,199/s | -8.4% |
 
-Il run adattivo da 64 B, che usa il frame contiguo, torna a 109.199/s a p1 e 185.355/s a p32.
-Lo spread non pinned non permette di distinguere il residuo dal rumore; soprattutto, elimina la
-regressione strutturale di `sendmsg` sui payload piccoli.
+The adaptive 64 B run, which uses the contiguous frame, returns to 109,199/s at p1 and 185,355/s at
+p32. The unpinned spread does not allow telling the residual from noise; above all, it removes the
+structural regression of `sendmsg` on small payloads.
 
-### Gate grande, pipeline 1
+### Large gate, pipeline 1
 
-| metrica, 64 KiB | contiguo | scatter accettato | delta |
+| metric, 64 KiB | contiguous | accepted scatter | delta |
 |---|---:|---:|---:|
-| throughput | 27.602/s | 27.487/s | -0,4% |
-| p50 | 95,1 us | 95,2 us | +0,04% |
-| p95 | 128,9 us | 125,3 us | -2,8% |
-| p99 | 173,0 us | 149,8 us | -13,4% |
-| p99.9 | 319,2 us | 223,5 us | -30,0% |
+| throughput | 27,602/s | 27,487/s | -0.4% |
+| p50 | 95.1 us | 95.2 us | +0.04% |
+| p95 | 128.9 us | 125.3 us | -2.8% |
+| p99 | 173.0 us | 149.8 us | -13.4% |
+| p99.9 | 319.2 us | 223.5 us | -30.0% |
 
-Il throughput è neutrale nel campione e le code alte migliorano. L'RSS di processo non è usato per
-un claim: include dataset durevole, page cache e ordine sequenziale dei run.
+Throughput is neutral in the sample and the high percentiles improve. Process RSS is not used for a
+claim: it includes the durable dataset, the page cache and the sequential order of the runs.
 
-A pipeline 8 la versione finale classifica la connessione come pipelined e usa il percorso contiguo.
-Il run locale ha spread e deriva termica troppo elevati (33,1-40,4k/s) per un confronto numerico;
-il test deterministico verifica invece che due cold GET grandi conservino ordine e zero lease
-scatter su quella connessione. Un futuro multi-extent scatter richiederà una struttura preallocata,
-un watermark per byte e un A/B separato prima di sostituire questa scelta.
+At pipeline 8 the final version classifies the connection as pipelined and uses the contiguous path.
+The local run has too much spread and thermal drift (33.1-40.4k/s) for a numerical comparison; the
+deterministic test instead verifies that two large cold GETs preserve order and zero scatter leases
+on that connection. A future multi-extent scatter will require a preallocated structure, a per-byte
+watermark and a separate A/B before replacing this choice.
 
 ## Safety gate
 
-- suite Debug: 461/461;
-- ASan + UBSan: 461/461; preset completo 37/37 incluse matrici crash e allocation fault;
+- Debug suite: 461/461;
+- ASan + UBSan: 461/461; full preset 37/37 including crash and allocation fault matrices;
 - TSan: 461/461;
-- build strict ISO C++23/hardening: pass;
-- short write reale con receive buffer ristretto e payload da 768 KiB;
-- pipeline cold grande, ordine delle response e classificazione contigua;
-- TLS resta sul percorso owning contiguo;
-- nessuna modifica a wire v2, Record, Segment, Manifest o persistence v1.
+- strict ISO C++23/hardening build: pass;
+- real short write with a narrowed receive buffer and a 768 KiB payload;
+- large cold pipeline, response order and contiguous classification;
+- TLS stays on the contiguous owning path;
+- no change to wire v2, Record, Segment, Manifest or persistence v1.
 
-## Prossimo gate
+## Next gate
 
-Il P0 output è chiuso per il percorso cleartext diretto; `get-into` può ancora eliminare la
-materializzazione nel helper, ma richiede buffer ownership e checksum verification senza prestito
-oltre la generation. Il prossimo blocco con impatto più generale è la mutation arena preallocata per
-eliminare `string`/`vector` per PUT/ERASE mantenendo completion credit e byte budget invariati.
+The P0 output is closed for the direct cleartext path; `get-into` can still remove the
+materialization in the helper, but it requires buffer ownership and checksum verification without
+borrowing beyond the generation. The next block with more general impact is the preallocated
+mutation arena, to remove `string`/`vector` for PUT/ERASE while keeping completion credit and byte
+budget unchanged.
 
 ## Successor (2026-07-31)
 
-La promozione di `get-into` / coda multi-extent è stata **respinta** senza prova bounded+win:
+The promotion of `get-into` / multi-extent queue was **rejected** without bounded proof and win:
 [`paired-get-into-multi-extent-reject-2026-07-31.md`](paired-get-into-multi-extent-reject-2026-07-31.md).
-Il percorso adattivo di questo gate resta il data path di produzione.
-
+The adaptive path of this gate remains the production data path.

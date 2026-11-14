@@ -1,51 +1,47 @@
-# E3 pinned-row campaign (operator runbook)
+# E3 pinned-row campaign
 
-Status: descriptive  
-Applies to: `scripts/run-e3-campaign.sh`, `scripts/run-e3-block-reset.sh`,
-`scripts/collect-durability-evidence.sh`  
-Owner: release and storage maintainers  
-Last reviewed: 2026-08-30
+**Descriptive** · the E3 campaign, E3 harness and E2 collector scripts · reviewed 2026-08-30
 
-Operator procedure to produce a **retained E3 campaign-prep artifact** on a declared hardware/VM
-and filesystem pin. A coding agent cannot certify E3 on real NVMe. This runbook exists so a
-maintainer can run, review, and — only when gates pass — promote a row.
-
-**Hard rule:** every automated artifact keeps `e3_certified=no` until a human completes the
-sign-off checklist and updates the evidence matrix / release notes. A green campaign exit code is
-not certification. CI (`.github/workflows/durability-evidence.yml`) exercises harness smoke,
-weekly campaign-profile loopback/diskimage rehearsal, and an optional hosted-ci E0→E3 orchestrator
-path; all of those remain rehearsal. `scripts/assert-e3-rehearsal-honesty.sh` fails closed if an
-artifact claims `e3_certified=yes` or release-certification eligibility.
-
-Normative claim rules:
+How a maintainer produces a retained E3 campaign-prep artifact on a declared hardware or VM and
+filesystem pin, reviews it and, only when every gate passes, promotes a row. The orchestrator is
+`scripts/run-e3-campaign.sh`; it drives the E2 collector `scripts/collect-durability-evidence.sh`
+and the E3 harness `scripts/run-e3-block-reset.sh`. A coding agent cannot certify E3 on real NVMe.
+The claim rules are in the
 [platform durability evidence matrix](../architecture/platform-durability-evidence.md).
 
-## What this campaign establishes
+**Hard rule.** Every automated artifact keeps `e3_certified=no` until a human completes the
+sign-off checklist and updates the evidence matrix and the release notes. A green campaign exit code
+is not certification. CI (`.github/workflows/durability-evidence.yml`) exercises the harness smoke,
+a weekly campaign-profile loopback and diskimage rehearsal, and an optional hosted-ci E0→E3
+orchestrator path; all of them remain rehearsal. `scripts/assert-e3-rehearsal-honesty.sh` fails
+closed if an artifact claims E3 certification or release-certification eligibility.
 
-| If the pin is… | A passing campaign may support… | It does **not** establish… |
-|---|---|---|
-| Hosted CI / unknown backing store | Harness regression only | Any production storage claim |
-| Loopback / APFS diskimage (even on NVMe host) | E3-harness evidence for that **image** row | NVMe firmware / controller-cache certification |
-| VM dedicated virtio/NVMe disk with Store data on that disk | E3 row claim for that exact guest disk + FS after review | Other kernels, FS options, or hosts |
-| Bare-metal NVMe/SATA partition + physical or confirmed below-process reset | Strongest in-repo path toward E3 after review | Untested firmware revisions or mount changes |
+## What a campaign establishes
 
-The current in-repo E3 harness (`run-e3-block-reset.sh`) still provisions a **disposable** ext4
-loopback or APFS sparsebundle. Label `guest_host_boundary` honestly. Certifying “production NVMe”
-requires Store data on that device (dedicated disk/partition), not merely a sparse file sitting on
-it, plus a reset that is confirmed below the process boundary (and ideally a physical power cut).
+| If the pin is… | A passing campaign may support… | It does not establish… |
+| --- | --- | --- |
+| Hosted CI or unknown backing store | Harness regression only | Any production storage claim |
+| Loopback or APFS diskimage (even on an NVMe host) | E3-harness evidence for that image row | NVMe firmware or controller-cache certification |
+| VM dedicated virtio/NVMe disk with the Store data on that disk | An E3 row claim for that exact guest disk and filesystem, after review | Other kernels, filesystem options or hosts |
+| Bare-metal NVMe/SATA partition with a physical or confirmed below-process reset | The strongest in-repository path toward E3, after review | Untested firmware revisions or mount changes |
+
+The current in-repository E3 harness (`run-e3-block-reset.sh`) still provisions a disposable ext4
+loopback or APFS sparsebundle, so label `guest_host_boundary` honestly. Certifying "production
+NVMe" requires the Store data on that device (a dedicated disk or partition), not merely a sparse
+file sitting on it, plus a reset confirmed below the process boundary, ideally a physical power cut.
 
 ## Prerequisites
 
-1. Clean git worktree at the commit under test.
-2. Built tree containing at least:
+1. A clean git worktree at the commit under test.
+2. A built tree containing at least:
    - `glifistore_tests`
    - `glifistore_allocation_fault_tests`
    - `glifistore_crash_persistence`
-   - daemon crash binaries required by the E2 collector
-3. Linux: root/`sudo` for loop, mount, fsck, optional `dm-flakey` (`e2fsprogs`, `lvm2`).
-4. macOS: ability to run `hdiutil` attach/detach and `diskutil`; non-interactive `sudo` for the
-   offline `fsck_apfs -n` check in unattended runs (otherwise cases are `INCONCLUSIVE`).
-5. Disposable target: no unrelated data on the image/device under reset.
+   - the daemon crash binaries the E2 collector requires
+3. Linux: root or `sudo` for loop, mount, fsck and optional `dm-flakey` (`e2fsprogs`, `lvm2`).
+4. macOS: the ability to run `hdiutil` attach and detach and `diskutil`, plus non-interactive `sudo`
+   for the offline `fsck_apfs -n` check in unattended runs; otherwise cases are `INCONCLUSIVE`.
+5. A disposable target: no unrelated data on the image or device under reset.
 
 Suggested builds:
 
@@ -61,27 +57,27 @@ cmake --build --preset macos-debug --target \
   glifistore_crash_persistence glifistore_crash_daemon glifistored
 ```
 
-## Pin the row (before any E3 arming)
+## Pin the row
 
-Record a stable **redacted** identity. Do not store serials, MACs, or credentials.
+Before any E3 arming, record a stable, redacted identity. Never store serials, MACs or credentials.
 
 | Field | Examples | Notes |
-|---|---|---|
-| `pin_label` | `lab-nvme0-ext4-a`, `mac-mini-apfs-1` | Stable name for release notes |
-| `hardware_class` | `hosted-ci`, `diskimage-rehearsal`, `vm-dedicated-disk`, `bare-metal-nvme`, `bare-metal-other` | Drives promotion eligibility hint |
-| `fs_pin` | `ext4` or `apfs` | Must match harness platform |
+| --- | --- | --- |
+| `pin_label` | `lab-nvme0-ext4-a`, `mac-mini-apfs-1` | Stable name for the release notes |
+| `hardware_class` | `hosted-ci`, `diskimage-rehearsal`, `vm-dedicated-disk`, `bare-metal-nvme`, `bare-metal-other` | Drives the promotion eligibility hint |
+| `fs_pin` | `ext4` or `apfs` | Must match the harness platform |
 | `guest_host_boundary` | `loopback-image-on-host-nvme`, `hdiutil-sparsebundle-apfs`, `vm-virtio-blk-ext4-on-nvme`, `physical-nvme-partition-ext4` | Honesty gate |
-| Mount / mkfs | `defaults`, `barrier=1`, APFS volume role | Attach redacted `findmnt` / `diskutil` under `stages/pin-attachments/` |
-| Cache / barrier | virtio `cache=none` / `writeback`; controller write cache on/off | Required for promotion review |
-| Reset mechanism | `abrupt-detach`, `dm-flakey` plus exact fault mode, physical PDU cut | “Command issued” ≠ “power removed”; retain stop/reset confirmation |
+| Mount and mkfs | `defaults`, `barrier=1`, APFS volume role | Attach redacted `findmnt` or `diskutil` output under `stages/pin-attachments/` |
+| Cache and barrier | virtio `cache=none` or `writeback`; controller write cache on or off | Required for promotion review |
+| Reset mechanism | `abrupt-detach`, `dm-flakey` with the exact fault mode, physical PDU cut | "Command issued" is not "power removed"; retain the stop and reset confirmation |
 
-## Sequence: E0 → E1 → E2 → E3
+## Stages: E0 → E1 → E2 → E3
 
-The orchestrator runs stages in order and stops further heavy stages after a hard FAIL:
+The orchestrator runs the stages in order and stops further heavy stages after a hard FAIL:
 
-| Stage | Mechanism | Default command inside orchestrator |
-|---|---|---|
-| E0 | Unit / codec / reopen | `ctest -R '^glifistore_tests$'` |
+| Stage | Mechanism | Default command inside the orchestrator |
+| --- | --- | --- |
+| E0 | Unit, codec and reopen tests | `ctest -R '^glifistore_tests$'` |
 | E1 | Allocation fault injection | `ctest -R '^glifistore_allocation_fault_tests$'` |
 | E2 | Process-kill collector | `collect-durability-evidence.sh --run process-kill` |
 | E3 | Block-reset harness | `run-e3-block-reset.sh --profile campaign` |
@@ -91,36 +87,37 @@ Do not skip stages on a promotion candidate. `--skip-e*` is diagnostic only and 
 
 ## Repetition policy
 
-| Layer | Minimum for campaign-prep tarball | Minimum before maintainer may consider E3 promotion |
-|---|---|---|
+| Layer | Minimum for a campaign-prep tarball | Minimum before a maintainer may consider E3 promotion |
+| --- | --- | --- |
 | E2 process-kill suite | `--e2-repeat 3` (orchestrator default) | ≥ 3 clean passes on the pinned probe path |
 | E3 per checkpoint | `--repeat 10` (orchestrator default) | ≥ 10 with zero unexplained outcomes for the claimed scope |
-| E3 checkpoint set | harness `campaign` profile (put smoke + bootstrap/rotate/compaction) | Narrow put-scope may use smoke set only if the claim text says so; general durable claim needs full matrix scope |
+| E3 checkpoint set | Harness `campaign` profile (put smoke plus bootstrap, rotate and compaction) | A narrow put scope may use the smoke set only if the claim text says so; a general durable claim needs the full matrix scope |
 
-Raise `--repeat` when timing jitter or flaky arming appears. Never discard FAIL/INCONCLUSIVE rows.
+Raise `--repeat` when timing jitter or flaky arming appears. Never discard FAIL or INCONCLUSIVE
+rows.
 
-## PASS / FAIL / INCONCLUSIVE
+## Outcomes
 
-Per E3 case (checkpoint × repetition), use the matrix definitions:
+Each E3 case (checkpoint × repetition) uses the matrix definitions:
 
 | Outcome | Meaning |
-|---|---|
-| **PASS** | Worker stop and reset confirmed below process boundary; remount + non-repairing fsck; recovery oracle accepts |
-| **FAIL** | Reset confirmed, but oracle disagrees or committed state that must survive is lost/corrupt |
-| **INCONCLUSIVE** | Checkpoint not reached, reset not confirmed, host/harness crash, lost console, fsck/remount infra failure |
+| --- | --- |
+| PASS | Worker stop and reset confirmed below the process boundary; remount and non-repairing fsck; the recovery oracle accepts |
+| FAIL | Reset confirmed, but the oracle disagrees, or committed state that must survive is lost or corrupt |
+| INCONCLUSIVE | Checkpoint not reached, reset not confirmed, host or harness crash, lost console, fsck or remount infrastructure failure |
 
-Campaign-level result:
+The campaign as a whole reports:
 
 | Result | When |
-|---|---|
-| `passed` | E0–E3 all ran and passed (E3 harness_result=passed) |
+| --- | --- |
+| `passed` | E0–E3 all ran and passed (E3 `harness_result=passed`) |
 | `failed` | Any hard FAIL |
 | `inconclusive` | No FAIL, but E3 reported inconclusive |
-| `incomplete` | Stages skipped |
+| `incomplete` | Stages were skipped |
 
 `passed` still leaves `e3_certified=no`.
 
-## How to run the campaign
+## Run the campaign
 
 ### Linux ext4 (loopback rehearsal on a lab host)
 
@@ -158,10 +155,10 @@ sudo -v   # harness needs privileged loop/mount/fsck
   --e2-repeat 3
 ```
 
-### Pin notes for a future dedicated-disk campaign
+### Pin for a future dedicated-disk campaign
 
-When Store data and reset target are a dedicated VM disk or bare-metal partition (not only a
-loop file), set for example:
+When the Store data and the reset target are a dedicated VM disk or bare-metal partition, not only a
+loop file, set for example:
 
 ```bash
   --hardware-class vm-dedicated-disk \
@@ -170,31 +167,31 @@ loop file), set for example:
   --cache-barrier-note 'virtio cache=none; guest writeback off'
 ```
 
-If the harness still uses a loop image *on* that disk, keep `loopback-…` in the boundary string;
-do not claim bare-partition certification from a loop row.
+If the harness still uses a loop image on that disk, keep `loopback-…` in the boundary string. Never
+claim bare-partition certification from a loop row.
 
-Options of note:
+### Options
 
 | Flag | Default | Notes |
-|---|---|---|
-| `--e3-profile` | `campaign` | Use `smoke` only for CI / diagnostic rehearsal of the orchestrator path |
-| `--repeat` | `10` | Per-checkpoint E3 reps; local bound 1..1000, hosted dispatch bound 1..100 |
-| `--e2-repeat` | `3` | Process-kill suite reps; local bound 1..1000 |
-| `--dm-fault-mode` | `drop-writes` | Linux only: `drop-writes`, `error-writes`, or `all-io-error`; the artifact records the selected mode |
+| --- | --- | --- |
+| `--e3-profile` | `campaign` | Use `smoke` only for CI or a diagnostic rehearsal of the orchestrator path |
+| `--repeat` | `10` | Per-checkpoint E3 repetitions; local bound 1..1000, hosted dispatch bound 1..100 |
+| `--e2-repeat` | `3` | Process-kill suite repetitions; local bound 1..1000 |
+| `--dm-fault-mode` | `drop-writes` | Linux only: `drop-writes`, `error-writes` or `all-io-error`; the artifact records the selected mode |
 
-### CI rehearsal (not certification)
+## CI rehearsal
 
-`.github/workflows/durability-evidence.yml`:
+`.github/workflows/durability-evidence.yml` rehearses; it never certifies:
 
 | Trigger | What runs | Claim |
-|---|---|---|
-| PR / push `main` | E2 metadata + linux-ext4 **smoke** harness | Harness regression only |
-| Weekly schedule | E2 process-kill + 256-case reproducible randomized crash/reopen campaign + linux-ext4 **campaign** profile once for each bounded dm-flakey mode + macOS APFS campaign (repeat 2) + hosted-ci E0→E3 orchestrator (`--e3-profile smoke`, low reps) | Still `e3_certified=no`; `hardware_class=hosted-ci` cannot promote |
-| `workflow_dispatch` | Operator-chosen E2/E3 profile, repeat, and Linux dm-flakey mode; optional orchestrator | Same honesty gates |
+| --- | --- | --- |
+| PR or push to `main` | E2 metadata and the linux-ext4 smoke harness | Harness regression only |
+| Weekly schedule | E2 process-kill; a 256-case reproducible randomized crash/reopen campaign; the linux-ext4 campaign profile once for each bounded dm-flakey mode; the macOS APFS campaign (repeat 2); the hosted-ci E0→E3 orchestrator (`--e3-profile smoke`, low repetitions) | Still `e3_certified=no`; `hardware_class=hosted-ci` cannot promote |
+| `workflow_dispatch` | Operator-chosen E2/E3 profile, repeat and Linux dm-flakey mode; optional orchestrator | The same honesty gates |
 
-After every harness/campaign write, scripts and CI call
-`scripts/assert-e3-rehearsal-honesty.sh`. The validator checks the SHA-256 manifest and rejects a
-harness `PASS` row that lacks paused-worker, reset, filesystem-check, or recovery confirmation.
+After every harness or campaign write, the scripts and CI call
+`scripts/assert-e3-rehearsal-honesty.sh`. It checks the SHA-256 manifest and rejects a harness PASS
+row that lacks paused-worker, reset, filesystem-check or recovery confirmation.
 
 ## Artifact layout
 
@@ -219,12 +216,12 @@ harness `PASS` row that lacks paused-worker, reset, filesystem-check, or recover
 <output>.tar.gz.sha256
 ```
 
-Retain the tarball and its `.sha256` beside release evidence. Re-verify with
-`sha256sum -c` / `shasum -a 256 -c` before review.
+Retain the tarball and its `.sha256` beside the release evidence. Re-verify them with
+`sha256sum -c` or `shasum -a 256 -c` before review.
 
 ## Maintainer sign-off checklist
 
-Copied into every artifact as `promotion-checklist.md`. Promotion is **human-only**:
+Every artifact carries this checklist as `promotion-checklist.md`. Promotion is human-only:
 
 - [ ] Clean source commit matches `campaign-provenance.txt`
 - [ ] Pin identity complete (hardware/VM, FS, mkfs/mount, cache/barrier, boundary, reset)
@@ -232,27 +229,29 @@ Copied into every artifact as `promotion-checklist.md`. Promotion is **human-onl
 - [ ] E3 campaign profile covered required checkpoints; repeat ≥ policy minimum
 - [ ] Zero FAIL and zero unexplained INCONCLUSIVE outcomes
 - [ ] Every retained PASS case has `worker_stop_confirmed=yes` and `reset_confirmed=yes`
-- [ ] Exact dm fault mode / reset mechanism and the absence or presence of a block-level trace reviewed
+- [ ] Exact dm fault mode / reset mechanism and the absence or presence of a block-level trace
+  reviewed
 - [ ] SHA-256 manifest verifies; tarball retained
 - [ ] Row is not hosted-CI / disposable-image-only if claiming production NVMe/SATA
 - [ ] Release maintainer recorded artifact reference in release notes
 - [ ] Matrix row in `platform-durability-evidence.md` updated only after the above
 
-## How to promote (gate)
+## Promote a row
 
-1. Campaign tarball result is `passed`, `source_dirty=no`, stages complete.
+1. The campaign tarball result is `passed`, with `source_dirty=no` and complete stages.
 2. `hardware_class` and `guest_host_boundary` match the claim you intend to publish.
-3. Every checklist item above is checked by a release/storage maintainer.
-4. Edit `docs/architecture/platform-durability-evidence.md` Current evidence table for that row only.
-5. Reference the tarball SHA-256 and pin label in release notes.
-6. Do **not** patch harness scripts to emit `e3_certified=yes` as a substitute for steps 4–5.
+3. A release or storage maintainer has checked every item of the checklist above.
+4. Edit the Current evidence table in `docs/architecture/platform-durability-evidence.md`, for that
+   row only.
+5. Reference the tarball SHA-256 and the pin label in the release notes.
+6. Never patch the harness scripts to mark an artifact as E3 certified in place of steps 4–5.
 
-Until steps 1–5 succeed, leave the matrix at **not E3 certified** and keep artifacts labeled
+Until steps 1–5 succeed, leave the matrix row not E3 certified and keep the artifacts labeled
 `e3_certified=no`.
 
 ## Related
 
 - [Platform durability evidence](../architecture/platform-durability-evidence.md)
 - [Test strategy](../development/test-strategy.md)
-- [Operations index](README.md)
-- CI rehearsal only: `.github/workflows/durability-evidence.yml` (not a promotion path)
+- [Operations](README.md)
+- `.github/workflows/durability-evidence.yml`: CI rehearsal only, not a promotion path

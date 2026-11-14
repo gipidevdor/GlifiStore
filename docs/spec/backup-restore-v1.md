@@ -1,14 +1,10 @@
-Status: normative for durable backup/restore consistency
-Applies to: offline CLI, online fenced `Store::backup_to`, wire `BACKUP` (opcode 10)
-Owner: persistence maintainers
-Last reviewed: 2026-08-01
+# Backup and restore v1
 
-# Backup and restore specification v1
+**Normative** · offline CLI, online fenced `Store::backup_to`, wire `BACKUP` · reviewed 2026-08-01
 
 This specification freezes the **consistency boundary** and supported copy/restore procedures for
-durable persistence v1. Operator steps: [backup-restore runbook](../operations/backup-restore.md).
-Architecture narrative: [backup-restore](../architecture/backup-restore.md). When texts diverge,
-prefer the stricter fail-closed reading here.
+durable persistence v1. Operator steps are in the
+[backup and restore runbook](../operations/backup-restore.md).
 
 ## 1. Snapshot boundary
 
@@ -36,14 +32,14 @@ Indexes are **not** copied; `Store::open(..., open_existing)` rebuilds them via 
 
 | Path | Writer activity during copy | Consistency point |
 | --- | --- | --- |
-| Offline CLI (`glifistore_backup_store`) | None — exclusive data-dir lock; fail if locked | Post-verify source → copy → post-verify destination |
+| Offline (`glifistore_backup_store`, embedded `backup_durable_store`) | None — exclusive data-dir lock; fail if locked | Post-verify source → copy → post-verify destination |
 | Online fenced (`Store::backup_to` / wire `BACKUP`) | New admissions fenced for flush + structural source check + catalog copy; destination CRC verify runs after admissions resume | Flush → catalog exclusive lock → structural source verify → parallel Segment copy → Manifest last → resume admissions → verify destination (optional CRC) |
 
 Online fenced backup is **not** a zero-fence hot copy and is **not** a filesystem freeze/COW
 orchestrator. Zero-fence concurrent hot backup remains out of scope for v1; design constraints for
 any future path are frozen in [ADR 0034](../adr/0034-zero-fence-hot-backup-deferred.md). Shortening
-the admission fence so destination verify is outside the fence is an allowed incremental to the
-fenced path (still not zero-fence).
+the admission fence so destination verify is outside the fence is an allowed incremental change to
+the fenced path (still not zero-fence).
 
 Concurrent online backup callers own counted admission fences. A caller waiting for exclusive
 catalog-copy ownership must retain its fence until its own copy completes; releasing another
@@ -110,6 +106,7 @@ glifistore_backup_store [--json] [--no-scan] -- /path/to/backup /path/to/restore
 
 ```cpp
 store->backup_to("/path/to/empty/backup");
+server->backup_to("/path/to/empty/backup");
 ```
 
 ## Related

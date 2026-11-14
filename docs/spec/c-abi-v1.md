@@ -1,8 +1,11 @@
-# GlifiStore C ABI v1
+# C ABI v1
 
-Status: normative
+**Normative** · `libglifistore` ABI major 1 on supported 64-bit Unix targets
+
 Authority: `ABI_VERSION`, `include/glifistore/abi/glifistore.h`
-Applies to: `libglifistore` ABI major 1 on supported 64-bit Unix targets
+
+What the C ABI exposes and guarantees: version domains, types and layout, lifecycle, GET buffers,
+mutation outcomes, exceptions and exported symbols.
 
 ## Scope and version domains
 

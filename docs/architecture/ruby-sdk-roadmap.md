@@ -1,16 +1,13 @@
-Status: roadmap
-Applies to: implemented official Ruby SDK under `sdk/ruby`
-Owner: client maintainers
-Last reviewed: 2026-08-26
+# Ruby SDK roadmap
 
-# Ruby SDK implementation status and roadmap
+**Roadmap** · the implemented official Ruby SDK under `sdk/ruby` · reviewed 2026-08-26
 
-The native Ruby client is implemented. This document records its actual boundary and remaining
-gates; it is no longer a proposal for creating the SDK.
+The source-tree boundary of the native Ruby client and the gates it still has to pass. The client
+is implemented; this page is not a proposal to create it.
 
-The authority for observable behavior is [client semantics v1](../spec/client-semantics-v1.md),
-with framing and routing defined by [wire protocol v2](../spec/wire-protocol-v2.md). Ruby-specific
-usage belongs in the [package README](../../sdk/ruby/README.md).
+Observable behavior is governed by [client semantics v1](../spec/client-semantics-v1.md), with
+framing and routing defined by [wire protocol v2](../spec/wire-protocol-v2.md). Ruby-specific usage
+belongs in the [package README](../../sdk/ruby/README.md).
 
 ## Current implementation
 
@@ -27,13 +24,13 @@ usage belongs in the [package README](../../sdk/ruby/README.md).
 | Evidence | Unit/fake-server tests, shared fixtures, cleartext/TLS interop and benchmark harness |
 
 The keyed-routing path strictly decodes the extended `INIT` identity, applies the advertised
-SipHash-2-4 seed, preserves routing identity across reconnects and is covered by protocol vectors
-and fake-server client tests. This records source-tree capability, not release or production-gate
-closure.
+SipHash-2-4 seed, preserves the routing identity across reconnects, and is covered by protocol
+vectors and fake-server client tests. This records source-tree capability, not release or
+production-gate closure.
 
 `execute_pipeline` is ordered and single-Worker. `execute_batch` groups requests by Worker, overlaps
-the groups and restores caller order; it is not a transaction. Sync calls accept `timeout:` and the
-batch shares one absolute monotonic deadline. Async cancellation poisons the affected connection so
+the groups and restores caller order; it is not a transaction. Sync calls accept `timeout:`, and a
+batch shares one absolute monotonic deadline. Async cancellation poisons the affected connection, so
 a late response cannot attach to another request.
 
 ## Concurrency contract
@@ -48,32 +45,32 @@ a late response cannot attach to another request.
 
 ## Open gates
 
-### 1. Installed-artifact and release evidence
+### Installed-artifact and release evidence
 
 `./scripts/package-ruby-client.sh` must continue to build the gem, install it into an isolated
-location and run package checks. A registry release additionally needs the repository version bump,
-checksums/provenance, release notes and post-publish install verification. Source presence is not
-proof that the gem is already published.
+location and run package checks. A registry release also needs the repository version bump,
+checksums and provenance, release notes and post-publish install verification. Source presence is
+not proof that the gem is already published.
 
-### 2. Performance evidence
+### Performance evidence
 
 Use `./scripts/benchmark_ruby_client.sh` and the shared SDK harness. Record runtime, server commit,
-pipeline depth, Worker/client counts, value size, TLS mode, warmup, repeats and validation. Compare
-equal execution models; a Fiber concurrency result and a single synchronous pipeline answer
+pipeline depth, Worker and client counts, value size, TLS mode, warmup, repeats and validation.
+Compare equal execution models: a Fiber concurrency result and a single synchronous pipeline answer
 different questions.
 
-The pure-Ruby optimization order is profile-led:
+Pure-Ruby optimization is profile-led, in this order:
 
-1. remove avoidable String/Array/result allocations and frame copies;
+1. remove avoidable String, Array and result allocations and frame copies;
 2. reuse connection-local buffers without weakening ownership;
 3. measure mutex, Fiber scheduling, syscall and same-Worker serialization costs;
 4. consider a narrow C framing/routing extension only when profiles justify its packaging cost.
 
 A C extension is optional, not part of the correctness definition.
 
-### 3. Shared protocol candidates
+### Shared protocol candidates
 
-Connections-per-Worker and mutation idempotency are cross-SDK/protocol decisions, not Ruby-only
+Connections per Worker and mutation idempotency are cross-SDK and protocol decisions, not Ruby-only
 features. They remain governed by the [shared SDK roadmap](sdk-roadmap.md).
 
 ## Evidence commands

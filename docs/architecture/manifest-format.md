@@ -1,9 +1,13 @@
 # Manifest format
 
-The manifest is the authoritative durable catalog for one Store. Manifest v1 is an explicitly
-encoded little-endian byte sequence with one fixed 128-byte header followed by fixed 32-byte
-Segment entries. The file has no implicit padding or trailing bytes, and its CRC32C covers the
-complete encoded extent.
+**Normative** · Manifest v1
+
+The byte layout of Manifest v1, the authoritative durable catalog of one Store, and the rules that
+select one Manifest among valid candidates.
+
+Manifest v1 is an explicitly encoded little-endian byte sequence: one fixed 128-byte header followed
+by fixed 32-byte Segment entries. The file has no implicit padding or trailing bytes, and its CRC32C
+covers the complete encoded extent.
 
 ## Header v1
 
@@ -32,8 +36,8 @@ complete encoded extent.
 | 92 | 36 | reserved | zero in v1 |
 
 The one-million-entry limit bounds v1 decoding to 32,000,128 bytes. A decoder validates the count
-and checked encoded extent before allocating the catalog or the temporary checksum buffer. Unknown
-required versions fail closed even when the checksum is otherwise valid.
+and the checked encoded extent before it allocates the catalog or the temporary checksum buffer.
+Unknown required versions fail closed even when the checksum is otherwise valid.
 
 ## Segment entry v1
 
@@ -48,30 +52,35 @@ Entry offsets are relative to the beginning of each 32-byte entry.
 | 18 | 2 | flags | zero in v1 |
 | 20 | 12 | reserved | zero in v1 |
 
-The catalog contains exactly one active Segment for every Worker. Sealed Segments remain listed
-while they are recovery sources. Retiring or deleting one requires a later manifest publication
-that removes it; v1 therefore does not persist retired or reclaimable roles.
+The catalog contains exactly one active Segment for every Worker. Sealed Segments stay listed while
+they are recovery sources. Retiring or deleting one requires a later Manifest publication that
+removes it, so v1 does not persist retired or reclaimable roles.
 
-The manifest records Segment ID and generation, not a trusted path identity. The storage layer maps
-those values to its canonical namespace, then verifies Store ID, Segment ID, generation, owner,
-and encoded versions against the Segment header. A filename alone is never recovery authority.
+The Manifest records Segment ID and generation, not a trusted path identity. The storage layer maps
+those values to its canonical namespace, then verifies Store ID, Segment ID, generation, owner and
+encoded versions against the Segment header. A filename alone is never recovery authority.
 
 ## Canonical encoding and selection
 
 Strict Segment-ID order makes the encoded catalog canonical and rejects duplicate identities without
-hash-based allocation. The newest manifest is selected only from candidates that have already passed
-complete decoding and invariant validation. Selection uses the greatest manifest generation. Two
-different valid candidates with the same generation are corruption; identical duplicates select the
-first candidate deterministically.
+hash-based allocation. The newest Manifest is selected only from candidates that have already passed
+complete decoding and invariant validation, and selection takes the greatest manifest generation.
+Two different valid candidates with the same generation are corruption; identical duplicates select
+the first candidate deterministically.
 
 The canonical fixture is
-[`tests/fixtures/manifest_v1.hex`](../../tests/fixtures/manifest_v1.hex). Automated tests verify exact
-encoding, full-file checksum coverage, truncation and trailing-byte rejection, allocation bounds,
-catalog ownership, active-Worker coverage, unknown-version failure, and publication ambiguity.
+[`tests/fixtures/manifest_v1.hex`](../../tests/fixtures/manifest_v1.hex). Automated tests verify
+exact encoding, full-file checksum coverage, truncation and trailing-byte rejection, allocation
+bounds, catalog ownership, active-Worker coverage, unknown-version failure and publication
+ambiguity.
 
-Filesystem naming, locking, temporary-file cleanup, atomic replacement, and directory synchronization
-are deliberately outside this codec. The first implementation layer is documented in
-[`persistence-filesystem.md`](persistence-filesystem.md); its integration remains governed by the
-[durability and recovery contract](durability-recovery.md). Embedded durable recovery is implemented;
-released-artifact compatibility and complete native power-loss evidence remain release gates.
-Supported component combinations are listed in the [format compatibility matrix](format-compatibility.md).
+## Outside this codec
+
+Filesystem naming, locking, temporary-file cleanup, atomic replacement and directory
+synchronization are outside this codec. The first implementation layer is the
+[persistence filesystem layer](persistence-filesystem.md); its integration is governed by
+[durability and recovery](durability-recovery.md). Supported component combinations are in the
+[format compatibility matrix](format-compatibility.md).
+
+Embedded durable recovery is implemented; released-artifact compatibility and complete native
+power-loss evidence remain release gates.

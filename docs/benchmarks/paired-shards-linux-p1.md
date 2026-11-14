@@ -1,11 +1,13 @@
-# Paired shards Linux hard-pinned A/B — P1 harness (2026-07-31)
+# Paired shards Linux hard-pinned A/B harness
 
-## Status
+**Descriptive** · Linux hard-pinned A/B harness for the P1 gate · reviewed 2026-07-31
 
-**Harness ready (Wave 6 scaffold); gate not closed.** Hosted GitHub `ubuntu-24.04` runners and any
-macOS advisory affinity remain **inconclusive** for this P1. Closure needs an isolated Linux machine
-with hard CPU pins, NUMA binding, `perf`, disjoint client/server CPU lists, zero unexpected
-`cpu-migrations`, and a working set above LLC.
+## Gate status
+
+**Harness ready; gate not closed.** Hosted GitHub `ubuntu-24.04` runners and any macOS advisory
+affinity remain inconclusive for this P1. Closure needs an isolated Linux machine with hard CPU
+pins, NUMA binding, `perf`, disjoint client/server CPU lists, zero unexpected `cpu-migrations`, and
+a working set above LLC.
 
 Evidence class: `hardware` only after runner `glifistore-linux-perf` publishes
 `status=pass-candidate`. Absolute budget placeholders remain
@@ -13,7 +15,7 @@ Evidence class: `hardware` only after runner `glifistore-linux-perf` publishes
 [`performance-budgets.md`](../assurance/performance-budgets.md) and
 [`evidence-taxonomy.md`](../assurance/evidence-taxonomy.md).
 
-Wave 6 is **blocked** on:
+The gate is blocked on:
 
 1. `glifistore-linux-perf` self-hosted runner + retained pass-candidate;
 2. Physical E3 durability lab (separate campaign; not this A/B script).
@@ -31,7 +33,7 @@ Do not invent runner results. Do not claim `ACCETTATA_PER_RILASCIO`, E3, or E4 f
 ## Harness
 
 ```bash
-# Linux self-hosted / dedicated box (Wave 6 matrix)
+# Linux self-hosted runner or dedicated machine
 SERVER_CPUS=0-7 CLIENT_CPUS=8-15 NUMA_NODE=0 \
 OLD_BIN=/path/to/baseline/glifistore_server_benchmarks \
 NEW_BIN=/path/to/candidate/glifistore_server_benchmarks \
@@ -78,7 +80,7 @@ silent pass. Interleave order when `OLD_BIN != NEW_BIN`: **old-a / new-a / new-b
 
 ## Minimum matrix for gate close
 
-| Asse | Valori |
+| Axis | Values |
 |---|---|
 | pairs | 1, 2, 4, 8 (capped to server pin / 2 for Reader+Writer) |
 | mix | GET; PUT→GET p1; 99/1 |

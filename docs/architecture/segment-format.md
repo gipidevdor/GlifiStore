@@ -1,9 +1,16 @@
-# Segment and record format
+# Segment and Record format
+
+**Normative** · Segment, Segment header, commit slot and Record v1
+
+The v1 byte layouts of a Segment, its header and commit slots, and a Record. Embedded Store
+recovery and all v1 durability modes are implemented, but the on-disk contract is not yet declared
+stable: migration policy, released-artifact compatibility and complete native power-loss evidence
+remain release gates.
 
 ## Segment
 
-Every Segment is exactly 64 MiB. The first 4 KiB contain the explicitly encoded v1 header. Record
-bytes begin at offset 4096 and are appended with 8-byte alignment. All integer fields are unsigned
+Every Segment is exactly 64 MiB. The first 4 KiB hold the explicitly encoded v1 header. Record bytes
+begin at offset 4096 and are appended with 8-byte alignment. All integer fields are unsigned
 little-endian values; persisted bytes are never interpreted through C++ object layout.
 
 ```text
@@ -14,7 +21,7 @@ little-endian values; persisted bytes are never interpreted through C++ object l
 ```
 
 Normal Records do not cross Segment boundaries and are limited to 1 MiB in the prototype. A future
-large-object path must use explicit chunking rather than weakening this invariant.
+large-object path must use explicit chunking rather than weaken this invariant.
 
 Segment lifecycle:
 
@@ -22,15 +29,16 @@ Segment lifecycle:
 FREE -> ACTIVE -> SEALED -> RETIRED -> RECLAIMABLE -> FREE/deleted
 ```
 
-The runtime catalog separately tracks residency, liveness, readers, dirty state, persistence, and
-retirement epoch. Volatile pointers and file descriptors never appear in the persistent header.
-Recovery scans only through the committed end recorded by the newest valid commit slot. Bytes
-beyond that boundary are an uncommitted crash tail; invalid bytes inside it are corruption. See the
-[durability and recovery contract](durability-recovery.md) for ordering and failure behavior.
+The runtime catalog tracks residency, liveness, readers, dirty state, persistence and retirement
+epoch separately. Volatile pointers and file descriptors never appear in the persistent header.
+
+Recovery scans only through the committed end recorded by the newest valid commit slot. Bytes beyond
+that boundary are an uncommitted crash tail; invalid bytes before it are corruption. Ordering and
+failure behavior are in [durability and recovery](durability-recovery.md).
 
 ### Header v1
 
-The 4 KiB header contains a 128-byte immutable prefix and two independently checksummed 128-byte
+The 4 KiB header holds a 128-byte immutable prefix and two independently checksummed 128-byte
 commit slots. Bytes 384 through 4095 are reserved and must be zero in v1.
 
 | Offset | Bytes | Field | v1 rule |
@@ -52,13 +60,13 @@ commit slots. Bytes 384 through 4095 are reserved and must be zero in v1.
 | 256 | 128 | commit slot 1 | slot layout below |
 | 384 | 3712 | reserved | zero in v1 |
 
-The two magic values follow the existing Record convention: the hexadecimal constants are encoded
-little-endian so their bytes remain readable in a hex dump. The immutable checksum excludes commit
-slots by covering exactly the first 128 bytes.
+The header and commit magic values follow the Record convention: the hexadecimal constants are
+encoded little-endian, so their bytes stay readable in a hex dump. The immutable checksum covers
+exactly the first 128 bytes and therefore excludes the commit slots.
 
 ### Commit slot v1
 
-Slot offsets below are relative to the beginning of either slot. An entirely zero slot is empty.
+Slot offsets are relative to the beginning of either slot. An entirely zero slot is empty.
 
 | Offset | Bytes | Field | v1 rule |
 |---:|---:|---|---|
@@ -75,21 +83,21 @@ Slot offsets below are relative to the beginning of either slot. An entirely zer
 | 48 | 4 | slot CRC32C | computed over all 128 bytes with this field zero |
 | 52 | 76 | reserved | zero in v1 |
 
-Recovery checks each slot independently and selects the valid decoded slot with the greatest commit
-generation. A torn or malformed slot may fall back to the other slot. A correctly checksummed but
-unknown slot version fails closed, because silently selecting an older commit could lose data. Two
-different valid slots with the same generation are corruption; identical duplicates deterministically
-select slot 0.
+Recovery checks each slot independently and selects the valid decoded slot with the greatest
+commit generation. A torn or malformed slot may fall back to the other slot. A correctly checksummed
+slot with an unknown version fails closed, because silently selecting an older commit could lose
+data. Two different valid slots with the same generation are corruption; identical duplicates
+select slot 0 deterministically.
 
-The canonical first 384 bytes are stored in
-[`tests/fixtures/segment_header_v1.hex`](../../tests/fixtures/segment_header_v1.hex). Automated tests
-verify exact encoding, decoding, reserved zeros, fallback after slot corruption, version rejection,
-and ambiguous-generation failure.
+The canonical first 384 bytes are in
+[`tests/fixtures/segment_header_v1.hex`](../../tests/fixtures/segment_header_v1.hex). Automated
+tests verify exact encoding, decoding, reserved zeros, fallback after slot corruption, version
+rejection and ambiguous-generation failure.
 
 ## Record
 
-Record v1 has a fixed 56-byte header followed by key bytes, value bytes, and the minimum zero padding
-needed for 8-byte alignment.
+Record v1 has a fixed 56-byte header followed by the key bytes, the value bytes and the minimum zero
+padding needed for 8-byte alignment.
 
 | Offset | Bytes | Field | v1 rule |
 |---:|---:|---|---|
@@ -110,14 +118,14 @@ needed for 8-byte alignment.
 | final | 0–7 | alignment padding | zero; no over-allocation is canonical |
 
 The checksum field is treated as zero while CRC32C is computed. Decoders validate every extent
-before creating a view. Persisted bytes are never interpreted by casting them to a C++ struct. The
+before creating a view, and never interpret persisted bytes by casting them to a C++ struct. The
 canonical binary-key fixture is
 [`tests/fixtures/record_v1.hex`](../../tests/fixtures/record_v1.hex).
 
-Manifest, Segment header, commit slot, and Record codecs now have exact v1 layouts and golden
-fixtures. Segment creation, alternate-slot append/seal, and committed-boundary scan are described in
-[durable Segment files](segment-filesystem.md). Embedded Store recovery and all v1 durability modes
-are implemented, but the on-disk contract is not yet declared stable: migration policy, released-
-artifact compatibility, and complete native power-loss evidence remain release gates. The
-authoritative catalog layout is in the [manifest format](manifest-format.md), and supported
-reader/writer pairs are tracked in the [format compatibility matrix](format-compatibility.md).
+## Related contracts
+
+The Manifest, Segment header, commit slot and Record codecs have exact v1 layouts and golden
+fixtures. The authoritative catalog layout is the [Manifest format](manifest-format.md). Segment
+creation, alternate-slot append and seal, and the committed-boundary scan are in
+[durable Segment files](segment-filesystem.md). Supported reader and writer pairs are in the
+[format compatibility matrix](format-compatibility.md).

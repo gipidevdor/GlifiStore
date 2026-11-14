@@ -1,190 +1,231 @@
-# GlifiStore documentation system
+# Documentation
 
-This directory is the entry point for GlifiStore's technical documentation. Its purpose is to
-make the project maintainable without relying on oral history or knowledge held by one maintainer.
+Every page that specifies, explains or records GlifiStore, listed once. Start from the task in front
+of you; the sections below hold the rest.
 
-The [Doxygen / GitHub Pages guide](development/documentation.md) explains how to generate the
-searchable C++ reference and publish these guides alongside it.
-
-## Start here
-
-| Reader | First | Then |
+| You want to | Start with | Then |
 | --- | --- | --- |
-| New to the project | [Architecture](spec/architecture.md) | [Code tour](development/code-tour.md) · [Glossary](glossary.md) |
-| Embedding the engine | [C++ API](reference/cpp-api.md) | [C ABI v1](spec/c-abi-v1.md) · [Durability and recovery](architecture/durability-recovery.md) |
-| Writing a client | [Wire protocol v2](spec/wire-protocol-v2.md) | [Client semantics v1](spec/client-semantics-v1.md) · [Conformance](spec/tcp-client-conformance-v1.md) |
-| Operating the daemon | [Operations handbook](operations/handbook.md) | [CLI](cli.md) · [Secure profile](security/secure-profile.md) |
-| Judging readiness | [Quality gates](production-readiness.md) | [Assurance catalog](../engineering/README.md) · [Evidence matrix](architecture/platform-durability-evidence.md) |
-| Contributing | [Code style](development/code-style.md) | [Test strategy](development/test-strategy.md) · [ADR index](adr/README.md) |
+| Understand the system | [Architecture specification](spec/architecture.md) | [Code tour](development/code-tour.md) · [Glossary](glossary.md) |
+| Embed the engine | [Public C++ API](reference/cpp-api.md) | [C ABI](abi/README.md) · [Durability and recovery](architecture/durability-recovery.md) |
+| Write a client | [Wire protocol v2](spec/wire-protocol-v2.md) | [Client semantics v1](spec/client-semantics-v1.md) · [Client conformance](spec/tcp-client-conformance-v1.md) |
+| Operate the daemon | [Operations](operations/README.md) | [CLI reference](cli.md) · [Secure profile](security/secure-profile.md) |
+| Judge readiness | [Quality gates](production-readiness.md) | [Assurance catalog](../engineering/README.md) · [Platform evidence](architecture/platform-durability-evidence.md) |
+| Contribute | [Development](development/README.md) | [Code style](development/code-style.md) · [Test strategy](development/test-strategy.md) · [Decisions](adr/README.md) |
 
-## Current implementation boundary
+## Authority
 
-For 0.1.0, `glifistored` uses a single runtime: paired Reader–Writer shard pairs
-([ADR 0031](adr/paired-reader-writer-shards.md)). Each pair has one Reader/Reactor and one serial
-Writer connected by bounded SPSC mutation and completion lanes; GET adopts an immutable
-`ReadGeneration` on the Reader. There is no second selectable daemon model.
+When two pages disagree, the higher one in this list wins:
 
-The volatile TCP engine under `src/experimental/` (`paired_shard` / `paired_reactor`) remains
-**lab-only**: compiled into tests and dedicated benchmarks, not installed, and not reachable from
-`glifistored`. Residual P1 performance and Linux hard-pinned A/B work is tracked in the
-benchmark plan — it does not reopen a dual-runtime choice.
+1. a versioned specification in `spec/`, for the version it names;
+2. an accepted decision record in `adr/`;
+3. a reference contract in `reference/`;
+4. an architecture or development guide;
+5. the repository README;
+6. a roadmap, changelog entry, benchmark record or other historical note.
 
-- Daemon runtime: [architecture specification](spec/architecture.md) and
-  [server model](architecture/server-model.md)
-- Decision and migration state: [accepted ADR 0031](adr/paired-reader-writer-shards.md) and
-  [benchmark gates](benchmarks/paired-shards-plan.md)
-- Lab-only prototype: [paired-shard volatile note](architecture/paired-shard-volatile-prototype.md)
-- Installed man pages (mdoc): [`man/README.md`](../man/README.md) and [CLI](cli.md)
+Generated views ([quality gates](production-readiness.md), [gate list](assurance/gates.md),
+[hazard register](assurance/hazards.md), [package status](distribution/package-status.md)) are not
+normative; their authority is [`engineering/`](../engineering/README.md). Other assurance pages
+state their own status.
 
-## Authority and document classes
+Code and tests are evidence that an implementation follows a contract; they are no substitute for a
+missing contract. When code and a normative specification disagree, do not silently edit either
+side: record the discrepancy, decide which behavior is intended, update or supersede the relevant
+ADR, and add compatibility evidence before changing a persisted or wire-visible rule.
 
-When documents disagree, use this order of authority:
+Architecture guides describe the current implementation and must label planned behavior
+explicitly. A roadmap may track unfinished work but cannot redefine a format, an acknowledgement
+point, an ownership rule or a compatibility guarantee.
 
-1. A versioned specification under `docs/spec/` for the version it names.
-2. An accepted Architecture Decision Record under `docs/adr/`.
-3. A reference contract under `docs/reference/`.
-4. An architecture or development guide.
-5. The repository README.
-6. A roadmap, changelog entry, benchmark result, or historical note.
-7. Generated readiness views (`production-readiness.md`, `assurance/*.md`) are **not** normative;
-   their authority is [`engineering/`](../engineering/README.md).
+Each guide states its status (normative, descriptive, roadmap or historical) and scope under the
+title, with the date of its last review when one is recorded. How pages are written, reviewed and
+built: [documentation](development/documentation.md).
 
-Code and tests are evidence that an implementation follows a contract; they are not a substitute
-for a missing external contract. When code and a normative specification disagree, do not silently
-edit either side. Record the discrepancy, decide which behavior is intended, update or supersede
-the relevant ADR, and add compatibility evidence before changing a persisted or wire-visible rule.
+## Specifications
 
-Assurance program entry points: [engineering baseline](assurance/engineering-baseline.md),
-[hazard register](assurance/hazards.md), [quality gates](assurance/gates.md),
-[memory-order inventory](assurance/memory-order-inventory.md),
-[ABA/generation/token audit](assurance/aba-generation-token-audit.md),
-[exception/failure-atomicity audit](assurance/exception-failure-atomicity.md),
-[GitHub branch-protection checklist](assurance/github-branch-protection.md), and
-[AGENTS.md](../AGENTS.md).
+Normative contracts, except [mutation lifecycle](spec/mutation-lifecycle.md) and
+[connection drain](spec/connection-drain-state-machine.md), which describe the implementation as it
+is. "Versioned" names the contract domain, not product maturity: GlifiStore remains an
+architectural prototype.
 
-## Required document metadata
-
-New normative documents must begin with:
-
-```text
-Status: normative | descriptive | roadmap | historical
-Applies to: named API, disk, wire, or implementation version
-Owner: maintainer role or team
-Last reviewed: YYYY-MM-DD
-```
-
-Use `normative` only for required behavior. Architecture guides describe the current implementation
-and must label planned behavior explicitly. Roadmaps may track unfinished work but cannot redefine a
-format, acknowledgement point, ownership rule, or compatibility guarantee.
-
-## Normative and versioned specifications
-
-"Versioned" describes the contract domain; it does not mean the GlifiStore product has reached a
-stable release. The current release-claim ceiling remains architectural prototype.
-
-| Document | Authority |
-|---|---|
-| [Architecture](spec/architecture.md) | Components, layering, runtime selection, ownership planes |
+| Page | Settles |
+| --- | --- |
+| [Architecture specification](spec/architecture.md) | Components, layering, runtime selection, ownership planes |
 | [Concurrency and memory model](spec/concurrency-memory-model.md) | Threads, locks, atomics, linearization, shutdown |
-| [Index v1](spec/index-v1.md) | Exact-key Index algorithm and storage invariants |
-| [Native wire protocol v2](spec/wire-protocol-v2.md) | Client/server framing and session semantics |
-| [Client semantics v1](spec/client-semantics-v1.md) | Portable errors, retry, timeouts, late responses |
-| [TCP client conformance v1](spec/tcp-client-conformance-v1.md) | Official SDK checklist, bootstrap/retry pseudocode, fixtures |
-| [Error taxonomy v1](spec/error-taxonomy-v1.md) | Cross-language status → category vectors |
-| [Backup and restore v1](spec/backup-restore-v1.md) | Catalog snapshot boundary; offline and online fenced copy |
-| [Persistence v1](spec/persistence-v1.md) | Complete durable namespace, binary formats, checksums, authority |
-| [Recovery state-transition matrix v1](spec/recovery-state-matrix-v1.md) | Exact restart outcomes for bootstrap, commit/flush, rotation, and compaction |
-| [Benchmark standard](spec/benchmark-standard.md) | Workload and result semantics |
-| [Public C++ API](reference/cpp-api.md) | Supported API contracts and error behavior |
-| [C++ TCP client API](reference/cpp-client-api.md) | Client routing, mutation outcomes, lifecycle, and SDK contract |
-| [C ABI v1](spec/c-abi-v1.md) | Stable language-neutral ABI, layouts, ownership and mutation outcomes |
+| [Mutation lifecycle](spec/mutation-lifecycle.md) | The paired Writer's mutation path, as implemented |
+| [Connection drain state machine](spec/connection-drain-state-machine.md) | Reactor connection drain and close, as implemented |
+| [Persistence v1](spec/persistence-v1.md) | The durable namespace, binary formats, checksums and authority |
+| [Recovery state-transition matrix v1](spec/recovery-state-matrix-v1.md) | The restart outcome of every interrupted transition |
+| [Backup and restore v1](spec/backup-restore-v1.md) | The snapshot boundary; offline and online fenced copy |
+| [SwissTableIndex v1](spec/index-v1.md) | The exact-key Index algorithm and its invariants |
+| [Wire protocol v2](spec/wire-protocol-v2.md) | Framing and session semantics |
+| [Client semantics v1](spec/client-semantics-v1.md) | Errors, retry, timeouts and late responses across clients |
+| [TCP client conformance v1](spec/tcp-client-conformance-v1.md) | The official SDK checklist, bootstrap and retry pseudocode, fixtures |
+| [Error taxonomy v1](spec/error-taxonomy-v1.md) | Status-to-category vectors across languages |
+| [C ABI v1](spec/c-abi-v1.md) | The language-neutral ABI: layouts, ownership, mutation outcomes |
+| [Large blob storage v1](spec/large-blob-storage-v1.md) | Opt-in values up to 64 MiB and the persistence v2 profile; [gates](../engineering/gates/large-blobs.yaml) open |
+| [Benchmark standard](spec/benchmark-standard.md) | Workloads and what one reported result means |
 
-## Opt-in prototype extensions
+## References
 
-[Large Blob Storage v1](spec/large-blob-storage-v1.md) and
-[ADR 0042](adr/0042-large-blob-storage.md) define the embedded streaming path for values up to
-64 MiB, immutable external blob files and an explicit opt-in persistence v2 boundary. It is an
-implemented prototype with open qualification gates; default persistence v1, wire v2 and the
-architectural-prototype release ceiling remain unchanged.
-Implementation and evidence are tracked by the open
-[blob gates](../engineering/gates/large-blobs.yaml).
+| Page | Settles |
+| --- | --- |
+| [Public C++ API](reference/cpp-api.md) | The embedded Store: operations, limits, errors, lifetimes |
+| [C++ client](reference/cpp-client-api.md) | Routing, mutation outcomes and lifecycle of the TCP client |
+| [C ABI](abi/README.md) | Versioning, lifetime, threading, errors and compatibility of the C ABI |
+| [CLI](cli.md) | Every program, flag, profile, signal and exit code |
+| [Glossary](glossary.md) | The terms these pages use |
 
-## Architecture and implementation guides
+Installed manuals (mdoc): [man/](../man/README.md).
 
-The documents in `docs/architecture/` explain rationale, implementation state, and detailed recovery
-algorithms. Their stable rules are summarized by the specifications above. In particular:
+## Architecture
 
-- `durability-recovery.md` explains commit and recovery ordering;
-- `platform-durability-evidence.md` defines E0–E4 evidence claims, native storage rows, and artifact
-  provenance;
-- `segment-format.md` and `manifest-format.md` provide detailed v1 field tables;
-- `durable-runtime-catalog.md` describes the implemented durable runtime;
-- `durable-compaction.md` describes whole-Worker durable compaction;
-- `build-hardening.md` defines compiler, linker, and artifact verification;
-- `server-model.md` explains ShardPair Reader/Writer ownership, SPSC lanes, and connection ownership;
-- `paired-write-pressure-coordinator.md` records measured write-path costs, rejected wait/notification
-  policies, and the pressure-aware coordinator boundary that still requires evidence before wiring;
-- `paired-shard-volatile-prototype.md` records the lab-only volatile TCP prototype under
-  `src/experimental/`; it is not the `glifistored` runtime;
-- `where-performance-matters.md` frames when engine speed helps real apps (and when it does not);
-- `sdk-roadmap.md` prioritizes shared SDK contract work versus more languages.
+How the implementation meets the contracts.
 
-## Official client implementations
+### Storage and durability
 
-The normative cross-language behavior is [client semantics v1](spec/client-semantics-v1.md);
-conformance checklist: [tcp-client-conformance v1](spec/tcp-client-conformance-v1.md). Each
-source package documents its language-specific API and concurrency contract:
+| Page | Settles |
+| --- | --- |
+| [Storage model](architecture/storage-model.md) | Keys, Records, Segments, the Index and vacuum |
+| [Durability and recovery](architecture/durability-recovery.md) | Commit, acknowledgement and recovery ordering |
+| [Durable runtime catalog](architecture/durable-runtime-catalog.md) | The durable backend and its mutation state machine |
+| [Recovery implementation](architecture/recovery-implementation.md) | The recovery orchestrator |
+| [Durable compaction](architecture/durable-compaction.md) | Crash-safe compaction invariants |
+| [Segment format](architecture/segment-format.md) | Segment header and Record fields |
+| [Manifest format](architecture/manifest-format.md) | Manifest header and entries |
+| [Segment files](architecture/segment-filesystem.md) | Segment file names, creation and lifecycle |
+| [Persistence filesystem](architecture/persistence-filesystem.md) | Filesystem primitives behind every durable policy |
+| [Namespace policy](architecture/namespace-policy.md) | The read-only data-directory audit |
+| [Residency model](architecture/residency-model.md) | What lives in memory and what is read from files |
+| [Lean memory algorithm](architecture/lean-memory-algorithm.md) | The memory design of ADRs 0044, 0045 and 0046 |
+| [Platform durability evidence](architecture/platform-durability-evidence.md) | E0–E4 evidence levels and platform rows |
+
+### Runtime and concurrency
+
+| Page | Settles |
+| --- | --- |
+| [Architecture charter](architecture/architecture-charter.md) | Fixed decisions, safety rules, non-goals |
+| [Server model](architecture/server-model.md) | Shard pairs, lanes and connection ownership in `glifistored` |
+| [Worker model](architecture/worker-model.md) | Worker sizing from platform topology |
+| [Maintenance controller](architecture/maintenance-controller.md) | Budgeted background maintenance |
+| [Write-pressure coordinator](architecture/paired-write-pressure-coordinator.md) | Measured write-path costs and the coordinator boundary |
+| [Legacy mutex policy](architecture/legacy-mutex-policy.md) | The deprecated embedded mutex mode |
+| [Volatile prototype](architecture/paired-shard-volatile-prototype.md) | The lab-only TCP engine in `src/experimental/` |
+| [Generation slot pool](architecture/generation-slot-pool-candidate.md) | The experimental candidate behind ADR 0036 |
+| [Build hardening](architecture/build-hardening.md) | Compiler, linker and artifact requirements |
+
+### Compatibility
+
+| Page | Settles |
+| --- | --- |
+| [Version lifecycle](architecture/version-lifecycle.md) | Upgrade, downgrade and ABI promises before 1.0 |
+| [N↔N-1 compatibility](architecture/n-n1-compatibility.md) | What one release promises the previous one |
+| [Format compatibility](architecture/format-compatibility.md) | The persistence and wire codecs the 0.1.x line reads and writes |
+| [Store migration](architecture/store-migration.md) | Offline Worker resharding |
+
+### Performance and clients
+
+| Page | Settles |
+| --- | --- |
+| [Where performance matters](architecture/where-performance-matters.md) | When engine speed changes application speed |
+| [Hot-path performance](architecture/hot-path-performance-2026-08-01.md) | The 2026-08-01 lab program |
+| [Rejected optimizations](architecture/hot-path-rejected-optimizations.md) | What was measured and dropped |
+| [SDK roadmap](architecture/sdk-roadmap.md) | Shared client work before more languages |
+| [Ruby SDK roadmap](architecture/ruby-sdk-roadmap.md) | The Ruby client's status |
+| [SDK packaging](architecture/sdk-packaging.md) | The packaging checklist every SDK follows |
+
+## Operations
+
+| Page | Settles |
+| --- | --- |
+| [Operations](operations/README.md) | Runbook index, first start, restarts, incidents, signals |
+| [Durable daemon](operations/durable-tcp-daemon.md) | A durable `glifistored` from profile to drain |
+| [Drain and overload](operations/graceful-drain-and-overload.md) | Restarts, deploys and `OVERLOADED` |
+| [Backup and restore](operations/backup-restore.md) | Copying, moving and recovering a Store |
+| [Compatibility and migration](operations/compatibility-and-migration.md) | Upgrades, downgrades and Worker-count changes |
+| [Corruption and repair](operations/corruption-repair.md) | Startup and verify failures, offline repair |
+| [Observability](operations/observability.md) | Probes, `STATS`, logs and effective configuration |
+| [Certificates](operations/secure-profile-certs.md) | TLS rotation and revocation |
+| [Soak](operations/soak.md) | Soak profiles and their limits |
+| [E3 campaign](operations/e3-campaign.md) | Preparing a pinned-row durability campaign |
+
+## Security
+
+| Page | Settles |
+| --- | --- |
+| [Secure profile](security/secure-profile.md) | TLS, mTLS and authorization of the daemon and SDKs |
+| [Threat model](security/threat-model.md) | The security boundary of the engine and protocol |
+| [Security roadmap](security/roadmap.md) | Open security work and its order |
+| [TLS performance](security/tls-performance.md) | How to read the cost of TLS |
+| [Actions pinning](security/actions-pinning.md) | How CI pins third-party actions |
+
+Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
+
+## Development
+
+| Page | Settles |
+| --- | --- |
+| [Development](development/README.md) | Building, testing, sanitizers, fuzzing and benchmarks |
+| [macOS and Xcode](development/macos.md) | The primary development platform |
+| [Code tour](development/code-tour.md) | Where each responsibility lives in the source |
+| [Code style](development/code-style.md) | Rules for native code and how they are checked |
+| [Test strategy](development/test-strategy.md) | Test tiers and what each one proves |
+| [Documentation](development/documentation.md) | How these pages are written, reviewed and built |
+
+Contribution rules: [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md).
+
+## Release and distribution
+
+| Page | Settles |
+| --- | --- |
+| [Artifact delivery](distribution/artifact-delivery.md) | Build once, then candidate, verify, publish |
+| [Release evidence](distribution/release-evidence.md) | Artifact-bound proof records and mandatory matrices |
+| [Release checklist](assurance/release-checklist.md) | What a tagged release must carry |
+| [Verify a release](distribution/verify-release.md) | Checksums, seals, manifest and provenance |
+| [Package CI](distribution/package-ci.md) | Running and extending the packaging backends |
+| [Package status](distribution/package-status.md) | Generated view of the package matrix |
+| [BSD packaging](distribution/bsd-packaging.md) | FreeBSD and OpenBSD reference ports |
+| [Release residuals](distribution/wave5-l7-residuals.md) | Open release, portability and supply-chain work |
+| [Licensing](legal/licensing.md) | Copyright, contributions and redistribution |
+| [TLS redistribution](legal/tls-redistribution.md) | Obligations when shipping TLS-enabled binaries |
+
+## Assurance
+
+| Page | Settles |
+| --- | --- |
+| [Quality gates](production-readiness.md) | Generated readiness view of every gate |
+| [Gate list](assurance/gates.md) and [hazard register](assurance/hazards.md) | Generated gate and hazard tables |
+| [Persistence v1 roadmap](v1-production-roadmap.md) | The backlog and acceptance criteria for persistence v1 |
+| [Evidence taxonomy](assurance/evidence-taxonomy.md) | What counts as evidence, and how it is labelled |
+| [Performance budgets](assurance/performance-budgets.md) | Regression, hardware and soak budget classes |
+| [Memory-order inventory](assurance/memory-order-inventory.md) | Every atomic and its ordering |
+| [ABA and generation audit](assurance/aba-generation-token-audit.md) | Reuse, generation and token hazards |
+| [Failure atomicity audit](assurance/exception-failure-atomicity.md) | Exception safety at commit boundaries |
+| [Branch protection](assurance/github-branch-protection.md) | Required repository settings and checks |
+| [Engineering baseline](assurance/engineering-baseline.md) | The historical Phase A gap baseline |
+
+The machine-readable authority behind these pages is the
+[assurance catalog](../engineering/README.md).
+
+## Decisions and records
+
+| Page | Settles |
+| --- | --- |
+| [Decision records](adr/README.md) | Every architecture decision in force or open |
+| [Benchmark records](benchmarks/README.md) | Dated measurements and the decisions they supported |
+| [Evidence records](../engineering/evidence/README.md) | Retained campaign evidence |
+| [Changelog](../CHANGELOG.md) | What changed in each version |
+
+## Clients
 
 | Client | Documentation |
 | --- | --- |
-| C++ | [C++ TCP client API](reference/cpp-client-api.md) |
-| Python | [Python client README](../sdk/python/README.md) |
-| Perl | [Perl client README](../sdk/perl/README.md) |
-| Go | [Go client README](../sdk/go/README.md) |
-| Erlang/OTP | [Erlang client README](../sdk/erlang/README.md) |
-| Ruby | [Ruby client README](../sdk/ruby/README.md) |
+| C++ | [C++ client](reference/cpp-client-api.md) |
+| Python | [Python client](../sdk/python/README.md) |
+| Perl | [Perl client](../sdk/perl/README.md) |
+| Go | [Go client](../sdk/go/README.md) |
+| Erlang/OTP | [Erlang client](../sdk/erlang/README.md) |
+| Ruby | [Ruby client](../sdk/ruby/README.md) |
 
-## Decisions, development, and operations
-
-- [Operations handbook](operations/handbook.md) — day-1/day-2 index and incident playbooks
-- [Operations runbooks](operations/README.md) — graceful drain, overload, offline backup/restore, Worker reshard, corruption repair
-- [Version lifecycle and compatibility](architecture/version-lifecycle.md) — 0.x upgrade/downgrade, ABI, Worker migrate
-- [Artifact delivery](distribution/artifact-delivery.md) — build-once Candidate → Verify → Publish contract
-- [Retained release evidence](distribution/release-evidence.md) — artifact-bound proof records and mandatory matrices
-- [Package CI operator guide](distribution/package-ci.md) — run a backend locally, read evidence, add a backend
-- [Package backend status](distribution/package-status.md) — generated view of the package matrix
-- [BSD reference packaging](distribution/bsd-packaging.md) — FreeBSD/OpenBSD ports and native-proof boundary
-- [Release verification](distribution/verify-release.md) — checksums, seals, manifest and provenance
-- [ADR index and lifecycle](adr/README.md)
-- [Glossary](glossary.md)
-- [Code tour](development/code-tour.md)
-- [Native code style and automatic checks](development/code-style.md)
-- [Test strategy](development/test-strategy.md)
-- [Threat model](security/threat-model.md)
-- [Security implementation roadmap](security/roadmap.md)
-- [Licensing and copyright](legal/licensing.md)
-- [Secure-profile TLS reference](security/secure-profile.md)
-- [TLS performance note](security/tls-performance.md)
-- [Documentation roadmap](documentation-roadmap.md)
-- [Production readiness](production-readiness.md) (generated from `engineering/gates/`)
-- [Assurance baseline](assurance/engineering-baseline.md)
-- [Persistence v1 roadmap](v1-production-roadmap.md)
-
-## Review discipline
-
-A change must update documentation when it changes any of these:
-
-- a public API precondition, postcondition, error, lifetime, or thread-safety guarantee;
-- a disk or wire byte;
-- a commit, acknowledgement, visibility, or recovery point;
-- Worker routing or ownership;
-- a lock order, atomic synchronization edge, or shutdown transition;
-- a benchmark workload or the meaning of one reported operation;
-- a fixed architectural decision.
-
-Every release should publish an immutable snapshot of these documents with the source tag. Benchmark
-artifacts and roadmaps may expire; specifications for readable disk and wire versions must not.
-
-Run `python3 engineering/tools/validate_documentation.py` after moving or renaming documentation.
-The deterministic check covers every tracked Markdown file and all repository-local links; the
-scheduled Lychee workflow separately checks network-dependent user-documentation links.
+Every client follows [client semantics v1](spec/client-semantics-v1.md) and the
+[conformance checklist](spec/tcp-client-conformance-v1.md).

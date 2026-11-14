@@ -134,17 +134,18 @@ enum class MaintenanceMode : std::uint8_t {
  */
 struct MaintenanceConfig {
     MaintenanceMode mode{MaintenanceMode::cooperative};
-    /// Preflight limit for one normal-mode evaluation/compaction. Zero explicitly
-    /// disables this limit; pressure and emergency always bypass it.
+    /// Copy budget for one normal-mode compaction. A durable Worker compacts the
+    /// oldest sealed prefix whose live bytes fit within it (ADR 0044). Zero
+    /// explicitly disables this limit; pressure and emergency always bypass it.
     std::uint64_t max_copy_bytes_per_cycle{kDefaultMaintenanceMaxCopyBytesPerCycle};
     /// Private pre-intent replacement-write rate under normal pressure. The
     /// limiter spaces <=1 MiB physical writes with a bounded initial burst. The
     /// one-second controller window prevents adjacent jobs from each receiving
     /// a fresh burst. Zero disables pacing; pressure/emergency bypass it.
     std::uint64_t max_copy_bytes_per_sec{};
-    /// Persistence v1 compacts one complete Worker sealed set in one atomic
-    /// transaction. Kept as a source-compatible guard for existing aggregate
-    /// initializers; the only supported value is 1.
+    /// Persistence v1 compacts the oldest sealed prefix of one Worker in one
+    /// atomic transaction (ADR 0044). Kept as a source-compatible guard for
+    /// existing aggregate initializers; the only supported value is 1.
     std::uint32_t max_segments_per_cycle{1};
     /// Inclusive CPU budget for compact work inside the same one-second window
     /// (milliseconds of wall time charged to compact). Zero disables; pressure
@@ -176,7 +177,7 @@ struct MaintenanceConfig {
     /// counters.
     bool unread_ttl_pressure_probe{true};
     /// When false (default), normal scheduling stays conservative: unread expired
-    /// sealed puts remain Index-live until GET, recovery, or pressure. When true,
+    /// sealed puts remain Index-live until GET, recovery, or compaction. When true,
     /// normal evaluations also probe and treat unread expired bytes as reclaimable
     /// dead space for the inclusive dead-byte threshold only (same Store::compact()
     /// path; copy budget still uses exact Index-referenced live bytes).

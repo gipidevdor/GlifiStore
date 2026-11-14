@@ -5,25 +5,24 @@ A segmented, log-indexed, memory-first key-value engine in C++23.
 Browse the API, follow the ownership model, and trace each contract to its specification.
 </div>
 
-> **Architectural prototype.** Generated API documentation describes the current source tree;
-> it does not certify release readiness or platform durability. See the
-> [quality gates](../production-readiness.md) and
+> **Architectural prototype.** This reference describes the current source tree. It certifies
+> neither release readiness nor platform durability; see the
+> [quality gates](../production-readiness.md) and the
 > [platform durability evidence](../architecture/platform-durability-evidence.md).
 
-## Start with an API
+## Start with an interface
 
 | Interface | Entry points | Contract |
 | --- | --- | --- |
 | Embedded C++ Store | glifistore::Store, glifistore::StoreConfig, glifistore::OwnedValue | [Public C++ API](../reference/cpp-api.md) |
-| C++ TCP client | glifistore::client::Client, glifistore::client::ClientConfig, glifistore::client::MutationResult | [C++ client API](../reference/cpp-client-api.md) |
+| C++ TCP client | glifistore::client::Client, glifistore::client::ClientConfig, glifistore::client::MutationResult | [C++ client](../reference/cpp-client-api.md) |
 | Errors and results | glifistore::Result, glifistore::Status, glifistore::ErrorCode | [Error taxonomy v1](../spec/error-taxonomy-v1.md) |
 | C ABI | [glifistore.h](../../include/glifistore/abi/glifistore.h) | [C ABI v1](../spec/c-abi-v1.md) |
 
-Use the **Classes**, **Namespaces**, and **Files** navigation entries to explore declarations,
-overloads, template parameters, include dependencies, and linked header source. Search works
-entirely in the browser. The header index also includes implementation components; presence here
-does not make a symbol part of the supported or installed API. The reference contracts above
-define that boundary.
+**Classes**, **Namespaces** and **Files** in the navigation lead to declarations, overloads,
+template parameters, include dependencies and linked header source; search runs in the browser. The
+header index also lists implementation components. Being listed here does not make a symbol part of
+the supported or installed API: the contracts above define that boundary.
 
 ## Embed a volatile Store
 
@@ -55,25 +54,24 @@ int main() {
 ```
 
 `Store::get()` returns an owning value. Durability policies, acknowledgement points, batch
-visibility, TTL, errors, and lifecycle rules are specified in the
-[C++ API contract](../reference/cpp-api.md); choose a persistent configuration explicitly when
-following that contract.
+visibility, TTL, errors and lifecycle rules are in the [public C++ API](../reference/cpp-api.md);
+a persistent Store needs an explicit configuration that follows that contract.
 
 ## Understand the implementation
 
-- [Documentation map](../README.md): specifications, architecture, operations, and assurance.
-- [Architecture specification](../spec/architecture.md): components and the official paired
-  Reader–Writer runtime.
-- [Code tour](../development/code-tour.md): navigate the implementation by responsibility.
+- [Documentation map](../README.md): every specification, guide and record.
+- [Architecture specification](../spec/architecture.md): components and the paired Reader–Writer
+  runtime.
+- [Code tour](../development/code-tour.md): the implementation by responsibility.
 - [Concurrency and memory model](../spec/concurrency-memory-model.md): ownership and publication.
 - [Persistence v1](../spec/persistence-v1.md) and [wire protocol v2](../spec/wire-protocol-v2.md):
   versioned formats and compatibility.
-- [Build and publish this documentation](../development/documentation.md).
+- [Documentation](../development/documentation.md): how these pages are written and built.
 
-Specifications and accepted ADRs retain their authority over generated descriptions. Most
+Specifications and accepted ADRs keep their authority over generated descriptions. Most
 declarations are indexed automatically; detailed inline documentation is being added
-incrementally. Unannotated declarations should be read together with their reference contract.
+incrementally, so read an unannotated declaration together with its contract.
 
-The site uses [Doxygen](https://www.doxygen.nl/) and
-[Doxygen Awesome](https://jothepro.github.io/doxygen-awesome-css/). The theme's MIT license is
-included in the generated site as `doxygen-awesome-LICENSE.txt`.
+Built with [Doxygen](https://www.doxygen.nl/) and
+[Doxygen Awesome](https://jothepro.github.io/doxygen-awesome-css/); the theme's MIT license ships
+with the site as `doxygen-awesome-LICENSE.txt`.

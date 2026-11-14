@@ -1,159 +1,166 @@
-# Prototipo volatile a coppia Reader–Writer
+# Volatile paired-shard prototype
 
-Status: sperimentale, lab-only (test e benchmark dedicati; non raggiungibile da `glifistored`)
-Applies to: prototipo volatile Reader–Writer e Reactor TCP a coppia singola sotto `src/experimental/`
-Owner: storage, networking e performance maintainers
-Last reviewed: 2026-08-27
+**Descriptive** · volatile Reader–Writer prototype and single-pair TCP Reactor under `src/experimental/` · reviewed 2026-08-27
 
-ADR: [shard a coppie Reader–Writer](../adr/paired-reader-writer-shards.md);
-[ADR 0036](../adr/0036-generation-slot-pool-publish.md) (proposed) governa eventuali
-approdi production del generation slot-pool.
+Decisions: [paired Reader–Writer shards](../adr/paired-reader-writer-shards.md) (ADR 0031);
+[ADR 0036](../adr/0036-generation-slot-pool-publish.md) (proposed) governs the generation slot pool.
+Its production implementation is an embedded opt-in, off by default
+(`PairedConcurrencyConfig::generation_slot_pool`).
 
-## Scopo implementato
+What the experimental, lab-only volatile prototype implements, what it measured and where it stops.
+It runs only in dedicated tests and benchmarks and is not reachable from `glifistored`.
 
-Il prototipo esegue una sola coppia con:
+## Implemented scope
 
-- un caller Reader-owner e un `std::thread` Writer persistente con stop/join espliciti;
-- mutation e completion ring SPSC da 256 elementi;
-- indici producer/consumer separati su allineamento 128 byte;
-- pool di 256 mutation slot e value arena contigua allocati allo startup;
-- completion credit implicito nello slot: lo slot torna libero solo dopo il completion pop;
-- micro-batch Writer fino a 32 mutazioni, con deadline configurabile e default bilanciato di 2 us;
-- `MutableDeltaIndex` Writer-private e publication `base + frozen delta`;
-- merge del delta alla soglia configurata, senza catene oltre due livelli;
-- publication tramite un solo token atomico release/acquire `{epoch:48, slot+1:16}`; il token
-  identifica anche la reincarnazione dello slot e il descriptor immutabile nello slot contiene
-  `generation`, `epoch` e `visible_through`;
-- `ImmutableReadIndex` read-only Swiss-style con control group da otto slot, load massimo 0,75,
-  matching SIMD/scalar già condiviso con l'Index di produzione e nessun tombstone;
-- `StableRecord` allocato una sola volta per mutazione; base, delta e generation condividono soltanto
-  handle compatti e il GET non modifica il refcount;
-- delta persistente a pagine immutable da 16 slot: i delta piccoli restano flat; quelli grandi
-  separano una directory di ownership persistente a due livelli da una vista piatta di puntatori
-  non-owning. La `ReadGeneration` pinna l'ownership e il GET conserva un accesso diretto alla pagina;
-- micro-batch configurabile per record e deadline: il profilo bilanciato usa 32 record/2 us, mentre
-  il benchmark espone entrambe le soglie per non confondere throughput e latenza di visibilità;
-- pool di 258 generation slot e QSBR basato sui turn del Reader, senza refcount sul GET o
-  sull'adozione;
-- PUT, ERASE, TTL, read-after-write e drain di shutdown;
-- metriche di queue, batch, publication latency/storage, copia ingress e generation retirement.
+The prototype runs a single pair with:
 
-Il secondo stadio collega la coppia a un Reactor TCP cleartext sperimentale:
+- a Reader-owner caller and a persistent Writer `std::thread` with explicit stop/join;
+- 256-element SPSC mutation and completion rings;
+- producer and consumer indices separated on 128-byte alignment;
+- a pool of 256 mutation slots and a contiguous value arena, allocated at startup;
+- an implicit completion credit in the slot: a slot becomes free only after the completion pop;
+- Writer micro-batches of up to 32 mutations, configurable by record count and deadline; the
+  balanced default profile uses 32 records and 2 µs, and the benchmark exposes both thresholds so
+  throughput and visibility latency are not confused;
+- a Writer-private `MutableDeltaIndex` and `base + frozen delta` publication;
+- delta merge at the configured threshold, with no chain deeper than two levels;
+- publication through a single release/acquire atomic token `{epoch:48, slot+1:16}`; the token also
+  identifies the slot's reincarnation, and the immutable descriptor in the slot holds `generation`,
+  `epoch` and `visible_through`;
+- a read-only Swiss-style `ImmutableReadIndex` with eight-slot control groups, a maximum load of
+  0.75, the SIMD/scalar matching already shared with the production Index, and no tombstones;
+- one `StableRecord` allocated per mutation; base, delta and generation share only compact handles,
+  and GET does not modify the reference count;
+- a persistent delta of immutable 16-slot pages: small deltas stay flat, while large ones separate a
+  persistent two-level ownership directory from a flat view of non-owning pointers. The
+  `ReadGeneration` pins ownership and GET keeps direct page access;
+- a pool of 258 generation slots and QSBR based on Reader turns, with no reference counting on GET
+  or adoption;
+- PUT, ERASE, TTL, read-after-write and shutdown drain;
+- metrics for queue, batch, publication latency and storage, ingress copy and generation retirement.
 
-- protocollo v2 compatibile con il client C++ pubblico per `INIT`, `BIND_WORKER`, `PING`, `GET`,
-  `PUT`, `ERASE`, `HEALTH` e `READY` su una sola coppia;
-- parser, input/output watermark e connection slot bounded;
-- pipeline ordinata con al massimo una mutazione in attesa di completion per connessione;
-- risposta GET con `sendmsg` scatter/gather: header e valore non vengono concatenati;
-- generation pin solo quando l'output del socket è parziale, rilasciato dopo l'ultimo byte;
-- snapshot delle metriche pubblicata a fine event-loop turn: la lettura cross-thread non corre sui
-  contatori Reader-locali e non aggiunge atomiche o mutex al normale GET;
-- wakeup nativo Writer→Reader una volta per batch di completion;
-- telemetria per richieste, response byte, `sendmsg`, write parziali, pin e backpressure.
+The second stage connects the pair to an experimental cleartext TCP Reactor:
 
-Il GET usa soltanto il descriptor locale adottato dal Reader. I test verificano che 1.000 GET non
-incrementino push/pop di nessuna ring.
+- protocol v2, compatible with the public C++ client, for `INIT`, `BIND_WORKER`, `PING`, `GET`,
+  `PUT`, `ERASE`, `HEALTH` and `READY` on a single pair;
+- a bounded parser, input and output watermarks and connection slots;
+- an ordered pipeline with at most one mutation awaiting completion per connection;
+- GET responses through `sendmsg` scatter/gather, with header and value never concatenated;
+- a generation pin only when socket output is partial, released after the last byte;
+- a metrics snapshot published at the end of each event-loop turn, so cross-thread reads never race
+  on Reader-local counters and add no atomics or mutexes to ordinary GET;
+- a native Writer→Reader wakeup once per completion batch;
+- telemetry for requests, response bytes, `sendmsg`, partial writes, pins and backpressure.
 
-## Confinamento
+GET uses only the local descriptor adopted by the Reader. Tests verify that 1,000 GETs increment the
+push or pop count of no ring.
 
-`paired_shard.cpp` e `paired_reactor.cpp` vengono compilati direttamente in `glifistore_tests` e
-nei target `glifistore_paired_benchmark` / `glifistore_paired_reactor_benchmark`. Non appartengono
-a `glifistore_core` o `glifistore_server_core`, non sono installati e non sono raggiungibili da
-`glifistored`. Il prototipo non apre Segment persistenti e non cambia Store, wire v2 o persistence
-v1. Questa separazione impedisce un'attivazione accidentale del runtime incompleto.
+## Containment
 
-## Reclamation implementata
+`paired_shard.cpp` and `paired_reactor.cpp` are compiled directly into `glifistore_tests` and the
+`glifistore_paired_benchmark` and `glifistore_paired_reactor_benchmark` targets. They do not belong
+to `glifistore_core` or `glifistore_server_core`, are not installed and are not reachable from
+`glifistored`. The prototype opens no persistent Segment and changes neither the Store, wire v2 nor
+persistence v1. This separation prevents accidental activation of the incomplete runtime.
 
-Il Reader incrementa un contatore di turn quiescenti prima di adottare con acquire il token
-corrente. Il Writer inizializza completamente generation e descriptor nello slot, quindi pubblica
-con release un solo token packed. Il Reader decodifica lo slot e verifica che l'epoch del descriptor
-coincida con quello del token: il riuso dello stesso indirizzo non può quindi simulare la stessa
-publication (ABA). Il Writer ritira la generation precedente solo dopo due ulteriori confini
-quiescenti. Il margine di due turn copre l'adozione concorrente che può ancora avere osservato il
-descriptor precedente. Lo span restituito da GET resta valido fino alla successiva
-`adopt_publication()` dello stesso Reader.
+## Reclamation
 
-Il pool contiene `queue_capacity + 2` slot, cioè un budget esplicito di 258 generation concorrenti.
-Non è una promessa che ogni mutazione ammessa continuerà a pubblicare se il Reader smette
-indefinitamente di avanzare: il completion pop può riaprire admission mentre il debito di
-publication cresce. Quando il budget è esaurito, il Writer esegue un tentativo di reclaim con attesa
-limitata e completa il batch con `resource_exhausted`; non sovrascrive uno slot vivo e non attende
-senza limite. Due turn reali durante shutdown sbloccano il reclaim del debito preesistente; il join
-classifica comunque ogni mutazione già ammessa con un completion esplicito.
+The Reader increments a quiescent-turn counter before adopting the current token with acquire. The
+Writer fully initializes the generation and its descriptor in the slot, then publishes one packed
+token with release. The Reader decodes the slot and checks that the descriptor's epoch matches the
+token's, so reuse of the same address cannot impersonate the same publication (ABA). The Writer
+retires the previous generation only after two further quiescent boundaries; that two-turn margin
+covers a concurrent adoption that may still have observed the previous descriptor. The span returned
+by GET stays valid until the same Reader's next `adopt_publication()`.
 
-## Limiti intenzionali
+The pool holds `queue_capacity + 2` slots: an explicit budget of 258 concurrent generations. This is
+not a promise that every admitted mutation keeps publishing if the Reader stops advancing
+indefinitely, because a completion pop can reopen admission while publication debt grows. When the
+budget is exhausted, the Writer makes one bounded-wait reclaim attempt and completes the batch with
+`resource_exhausted`; it never overwrites a live slot and never waits without bound. During
+shutdown, two real turns unblock reclaim of the existing debt, and join still classifies every
+admitted mutation with an explicit completion.
 
-- L'arena delle richieste e il pool generation sono bounded. Ogni nuova versione alloca ancora uno
-  `StableRecord`, le pagine delta toccate e le strutture di publication. Un PMR generalista e uno
-  slab `StableRecord` Writer-only sono stati misurati e respinti: hanno peggiorato il 95/5 e lo slab
-  tratteneva capacità payload fino all'high-watermark. Un allocator production richiede classi di
-  size e policy di retention, non un pool unico applicato indiscriminatamente.
-- Il Writer usa ancora yield polling per l'admission idle; il ritorno completion usa già il wakeup
-  nativo del Poller. Affinity, adaptive spin/park e profili non sono ancora implementati.
-- Il Reactor è cleartext, volatile e a coppia singola: non implementa TLS, handoff, durable cold
-  read, Segment v1, durability, rotation, recovery o compaction.
-- Il prototipo implementa una sola coppia e non certifica scaling.
-- Il benchmark `glifistore_paired_benchmark` resta un microbenchmark del motore; il nuovo
-  `glifistore_paired_reactor_benchmark` è invece wire-to-wire, usa lo stesso client pubblico e
-  interlaccia baseline corrente e prototipo. Le latenze TCP attuali sono di completamento batch,
-  non ancora istogrammi separati per singolo GET e PUT.
+## Intentional limits
 
-Di conseguenza i primi risultati A/B qualificano soltanto il potenziale del data path. Un successo
-architetturale richiede ancora lo stesso protocol path, Segment immutabili, durability e multi-pair.
+- The request arena and the generation pool are bounded, but every new version still allocates a
+  `StableRecord`, the touched delta pages and the publication structures. A general-purpose PMR and
+  a Writer-only `StableRecord` slab were measured and rejected: both worsened 95/5, and the slab
+  retained payload capacity up to its high-watermark. A production allocator needs size classes and
+  a retention policy, not one pool applied indiscriminately.
+- The Writer still uses yield polling for idle admission; completion return already uses the
+  Poller's native wakeup. Affinity, adaptive spin/park and profiles are not implemented yet.
+- The Reactor is cleartext, volatile and single-pair: it implements no TLS, handoff, durable cold
+  read, Segment v1, durability, rotation, recovery or compaction.
+- The prototype implements one pair and certifies no scaling.
+- `glifistore_paired_benchmark` remains an engine microbenchmark.
+  `glifistore_paired_reactor_benchmark` is wire-to-wire, uses the same public client and interleaves
+  the current baseline with the prototype. Its TCP latencies are batch-completion latencies, not yet
+  separate per-GET and per-PUT histograms.
 
-## Evidenza attuale
+The first A/B results therefore qualify only the data path's potential. An architectural success
+still requires the same protocol path, immutable Segments, durability and multiple pairs.
 
-- suite Debug completa: 446 test, pass;
-- suite ASan+UBSan completa: 446 test, pass;
-- suite TSAN completa: 446 test, pass. Il primo run TCP ha individuato una race nella lettura delle
-  metriche; la snapshot a confine di turn l'ha rimossa e il rerun completo è pulito;
-- suite Debug, ASan+UBSan e TSAN completa sulla directory persistente/vista pinzata: pass (441 test);
-- test concorrente SPSC con 100.000 elementi e wraparound;
-- saturation di tutti i 256 completion credit senza perdita;
-- riuso slot dopo drain;
-- publication/ACK/read-after-write;
-- merge ripetuti, tombstone, TTL e shutdown drain.
-- 512 publication consecutive con reclamation QSBR bounded e nessuna backpressure;
-- reincarnazione ripetuta degli slot con token `{epoch, slot}` coerente, verificata in Release,
-  ASan+UBSan e TSan; il contatore `generation_slot_reuses` prova che il test non si limita a slot
-  mai riutilizzati;
-- benchmark A/B interleaved GET 100% e GET/PUT 95/5 nel target dedicato
-  `glifistore_paired_benchmark`.
-- secondo gate P0: delta paged e record stabili portano il 95/5 a 11,30 Mops/s (64 B) e
-  10,90 Mops/s (1 KiB), superando rispettivamente la baseline di 2,15× e 4,57×.
-- directory ownership persistente + vista Reader piatta riducono del 65% circa le copie di handle
-  owning nel profilo 4.096 chiavi; deadline 2 us mantiene il gate bilanciato, mentre 8 us raggiunge
-  11,59/11,55 Mops/s mixed a 64 B/1 KiB con un diverso contratto di visibilità.
-- test TCP con il client C++ pubblico per CRUD, read-after-write e pipeline ordinata;
-- test deterministico di output lento: write parziale, generation pin osservato e rilascio a drain;
-- benchmark A/B TCP interleaved tra Reactor corrente e paired Reactor, con throughput e
-  p50/p99/p99.9 di batch oltre alla telemetria di publication e output.
-- GET TCP 64 B, pipeline 32: da +0,6% a +4,8% per 1–8 connessioni; il p99 batch non migliora in
-  modo uniforme. A pipeline 128 il vantaggio throughput è +11,4%, mentre pipeline 1/8 resta entro
-  una regressione del 2,5%.
-- GET TCP 1 KiB/64 KiB/256 KiB: +21%, +233% e +221%; per i valori grandi scatter/gather riduce
-  anche il p99 batch del 64–80% e il test osserva i pin soltanto sulle write parziali.
-- mixed TCP 64 B, quattro connessioni, pipeline 32: -18% a 99/1, -54% a 95/5 e -73% a 90/10.
-  Il batch publication medio è soltanto 1,07/1,25/1,43 record: handoff, publication e barriera di
-  ordinamento per connessione dominano il piccolo valore.
+## Evidence
 
-## Prossimo gate
+Tests:
 
-Il prototipo sotto `src/experimental/` resta **lab-only**: non è un secondo runtime selezionabile e
-non verrà promosso in `glifistored`. Il daemon di produzione è già il modello paired
+- full Debug suite: 446 tests, pass;
+- full ASan+UBSan suite: 446 tests, pass;
+- full TSan suite: 446 tests, pass. The first TCP run found a race in metrics reads; the
+  turn-boundary snapshot removed it, and the full rerun is clean;
+- full Debug, ASan+UBSan and TSan suites on the persistent directory and pinned view: pass
+  (441 tests);
+- a concurrent SPSC test with 100,000 elements and wraparound;
+- saturation of all 256 completion credits without loss;
+- slot reuse after drain;
+- publication, ACK and read-after-write;
+- repeated merges, tombstones, TTL and shutdown drain;
+- 512 consecutive publications with bounded QSBR reclamation and no backpressure;
+- repeated slot reincarnation with a consistent `{epoch, slot}` token, verified in Release,
+  ASan+UBSan and TSan; the `generation_slot_reuses` counter proves the test does not exercise only
+  never-reused slots;
+- TCP tests with the public C++ client for CRUD, read-after-write and ordered pipelines;
+- a deterministic slow-output test: partial write, observed generation pin and release on drain.
+
+Measurements:
+
+- interleaved A/B benchmarks for 100% GET and 95/5 GET/PUT in the dedicated
+  `glifistore_paired_benchmark` target;
+- second gate: the paged delta and stable records bring 95/5 to 11.30 Mops/s (64 B) and
+  10.90 Mops/s (1 KiB), 2.15× and 4.57× the baseline respectively;
+- the persistent ownership directory with a flat Reader view cuts owning-handle copies by about 65%
+  in the 4,096-key profile; the 2 µs deadline keeps the balanced gate, while 8 µs reaches
+  11.59/11.55 Mops/s mixed at 64 B/1 KiB under a different visibility contract;
+- interleaved TCP A/B benchmarks between the current Reactor and the paired Reactor, with throughput
+  and batch p50/p99/p99.9 plus publication and output telemetry;
+- TCP GET 64 B, pipeline 32: +0.6% to +4.8% for 1–8 connections, and batch p99 does not improve
+  uniformly. At pipeline 128 the throughput gain is +11.4%, while pipeline 1/8 stays within a 2.5%
+  regression;
+- TCP GET 1 KiB/64 KiB/256 KiB: +21%, +233% and +221%; for large values scatter/gather also cuts
+  batch p99 by 64–80%, and the test observes pins only on partial writes;
+- mixed TCP 64 B, four connections, pipeline 32: −18% at 99/1, −54% at 95/5 and −73% at 90/10. The
+  mean publication batch is only 1.07/1.25/1.43 records: handoff, publication and the
+  per-connection ordering barrier dominate the small value.
+
+## Next steps
+
+The prototype under `src/experimental/` stays **lab-only**: it is not a second selectable runtime
+and will not be promoted into `glifistored`. The daemon already runs the paired model
 ([ADR 0031](../adr/paired-reader-writer-shards.md), [server model](server-model.md)).
 
-I residuali di adozione e performance sono i gate P1 del piano di produzione, non un cutover del
-prototipo volatile ([paired-shards-plan](../benchmarks/paired-shards-plan.md)):
+The remaining adoption and performance items are gates of the
+[paired shards benchmark plan](../benchmarks/paired-shards-plan.md), not a cutover of the volatile
+prototype:
 
-1. P1 — Delta mixed magnitude: directory-chunk COW landed; conferma −1,8% solo su Linux
-   hard-pinned ([paired-delta-directory-chunks-2026-07-31](../benchmarks/paired-delta-directory-chunks-2026-07-31.md));
-2. P1 — `get-into` / scatter multi-extent: **rejected** pending bounded+win proof
-   ([paired-get-into-multi-extent-reject-2026-07-31](../benchmarks/paired-get-into-multi-extent-reject-2026-07-31.md));
-3. P1 — A/B 1/2/4/8 pair Linux hard-pinned: harness ready, waiting on `glifistore-linux-perf`
-   ([paired-shards-linux-p1](../benchmarks/paired-shards-linux-p1.md));
-4. P1 — backend I/O Linux opzionale: **deferred** for 0.1.0 (no proven win without ordering risk).
+1. Delta mixed magnitude: directory-chunk COW landed; the −1.8% can be confirmed only on
+   hard-pinned Linux
+   ([paired Delta directory-chunk COW](../benchmarks/paired-delta-directory-chunks-2026-07-31.md));
+2. `get-into` and multi-extent scatter: rejected pending proof of a bounded win
+   ([multi-extent rejection](../benchmarks/paired-get-into-multi-extent-reject-2026-07-31.md));
+3. A/B at 1/2/4/8 pairs on hard-pinned Linux: harness ready, waiting on `glifistore-linux-perf`
+   ([Linux hard-pinned A/B harness](../benchmarks/paired-shards-linux-p1.md));
+4. optional Linux I/O backend: deferred for 0.1.0, with no proven win free of ordering risk.
 
-Il lavoro lab sul prototipo TCP volatile (istogrammi GET/PUT distinti, affinity sperimentale,
-allocator a classi di size) può continuare nei target dedicati, ma non è un gate di integrazione
-nel daemon.
+Lab work on the volatile TCP prototype (separate GET and PUT histograms, experimental affinity, a
+size-class allocator) may continue in the dedicated targets; it is not a daemon integration gate.

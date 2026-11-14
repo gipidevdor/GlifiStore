@@ -1,8 +1,8 @@
 # Platform durability evidence (scaffolding)
 
 **No platform/filesystem row here is E3 or E4 certified.** These directories are
-reserved evidence-path placeholders for Wave 3 (L4) durability work. Fill them
-only with retained, reviewed campaign artifacts that name the exact OS/kernel,
+reserved evidence-path placeholders for platform durability work. Fill them only
+with retained, reviewed campaign artifacts that name the exact OS/kernel,
 filesystem, mount options, and guest/host boundary.
 
 | Row | Path | Highest honest claim today |
@@ -14,5 +14,6 @@ filesystem, mount options, and guest/host boundary.
 | FreeBSD / ZFS | [`freebsd-zfs/`](freebsd-zfs/) | Architectural target; certification open |
 | OpenBSD / FFS | [`openbsd-ffs/`](openbsd-ffs/) | Portability signal; FFS certification open |
 
-Normative matrix: [`docs/architecture/platform-durability-evidence.md`](../../../docs/architecture/platform-durability-evidence.md).
+Evidence matrix (roadmap):
+[`docs/architecture/platform-durability-evidence.md`](../../../docs/architecture/platform-durability-evidence.md).
 Harness rehearsal (`scripts/run-e3-block-reset.sh`) always emits `e3_certified=no`.

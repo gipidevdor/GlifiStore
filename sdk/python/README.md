@@ -1,24 +1,20 @@
 # GlifiStore Python client
 
-Pure-Python client for GlifiStore wire protocol v2. It opens and binds one TCP connection per
-Worker, routes binary keys with canonical FNV-1a 64-bit, retries reads after a transient
-disconnect, and never reports an uncertain mutation as rejected.
+The `glifistore` package is a pure-Python client for GlifiStore wire protocol v2, with a synchronous
+`Client` and an `asyncio` `AsyncClient` that share one codec, configuration and outcome model.
 
-The package ships both a thread-safe synchronous `Client` and an `asyncio` `AsyncClient` that share
-the same codec, configuration, and outcome model. Runtime dependency: none (Python ≥ 3.11 stdlib).
-Portable error/retry/deadline rules:
-[client semantics v1](../../docs/spec/client-semantics-v1.md).
+## Guarantees
 
-Worker routing follows ADR 0030: plain `GlifiStore/2` is FNV-1a; the extended INIT identity selects SipHash-2-4.
+- Opens and binds one TCP connection per Worker.
+- Routes each binary key to its owner Worker as
+  [ADR 0030](../../docs/adr/0030-keyed-worker-routing.md) specifies: a plain `GlifiStore/2` INIT
+  identity means canonical FNV-1a 64-bit; the extended INIT identity selects SipHash-2-4.
+- Follows [client semantics v1](../../docs/spec/client-semantics-v1.md) for portable error, retry
+  and deadline rules.
+- Retries reads after a transient disconnect.
+- Never reports an uncertain mutation as rejected.
 
-**Security posture:** cleartext TCP by default (no authentication). Opt-in TLS 1.3 via
-`ClientConfig(tls=True, tls_ca=..., cert_file=..., key_file=..., server_name=...,
-insecure_skip_verify=...)` on both `Client` and `AsyncClient` — hostname/SNI verification on by
-default, fail closed (no cleartext fallback). Use loopback / private network / sidecar for
-cleartext; mTLS authn is ADR 0021
-([security roadmap](../../docs/security/roadmap.md); OpenBSD uses LibreSSL on the daemon).
-
-License: BSD-3-Clause.
+## Example
 
 ```python
 from glifistore import Client
@@ -28,6 +24,49 @@ with Client.connect() as cache:
     if stored.committed:
         print(cache.get(b"session:42"))
 ```
+
+## Install
+
+The client needs Python 3.11 or later and has no runtime dependency outside the standard library.
+
+From PyPI, once published:
+
+```bash
+pip install glifistore
+```
+
+From this source tree:
+
+```bash
+pip install ./sdk/python
+```
+
+The license is BSD-3-Clause.
+
+## Configuration
+
+Both clients take their settings from a `ClientConfig`. Besides TCP, both can dial an AF_UNIX
+socket.
+
+## TLS
+
+Connections are cleartext TCP by default, without authentication: use cleartext only on loopback, a
+private network or a sidecar. TLS 1.3 is opt-in on both clients: set `tls=True` in `ClientConfig`,
+with `tls_ca`, `cert_file`, `key_file`, `server_name` and `insecure_skip_verify`. Hostname and SNI
+verification is on by default, and TLS fails closed, with no cleartext fallback.
+
+mTLS authentication follows [ADR 0021](../../docs/adr/0021-secure-profile-authentication.md) and the
+[security roadmap](../../docs/security/roadmap.md). On OpenBSD the daemon uses LibreSSL.
+
+## Errors and mutation outcomes
+
+A mutation ends `committed`, `rejected` or `indeterminate`. Check `committed` on the result before
+relying on a write, as the example does. Pipeline responses report `succeeded` for each position.
+
+## Pipelines and batches
+
+This `AsyncClient` example runs an ordered pipeline, a multi-Worker batch and pre-sharded
+per-Worker pipelines:
 
 ```python
 from glifistore import AsyncClient, PipelineOpcode, PipelineRequest
@@ -52,57 +91,47 @@ async with await AsyncClient.connect() as cache:
     ])
 ```
 
-## Online backup
+## Backup and lifecycle probes
 
-`Client.backup(destination)` and `await AsyncClient.backup(destination)` issue wire `BACKUP` to
-create an online fenced durable catalog copy in a new empty server-side path. They return the bounded
-ASCII report as `bytes`. This is an admin operation under secure authz and is not a zero-fence hot
-snapshot; ambiguous transport/`INTERNAL_ERROR` outcomes require reconciliation, not blind retry.
+`Client.backup(destination)` and `await AsyncClient.backup(destination)` issue wire `BACKUP`, which
+creates an online, fenced copy of the durable catalog in a new, empty server-side path. They return
+the bounded ASCII report as `bytes`. BACKUP is an admin operation under secure authz and is not a
+zero-fence hot snapshot. An ambiguous outcome, from the transport or `INTERNAL_ERROR`, requires
+reconciliation, not a blind retry.
 
-## Lifecycle probes
+`health()`, `ready()` and `stats()` issue wire `HEALTH`, `READY` and `STATS` with an empty key and
+value, on both clients.
 
-`Client` / `AsyncClient` expose `health()`, `ready()`, and `stats()` for wire `HEALTH` / `READY` /
-`STATS` (empty key and value). AF_UNIX dial is supported; combining AF_UNIX with TLS is refused
-fail-closed on both sync and async clients.
+## Concurrency
 
-## Install
+`Client` is thread-safe. For `asyncio` code, use `AsyncClient`.
 
-From PyPI (once published):
+## Performance
 
-```bash
-pip install glifistore
-```
-
-From this source tree:
-
-```bash
-pip install ./sdk/python
-```
-
-## Tests
-
-```bash
-./scripts/test-python-client.sh
-```
-
-Packaging verification (sdist, wheel, `twine check`, isolated install tests for both artifacts):
-
-```bash
-./scripts/package-python-client.sh
-```
-
-See [PACKAGING.md](PACKAGING.md) for TestPyPI/PyPI upload steps and the version-bump checklist.
-
-## Performance benchmark
-
-Start `glifistored`, then run the same ordered `PUT`/`GET` workload used by the C++ client
-benchmark:
+Start `glifistored`, then run from `sdk/python` the same ordered `PUT`/`GET` workload as the C++
+client benchmark:
 
 ```bash
 python3 benchmarks/client_benchmark.py --port 7379 --workers 4 \
   --ops 100000 --pipeline 128 --warmup 1 --repeats 7
 ```
 
-Use `--execution batch` to benchmark `execute_batch()` grouping and fan-out directly, and
-`--runtime async --execution batch` for `AsyncClient`. Benchmark keys are assigned with the
-routing identity negotiated from the running server, including keyed SipHash configurations.
+`--execution batch` benchmarks `execute_batch()` grouping and fan-out directly, and
+`--runtime async --execution batch` does the same for `AsyncClient`. Benchmark keys are assigned
+with the routing identity negotiated with the running server, keyed SipHash configurations included.
+
+## Limitations
+
+Neither client combines AF_UNIX with TLS: both refuse that configuration fail-closed.
+
+## Development
+
+From the repository root, run the tests and verify the packaging:
+
+```bash
+./scripts/test-python-client.sh
+./scripts/package-python-client.sh
+```
+
+[Python client packaging](PACKAGING.md) lists what the packaging check builds and installs, the
+TestPyPI and PyPI upload steps and the version-bump checklist.

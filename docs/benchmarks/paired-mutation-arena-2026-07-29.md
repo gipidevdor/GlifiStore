@@ -1,99 +1,101 @@
-# Gate mutation slot/key/value arena paired — 2026-07-29
+# Paired mutation slot/key/value arena gate
 
-## Esito
+**Historical** · macOS arm64, paired daemon, Release · 2026-07-29
 
-**Pass per il blocco P0 mutation task storage.** Il Reader non costruisce più `std::string` o
-`std::vector` owning per `PUT`/`ERASE`: copia una sola volta i byte parsati in un'arena bounded
-preallocata della propria coppia e trasferisce al Writer un descrittore fisso tramite SPSC. Lo slot
-torna riutilizzabile soltanto dopo l'acquire della completion corrispondente. Il percorso GET non è
-stato modificato.
+## Outcome
 
-Il gate prestazionale macOS arm64 non pinned è positivo sui carichi mutation-bound e sostanzialmente
-neutro sul controllo read-heavy. Non costituisce ancora un claim Linux/NUMA production.
+**Pass for the P0 block mutation task storage.** The Reader no longer builds an owning `std::string`
+or `std::vector` for `PUT`/`ERASE`: it copies the parsed bytes once into a preallocated bounded
+arena of its own pair and transfers a fixed descriptor to the Writer through an SPSC queue. The slot
+becomes reusable only after the acquire of the corresponding completion. The GET path was not
+modified.
 
-## Protocollo implementato
+The unpinned macOS arm64 performance gate is positive on mutation-bound loads and essentially
+neutral on the read-heavy control. It is not yet a Linux/NUMA production claim.
 
-Ogni lane possiede:
+## Implemented protocol
 
-- `capacity` slot fissi, uguale alla capacità della mutation/completion ring;
-- un'arena logica di `--durable-mutation-queue-bytes`;
-- una guardia fisica grande al massimo quanto un frame, per mantenere contiguo un payload che
-  attraversa il wrap senza eseguire una seconda copia;
-- cursori FIFO monotoni e contatori separati per payload e admission bytes;
-- tre cause osservabili di rifiuto: slot esauriti, byte esauriti e singolo payload troppo grande.
+Every lane owns:
 
-La linearizzazione è:
+- `capacity` fixed slots, equal to the capacity of the mutation/completion ring;
+- a logical arena of `--durable-mutation-queue-bytes`;
+- a physical guard at most as large as one frame, to keep contiguous a payload that crosses the wrap
+  without performing a second copy;
+- monotonic FIFO cursors and separate counters for payload and admission bytes;
+- three observable rejection causes: slots exhausted, bytes exhausted and a single payload too
+  large.
+
+The linearization is:
 
 ```text
-Reader copia payload nello slot
+Reader copies payload into the slot
 → mutation queue release
-→ Writer dequeue acquire e usa view borrowed
+→ Writer dequeue acquire and uses a borrowed view
 → completion queue release
 → Reader completion acquire
-→ rilascio FIFO e possibile riuso dello slot
+→ FIFO release and possible reuse of the slot
 ```
 
-Nessun `RecordRef`, span, file handle o altro riferimento borrowed oltrepassa il completion edge. Un
-rilascio fuori ordine, un completion senza slot valido o un payload non più osservabile rende il
-runtime fail-closed. Il fallimento del push immediatamente successivo all'acquisizione esegue solo il
-rollback dell'ultimo slot non pubblicato.
+No `RecordRef`, span, file handle or other borrowed reference crosses the completion edge. An
+out-of-order release, a completion without a valid slot or a payload no longer observable makes the
+runtime fail-closed. A push failure immediately after the acquisition performs only the rollback of
+the last unpublished slot.
 
-Con i default correnti una coppia espone 256 slot, 16 MiB di budget logico e circa 18 MiB di storage
-virtuale massimo (budget più guardia frame). La memoria è quindi esplicita e bounded per pair; il
-profilo memory-constrained deve ridurre il byte budget, non introdurre crescita dinamica.
+With the current defaults a pair exposes 256 slots, 16 MiB of logical budget and about 18 MiB of
+maximum virtual storage (budget plus frame guard). The memory is therefore explicit and bounded per
+pair; the memory-constrained profile must reduce the byte budget, not introduce dynamic growth.
 
-## Benchmark A/B
+## A/B benchmark
 
-Binario pre-arena conservato prima della ricompilazione Release contro working tree post-arena.
-Apple Silicon arm64, macOS, client e server sullo stesso host, nessun hard affinity; 2 warmup e 7
-sample. I raw result completi sono in
+Pre-arena binary kept before the Release recompilation, against the post-arena working tree. Apple
+Silicon arm64, macOS, client and server on the same host, no hard affinity; 2 warmups and 7 samples.
+The complete raw results are in
 [`benchmarks/results/paired-mutation-arena-2026-07-29/`](../../benchmarks/results/paired-mutation-arena-2026-07-29/).
 
-| Workload | Metrica | Pre | Post | Delta |
+| Workload | Metric | Pre | Post | Delta |
 |---|---:|---:|---:|---:|
-| read-after-write, value 64 B, 8 client, p1 | throughput | 178.278 ops/s | 212.638 ops/s | **+19,27%** |
-| | p50 | 80,7 us | 72,3 us | **−10,38%** |
-| | p95 | 128,6 us | 106,1 us | **−17,52%** |
-| | p99 | 179,0 us | 138,8 us | **−22,47%** |
-| | p99.9 | 435,0 us | 433,4 us | −0,36% |
-| read-after-write, value 1 KiB, 8 client, p1 | throughput | 203.662 ops/s | 207.187 ops/s | +1,73% |
-| | p50 / p95 | 74,3 / 104,7 us | 73,7 / 103,5 us | −0,90% / −1,12% |
-| | p99 / p99.9 | 129,1 / 428,0 us | 130,3 / 439,5 us | +0,90% / +2,69% |
-| 99/1, value 64 B, 8 client, p32 | throughput | 1,629 Mops/s | 1,589 Mops/s | −2,47% |
-| | p99 / p99.9 | 234,1 / 323,4 us | 242,0 / 345,4 us | +3,40% / +6,82% |
-| 99/1 replica post | throughput | — | 1,601 Mops/s | −1,70% vs pre |
-| | p99 / p99.9 | — | 237,4 / 333,8 us | +1,42% / +3,21% vs pre |
+| read-after-write, value 64 B, 8 clients, p1 | throughput | 178,278 ops/s | 212,638 ops/s | **+19.27%** |
+| | p50 | 80.7 us | 72.3 us | **−10.38%** |
+| | p95 | 128.6 us | 106.1 us | **−17.52%** |
+| | p99 | 179.0 us | 138.8 us | **−22.47%** |
+| | p99.9 | 435.0 us | 433.4 us | −0.36% |
+| read-after-write, value 1 KiB, 8 clients, p1 | throughput | 203,662 ops/s | 207,187 ops/s | +1.73% |
+| | p50 / p95 | 74.3 / 104.7 us | 73.7 / 103.5 us | −0.90% / −1.12% |
+| | p99 / p99.9 | 129.1 / 428.0 us | 130.3 / 439.5 us | +0.90% / +2.69% |
+| 99/1, value 64 B, 8 clients, p32 | throughput | 1.629 Mops/s | 1.589 Mops/s | −2.47% |
+| | p99 / p99.9 | 234.1 / 323.4 us | 242.0 / 345.4 us | +3.40% / +6.82% |
+| 99/1 post replica | throughput | — | 1.601 Mops/s | −1.70% vs pre |
+| | p99 / p99.9 | — | 237.4 / 333.8 us | +1.42% / +3.21% vs pre |
 
-Il read-after-write da 64 B migliora anche nel peggior sample di throughput (202.351 contro 170.758
-ops/s), quindi il guadagno non dipende dalla sola mediana. A 1 KiB gli intervalli sono stretti e il
-vantaggio è piccolo ma ripetibile. Nel 99/1 lo spread pre/post si sovrappone e la seconda replica
-riduce la regressione: l'esito è **inconclusive/neutral**, da rieseguire interleaved su Linux
-hard-pinned. Non viene dichiarato un miglioramento del GET da questo blocco.
+The 64 B read-after-write improves even in the worst throughput sample (202,351 against 170,758
+ops/s), so the gain does not depend on the median alone. At 1 KiB the intervals are narrow and the
+advantage is small but repeatable. In 99/1 the pre/post spread overlaps and the second replica
+reduces the regression: the outcome is **inconclusive/neutral**, to be rerun interleaved on
+hard-pinned Linux. No GET improvement is claimed from this block.
 
-L'RSS mediano del processo cresce del 2,5–6,2% nei run post. Il valore comprende dataset, processi
-client/server nello stesso benchmark e l'arena per ogni istanza ripetuta. È coerente con la scelta
-di convertire un limite di coda prima solo contabile in storage fisicamente riservabile; non è
-accettabile moltiplicarlo ciecamente per decine di pair. Il prossimo gate Linux deve riportare RSS
-per componente e working-set resident dopo churn, oltre alla capacità virtuale già esposta da
-STATS.
+The process median RSS grows by 2.5–6.2% in the post runs. The value includes the dataset, the
+client/server processes of the same benchmark and the arena for every repeated instance. It is
+consistent with the choice of turning a queue limit that was previously only accounting into
+physically reservable storage; it is not acceptable to multiply it blindly by tens of pairs. The
+next Linux gate must report RSS per component and resident working set after churn, in addition to
+the virtual capacity already exposed by STATS.
 
-## Correttezza e robustezza
+## Correctness and robustness
 
-- Debug: 466/466 test;
-- ASan + UBSan: 466/466 test;
-- TSan: 466/466 test, inclusi i trasferimenti cross-thread dello slot;
-- CTest ASan integrale: 37/37, compresi allocation-fault e crash matrix;
-- build `unix-strict`: completata senza nuovi warning;
-- unit test dedicati: copia stabile, wrap contiguo, rollback, release fuori ordine, slot/byte/payload
-  exhaustion distinti;
-- integrazione Reactor: saturation della capacità slot e saturation indipendente del byte budget,
-  high-water e ritorno a zero dopo completion.
+- Debug: 466/466 tests;
+- ASan + UBSan: 466/466 tests;
+- TSan: 466/466 tests, including the cross-thread slot transfers;
+- full ASan CTest: 37/37, including allocation-fault and crash matrices;
+- `unix-strict` build: completed without new warnings;
+- dedicated unit tests: stable copy, contiguous wrap, rollback, out-of-order release, distinct
+  slot/byte/payload exhaustion;
+- Reactor integration: saturation of the slot capacity and independent saturation of the byte
+  budget, high-water and return to zero after completion.
 
-## Decisione e seguito
+## Decision and follow-up
 
-Il task storage owning precedente è rimosso dal normale percorso paired. Il P0 chiuso riguarda
-soltanto payload e descrittore della mutazione; non chiude automaticamente il costo della
-publication. Il prossimo blocco resta il Delta Writer-owned bounded: un nuovo candidato viene
-promosso solo se supera i due layout già respinti senza aumentare copie, RSS o p99. In parallelo il
-gate production richiede ancora 1/2/4/8 pair Linux hard-pinned, contatori `perf` e memoria per NUMA
-node.
+The previous owning task storage is removed from the normal paired path. The closed P0 covers only
+the mutation payload and descriptor; it does not automatically close the publication cost. The next
+block remains the bounded Writer-owned Delta: a new candidate is promoted only if it beats the two
+layouts already rejected without increasing copies, RSS or p99. In parallel, the production gate
+still requires 1/2/4/8 hard-pinned Linux pairs, `perf` counters and memory per NUMA node.

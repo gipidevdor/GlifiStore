@@ -1,16 +1,12 @@
-# Packaging and publishing (Hex)
+# Erlang client packaging
 
-OTP application: `glifistore` under `sdk/erlang`.
+How maintainers verify and publish `glifistore`, the OTP application under `sdk/erlang`, to Hex. Its
+runtime dependencies are OTP 25 or later standard applications only (`kernel`, `stdlib`, `crypto`;
+`ssl` optional, for TLS), and its license is BSD-3-Clause.
 
-Runtime dependencies: OTP ≥ 25 stdlib only (`kernel`, `stdlib`, `crypto`; `ssl` optional for TLS).
-License: BSD-3-Clause.
+## Verify
 
-## Version
-
-`glifistore_version:version/0` is the single source for the Erlang client. It must match the
-repository root `VERSION` file (enforced by `./scripts/check-sdk-versions.sh`).
-
-## Local verification
+From the repository root:
 
 ```bash
 ./scripts/package-erlang-client.sh
@@ -18,16 +14,16 @@ repository root `VERSION` file (enforced by `./scripts/check-sdk-versions.sh`).
 
 The script:
 
-1. Confirms vendored wire fixtures match the repository corpus
-2. Runs `rebar3 compile` and `rebar3 ct`
-3. Asserts `glifistore_version:version/0` matches `VERSION`
-4. Smoke-checks `scripts/glifistore-version.escript`
-5. Builds a normalized `sdk/erlang/dist/glifistore-erlang-VERSION.tar.gz` from tracked files only
-6. Extracts and compiles that archive outside the checkout, then verifies its runtime version
-7. Writes `sdk/erlang/dist/package-info.txt`
+1. confirms that the vendored wire fixtures match the repository corpus;
+2. runs `rebar3 compile` and `rebar3 ct`;
+3. asserts that `glifistore_version:version/0` matches `VERSION`;
+4. smoke-checks `scripts/glifistore-version.escript`;
+5. builds a normalized `sdk/erlang/dist/glifistore-erlang-VERSION.tar.gz` from tracked files only;
+6. extracts and compiles that archive outside the checkout, then verifies its runtime version;
+7. writes `sdk/erlang/dist/package-info.txt`.
 
-With the other SDK packages and TLS daemon/client peers built, the extracted archive participates in
-the fail-closed secure-profile matrix through:
+With the other SDK packages and the TLS daemon and client peers built, the extracted archive can
+also run through the fail-closed secure-profile matrix:
 
 ```bash
 GLIFISTORED=/path/to/glifistored \
@@ -36,7 +32,9 @@ GLIFISTORE_GO_INTEROP=/path/to/glifistore-interop \
 ./scripts/test-secure-profile-installed-artifacts.sh
 ```
 
-## Consumers
+## Publish
+
+Hex packages are the primary distribution. Once the package is on Hex, consumers depend on it:
 
 ```erlang
 %% After Hex publish:
@@ -44,19 +42,20 @@ GLIFISTORE_GO_INTEROP=/path/to/glifistore-interop \
 {ok, Client} = glifistore_client:connect(#{host => "127.0.0.1", port => 7379}).
 ```
 
-Until Hex publish is configured, consume from this repository path with `rebar3` path deps or
-copy the OTP application into your release.
+Until Hex publication is configured, consume the application from this repository with a `rebar3`
+path dependency, or copy the OTP application into your release.
 
-## Version bump checklist
+Until a registry publication exists, CI attaches the normalized tracked-source archive,
+`dist/package-info.txt`, checksums and an SBOM through `scripts/checksum-sdk-artifacts.sh`. The
+source archive is not described as a Hex package.
 
-1. Bump `src/glifistore_version.erl` and `src/glifistore.app.src` (`vsn`)
-2. Update `CHANGELOG.md`
-3. Ensure root `VERSION` matches (all SDKs lockstep unless an ADR says otherwise)
-4. Run `./scripts/check-sdk-versions.sh` and `./scripts/package-erlang-client.sh`
-5. Publish to Hex when credentials are available (`rebar3 hex publish`)
+## Bump the version
 
-## Release artifacts
+`glifistore_version:version/0` is the single source of the Erlang client version. It must match the
+repository root `VERSION` file, which `./scripts/check-sdk-versions.sh` enforces.
 
-Hex packages are the primary distribution. Until registry publication exists, CI attaches the
-normalized tracked-source archive, `dist/package-info.txt`, checksums and SBOM through
-`scripts/checksum-sdk-artifacts.sh`. The source archive is not described as a Hex package.
+1. Bump `src/glifistore_version.erl` and `vsn` in `src/glifistore.app.src`.
+2. Update `CHANGELOG.md`.
+3. Make sure the root `VERSION` matches; all SDKs move in lockstep unless an ADR says otherwise.
+4. Run `./scripts/check-sdk-versions.sh` and `./scripts/package-erlang-client.sh`.
+5. Publish to Hex with `rebar3 hex publish` when credentials are available.

@@ -113,4 +113,4 @@ the emergency gate is armed.
 - [ADR 0015](0015-whole-worker-compaction.md)
 - [Crash-safe durable compaction](../architecture/durable-compaction.md)
 - [Maintenance controller](../architecture/maintenance-controller.md)
-- [Public API contract](../architecture/public-api-contract.md)
+- [C++ API reference](../reference/cpp-api.md)

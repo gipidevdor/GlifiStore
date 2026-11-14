@@ -1,75 +1,63 @@
-# Runbook: corruption detection and offline repair
+# Corruption and repair
 
-Status: descriptive
-Applies to: durable v1 data directories and Segment files
-Owner: persistence maintainers
-Last reviewed: 2026-07-23
+**Descriptive** · durable v1 data directories and Segment files · reviewed 2026-07-23
 
-Recovery on ordinary `Store::open` **never** mutates, truncates, or rewrites source files
-([durability-recovery](../architecture/durability-recovery.md)). Suspected corruption is diagnosed
-with read-only tools; salvage uses `glifistore_repair_store` into an explicit **empty workspace**
-with quarantine **outside** the live store tree.
-
-## Purpose
-
-Classify storage faults, preserve evidence, and produce a clean verified store copy when salvage is
-possible — without in-place destructive repair.
-
-## Symptom → first command
+How to classify a suspected storage fault, preserve the evidence and, when salvage is possible,
+produce a clean verified copy of the Store, without destructive repair in place. Ordinary
+`Store::open` recovery never mutates, truncates or rewrites source files
+([durability and recovery](../architecture/durability-recovery.md)). Diagnosis uses read-only tools;
+salvage uses `glifistore_repair_store` into an explicit empty workspace, with quarantine outside the
+live store tree.
 
 | Symptom | First step |
-|---|---|
-| Daemon fails open / `READY` sticky fault | Stop daemon; `glifistore_verify_store` on `--data-dir` |
-| Known bad Segment file | `glifistore_inspect_segment` on the file |
-| Extra files after crash (orphan Segments, notes) | Verify, then repair into workspace if verify passes except quarantinable anomalies |
-| Missing catalog Segment, symlink, hard link | **Fail closed** — repair refuses; restore from backup |
+| --- | --- |
+| The daemon fails to open the Store, or `READY` reports a sticky fault | Stop the daemon; run `glifistore_verify_store` on its `--data-dir` |
+| A known bad Segment file | Run `glifistore_inspect_segment` on the file |
+| Extra files after a crash (orphan Segments, notes) | Verify, then repair into a workspace if verify passes except for quarantinable anomalies |
+| A missing catalog Segment, symlink or hard link | Fails closed: repair refuses; restore from backup |
 
-## Step 1 — Stop writers and verify (read-only)
+## 1. Stop writers and verify
 
 ```bash
 systemctl stop glifistored
 glifistore_verify_store --json -- /var/lib/glifistore
 ```
 
-`glifistore_verify_store`:
+[`glifistore_verify_store`](../cli.md#glifistore_verify_store) is read-only. It takes the exclusive
+Store lock, so it fails while the daemon still runs. It decodes `manifest.glifi`, audits the
+namespace, opens each catalog Segment read-only against the Manifest identity and scans the
+committed Record extents unless `--no-scan` is given.
 
-- takes the **exclusive Store lock** (fails if daemon still running);
-- decodes `manifest.glifi` and audits the namespace;
-- opens each catalog Segment read-only against Manifest identity;
-- scans committed Record extents (unless `--no-scan`).
+Exit codes: `0` validated, `1` validation or I/O failure, `2` usage. Exit `1` fails closed: do not
+open the Store for service until the fault is classified.
 
-Exit codes: `0` validated, `1` validation/I/O failure, `2` usage. Exit `1` is fail closed — do not
-open for service until classified.
-
-Header-only check when iterating:
+For a header-only check while iterating:
 
 ```bash
 glifistore_verify_store --no-scan -- /var/lib/glifistore
 ```
 
-## Step 2 — Inspect individual Segments (optional)
+## 2. Inspect individual Segments (optional)
 
-When verify points at a specific catalog file or you have a detached Segment copy:
+When verify points at a specific catalog file, or you hold a detached Segment copy:
 
 ```bash
 glifistore_inspect_segment --json -- segment-0123456789abcdef-00000001.glifi
 glifistore_inspect_segment --no-scan -- segment-0123456789abcdef-00000001.glifi
 ```
 
-Does **not** take the Store directory lock. A concurrent writer can cause a torn commit observation;
-that is reported as validation failure, not success.
+The tool does not take the Store directory lock. A concurrent writer can cause a torn commit
+observation, which it reports as a validation failure, not as success.
 
-## Step 3 — Offline repair (quarantine outside store)
+## 3. Repair offline into a workspace
 
-Use when verify fails because of **quarantinable** namespace anomalies (unlisted Segments, crash
-temporaries, compaction intents, unknown regular files) but catalog Segments listed in the Manifest
-are present and safe.
+Repair applies when verify fails because of quarantinable namespace anomalies (unlisted Segments,
+crash temporaries, compaction intents, unknown regular files) while the catalog Segments listed in
+the Manifest are present and safe. It requires:
 
-**Requirements:**
-
-- Source directory is unchanged (repair **never mutates** source).
-- Workspace directory is **completely empty**.
-- Writable space for `<workspace>/store` and `<workspace>/quarantine`.
+- an unchanged source directory: repair never mutates the source;
+- a completely empty workspace directory;
+- writable space for `<workspace>/store` and `<workspace>/quarantine`.
 
 ```bash
 install -d -m 700 /srv/glifistore-repair-2026-07-23
@@ -79,59 +67,59 @@ glifistore_repair_store --json -- /var/lib/glifistore /srv/glifistore-repair-202
 On success the workspace contains:
 
 | Path | Contents |
-|---|---|
-| `<workspace>/store/` | Clean Manifest + catalog Segments (verified after copy) |
+| --- | --- |
+| `<workspace>/store/` | Clean Manifest and catalog Segments, verified after copy |
 | `<workspace>/quarantine/` | Non-catalog anomalies moved out of the catalog view |
 | `<workspace>/quarantine/audit.txt` | Operator audit trail |
 
-Open the repaired store only from `<workspace>/store`:
+Open the repaired Store only from `<workspace>/store`:
 
 ```bash
 glifistore_verify_store -- /srv/glifistore-repair-2026-07-23/store
 glifistored --data-dir /srv/glifistore-repair-2026-07-23/store ...
 ```
 
-Preserve `<workspace>/quarantine/` for forensics; do **not** copy quarantined files back into the
+Preserve `<workspace>/quarantine/` for forensics. Do not copy quarantined files back into the
 catalog namespace.
 
-## Fail-closed conditions (repair refuses)
+## When repair refuses
 
-Repair exits `1` and does **not** produce a usable `<workspace>/store` when:
+Repair exits `1` and produces no usable `<workspace>/store` when:
 
-- a Manifest-listed catalog Segment is **missing**;
-- the namespace contains **unsafe** entries (symlinks, hard links, non-regular objects);
-- the workspace is **non-empty**;
+- a catalog Segment listed in the Manifest is missing;
+- the namespace contains unsafe entries (symlinks, hard links, non-regular objects);
+- the workspace is not empty;
 - structural verify of the salvageable catalog fails.
 
-In these cases restore from the last good **offline backup** ([backup-restore.md](backup-restore.md))
-or engage maintainers; do not attempt manual catalog surgery in the production directory.
+In these cases restore from the last good offline backup ([backup and restore](backup-restore.md))
+or engage the maintainers. Do not attempt manual catalog surgery in the production directory.
 
-## Corruption vs incompatibility
+## Corruption or incompatibility
 
 | Class | Examples | Tool behavior |
-|---|---|---|
-| Corruption | bad CRC in committed extent, missing listed Segment, inconsistent sequences | verify/repair fail closed |
-| Incompatibility | unknown required format version | fail closed as incompatibility, not generic repair |
-| Benign crash debris | unlisted Segment file, recognized temporary | quarantine via repair; source untouched |
+| --- | --- | --- |
+| Corruption | Bad CRC in a committed extent, missing listed Segment, inconsistent sequences | Verify and repair fail closed |
+| Incompatibility | Unknown required format version | Fails closed as incompatibility, not as generic repair |
+| Benign crash debris | Unlisted Segment file, recognized temporary | Quarantined by repair; the source is untouched |
 
-## What NOT to do
+## What not to do
 
-- Do **not** edit, truncate, or `rm` files in the production data directory to “fix” recovery.
-- Do **not** run repair while `glifistored` holds the lock.
-- Do **not** run repair with a non-empty workspace.
-- Do **not** use live/hot repair — not supported.
-- Do **not** invoke `glifistore_rebuild_index` for durable v1; durable Indexes rebuild through
-  ordinary Store recovery. The tool exits `1` with an explicit error.
-- Do **not** place quarantine directories **inside** the live store catalog path; use the explicit
+- Do not edit, truncate or `rm` files in the production data directory to fix recovery.
+- Do not run repair while `glifistored` holds the lock.
+- Do not run repair with a non-empty workspace.
+- Do not attempt live or hot repair: it is not supported.
+- Do not invoke `glifistore_rebuild_index` for durable v1: durable Indexes rebuild through ordinary
+  Store recovery, and the tool exits `1` with an explicit error.
+- Do not place quarantine directories inside the live store catalog path; use the explicit
   workspace layout above.
 
-## Post-incident checklist
+## After the incident
 
-1. Retain original source directory read-only for evidence.
-2. Retain `<workspace>/quarantine/` and verify JSON/text tool output.
-3. Verify repaired or restored store before traffic: `glifistore_verify_store` then `READY`.
-4. Root-cause: filesystem, hardware, abrupt power loss, or operator error — see
-   [platform durability evidence](../architecture/platform-durability-evidence.md).
+1. Keep the original source directory, read-only, as evidence.
+2. Keep `<workspace>/quarantine/` and the JSON or text output of verify.
+3. Verify the repaired or restored Store before traffic: `glifistore_verify_store`, then `READY`.
+4. Find the root cause: filesystem, hardware, abrupt power loss or operator error
+   ([platform durability evidence](../architecture/platform-durability-evidence.md)).
 
 ## Command summary
 

@@ -1,51 +1,55 @@
-# Paired durable generation refresh — audit del 2026-07-29
+# Paired durable generation refresh audit
 
-## Obiettivo
+**Historical** · macOS arm64, paired daemon, Release · 2026-07-29
 
-Rotation e compaction sostituiscono i pin del catalogo runtime. La `ReadGeneration` paired precedente
-era corretta perché possedeva i descriptor esatti, ma li tratteneva fino al restart. Questo blocco
-aggiunge refresh e reclamation senza spostare I/O o costruzione dell'indice sul Reader.
+## Goal
 
-## Protocollo verificato
+Rotation and compaction replace the runtime catalog pins. The previous paired `ReadGeneration` was
+correct because it owned the exact descriptors, but it held them until restart. This block adds
+refresh and reclamation without moving I/O or index construction onto the Reader.
 
-- revisione monotona **per shard**, incrementata dopo l'installazione del nuovo catalogo runtime;
-- snapshot coerente `Index + exact generation pins + revision` sotto Worker/catalog lock, senza I/O;
-- costruzione della base immutabile sul Writer e publication release del singolo generation pointer;
-- `visible_through` monotono anche quando la sequenza più alta appartiene a una chiave cancellata;
-- vecchia generation in retire list bounded, liberata dopo adozione acquire e quiescenza Reader;
-- wakeup di reclamation anche senza nuove mutazioni;
-- retry non distruttivo su `resource_exhausted`, fail-closed sulle incoerenze;
-- nessun refresh cross-shard: una compaction della pair 0 lascia invariata la pair 1.
+## Verified protocol
 
-Le metriche `read_catalog_revision`, `read_refresh_attempts/successes/failures/deferrals`,
-`generations_retired` e `retired_generation_count` sono disponibili per lane tramite `STATS`.
+- monotonic revision **per shard**, incremented after the new runtime catalog is installed;
+- coherent snapshot `Index + exact generation pins + revision` under the Worker/catalog lock,
+  without I/O;
+- construction of the immutable base on the Writer and release publication of the single generation
+  pointer;
+- monotonic `visible_through` even when the highest sequence belongs to a deleted key;
+- old generation in a bounded retire list, freed after acquire adoption and Reader quiescence;
+- reclamation wakeup even without new mutations;
+- non-destructive retry on `resource_exhausted`, fail-closed on inconsistencies;
+- no cross-shard refresh: a compaction of pair 0 leaves pair 1 unchanged.
 
-## A/B steady-state
+The metrics `read_catalog_revision`, `read_refresh_attempts/successes/failures/deferrals`,
+`generations_retired` and `retired_generation_count` are available per lane through `STATS`.
 
-macOS arm64, AppleClang 21, Release, durable-periodic, 64 B, 1 pair, 8 client, pipeline 32,
-50.000 operazioni, 2 warmup e 5 campioni. Il binario “prima” è stato eseguito immediatamente prima
-del rebuild dello stesso worktree; macOS non applica hard affinity.
+## Steady-state A/B
 
-| Variante | Throughput | p50 | p95 | p99 | p99.9 |
+macOS arm64, AppleClang 21, Release, durable-periodic, 64 B, 1 pair, 8 clients, pipeline 32, 50,000
+operations, 2 warmups and 5 samples. The "before" binary ran immediately before the rebuild of the
+same worktree; macOS applies no hard affinity.
+
+| Variant | Throughput | p50 | p95 | p99 | p99.9 |
 |---|---:|---:|---:|---:|---:|
-| prima del revision poll | 180.710 ops/s | 900 µs | 1,636 ms | 2,009 ms | 2,384 ms |
-| refresh per-shard | 179.476 ops/s | 917 µs | 1,653 ms | 2,020 ms | 2,431 ms |
-| delta | -0,68% | +1,89% | +1,05% | +0,55% | +1,94% |
+| before the revision poll | 180,710 ops/s | 900 µs | 1.636 ms | 2.009 ms | 2.384 ms |
+| per-shard refresh | 179,476 ops/s | 917 µs | 1.653 ms | 2.020 ms | 2.431 ms |
+| delta | -0.68% | +1.89% | +1.05% | +0.55% | +1.94% |
 
-La differenza è entro il rumore operativo atteso e non costituisce una regressione dimostrata. Il
-run aggiuntivo 4 pair / 32 client ha prodotto 170.849 ops/s; conferma che la scalabilità del durable
-cold materialization resta il collo di bottiglia già identificato, non prova un effetto del refresh
-perché manca un A/B alternato con affinity.
+The difference is within the expected operational noise and is not a demonstrated regression. The
+additional 4 pair / 32 client run produced 170,849 ops/s; it confirms that the scalability of
+durable cold materialization remains the bottleneck already identified, and does not prove an effect
+of the refresh because an alternating A/B with affinity is missing.
 
-## Test e limiti
+## Tests and limits
 
 - Debug: 453/453;
 - ASan/UBSan: 453/453;
 - TSan: 453/453;
-- test end-to-end: rotazione → compaction → cambio `RecordRef` → refresh → adozione → retirement;
-- test multi-pair: revision e rebuild confinati allo shard compattato.
+- end-to-end test: rotation → compaction → `RecordRef` change → refresh → adoption → retirement;
+- multi-pair test: revision and rebuild confined to the compacted shard.
 
-Il refresh ricostruisce oggi l'intera base sul Writer. Non blocca GET, ma può aumentare la latenza
-PUT dello shard con dataset grandi. Il prossimo lavoro architetturale sulla publication è quindi il
-merge incrementale/compacted immutable index; non va spostato sul Reader e non va risolto con una
-catena non bounded di delta.
+Today the refresh rebuilds the whole base on the Writer. It does not block GET, but it can raise the
+PUT latency of the shard with large datasets. The next architectural work on publication is
+therefore the incremental/compacted immutable index merge; it must not move onto the Reader and must
+not be solved with an unbounded chain of deltas.

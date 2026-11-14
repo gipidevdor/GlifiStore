@@ -59,6 +59,6 @@ Usage error.
 .Pp
 Source docs:
 .Pa docs/architecture/store-migration.md ,
-.Pa docs/operations/worker-resharding.md .
+.Pa docs/operations/compatibility-and-migration.md .
 .Sh AUTHORS
 GlifiStore contributors.

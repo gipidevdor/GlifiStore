@@ -1,9 +1,9 @@
-# SwissTableIndex v1 Specification
+# SwissTableIndex v1
 
-Status: normative algorithm specification
-Applies to: in-memory Index version 1
-Owner: storage-engine maintainers
-Last reviewed: 2026-08-26
+**Normative** · in-memory Index version 1 · reviewed 2026-08-26
+
+The algorithm of the in-memory Index: how `SwissTableIndex` hashes, probes, inserts, erases,
+resizes and compacts, and which invariants verification checks.
 
 ## 1. Contract
 

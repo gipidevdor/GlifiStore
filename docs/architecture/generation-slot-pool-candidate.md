@@ -1,39 +1,170 @@
-# Candidato generation slot-pool production-congruent
+# Generation slot-pool candidate
 
-Status: sperimentale; non selezionabile da `ShardPairRuntime` o `glifistored`
-ADR: [0036](../adr/0036-generation-slot-pool-publish.md)
-Last reviewed: 2026-08-27
+**Descriptive** · `src/experimental/generation_slot_pool.hpp` · reviewed 2026-08-27
 
-## Scopo
+Decision: [ADR 0036](../adr/0036-generation-slot-pool-publish.md) (proposed).
 
-`src/experimental/generation_slot_pool.hpp` verifica il protocollo di lifetime proposto da ADR
-0036 sul vero grafo immutabile `PairReadGeneration`. A differenza del prototipo volatile completo,
-non reimplementa Index, delta o Segment: lo slot possiede direttamente la generation prodotta dal
-codice di produzione, inclusi i pin delle generazioni durevoli.
+The experimental, production-congruent candidate for the ADR 0036 generation publication protocol,
+and what it proves. The candidate is not selectable by `ShardPairRuntime` or `glifistored`. A
+separate production implementation (`include/glifistore/store/paired/generation_slot_pool.hpp`) is
+selectable only through the embedded `PairedConcurrencyConfig::generation_slot_pool` option, which
+defaults to false; `glifistored` does not set it, and ADR 0036 remains proposed.
 
-Il pool e la banca di storage sono compilati soltanto in `glifistore_tests`. Il bridge minimo che
-costruisce il grafo privato nello storage riservato è compilato nel core, perché `DeltaState` è
-intenzionalmente opaco, ma il suo header di accesso resta sotto `src/experimental/`, non viene
-installato e nessun percorso ufficiale lo invoca. Non esiste un flag runtime: ACK, recovery,
-persistence v1 e wire v2 restano invariati.
+## Purpose and containment
+
+`src/experimental/generation_slot_pool.hpp` tests the lifetime protocol that ADR 0036 proposes on
+the real immutable `PairReadGeneration` graph. Unlike the complete
+[volatile prototype](paired-shard-volatile-prototype.md), it does not reimplement the Index, the
+delta or Segments: a slot directly owns the generation produced by production code, including the
+pins of durable generations.
+
+The pool and the storage bank are compiled only into `glifistore_tests`. The minimal bridge that
+builds the private graph in reserved storage is compiled into the core, because `DeltaState` is
+intentionally opaque; its access header stays under `src/experimental/`, is not installed, and no
+official path calls it. The candidate has no runtime flag: ACK, recovery, persistence v1 and wire v2
+are unchanged.
 
 ## Publication
 
-Ogni pool ha capacità compile-time fissa e un solo Writer. Lo slot contiene:
+Each pool has a fixed compile-time capacity and one Writer. A slot holds:
 
-- ownership del grafo `shared_ptr<const Generation>`;
-- `epoch` e `visible_through` immutabili;
-- stato Writer-only `free`, `building`, `published` o `retired`;
-- contatore di reincarnazione Writer-only.
+- ownership of the graph, `shared_ptr<const Generation>`;
+- immutable `epoch` and `visible_through`;
+- the Writer-only state `free`, `building`, `published` or `retired`;
+- a Writer-only reincarnation counter.
 
-Nel candidato completo lo stesso indice seleziona anche uno storage shell preallocato. Lo slot
-continua a possedere il grafo tramite `shared_ptr`, ma `allocate_shared` colloca nello storage fisso
-il control block, `PairReadGeneration` e il suo `DeltaState` embedded.
+The Writer initializes the complete slot, then publishes a lock-free 64-bit token with release:
 
-## Storage fisso della generation
+```text
+bits 63..16  reincarnation epoch
+bits 15..0   slot + 1 (zero reserved)
+```
 
-`PairReadGenerationShellBank<Capacity>` prepara una banca bounded insieme al pool. Dopo
-`try_reserve()`, il Writer usa esclusivamente lo storage con lo stesso `slot_index()`:
+The Reader acquire-loads the token, checks the slot's epoch and adopts the raw pointer. Epoch,
+`visible_through` and the graph become visible through the same release/acquire edge. A strictly
+increasing epoch prevents ABA; exhausting the 48 bits fails explicitly.
+
+## Reclamation and cold I/O
+
+One frontier governs every borrow:
+
+```text
+reader_safe_epoch = min(adopted_epoch, minimum_borrowed_epoch)
+```
+
+The Reader publishes it with release after finishing the access that adoption requires. The Writer
+loads it with acquire and frees only retired slots with:
+
+```text
+retired_epoch < reader_safe_epoch
+```
+
+The strict comparison keeps the currently adopted generation alive. A cold read started in epoch
+`N` keeps publishing `N` during later adoptions; compaction and rotation may publish `N+1`, but slot
+`N` is not reset until the I/O completes. Ordinary GET increments no reference count and performs no
+atomics: adoption happens once per turn.
+
+The frontier's release orders every Reader access to the old generation before the Writer's reset.
+Token monotonicity prevents the Reader from adopting an epoch below the frontier it already
+published.
+
+The frontier must be monotonic as well. An attempt to announce, after adoption, a borrow older than
+the published frontier is rejected without changing Reader state: that epoch may already have been
+reclaimed and cannot be resurrected. A borrow must be registered in the turn in which it starts,
+before the frontier advances.
+
+## Boundedness
+
+When no slot is free after opportunistic reclaim, `try_publish` returns `pool_exhausted` without
+changing the token or the Writer's current generation. There is no internal wait, growth allocation
+or overwrite. Admission, backpressure and the final capacity formula remain the responsibility of
+any production integration; the candidate formula is defined here but does not close V9 for the
+official runtime.
+
+The production-congruent capacity derives from the runtime's existing normative limit:
+
+```text
+slot_capacity = 1 current + maximum_retired_generations
+              = 1 + 64
+              = 65
+```
+
+It does not depend on the mutation queue: the Writer is serial and can have only one `building`
+publication. At a debt of 63, the last free slot is reserved before the mutation; after the commit
+the `building` slot becomes current and the previous current becomes the 64th retired slot, keeping
+the total at 65. At a debt of 64, nothing enters the Store until the Reader advances. A `+2` margin
+would therefore be unused memory, not extra safety.
+
+The V9 test holds the Reader still, fills exactly 65 slots, checks that the next attempt is rejected
+before the Store, then advances the frontier and proves reclaim and resumption.
+`GenerationSlotCapacity<MaximumRetired>` encodes the formula and is compiled against
+`ShardPairRuntime::kMaximumRetiredReadGenerations`, so a change to that limit cannot drift silently.
+
+## Reservation and failure after linearization
+
+A publication tied to a PUT or ERASE must reserve a slot **before** it enters the Store mutation:
+
+```text
+try_reserve slot
+→ Store mutation
+→ mark_store_linearized (committed or indeterminate)
+→ build generation
+→ commit reservation + release publication
+→ ACK
+```
+
+If `try_reserve` fails, the request is still certainly pre-mutation and can receive an overload
+without ambiguity. A reservation abandoned before linearization returns to `free`. After
+`mark_store_linearized`, the RAII guard cannot be destroyed without arming the fail-closed hook and
+incrementing `unpublished_linearizations`.
+
+The guard does not interpret a plain `ErrorCode`: the caller must mark it for every outcome in which
+Store authority may have changed, so at least `committed` and `indeterminate`. The method is
+`noexcept` and must be called immediately after Store classification, before any later construction
+or allocation.
+
+The durable test forces an invalid publication after an already committed PUT. The guard marks the
+Store non-operational and frees the reservation; the snapshot is then acquired with
+`allow_fail_closed`, the generation is rebuilt, and the test verifies that both the seed key and the
+newly committed authority are present. The candidate emits no success ACK.
+
+## Deterministic shutdown
+
+Stop respects pair ownership. First the Reader stops feeding the mutation lane; then the Writer, on
+its own thread, runs `stop_admission()`. That call is the pool's stop linearization: a reservation
+that had already observed open admission is admitted and must be committed or cancelled, and every
+later attempt is rejected before the Store mutation.
+
+```text
+Reader stop mutation admission
+→ Writer stop_admission
+→ commit/cancel every building reservation
+→ drain Reader completions and output/cold I/O
+→ mark_reader_quiescent
+→ Writer try_finish_shutdown + reclaim
+```
+
+`mark_reader_quiescent()` fails while admission is open or a `building` slot exists. The transition
+is terminal: it clears the Reader's local pointer, publishes a safe frontier past the last Writer
+epoch and prevents new adoptions. The caller may invoke it only after completing every output and
+cold-I/O borrow. `try_finish_shutdown()` succeeds only when no reservation remains, the Reader is
+quiescent and reclaim has left a single generation: the final published one.
+
+A reservation abandoned during shutdown follows the data-path rule: before linearization it is a
+safe cancellation; after linearization it invokes the fail-closed hook. Shutdown therefore never
+turns an ambiguous mutation into a silent loss.
+
+The candidate does not model the external SPSC, completion drain or socket close. Those
+responsibilities remain required in a `ShardPairRuntime` integration; the pool provides and proves
+only the publication and reclamation boundary.
+
+## Generation storage
+
+In the complete candidate, the slot index also selects a preallocated shell storage.
+`PairReadGenerationShellBank<Capacity>` prepares a bounded bank together with the pool. The slot
+still owns the graph through `shared_ptr`, but `allocate_shared` places the control block, the
+`PairReadGeneration` and its embedded `DeltaState` in that fixed storage. After `try_reserve()`, the
+Writer uses only the storage with the same `slot_index()`:
 
 ```text
 reserve slot N
@@ -43,257 +174,129 @@ reserve slot N
 → publish token {epoch, N}
 ```
 
-Ogni storage accetta una sola co-allocazione viva. Un secondo tentativo fallisce con
-`resource_exhausted`; non cade sullo heap. La memoria torna disponibile soltanto quando sono stati
-distrutti sia l'ultimo `shared_ptr` sia l'ultimo `weak_ptr` del control block. L'allocator trattiene
-il backing storage, perciò la distruzione del proprietario esterno non può produrre use-after-free.
+Each storage accepts one live co-allocation. A second attempt fails with `resource_exhausted`; it
+does not fall back to the heap. The memory becomes available again only when both the last
+`shared_ptr` and the last `weak_ptr` of the control block are destroyed. The allocator retains the
+backing storage, so destroying the external owner cannot cause a use-after-free.
 
-Il blocco candidato è 512 byte allineato a 64 byte. Per la capacità normativa di 65 slot il budget
-shell è 33.280 byte per shard, allocato una volta. Size o alignment del control block superiori al
-budget falliscono esplicitamente: prima di un'integrazione multipiattaforma servono prove su ogni
-toolchain supportata, non un'assunzione sull'ABI di `shared_ptr`.
+The candidate block is 512 bytes, aligned to 64 bytes. For the normative capacity of 65 slots, the
+shell budget is 33,280 bytes per shard, allocated once. A control block whose size or alignment
+exceeds the budget fails explicitly: a cross-platform integration needs proof on every supported
+toolchain, not an assumption about the `shared_ptr` ABI.
 
-Il beneficio è circoscritto: elimina il `malloc` per shell/control block/`DeltaState` nelle
-publication incremental costruite nello slot. Non elimina le allocazioni necessarie per nuove
-`DeltaPage`, spine COW, blocchi dell'arena, chiavi esterne, nuove basi o pin. Mantiene inoltre il
-refcount Writer-side; il Reader continua a usare il puntatore raw adottato una volta per turn.
+The benefit is narrow. It removes the `malloc` for the shell, control block and `DeltaState` in
+incremental publications built in the slot. It does not remove the allocations needed for new
+`DeltaPage`s, COW spines, arena blocks, external keys, new bases or pins. It also keeps the
+Writer-side reference count; the Reader still uses the raw pointer adopted once per turn.
 
-### Owner inline strutturale
+### Structural inline owner
 
-`PairReadGenerationInlineSlotPool` chiude il lifetime del backing per costruzione: contiene la
-banca inline prima del pool, quindi l'ordine inverso di distruzione elimina tutte le generation
-prima dei relativi byte. Il builder con observer non owning è privato, la generation costruita non
-esce mai dal wrapper e il Reader riceve soltanto il borrow governato dall'epoch. Allocation,
-deallocation e contatori dello storage inline sono Writer-only e non usano atomiche.
-Il wrapper non accetta un `PairReadMerge` esterno: il merge conserverebbe uno `shared_ptr` capace di
-sopravvivere alla banca. L'integrazione futura dovrà possedere anche lo stato merge nello stesso
-dominio. La distruzione di uno storage ancora occupato termina fail-fast.
+`PairReadGenerationInlineSlotPool` closes the backing lifetime by construction: it holds the inline
+bank before the pool, so reverse destruction order destroys every generation before its bytes. The
+builder with a non-owning observer is private, the built generation never leaves the wrapper, and
+the Reader receives only the epoch-governed borrow. Allocation, deallocation and counters of the
+inline storage are Writer-only and use no atomics.
 
-Lo stress concorrente Writer publication / Reader adoption copre 10.000 reincarnazioni sotto TSan.
-Il microbenchmark a protocollo equivalente misura +7,53% rispetto al backing posseduto tramite
-`shared_ptr`, ma resta 7,09% dietro il `make_shared` senza slot protocol nello stesso run. Il
-candidato dimostra quindi il lifetime corretto, non la convenienza della soluzione finale. Non va
-integrato: il prossimo design deve eliminare il control block stesso tramite costruzione in-place
-dell'oggetto generation.
+The wrapper does not accept an external `PairReadMerge`: the merge would keep a `shared_ptr` able to
+outlive the bank, so a future integration must also own the merge state in the same domain.
+Destroying a storage that is still occupied terminates fail-fast.
+
+The concurrent Writer-publication and Reader-adoption stress covers 10,000 reincarnations under
+TSan. The equivalent-protocol microbenchmark measures +7.53% over `shared_ptr`-owned backing, but
+stays 7.09% behind `make_shared` without the slot protocol in the same run. The candidate therefore
+proves the lifetime is correct, not that the final solution pays off. It is not to be integrated:
+the next design must eliminate the control block itself by constructing the generation object in
+place.
 
 ### Direct-object ring
 
-Il primo passo direct-object riusa la stessa routine di validazione e costruzione delta del percorso
-ufficiale, poi esegue `construct_at` sul tipo concreto direttamente in due slot alternati. Non
-esistono allocator, control block o ownership `shared_ptr` della generation. `destroy_at` viene
-eseguito dal Writer prima della reincarnazione; uno storage occupato alla distruzione termina
-fail-fast.
+The first direct-object step reuses the official path's delta validation and construction routine,
+then runs `construct_at` on the concrete type directly in two alternating slots. There is no
+allocator, control block or `shared_ptr` ownership of the generation. The Writer runs `destroy_at`
+before reincarnation; a storage still occupied at destruction terminates fail-fast.
 
-Il differential test confronta 256 publication ufficiali e direct su epoch, visibility, delta,
-versioni e valore. Il benchmark misura +17,08% rispetto a `make_shared`. Questo ring non ha ancora
-Reader concorrente: ritira sincronicamente la generation precedente e quindi non costituisce il
-pool ADR 0036. Il sottoblocco successivo combina l'oggetto direct con token, safe epoch e reclaim
-bounded, mantenendo ancora separata qualunque integrazione.
+The differential test compares 256 official and direct publications on epoch, visibility, delta,
+versions and value. The benchmark measures +17.08% over `make_shared`. This ring has no concurrent
+Reader yet: it retires the previous generation synchronously and is therefore not the ADR 0036 pool.
+The next sub-block combines the direct object with the token, safe epoch and bounded reclaim, still
+keeping any integration separate.
 
 ### Direct-object slot pool
 
-`PairReadGenerationDirectSlotPool` completa quel sottoblocco in isolamento. Tutte le generation,
-inclusa epoch zero, sono costruite direttamente negli slot inline. Il pool non contiene
-`shared_ptr<PairReadGeneration>`, control block o allocator della shell. La reservation avviene
-prima della linearizzazione Store; publication usa un singolo token release `{epoch, slot}`;
-adoption e safe frontier sono Reader-only; `destroy_at` è eseguito dal Writer soltanto per epoch
-ritirati strettamente precedenti alla frontiera acquire.
+`PairReadGenerationDirectSlotPool` completes that sub-block in isolation. Every generation, epoch
+zero included, is constructed directly in the inline slots. The pool contains no
+`shared_ptr<PairReadGeneration>`, control block or shell allocator. Reservation happens before Store
+linearization; publication uses a single release token `{epoch, slot}`; adoption and the safe
+frontier are Reader-only; the Writer runs `destroy_at` only for retired epochs strictly older than
+the acquired frontier.
 
-La capacità resta compile-time e bounded. La distruzione ordinaria richiede la sequenza terminale
-`stop_admission → mark_reader_quiescent → try_finish_shutdown`; uno storage ancora occupato o un
-pool distrutto senza drain termina fail-fast. Merge esterno e snapshot replacement restano
-deliberatamente esclusi perché potrebbero introdurre ownership fuori dal dominio del pool.
+Capacity stays compile-time and bounded. Ordinary destruction requires the terminal sequence
+`stop_admission → mark_reader_quiescent → try_finish_shutdown`; a storage still occupied, or a pool
+destroyed without drain, terminates fail-fast. External merge and snapshot replacement stay
+deliberately excluded because they could introduce ownership outside the pool's domain.
 
-Le prove coprono saturazione senza Store entry, reincarnazione fisica, cold borrow, rifiuto di una
-frontiera regressiva, fail-closed dopo build invalida post-linearizzazione e 10.000 publication
-concorrenti Reader/Writer sotto TSan. Il microbenchmark sincrono misura 3.186.299 publication/s:
-+7,43% rispetto a `make_shared`, ma -8,28% rispetto al ring direct privo del protocollo Reader.
-Questa è evidenza positiva del protocollo, non V11/V12 e non autorizza ancora l'integrazione nel
-runtime ufficiale.
+The proofs cover saturation without Store entry, physical reincarnation, cold borrow, rejection of a
+regressive frontier, fail-closed after an invalid post-linearization build, and 10,000 concurrent
+Reader/Writer publications under TSan. The synchronous microbenchmark measures 3,186,299
+publications/s: +7.43% over `make_shared`, but −8.28% against the direct ring without the Reader
+protocol. This is positive evidence for the protocol, not V11/V12, and it does not yet authorize
+integration into the official runtime.
 
-### Diagnostica Reader–Writer a due thread
+### Two-thread Reader–Writer diagnostic
 
-`glifistore_generation_publication_benchmark` confronta il pool direct e quello con generation
-`shared_ptr` usando due thread persistenti distinti. Entrambi attraversano reservation, publication
-token, adoption, reclaim e shutdown; cambia soltanto l'ownership della generation. Il Reader adotta
-continuamente e verifica la vista finale, mentre il Writer pubblica 20.000 mutation reali già
-materializzate nel Segment.
+`glifistore_generation_publication_benchmark` compares the direct pool with the pool of
+`shared_ptr` generations, using two distinct persistent threads. Both go through reservation,
+publication token, adoption, reclaim and shutdown; only the ownership of the generation differs. The
+Reader adopts continuously and verifies the final view, while the Writer publishes 20,000 real
+mutations already materialized in the Segment.
 
-La mediana locale è 1.275.537 publication/s direct contro 1.190.497 shared: **+7,14%**, con tempo
-complessivo per publication inferiore del 6,67%. La p50 campionata è invariata a 1.000 ns; la p99
-campionata direct è invece peggiore del 5,86%. Il risultato mantiene quindi la direzione throughput,
-ma non dimostra ancora il miglioramento delle code di latenza.
+The local median is 1,275,537 publications/s direct against 1,190,497 shared: +7.14%, with 6.67%
+less total time per publication. Sampled p50 is unchanged at 1,000 ns, but sampled direct p99 is
+5.86% worse. The result keeps the throughput direction but does not yet show a tail-latency
+improvement.
 
-La richiesta di affinity è risultata `unavailable` su questo host macOS. Il test prova concorrenza
-Reader–Writer, non pinning su core fisici. V11/V12 restano aperti fino all'integrazione nel percorso
-paired sperimentale con GET reali e a una riga Linux effettivamente pinned (più una riga macOS
-etichettata correttamente come advisory o unavailable).
+The affinity request returned `unavailable` on this macOS host. The test proves Reader–Writer
+concurrency, not pinning to physical cores. V11/V12 stay open until integration into the
+experimental paired path with real GETs and an actually pinned Linux row, plus a macOS row correctly
+labeled advisory or unavailable.
 
-La seconda modalità esegue un vero `PairReadGeneration::get` a ogni adozione. Sul dataset L1-hot da
-2 byte, direct raggiunge 919.357 publication/s contro 817.965 shared (**+12,40%**), migliora p50 e
-p99 publication campionate del 9,09% e 9,54%, e lascia invariati GET p50/p99 a 83/250 ns. Questo
-rimuove il segnale p99 negativo del puro adoption storm, ma non sostituisce dataset LLC/oltre-LLC,
-valori realistici, socket e affinity verificata.
+The second mode runs a real `PairReadGeneration::get` on every adoption. On the 2-byte L1-hot
+dataset, direct reaches 919,357 publications/s against 817,965 shared (+12.40%), improves sampled
+publication p50 and p99 by 9.09% and 9.54%, and leaves GET p50/p99 unchanged at 83/250 ns. This
+removes the negative p99 signal of the pure adoption storm, but does not replace LLC and
+beyond-LLC datasets, realistic values, sockets and verified affinity.
 
-Il Writer inizializza lo slot completo, quindi pubblica con release un token lock-free a 64 bit:
+## Evidence
 
-```text
-bits 63..16  epoch della reincarnazione
-bits 15..0   slot + 1 (zero riservato)
-```
+- deterministic exhaustion and recovery after the Reader advances;
+- borrow of an exact epoch across publication and reclaim;
+- fail-closed rejection of a regressive borrow frontier;
+- pre-mutation reservation, safe cancellation and post-linearization RAII fail-closed;
+- Writer-owned stop admission, rejection of late reservations and drain of admitted ones;
+- normative 65-slot capacity, bounded saturation and recovery after quiescence;
+- terminal quiescence rejected while a `building` slot exists;
+- slow borrow and a real durable graph retained until the Reader completes;
+- final reclaim with a single current generation still owned;
+- real snapshot drain after a committed but unpublished durable mutation;
+- concurrent stress of 20,000 publications, adoptions and reclaims;
+- real durable snapshot after compaction, with a cold read of the old Segment still in flight;
+- real durable snapshot after Writer-owned rotation;
+- co-allocation of the real generation in fixed storage, deterministic rejection of an occupied
+  storage, and reuse of the same address after the last weak owner is destroyed;
+- reservation → shell composition with the same slot index, and storage reincarnation;
+- inline owner with structural destruction order, no backing ownership or reference count on the
+  data path, and a 10,000-publication concurrent stress;
+- direct-object slot pool without a generation allocator or control block, with reservation, token,
+  safe epoch, cold borrow, bounded reclaim, terminal shutdown and a TSan Reader/Writer stress;
+- local microbenchmark: direct pool +7.43% over `make_shared` and −8.28% against the ring without
+  the protocol; the worker-affine matrix stays open;
+- two-thread diagnostic: direct +7.14% over the equivalent shared protocol, sampled p99 +5.86% and
+  macOS affinity unavailable; positive evidence, but not the V11/V12 gate;
+- with one real GET per adoption: direct +12.40%, better publication p50/p99 and unchanged GET
+  p50/p99; the L1-hot dataset and the lack of pinning keep the gates open;
+- focused Release, ASan+UBSan and TSan runs green.
 
-Il Reader acquire-carica il token, verifica l'epoch dello slot e adotta il puntatore raw. Epoch,
-`visible_through` e grafo diventano visibili attraverso lo stesso edge release/acquire. Un epoch
-strettamente crescente impedisce ABA; l'esaurimento dei 48 bit fallisce esplicitamente.
-
-## Reclamation e cold I/O
-
-Una sola frontiera governa ogni borrow:
-
-```text
-reader_safe_epoch = min(adopted_epoch, minimum_borrowed_epoch)
-```
-
-Il Reader la pubblica con release dopo aver terminato l'accesso necessario all'adozione. Il Writer
-la carica con acquire e libera esclusivamente slot ritirati con:
-
-```text
-retired_epoch < reader_safe_epoch
-```
-
-Il confronto stretto mantiene viva la generation attualmente adottata. Un cold read avviato
-nell'epoch `N` continua a pubblicare `N` durante adozioni successive; compaction e rotation possono
-pubblicare `N+1`, ma lo slot `N` non viene resettato fino al completamento I/O. Il GET normale non
-incrementa refcount e non esegue atomiche: l'adozione avviene una volta per turn.
-
-La release della frontiera ordina tutti gli accessi Reader alla generation vecchia prima del reset
-Writer. La monotonicità del token impedisce al Reader di adottare un epoch inferiore alla frontiera
-già pubblicata.
-
-Anche la frontiera deve essere monotona. Un tentativo di annunciare dopo l'adozione un borrow più
-vecchio della frontiera già pubblicata viene rifiutato senza cambiare lo stato Reader: quell'epoch
-potrebbe essere già stato reclamato e non può essere resuscitato. Il borrow deve essere registrato
-nel turn in cui nasce, prima di avanzare la frontiera.
-
-## Boundedness
-
-Quando nessuno slot è libero dopo il reclaim opportunistico, `try_publish` restituisce
-`pool_exhausted` senza cambiare token o generation Writer corrente. Non esiste attesa interna,
-allocazione di crescita o overwrite. Admission/backpressure e la formula definitiva della capacità
-restano responsabilità dell'eventuale integrazione production; la formula candidate è definita qui,
-ma non chiude V9 per il runtime ufficiale.
-
-La capacità production-congruent è ora derivata dal limite già normativo del runtime:
-
-```text
-slot_capacity = 1 current + maximum_retired_generations
-              = 1 + 64
-              = 65
-```
-
-Non dipende dalla mutation queue: il Writer è seriale e può avere una sola publication `building`.
-Quando il debito è 63, l'ultimo slot libero viene riservato prima della mutazione; dopo il commit lo
-slot `building` diventa current e la precedente current diventa la sessantaquattresima retired,
-lasciando invariato il totale di 65. Al debito 64 non si entra più nello Store finché il Reader non
-avanza. Un margine `+2` sarebbe quindi memoria inutilizzata, non sicurezza aggiuntiva.
-
-Il test V9 mantiene fermo il Reader, riempie esattamente 65 slot, verifica il rifiuto pre-Store del
-tentativo successivo, poi avanza la frontiera e prova reclaim e ripresa. La formula è codificata da
-`GenerationSlotCapacity<MaximumRetired>` e compilata contro
-`ShardPairRuntime::kMaximumRetiredReadGenerations`, così una variazione del limite non resta
-silenziosamente disallineata.
-
-## Reservation e failure dopo la linearizzazione
-
-Una publication associata a PUT/ERASE deve riservare uno slot **prima** di entrare nella mutazione
-Store:
-
-```text
-try_reserve slot
-→ Store mutation
-→ mark_store_linearized (committed o indeterminate)
-→ costruzione generation
-→ commit reservation + release publication
-→ ACK
-```
-
-Se `try_reserve` fallisce, la richiesta è ancora sicuramente pre-mutation e può ricevere overload
-senza ambiguità. Una reservation abbandonata prima della linearizzazione torna semplicemente
-`free`. Dopo `mark_store_linearized`, invece, la guardia RAII non può essere distrutta senza armare
-il fail-closed hook e incrementare `unpublished_linearizations`.
-
-La guardia non interpreta un semplice `ErrorCode`: il chiamante deve marcarla per ogni outcome in
-cui l'autorità Store può essere cambiata, quindi almeno `committed` e `indeterminate`. Il metodo è
-`noexcept` e deve essere chiamato immediatamente dopo la classificazione Store, prima di qualsiasi
-costruzione o allocazione successiva.
-
-Il test durevole forza una publication invalida dopo un PUT già committato. La guardia marca lo
-Store non operativo, libera la reservation, acquisisce poi lo snapshot con `allow_fail_closed`,
-ricostruisce la generation e verifica che sia la chiave seed sia l'autorità appena committata siano
-presenti. Nessun ACK di successo viene emesso dal candidato.
-
-## Shutdown deterministico
-
-Lo stop rispetta l'ownership della coppia. Prima il Reader smette di alimentare la mutation lane;
-poi il Writer, sul proprio thread, esegue `stop_admission()`. Questa è la linearizzazione dello stop
-per il pool: una reservation che aveva già osservato admission aperta è ammessa e deve essere
-committata o cancellata; ogni tentativo successivo viene rifiutato prima della mutazione Store.
-
-```text
-Reader stop mutation admission
-→ Writer stop_admission
-→ commit/cancel ogni reservation building
-→ drain completamenti e output/cold I/O Reader
-→ mark_reader_quiescent
-→ Writer try_finish_shutdown + reclaim
-```
-
-`mark_reader_quiescent()` fallisce finché admission è aperta o esiste uno slot `building`. La
-transizione è terminale: azzera il puntatore locale Reader, pubblica una safe frontier successiva
-all'ultimo epoch Writer e impedisce nuove adozioni. Il chiamante può invocarla soltanto dopo aver
-completato tutti i borrow di output e cold I/O. `try_finish_shutdown()` riesce soltanto quando non
-restano reservation, il Reader è quiescente e il reclaim ha lasciato una sola generation: quella
-finale pubblicata.
-
-Una reservation abbandonata durante lo shutdown segue la stessa regola del data path: prima della
-linearizzazione è una cancellazione sicura; dopo la linearizzazione invoca il fail-closed hook. Lo
-shutdown non converte quindi una mutazione ambigua in perdita silenziosa.
-
-Il candidato non modella la SPSC esterna, il drain dei completion o la chiusura socket. Queste
-responsabilità restano necessarie nell'integrazione `ShardPairRuntime`; il pool fornisce e prova
-soltanto il confine publication/reclamation.
-
-## Prove attuali
-
-- exhaustion deterministico e recovery dopo avanzamento Reader;
-- borrow di un epoch esatto attraverso publication e reclaim;
-- rifiuto fail-closed di una frontiera borrow regressiva;
-- reservation pre-mutation, cancellazione sicura e fail-closed RAII post-linearizzazione;
-- stop admission Writer-owned, rifiuto delle reservation tardive e drain di quelle già ammesse;
-- capacità normativa di 65 slot, saturazione bounded e recovery dopo quiescenza;
-- quiescenza terminale rifiutata in presenza di slot `building`;
-- borrow lento e grafo durevole reale trattenuti fino al completamento Reader;
-- reclaim finale con una sola generation corrente ancora posseduta;
-- snapshot drain reale dopo una mutazione durevole committata ma non pubblicata;
-- stress concorrente di 20.000 publication/adoption/reclaim;
-- snapshot durevole reale dopo compaction con cold read del vecchio Segment ancora in volo;
-- snapshot durevole reale dopo rotazione Writer-owned;
-- co-allocazione della vera generation in storage fisso, rifiuto deterministico dello storage
-  occupato e riuso dello stesso indirizzo dopo la distruzione dell'ultimo weak owner;
-- composizione reservation → shell con lo stesso indice di slot e reincarnazione dello storage;
-- owner inline con ordine di distruzione strutturale, zero ownership/refcount del backing nel data
-  path e stress concorrente da 10.000 publication;
-- direct-object slot pool senza allocator/control block della generation, con reservation, token,
-  safe epoch, cold borrow, reclaim bounded, shutdown terminale e stress Reader/Writer TSan;
-- microbenchmark locale direct pool +7,43% su `make_shared` e -8,28% rispetto al ring senza
-  protocollo; la matrice worker-affine resta aperta;
-- diagnostica a due thread direct +7,14% sul protocollo shared equivalente, con p99 campionata
-  +5,86% e affinity macOS non disponibile: evidenza positiva ma non gate V11/V12;
-- con un GET reale per adozione: direct +12,40%, publication p50/p99 migliori e GET p50/p99
-  invariati; dataset L1-hot e assenza di pinning mantengono aperti i gate;
-- Release, ASan+UBSan e TSan focalizzati verdi.
-
-Queste prove qualificano V5, V6, V8 e V9 come **candidate evidence** e rimuovono il blocker tecnico
-che lasciava l'allocazione shell fuori dal candidato. Non chiudono la matrice production:
-integrazione nel runtime ufficiale, drain delle lane/socket, crash matrix e soprattutto A/B
-worker-affine V11/V12 rimangono obbligatori.
+These proofs qualify V5, V6, V8 and V9 as **candidate evidence** and remove the technical blocker
+that kept shell allocation outside the candidate. They do not close the production matrix:
+integration into the official runtime, lane and socket drain, the crash matrix and, above all, the
+worker-affine A/B V11/V12 remain mandatory.

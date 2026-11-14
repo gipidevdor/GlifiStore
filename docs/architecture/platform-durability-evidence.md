@@ -1,18 +1,14 @@
 # Platform durability evidence matrix
 
-Status: roadmap
-Applies to: persistence v1 and every storage mode that claims restart durability
-Owner: release and storage maintainers
-Last reviewed: 2026-08-30
+**Roadmap** · persistence v1, every storage mode claiming restart durability · reviewed 2026-08-30
 
-This document records what each kind of test can establish and what GlifiStore has established on
-each platform/filesystem row. A hosted runner whose filesystem, mount options, cache path, and
-reset mechanism are unknown is useful regression evidence, but it is not storage certification.
+What each kind of test can establish, and what GlifiStore has established on each platform and
+filesystem row. A hosted runner whose filesystem, mount options, cache path and reset mechanism are
+unknown gives useful regression evidence, but not storage certification.
 
-The normative byte layouts and restart decisions remain in
-[persistence v1](../spec/persistence-v1.md) and the
-[recovery state-transition matrix v1](../spec/recovery-state-matrix-v1.md). This matrix governs
-evidence claims, not recovery behavior.
+The normative byte layouts and restart decisions stay in [persistence v1](../spec/persistence-v1.md)
+and the [recovery state-transition matrix v1](../spec/recovery-state-matrix-v1.md). This matrix
+governs evidence claims, not recovery behavior.
 
 ## Evidence levels
 
@@ -24,15 +20,15 @@ evidence claims, not recovery behavior.
 | E3 | Abrupt VM/block-device reset or controlled physical power cut on a pinned storage row | Recovery under loss below the process/kernel boundary for that exact row | Other kernels, filesystems, mount options, devices, firmware, or cache policies |
 | E4 | Repeated release campaign with retained, checksummed provenance and zero unexplained outcomes | Release evidence for the exact supported row and source artifact | A general promise for untested storage stacks |
 
-Levels are cumulative for a certified row: E4 requires the relevant E0–E3 evidence. Passing a higher
-number once does not erase missing lower-level coverage. Emulation may prove codec portability, but
-it cannot promote storage evidence beyond the layer whose persistence behavior is actually under
-test.
+Levels are cumulative for a certified row: E4 requires the relevant E0–E3 evidence. Passing a
+higher level once does not erase missing lower-level coverage. Emulation may prove codec
+portability, but it cannot promote storage evidence beyond the layer whose persistence behavior is
+actually under test.
 
 ## Current evidence
 
-**No platform/filesystem row is E3 or E4 certified.** The repository has extensive E1 coverage, E2
-crash harnesses, an attributable E2 collector, and an in-repo E3 *block-reset harness* for the first
+**No platform/filesystem row is E3 or E4 certified.** The repository has E1 coverage, E2
+crash harnesses, an attributable E2 collector, and an in-repo E3 block-reset harness for the first
 pinned rehearsal rows (Linux ext4 loopback; macOS APFS disk image). Harness PASS is rehearsal
 evidence only. Retained release-grade E3/E4 campaign artifacts do not exist yet.
 
@@ -63,19 +59,19 @@ Every retained E2–E4 artifact must contain:
 - checkpoint or reset schedule, recovery oracle, and all unexpected outcomes;
 - SHA-256 manifest for the artifact contents.
 
-E3/E4 additionally require the reset mechanism, guest/host boundary, controller or virtual-device
-cache policy, boot/filesystem health result, and confirmation that the reset was not a graceful
-shutdown. Physical device identifiers and credentials must not be stored; stable redacted labels
-are sufficient.
+E3/E4 also require the reset mechanism, the guest/host boundary, the controller or virtual-device
+cache policy, the boot and filesystem health result, and confirmation that the reset was not a
+graceful shutdown. Physical device identifiers and credentials must not be stored; stable redacted
+labels are sufficient.
 
 An artifact from a dirty worktree is diagnostic only. An artifact with missing filesystem or reset
-metadata cannot be promoted by manually relabeling it. Evidence is attached to the tested commit and
-row; it does not automatically transfer to later source, OS, kernel, firmware, or mount changes.
+metadata cannot be promoted by relabeling it by hand. Evidence is attached to the tested commit and
+row; it does not transfer automatically to later source, OS, kernel, firmware or mount changes.
 
 ## Safe native E2 collector
 
-The repository collector records provenance and optionally runs all six embedded/daemon
-process-kill tests:
+The repository collector records provenance and can run all six embedded and daemon process-kill
+tests:
 
 ```sh
 scripts/collect-durability-evidence.sh \
@@ -87,9 +83,10 @@ scripts/collect-durability-evidence.sh \
 ```
 
 The collector refuses to overwrite an existing directory. It records only E0 metadata or E2
-process-kill evidence and always emits `power_loss_exercised=no`. It never resets a machine, detaches
-a block device, changes a mount, or claims E3/E4. During an E2 run it sets `TMPDIR` to the writable
-probe directory so the crash harness creates its temporary data on the filesystem being described.
+process-kill evidence and always emits `power_loss_exercised=no`. It never resets a machine,
+detaches a block device, changes a mount or claims E3/E4. During an E2 run it sets `TMPDIR` to the
+writable probe directory, so the crash harness creates its temporary data on the filesystem being
+described.
 
 For a quick inventory without running tests:
 
@@ -100,21 +97,27 @@ scripts/collect-durability-evidence.sh \
   --metadata-only
 ```
 
-CI: `.github/workflows/durability-evidence.yml` archives metadata on every change, process-kill on the
-weekly schedule / manual dispatch (including a retained reproducible randomized E2 crash/reopen
-campaign), E3 harness smoke on PRs, a weekly three-mode Linux block-fault matrix, APFS campaign
-rehearsal, and a hosted-ci E0→E3 orchestrator path. It never labels an upload as power-loss
-certification (`scripts/assert-e3-rehearsal-honesty.sh`).
+In CI, `.github/workflows/durability-evidence.yml` archives:
 
-## E3 block-reset harness (first pinned rehearsal rows)
+- metadata on every change;
+- process-kill evidence on the weekly schedule or manual dispatch, including a retained,
+  reproducible randomized E2 crash/reopen campaign;
+- E3 harness smoke on pull requests;
+- a weekly three-mode Linux block-fault matrix;
+- APFS campaign rehearsal;
+- a hosted-ci E0→E3 orchestrator path.
 
-`scripts/run-e3-block-reset.sh` provisions a **disposable** filesystem row, arms an external reset
-below the process boundary at named persistence checkpoints, and asks the crash hook to `SIGSTOP`
-the worker instead of using the ordinary E2 `SIGKILL`. The controller independently confirms the
-stopped state before faulting or detaching the row; a missing confirmation is `INCONCLUSIVE`. It then
-kills the stopped worker, runs an offline filesystem check without repair (`-n`; APFS is temporarily
-reattached and unmounted for this step), remounts, and evaluates the same recovery oracle as
-`glifistore_crash_persistence`.
+It never labels an upload as power-loss certification (`scripts/assert-e3-rehearsal-honesty.sh`).
+
+## E3 block-reset harness
+
+For the first pinned rehearsal rows, `scripts/run-e3-block-reset.sh` provisions a **disposable**
+filesystem row, arms an external reset below the process boundary at named persistence checkpoints,
+and asks the crash hook to `SIGSTOP` the worker instead of using the ordinary E2 `SIGKILL`. The
+controller independently confirms the stopped state before faulting or detaching the row; a missing
+confirmation is `INCONCLUSIVE`. It then kills the stopped worker, runs an offline filesystem check
+without repair (`-n`; APFS is temporarily reattached and unmounted for this step), remounts, and
+evaluates the same recovery oracle as `glifistore_crash_persistence`.
 
 Preferred first-row paths:
 
@@ -148,32 +151,31 @@ Profiles:
 - `campaign` — smoke plus `bootstrap sync_commit_slot`, `rotate sync_commit_slot#2`, and compaction
   intent/promotion checkpoints (`write_compaction_intent`, `rename_segment`, `sync_directory#3`)
 
-Checkpoint markers live on the **host** (`host-scratch/`); the Store data directory lives on the
-test volume so a block reset cannot erase the arming evidence. For macOS detach, prefer the mounted
-APFS volume node from `hdiutil attach` output (not the first `/dev/disk*` line, which is often the
-GUID partition scheme). Image size defaults (1 GiB smoke / 2 GiB campaign) exceed the Store’s
-default 256 MiB free-space reserve plus Segment preallocate.
+Checkpoint markers live on the host (`host-scratch/`), while the Store data directory lives on the
+test volume, so a block reset cannot erase the arming evidence. For a macOS detach, prefer the
+mounted APFS volume node from the `hdiutil attach` output, not the first `/dev/disk*` line, which is
+often the GUID partition scheme. The default image sizes (1 GiB smoke, 2 GiB campaign) exceed the
+Store’s default 256 MiB free-space reserve plus Segment preallocation.
 
-Every harness artifact sets `e3_certified=no` and `physical_power_cut=no`. Per-case results retain
-the requested checkpoint action, independent worker-stop confirmation, reset mechanism, dm-flakey
-mode, reset confirmation, fsck status, recovery result, and outcome. A green CI job means the
-harness and recovery oracle rehearsed successfully on that disposable row, not that GlifiStore is
-certified for sudden power loss on production hardware.
+Every harness artifact sets `e3_certified=no` and `physical_power_cut=no`. Per-case results keep the
+requested checkpoint action, independent worker-stop confirmation, reset mechanism, dm-flakey mode,
+reset confirmation, fsck status, recovery result and outcome. A green CI job means the harness and
+recovery oracle rehearsed successfully on that disposable row, not that GlifiStore is certified for
+sudden power loss on production hardware.
 
 ### dm-flakey notes (Linux)
 
 - Requires root, `dmsetup`, and a loop (or real) block device underneath.
 - Keep a linear mapper fully available while seeding and reaching the checkpoint. At the armed
-  reset, the mapper is suspended with `--noflush`, reloaded as `dm-flakey`, and
-  `--dm-fault-mode` selects `drop-writes`
-  (silently discard writes), `error-writes` (fail writes), or `all-io-error` (no optional feature,
-  so all I/O fails during the down interval), using
-  the semantics in the [Linux kernel dm-flakey documentation](https://cdn.kernel.org/doc/html/latest/admin-guide/device-mapper/dm-flakey.html).
+  reset, the mapper is suspended with `--noflush` and reloaded as `dm-flakey`, and `--dm-fault-mode`
+  selects `drop-writes` (silently discard writes), `error-writes` (fail writes) or `all-io-error`
+  (no optional feature, so all I/O fails during the down interval), with the semantics in the
+  [Linux kernel dm-flakey documentation](https://cdn.kernel.org/doc/html/latest/admin-guide/device-mapper/dm-flakey.html).
 - The harness confirms that the fault table was armed, holds a bounded 250 ms window, and confirms
   mapper removal. After that window it lazy-unmounts the faulted filesystem, terminates the already
-  stopped worker to release its open files, and only accepts reset confirmation after the mapper is
+  stopped worker to release its open files, and accepts reset confirmation only after the mapper is
   gone. It does **not** claim that a particular dirty write reached the mapper during that window;
-  absence of a block-level I/O trace remains a stated limitation of this rehearsal row.
+  the absence of a block-level I/O trace remains a stated limitation of this rehearsal row.
 - Confirm mapper removal separately from “reload succeeded.” A timeout, lost console, or failed
   remove is **INCONCLUSIVE**, not PASS.
 - dm-flakey on loopback-over-ext4-on-hosted-disk still inherits the host’s durability; treat it as
@@ -198,8 +200,8 @@ A storage row may be labeled **E3 certified** only when all of the following hol
 1. Exact row identity is pinned (OS/kernel, FS type, mkfs/mount options, backing device/image class,
    cache/barrier policy, guest/host boundary, reset mechanism).
 2. Clean source commit; E0/E1/E2 already passed on that same row.
-3. Campaign covers the normative persistent checkpoints for the claimed scope (at least the smoke set
-   for a narrow put-scope claim; full recovery-matrix scope for a general durable claim).
+3. Campaign covers the normative persistent checkpoints for the claimed scope (at least the smoke
+   set for a narrow put-scope claim; full recovery-matrix scope for a general durable claim).
 4. Each checkpoint has enough repetitions to cover timing variability; zero unexplained outcomes.
 5. Artifact matches the evidence contract, including SHA-256 manifest and explicit
    `reset_confirmed=yes` per case.
@@ -212,10 +214,11 @@ Until then, keep `e3_certified=no` even if the harness exits 0.
 No filesystem row in this matrix is marked E3/E4 certified today. Do **not** check those claims from
 CI green, harness exit 0, or an agent-produced tarball alone.
 
-Operator package (campaign-prep, always `e3_certified=no` until this gate completes):
+The operator package (campaign preparation, always `e3_certified=no` until this gate completes):
 
 - Runbook: [E3 pinned-row campaign](../operations/e3-campaign.md)
-- Orchestrator: `scripts/run-e3-campaign.sh` (E0 → E1 → E2 → E3, evidence tarball + SHA-256 manifest)
+- Orchestrator: `scripts/run-e3-campaign.sh` (E0 → E1 → E2 → E3, evidence tarball + SHA-256
+  manifest)
 
 Promote a row to **E3 certified** only when all of the following are true:
 
@@ -235,9 +238,9 @@ invalid.
 
 ### E4 row claim
 
-E4 additionally requires a repeated release campaign on the same pinned row and source artifact
-lineage, retained provenance for every attempt, and zero unexplained outcomes across the campaign
-set. E4 is never granted by CI smoke alone.
+E4 also requires a repeated release campaign on the same pinned row and source artifact lineage,
+retained provenance for every attempt, and zero unexplained outcomes across the campaign set. E4 is
+never granted by CI smoke alone.
 
 ## E3 campaign protocol
 
@@ -257,7 +260,7 @@ sequence:
 6. Checksum and retain the complete artifact. Promote to E4 only through the release checklist and
    only for the exact tested row.
 
-Preferred operator entry point for steps 1–6 (still `e3_certified=no`):
+The preferred operator entry point for steps 1–6 (still `e3_certified=no`):
 
 ```sh
 scripts/run-e3-campaign.sh \
@@ -273,19 +276,20 @@ scripts/run-e3-campaign.sh \
 ```
 
 The campaign controller must distinguish “reset command issued” from “power was actually removed.”
-A timeout, host crash, lost console, or test-harness error is inconclusive, not a passing recovery.
-Physical chassis power cuts remain the strongest E3 mechanism for hardware rows; loopback/diskimage
-resets are valid only for the exact virtual-device row they name.
+A timeout, host crash, lost console or test-harness error is inconclusive, not a passing recovery.
+Physical chassis power cuts remain the strongest E3 mechanism for hardware rows; loopback and
+disk-image resets are valid only for the exact virtual-device row they name.
 
 ## Promotion and regression rules
 
 A storage row is supported only when its exact scope and E4 artifact are published with the release.
-Any change to write ordering, synchronization primitives, manifest/intent publication, commit-slot
-handling, recovery authority, filesystem policy, or power-loss harness invalidates the affected
-campaign. Kernel/filesystem/device changes require review and usually a new campaign.
+Any change to write ordering, synchronization primitives, Manifest or intent publication,
+commit-slot handling, recovery authority, filesystem policy or the power-loss harness invalidates
+the affected campaign. Kernel, filesystem and device changes require review and usually a new
+campaign.
 
 CI may archive E2 collector output for every change, E3 harness smoke for the linux-ext4 rehearsal
-row on PRs, and weekly campaign-profile / orchestrator rehearsal artifacts. E3 certification
-campaigns should run on dedicated lab pins (not hosted-ci), and E4 is a reviewed release campaign.
-Until those gates exist, GlifiStore remains experimental for durable deployment even when every
-process-kill and harness-smoke test passes.
+row on pull requests, and weekly campaign-profile and orchestrator rehearsal artifacts. E3
+certification campaigns should run on dedicated lab pins (not hosted-ci), and E4 is a reviewed
+release campaign. Until those gates exist, GlifiStore remains experimental for durable deployment,
+even when every process-kill and harness-smoke test passes.

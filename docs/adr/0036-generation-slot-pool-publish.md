@@ -7,8 +7,8 @@
   daemon Reader–Writer pairs); **Wave 1 opt-in production path exists behind
   `PairedConcurrencyConfig::generation_slot_pool` (default false)**; Alternative A remains
   the bit-identical default
-- Amends: none yet (would amend [ADR 0031](paired-reader-writer-shards.md) §Protocollo di
-  publication / §Protocollo di reclamation **only after** the verification matrix below is
+- Amends: none yet (would amend [ADR 0031](paired-reader-writer-shards.md) §Publication
+  protocol / §Reclamation protocol **only after** the verification matrix below is
   closed and this ADR is accepted)
 - Supersedes: none
 - Depends on: [ADR 0031](paired-reader-writer-shards.md), [ADR 0032](0032-paired-concurrency-embedded-store.md)

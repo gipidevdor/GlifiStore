@@ -139,7 +139,7 @@ identity; “shard pair count” is the runtime view of that same count (ADR 003
 - [ADR 0009 — owned public reads](0009-public-read-ownership.md)
 - [Concurrency and memory model](../spec/concurrency-memory-model.md)
 - [Worker model](../architecture/worker-model.md)
-- [Public API contract](../architecture/public-api-contract.md)
+- [C++ API reference](../reference/cpp-api.md)
 
 ## Blob-profile amendment (2026-11-07)
 

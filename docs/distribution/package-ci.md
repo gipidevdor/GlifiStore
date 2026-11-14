@@ -1,16 +1,19 @@
 # Package CI operator guide
 
-Status: framework implemented and locally exercised; **no packaging gate is closed and no
-packaging evidence has ever been retained from a tagged release**
+**Descriptive** · packaging framework, `scripts/package-ci.sh` and `package-ci.yml`
 
-This is the operator-facing half of the packaging framework. The declarative half — which
-backends exist, which targets and checks they owe, and how deep each CI profile may go — is
-generated into [package-status.md](package-status.md) from
+How to run the packaging framework, read the evidence it writes, bump a package revision and add a
+backend. The framework is implemented and locally exercised, but **no packaging gate is closed and
+no packaging evidence has ever been retained from a tagged release**.
+
+This page is the operator half of the framework. The declarative half (which backends exist, which
+targets and checks they owe, how deep each CI profile may go) is generated into
+[package backend status](package-status.md) from
 [`engineering/distribution/package-matrix.yaml`](../../engineering/distribution/package-matrix.yaml).
 Neither page is evidence: the only packaging proofs are the retained `*-package-evidence.json`
 documents described below.
 
-## The pipeline in one pass
+## The pipeline
 
 | Step | Owner | Output |
 | --- | --- | --- |
@@ -26,8 +29,8 @@ and uploads what they produce.
 
 ## Run it locally
 
-Requirements: `python3` with `PyYAML` and `jsonschema`, a git checkout (the context reads the
-commit), and nothing else for the structural rows.
+It needs `python3` with `PyYAML` and `jsonschema` and a git checkout (the context reads the commit);
+the structural rows need nothing else.
 
 ```bash
 python3 -m pip install --user PyYAML jsonschema
@@ -43,12 +46,12 @@ python3 -m pip install --user PyYAML jsonschema
 ./scripts/package-verify.sh --profile main --backend rpm
 ```
 
-Output lands under `build/package-ci/<version>/<commit>/<profile>/<run-id>/<backend>/<stage>/`,
-one isolated directory per run. Exit status is non-zero only when a backend reports `FAIL` or a
-tool refuses; a run made entirely of `BLOCKED` rows succeeds and says so in the evidence, because
-"this host cannot run that" is a fact, not a failure.
+Output lands under `build/package-ci/<version>/<commit>/<profile>/<run-id>/<backend>/<stage>/`, one
+isolated directory per run. The exit status is non-zero only when a backend reports `FAIL` or a tool
+refuses. A run made entirely of `BLOCKED` rows succeeds and says so in the evidence, because "this
+host cannot run that" is a fact, not a failure.
 
-Depth is opt-in, and by design:
+Depth is opt-in by design:
 
 | Environment | Effect |
 | --- | --- |
@@ -57,13 +60,13 @@ Depth is opt-in, and by design:
 | `GLIFISTORE_PACKAGE_CI_NATIVE=1` | the same rows on a disposable root host; on macOS, the MacPorts/Homebrew native lifecycle |
 | `--candidate DIR` | admit a sealed release-candidate directory; the native lifecycles refuse to build without it |
 
-`GLIFISTORE_PACKAGE_CI_NATIVE=1` installs into the host package manager and creates system
-accounts and services. Use a disposable machine or VM; never a workstation.
+`GLIFISTORE_PACKAGE_CI_NATIVE=1` installs into the host package manager and creates system accounts
+and services. Use a disposable machine or VM, never a workstation.
 
-The FreeBSD and OpenBSD native lifecycles additionally require a native host, root, a complete
-ports tree, the sealed candidate and the `PORTS_ACCOUNT_REGISTERED` marker. That marker records a
-real upstream UID/GID allocation and is never created by CI or by this guide
-([bsd-packaging.md](bsd-packaging.md)).
+The FreeBSD and OpenBSD native lifecycles also require a native host, root, a complete ports tree,
+the sealed candidate and the `PORTS_ACCOUNT_REGISTERED` marker. That marker records a real upstream
+UID/GID allocation; neither CI nor this guide ever creates it
+([BSD reference packaging](bsd-packaging.md)).
 
 ## Read the evidence
 
@@ -79,13 +82,13 @@ python3 engineering/tools/validate_package_evidence.py validate \
 
 Read it in this order:
 
-1. `result` — the backend outcome, which can never be better than its checks.
-2. `lifecycle_state` — how far up the chain this run actually got (`NONE` … `RELEASE_ADMITTED`).
-3. `subject` — `source_tree` means no artifact bytes exist; `artifact` carries the SHA-256 that an
-   admission later has to match.
-4. `checks[]` — each check with its `status`, `category` and the retained log in `evidence_ref`.
-5. `limitations` and `residuals` — what this document deliberately does not prove.
-6. `producer` — `workflow: local-unattested` / `run_id: local` marks a local run, which the release
+1. `result`: the backend outcome, which can never be better than its checks.
+2. `lifecycle_state`: how far up the chain this run actually got (`NONE` … `RELEASE_ADMITTED`).
+3. `subject`: `source_tree` means no artifact bytes exist; `artifact` carries the SHA-256 that a
+   later admission has to match.
+4. `checks[]`: each check with its `status`, `category` and the retained log in `evidence_ref`.
+5. `limitations` and `residuals`: what this document deliberately does not prove.
+6. `producer`: `workflow: local-unattested` / `run_id: local` marks a local run, which the release
    profile refuses to cite.
 
 Statuses are not shades of pass:
@@ -101,7 +104,7 @@ Statuses are not shades of pass:
 | `OPEN_GATE` | the capability is unproven by construction (upstream acceptance, a service the packaging does not install) | never closes by rerunning CI |
 
 A `category` bounds how a passing row may be read: a `structural` pass says the repository-side
-metadata is coherent, and says nothing about a built package, a running service or an upstream
+metadata is coherent, and nothing about a built package, a running service or an upstream
 acceptance.
 
 ## Bump a package revision without a new product version
@@ -113,11 +116,11 @@ dependency, a service unit fix) use the package revision instead:
 ./scripts/package-ci.sh --profile main --backend deb --package-revision 1
 ```
 
-The revision flows through `release-context.json` into every backend naming convention
-(`0.1.0-2` for `deb`/`rpm`, `0.1.0_1` for `macports`, `PORTREVISION` for FreeBSD), and never into
-`VERSION`, the ABI or the wire protocol. Changing the packaged upstream bytes is a product-version
-change, not a revision bump: a release artifact that differs by a single byte needs a new version,
-because publication refuses to clobber an existing tag or asset.
+The revision flows through `release-context.json` into every backend naming convention (`0.1.0-2`
+for `deb`/`rpm`, `0.1.0_1` for `macports`, `PORTREVISION` for FreeBSD), and never into `VERSION`,
+the ABI or the wire protocol. Changing the packaged upstream bytes is a product-version change, not
+a revision bump: a release artifact that differs by a single byte needs a new version, because
+publication refuses to clobber an existing tag or asset.
 
 ## Add a backend
 
@@ -146,11 +149,11 @@ because publication refuses to clobber an existing tag or asset.
 
 6. Leave `required_for_release: false`. Promotion needs `LIFECYCLE_VERIFIED` evidence retained from
    CI, a release-policy artifact in
-   [`release_bundle.py`](../../engineering/tools/release_bundle.py), an ADR and a gate update — in
-   that order, never a silent flip of the flag.
+   [`release_bundle.py`](../../engineering/tools/release_bundle.py), an ADR and a gate update, in
+   that order; never a silent flip of the flag.
 
-Windows and Apple `.pkg` are refused by the matrix validator, not merely unimplemented. Both need
-an accepted ADR first ([package-status.md](package-status.md) lists the prerequisites).
+Windows and Apple `.pkg` are refused by the matrix validator, not merely unimplemented. Both need an
+accepted ADR first ([package backend status](package-status.md) lists the prerequisites).
 
 ## The release path
 
@@ -163,22 +166,22 @@ then lets packaging run:
   `OPEN_GATE`, so the release policy stays red until the upstream account allocation exists.
 - `deb`, `rpm`, `macports` and `homebrew` run through a `release`-profile call of
   [`package-ci.yml`](../../.github/workflows/package-ci.yml) with the sealed candidate. That call is
-  deliberately outside the verify job's dependencies: those backends are diagnostic and cannot admit
-  a release artifact.
+  deliberately outside the verify job's dependencies: those backends are diagnostic and cannot
+  admit a release artifact.
 - Publication never rebuilds, never clobbers an asset and refuses an existing tag.
 
-Three admission tools plus the CI orchestrator are covered by tests and **wired fail-closed**:
+Three admission tools and the CI orchestrator are covered by tests and wired fail-closed:
 
 - [`package-ci.yml`](../../.github/workflows/package-ci.yml) closure runs
   [`run_package_admission.py`](../../engineering/tools/run_package_admission.py) whenever a sealed
   candidate is supplied (the release-profile `workflow_call`).
 - [`release.yml`](../../.github/workflows/release.yml) runs a dedicated `package-admission` job for
-  FreeBSD/OpenBSD `release_evidence` (adapted without inventing package-matrix PASS rows).
+  FreeBSD/OpenBSD `release_evidence`, adapted without inventing package-matrix `PASS` rows.
 
 Both retain `package-admission.json`, `upgrade-baseline.json`, `artifact-manifest.json` and
 `installed-sdk-matrix.json`. `--allow-blocking` keeps known residual blockers visible inside the
-report without inventing `admitted: true`; the job fails only when the orchestrator cannot produce a
-schema-valid report. Local reproduction:
+report without inventing `admitted: true`; the job fails only when the orchestrator cannot produce
+a schema-valid report. Local reproduction:
 
 ```bash
 python3 engineering/tools/run_package_admission.py \
@@ -189,8 +192,8 @@ python3 engineering/tools/run_package_admission.py \
 
 ## Sealed N−1 upgrade continuity
 
-`package-upgrade` is selected from the release context (SemVer precedence over annotated tags),
-never as “current version minus one”:
+`package-upgrade` selects its predecessor from the release context (SemVer precedence over
+annotated tags), never as "current version minus one":
 
 | Situation | Status |
 | --- | --- |
@@ -199,8 +202,8 @@ never as “current version minus one”:
 | Predecessor selected and `GLIFISTORE_N1_PACKAGE_DIR` set | Linux deb/rpm, FreeBSD/OpenBSD, and MacPorts/Homebrew run install→seed→upgrade→verify inside the native/container lifecycle |
 | Invalid `GLIFISTORE_N1_PACKAGE_DIR` | `FAIL` (never rebuild from HEAD) |
 
-Mount the sealed predecessor packages into package CI (also forwarded into the Linux packaging
-container as `/n1-packages`):
+Mount the sealed predecessor packages into package CI; they are also forwarded into the Linux
+packaging container as `/n1-packages`:
 
 ```bash
 export GLIFISTORE_N1_PACKAGE_DIR=/path/to/sealed-n1-debs-or-rpms
@@ -209,26 +212,22 @@ GLIFISTORE_PACKAGE_CI_CONTAINER=1 scripts/package-ci.sh --profile nightly --back
 
 ## What this pipeline does not prove
 
-- The `deb`/`rpm` container lifecycle has retained nightly evidence at `LIFECYCLE_VERIFIED`
-  with `service-lifecycle` PASS
-  ([run 34662210614](https://github.com/gpicchiarelli/GlifiStore/actions/runs/34662210614));
-  overall result stays `NOT_RUN` without a sealed candidate. See
-  [wave5-l7-residuals.md](wave5-l7-residuals.md).
-- MacPorts declares an unprivileged launchd startup item; Homebrew declares `brew services`.
-  Both are exercised when native packaging CI is enabled; without a retained native run they
-  stay `OPEN_GATE` for `service-lifecycle`.
-- `package-upgrade` is `NOT_APPLICABLE_INITIAL_BASELINE` until a predecessor exists, then
-  `NOT_RUN` until sealed N−1 packages are supplied via `GLIFISTORE_N1_PACKAGE_DIR` (never
-  rebuilt from HEAD). Linux deb/rpm, FreeBSD/OpenBSD, and MacPorts/Homebrew run
-  install→seed→upgrade→verify when that directory is available inside the native/container
-  lifecycle.
-- The cross-SDK post-install matrix against a package-installed daemon has retained nightly
-  PASS evidence
-  ([run 34666166603](https://github.com/gpicchiarelli/GlifiStore/actions/runs/34666166603));
-  Wave F `admitted: true` still waits on sealed N−1 `package-upgrade`.
-- In-repo packaging is the project's own pipeline. It is not a Debian, Fedora, MacPorts, Homebrew,
-  FreeBSD or OpenBSD acceptance, and nothing here may be described as one.
+- The `deb`/`rpm` container lifecycle has retained nightly evidence at `LIFECYCLE_VERIFIED` with
+  `service-lifecycle` `PASS`
+  ([run 34662210614](https://github.com/gipidevdor/GlifiStore/actions/runs/34662210614)); the
+  overall result stays `NOT_RUN` without a sealed candidate.
+- MacPorts declares an unprivileged launchd startup item; Homebrew declares `brew services`. Both
+  are exercised when native packaging CI is enabled; without a retained native run they stay
+  `OPEN_GATE` for `service-lifecycle`.
+- `package-upgrade` stays unproven until a predecessor exists and its sealed N−1 packages are
+  supplied, as in the table above; they are never rebuilt from HEAD.
+- The cross-SDK post-install matrix against a package-installed daemon has retained nightly `PASS`
+  evidence
+  ([run 34666166603](https://github.com/gipidevdor/GlifiStore/actions/runs/34666166603));
+  `admitted: true` still waits on a sealed N−1 `package-upgrade`.
+- In-repository packaging is the project's own pipeline. It is not a Debian, Fedora, MacPorts,
+  Homebrew, FreeBSD or OpenBSD acceptance, and nothing here may be described as one.
 
-The full ledger lives in [wave5-l7-residuals.md](wave5-l7-residuals.md); the gate states live in
+The full ledger is in the [release residuals](wave5-l7-residuals.md); the gate states are in
 [`engineering/gates/quality-gates.yaml`](../../engineering/gates/quality-gates.yaml) and the derived
 [production readiness](../production-readiness.md) view.

@@ -1,74 +1,74 @@
-Status: maintained repository settings checklist
-Applies to: GitHub branch protection, security products, required checks
-Owner: maintainers
-Last reviewed: 2026-08-26
-
 # GitHub branch protection and security settings
 
-Workflow YAML cannot enable org/repo settings. In repository settings,
-apply this checklist on `main` so CI evidence is enforceable.
+**Normative** · GitHub branch protection, security products, required checks · reviewed 2026-08-26
 
-Claim ceiling remains **architectural prototype**. Green required checks do not imply E3/E4
-certification, absolute performance budgets, or production readiness.
+The repository settings that make CI evidence enforceable on `main`. Workflow YAML cannot enable
+organization or repository settings, so maintainers apply this checklist in the repository
+settings. Green required checks do not imply E3/E4 certification, absolute performance budgets or
+production readiness; the claim ceiling stays architectural prototype.
 
-## Required status checks (suggest)
+## Required status checks
 
-Require these workflows/jobs to pass before merge (adjust names to match the Actions UI):
+Require these workflows and jobs to pass before merge. The set is a suggestion; adjust the names to
+match the Actions UI.
 
 | Workflow | Why |
 | --- | --- |
-| `CI` (`strict-iso-hardening`, `build-test`, `sdk-clients`, `install-consumer`, `release-optimized`) | Core correctness / install |
-| `Assurance` | Catalog + Actions SHA pins |
-| `Sanitizers` | ASan/UBSan + TSan (+ fuzz on schedule) |
-| `Static analysis` | clang-tidy / format |
-| `Supply chain scan` | gitleaks + Trivy |
-| `Dependency review` | PR dependency gate |
-| `Actionlint` | Workflow YAML + pin validator (when workflows change) |
+| `CI` (`strict-iso-hardening`, `build-test`, `sdk-clients`, `install-consumer`, `release-optimized`) | Core correctness and install |
+| `Assurance` | Catalog and Actions SHA pins |
+| `Sanitizers` | ASan/UBSan and TSan (fuzz on schedule) |
+| `Static analysis` | clang-tidy and format |
+| `Supply chain scan` | gitleaks and Trivy |
+| `Dependency review` | Pull request dependency gate |
+| `Actionlint` | Workflow YAML and pin validator (when workflows change) |
 | `CodeQL` (`analyze-cpp` at minimum) | SAST |
 | `OpenSSF Scorecard` | Supply-chain posture |
 | `FreeBSD` / `OpenBSD LibreSSL` | Supported Unix portability |
-| `Released artifact compatibility` | Fixture / self-artifact harness |
+| `Released artifact compatibility` | Fixture and self-artifact harness |
 
-### Correctness vs performance required checks
+Require the correctness, portability and distribution jobs above on `main`. Do **not** require
+absolute performance budgets, hard-pinned scaling or physical E3/E4 jobs as merge blockers:
+performance evidence stays labeled `hardware` and is independent of the release sealing residuals
+([evidence taxonomy](evidence-taxonomy.md),
+[release residuals](../distribution/wave5-l7-residuals.md)).
 
-Require the correctness / portability / distribution jobs above on `main`. Do **not** require
-absolute performance budgets, hard-pinned scaling, or physical E3/E4 jobs as merge blockers.
-Performance evidence stays labeled `hardware` and is independent of Wave 5 sealing residuals
-([evidence-taxonomy.md](evidence-taxonomy.md), [wave5-l7-residuals.md](../distribution/wave5-l7-residuals.md)).
-
-Optional (path-filtered or scheduled — require only if always run on the PR):
+Optional, because they are path-filtered or scheduled; require one only if it always runs on the
+pull request:
 
 - `Docs links`, `License check`, `Formal models (TLC)` (ShardPair + PersistenceRecovery matrix)
 - `release-lto-smoke` (heavier; keep required once stable)
 
-Do **not** require: `Coverage` (diagnostic), `Extended soak`, `Benchmarks` absolute
-thresholds, `Paired Linux hard-pinned A/B` (self-hosted), physical E3 jobs.
+Do not require `Coverage` (diagnostic), `Extended soak`, `Benchmarks` absolute thresholds,
+`Paired Linux hard-pinned A/B` (self-hosted) or physical E3 jobs.
 
-## Security products (Settings → Security)
+## Security products
 
-1. **Secret scanning** + **push protection** (public repos: enable both).
-2. **Private vulnerability reporting** (aligns with `SECURITY.md`).
-3. **Code scanning** enabled so Scorecard / CodeQL / Trivy SARIF can publish when
-   repository variable `GLIFISTORE_UPLOAD_SARIF=true`.
-4. **Dependabot alerts** + security updates (ecosystems configured in
-   [`.github/dependabot.yml`](../../.github/dependabot.yml)).
+Enable in **Settings → Security**:
+
+1. Secret scanning and push protection (public repositories: enable both).
+2. Private vulnerability reporting, which aligns with `SECURITY.md`.
+3. Code scanning, so Scorecard, CodeQL and Trivy SARIF can publish when the repository variable
+   `GLIFISTORE_UPLOAD_SARIF=true` is set.
+4. Dependabot alerts and security updates, for the ecosystems configured in
+   [`.github/dependabot.yml`](../../.github/dependabot.yml).
 
 ## Merge queue
 
-After required checks are stable for several weeks, enable a merge queue on `main`
-with the same required checks. Prefer squash merges for linear history.
+After the required checks have been stable for several weeks, enable a merge queue on `main` with
+the same required checks. Prefer squash merges for a linear history.
 
 ## Actions SHA discipline
 
 Third-party Actions stay on 40-character commit SHAs
-([actions-pinning](../security/actions-pinning.md)). Dependabot PRs that only bump a
+([Actions pinning](../security/actions-pinning.md)). A Dependabot pull request that only bumps a
 floating tag must be rewritten to a SHA before merge.
 
-## Honest residuals
+## Residuals
 
-- A queued, skipped, cancelled, or unavailable hosted run is not green evidence; local green ≠ CI green.
-- Physical E3/E4, absolute hardware perf, and tagged N−1 fixture drops remain outside
-  this checklist.
-- Sealing residual: producers and validators may be green in structure while retained tagged
-  evidence (ABI N−1, BSD packages, Cosign/SBOM pointers) is still absent — see
-  [wave5-l7-residuals.md](../distribution/wave5-l7-residuals.md).
+- A queued, skipped, cancelled or unavailable hosted run is not green evidence; a local green run is
+  not CI green.
+- Physical E3/E4, absolute hardware performance and tagged N−1 fixture drops remain outside this
+  checklist.
+- Producers and validators may be structurally green while retained tagged evidence (ABI N−1, BSD
+  packages, Cosign/SBOM pointers) is still absent; see the
+  [release residuals](../distribution/wave5-l7-residuals.md).

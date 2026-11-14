@@ -32,7 +32,7 @@ gates:
   - GS-COMPAT-NN1-001
   - GS-COMPAT-CABI-001
   prove:
-  - docs/architecture/public-api-contract.md
+  - docs/reference/cpp-api.md
   - docs/architecture/version-lifecycle.md
   - docs/architecture/n-n1-compatibility.md
   - engineering/compatibility/n-n1-matrix.yaml

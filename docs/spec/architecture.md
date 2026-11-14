@@ -1,9 +1,9 @@
-# GlifiStore Architecture Specification
+# Architecture specification
 
-Status: normative for the current implementation
-Applies to: repository format and API version `0.1.x`
-Owner: project maintainers
-Last reviewed: 2026-08-26
+**Normative** · repository format and API version `0.1.x` · reviewed 2026-08-26
+
+The component map of the current implementation: its invariants, layers, planes, runtimes, main
+flows, lifecycle and extension rules.
 
 ## 1. Purpose and scope
 
@@ -208,7 +208,7 @@ return through the completion lane; the Writer never touches the connection.
 Input/output buffers, handoff, mutation payload slots, cold-read work, and completions are bounded.
 Queue exhaustion applies documented overload/backpressure; it never creates an unbounded backlog.
 TLS/mTLS, authorization and quotas wrap the same protocol and do not change storage linearization.
-The complete external contract is [Wire Protocol v2](wire-protocol-v2.md); the detailed runtime is
+The complete external contract is [wire protocol v2](wire-protocol-v2.md); the detailed runtime is
 [server model](../architecture/server-model.md).
 
 ## 10. Main flows
@@ -252,9 +252,9 @@ sequenceDiagram
 ```
 
 The exact ordering among append, commit, visibility, durability and acknowledgement varies only by
-the selected documented durability policy. It is normative in
-[Persistence v1](persistence-v1.md), [mutation lifecycle](mutation-lifecycle.md), and the
-[concurrency model](concurrency-memory-model.md).
+the selected documented durability policy. It is normative in [persistence v1](persistence-v1.md)
+and the [concurrency and memory model](concurrency-memory-model.md);
+[mutation lifecycle](mutation-lifecycle.md) describes the paired Writer path as implemented.
 
 ### 10.3 Durable open and recovery
 
@@ -304,14 +304,14 @@ undelivered mutation outcome is indeterminate to that client.
 
 ## 13. Related specifications
 
-- [Concurrency and Memory Model](concurrency-memory-model.md)
+- [Concurrency and memory model](concurrency-memory-model.md)
 - [Mutation lifecycle](mutation-lifecycle.md)
 - [Connection drain state machine](connection-drain-state-machine.md)
 - [Error taxonomy v1](error-taxonomy-v1.md)
 - [SwissTableIndex v1](index-v1.md)
-- [Wire Protocol v2](wire-protocol-v2.md)
+- [Wire protocol v2](wire-protocol-v2.md)
 - [Persistence v1](persistence-v1.md)
 - [C ABI v1](c-abi-v1.md)
-- [C++ API Reference](../reference/cpp-api.md)
+- [C++ API reference](../reference/cpp-api.md)
 - [Server model](../architecture/server-model.md)
 - [Glossary](../glossary.md)

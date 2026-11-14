@@ -25,7 +25,7 @@ not public API and require dedicated lifetime tests.
 This design makes safe ownership the default while retaining a defined route to zero-copy reads.
 It also removes public access paths that currently bypass Worker synchronization or permit Segment
 corruption. The detailed target contract and migration rules are in
-[`public-api-contract.md`](../architecture/public-api-contract.md).
+[C++ API reference](../reference/cpp-api.md).
 
 ## Blob-profile amendment (2026-11-07)
 

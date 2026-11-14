@@ -1,221 +1,226 @@
-# Piano benchmark: shard a coppie Reader–Writer
+# Benchmark plan for paired Reader–Writer shards
 
-Status: runtime paired unico per 0.1.0; output lease, mutation arena e Delta arena chiuse
+**Roadmap** · paired Reader–Writer shard runtime, benchmark gates
+
+Current state: the paired runtime is the only runtime for 0.1.0; output lease, mutation arena and
+Delta arena are closed.
 
 ADR: [paired Reader–Writer shards](../adr/paired-reader-writer-shards.md)
 
-Baseline iniziale: runtime corrente su `main`, stessa persistence v1 e wire v2
+Initial baseline: the current runtime on `main`, same persistence v1 and wire v2.
 
-Risultati del 2026-07-28: `benchmark-results/paired-shards/fc9463d-dirty/macos-m4/2026-07-28/`.
-Questo run di gate è versionato esplicitamente; gli artifact benchmark locali ordinari restano ignorati.
+Results of 2026-07-28: `benchmark-results/paired-shards/fc9463d-dirty/macos-m4/2026-07-28/`. This
+gate run is explicitly versioned; ordinary local benchmark artifacts stay ignored.
 
-Secondo gate P0: `benchmark-results/paired-shards/573f4f1-dirty/macos-m4/2026-07-28-p0-paged-delta/`.
+Second P0 gate: `benchmark-results/paired-shards/573f4f1-dirty/macos-m4/2026-07-28-p0-paged-delta/`.
 
-Gate directory/batching:
+Directory/batching gate:
 `benchmark-results/paired-shards/55acedd-dirty/macos-m4/2026-07-28-persistent-directory-batching/`.
 
-Gate Reactor TCP, una coppia:
+Reactor TCP gate, one pair:
 `benchmark-results/paired-reactor/d2077cf-dirty/macos-m4/2026-07-28-phase2-tcp/`.
 
-## Stato corrente — 2026-07-31
+## Current state — 2026-07-31
 
-Le sezioni storiche sotto documentano i gate che hanno preceduto la migrazione. Il daemon non offre
-due modelli concorrenti: Reader/Reactor e Writer seriale per shard sono il **solo** runtime di
-`glifistored` 0.1.0. Il prototipo volatile sotto `src/experimental/` resta lab-only e non è un
-secondo modello selezionabile. Sono chiusi e coperti da test il routing multi-pair, mutation/completion
-SPSC, publication immutabile, refresh per rotation/compaction, Base Index compatto, merge
-incrementale, cold-read lane per pair, task slot preallocati, lease QSBR del cold I/O, output lease
-cleartext adattiva con short-write backpressure, mutation slot/key/value arena bounded e Delta
-generazionale Writer-owned bounded sulle versioni.
+The historical sections below document the gates that preceded the migration. The daemon does not
+offer two concurrent models: the Reader/Reactor and the serial Writer per shard are the **only**
+runtime of `glifistored` 0.1.0. The volatile prototype under `src/experimental/` stays lab-only and
+is not a second selectable model. The following are closed and covered by tests: multi-pair routing,
+mutation/completion SPSC, immutable publication, refresh on rotation/compaction, compact Base Index,
+incremental merge, per-pair cold-read lane, preallocated task slots, QSBR lease of the cold I/O,
+adaptive cleartext output lease with short-write backpressure, bounded mutation slot/key/value
+arena, and a Writer-owned generational Delta bounded on versions.
 
-Ordine operativo residuo (P1 — non riapre un dual-runtime):
+Remaining operating order (P1 — it does not reopen a dual runtime):
 
 1. P1 — Delta mixed: candidate hierarchical directory-chunk COW landed; macOS advisory evidence in
    [`paired-delta-directory-chunks-2026-07-31.md`](paired-delta-directory-chunks-2026-07-31.md);
-   magnitude vs the historical −1,8% still needs Linux hard-pinned confirmation;
+   magnitude vs the historical −1.8% still needs Linux hard-pinned confirmation;
 2. P1 — `get-into` / scatter multi-extent: **rejected pending proof**
    ([`paired-get-into-multi-extent-reject-2026-07-31.md`](paired-get-into-multi-extent-reject-2026-07-31.md));
 3. P1 — A/B 1/2/4/8 pair Linux hard-pinned: harness ready, gate **not closed on macOS**
    ([`paired-shards-linux-p1.md`](paired-shards-linux-p1.md)); runner label
    `glifistore-linux-perf` required — no fabricated pass-candidate;
-4. P1 — backend I/O Linux opzionale (`io_uring` / batched completion): **deferred / skipped for
+4. P1 — optional Linux I/O backend (`io_uring` / batched completion): **deferred / skipped for
    0.1.0 adoption**. No measured queue/syscall win that preserves persistence write ordering and
    acknowledgement points; re-open only with a versioned A/B under the Linux hard-pinned harness
    and an ADR if ordering/ack semantics would change (they must not silently).
 
-Il gate cold-read più recente è
-[`paired-scatter-output-2026-07-29.md`](paired-scatter-output-2026-07-29.md). I risultati macOS non
-pinned restano evidenza orientativa, non claim production.
+The most recent cold-read gate is
+[`paired-scatter-output-2026-07-29.md`](paired-scatter-output-2026-07-29.md). The unpinned macOS
+results remain indicative evidence, not a production claim.
 
-Il gate mutation task storage è
-[`paired-mutation-arena-2026-07-29.md`](paired-mutation-arena-2026-07-29.md): elimina ownership e
-allocazioni per task, rende reale il byte budget e passa Debug, sanitizer, fault/crash e A/B
-mutation-bound. Il controllo 99/1 resta neutro/inconcludente su macOS non pinned.
+The mutation task storage gate is
+[`paired-mutation-arena-2026-07-29.md`](paired-mutation-arena-2026-07-29.md): it removes per-task
+ownership and allocations, makes the byte budget real, and passes Debug, sanitizers, fault/crash and
+the mutation-bound A/B. The 99/1 control stays neutral/inconclusive on unpinned macOS.
 
-Il gate Delta finale è
-[`paired-generational-delta-arena-2026-07-29.md`](paired-generational-delta-arena-2026-07-29.md):
-elimina gli handle per versione con celle da 64 B e lifetime QSBR, rende bounded anche lo churn sulla
-stessa chiave, riduce RSS del 2–4% e migliora il GET volatile. Il costo mixed di circa 1,8% resta P1
-esplicito e richiede profilo Linux hard-pinned.
+The final Delta gate is
+[`paired-generational-delta-arena-2026-07-29.md`](paired-generational-delta-arena-2026-07-29.md): it
+removes the per-version handles with 64 B cells and QSBR lifetime, also bounds churn on the same
+key, reduces RSS by 2–4% and improves volatile GET. The mixed cost of about 1.8% remains an explicit
+P1 and requires a hard-pinned Linux profile.
 
-## Regole del confronto
+## Comparison rules
 
-Ogni confronto usa due binari dalla stessa base sorgente: runtime corrente e runtime paired. Build,
-dataset, seed, client, filesystem, durability policy e limiti devono coincidere. L'ordine è
-interleaved `old/new/new/old`; almeno due cicli, una warmup e sette sample misurati per cella. Si
-conservano output raw, configurazione effettiva e commit in:
+Every comparison uses two binaries from the same source base: the current runtime and the paired
+runtime. Build, dataset, seed, client, filesystem, durability policy and limits must match. The
+order is interleaved `old/new/new/old`; at least two cycles, one warmup and seven measured samples
+per cell. The raw output, the effective configuration and the commit are kept in:
 
 ```text
 benchmark-results/paired-shards/<commit>/<platform>/<run-id>/
 ```
 
-Un run è invalido se perde risposte, request id, payload, mutation outcome o verifica finale. Client
-e server sullo stesso host devono avere CPU disgiunte oppure il risultato è marcato combined-load.
+A run is invalid if it loses responses, request ids, payloads, mutation outcomes or the final
+verification. Client and server on the same host must have disjoint CPUs or the result is marked
+combined-load.
 
-## Matrice minima
+## Minimum matrix
 
-| Asse | Valori |
+| Axis | Values |
 |---|---|
-| coppie | 1, 2, 4, 8 entro i core fisici |
+| pairs | 1, 2, 4, 8 within the physical cores |
 | mix | GET 100%; GET/PUT 99/1, 95/5, 90/10 |
-| distribuzione | uniform, Zipf, hot key; stesso shard e shard distribuiti |
+| distribution | uniform, Zipf, hot key; same shard and distributed shards |
 | working set | L2, LLC, 4× LLC |
 | value | 64 B, 1 KiB, 64 KiB, 256 KiB |
 | pipeline | 1, 8, 32, 128 |
-| connessioni | 1 e 4 per coppia; poi saturation sweep |
+| connections | 1 and 4 per pair; then a saturation sweep |
 | durability | volatile, sync, group, periodic |
 | writer batch | 1, 4, 16, 32, 128 |
-| overlap | burst, queue full, rotation, compaction incrementale |
+| overlap | burst, queue full, rotation, incremental compaction |
 
-Read-after-write ha una cella dedicata: per la stessa connessione e coppia, ogni ACK di PUT è seguito
-da GET e deve restituire esattamente la versione appena acknowledged.
+Read-after-write has a dedicated cell: for the same connection and pair, every PUT ACK is followed
+by a GET and must return exactly the version just acknowledged.
 
-## Metriche obbligatorie
+## Required metrics
 
-- throughput e latenza p50/p95/p99/p99.9/max;
-- admission→dequeue, dequeue→publication, publication→durability e durability→completion;
-- profondità/high-water/full delle due SPSC;
-- record e byte per batch/publication;
+- throughput and latency p50/p95/p99/p99.9/max;
+- admission→dequeue, dequeue→publication, publication→durability and durability→completion;
+- depth/high-water/full of the two SPSC queues;
+- records and bytes per batch/publication;
 - CPU per Reader/Writer, IPC, branch miss, cache/LLC/dTLB miss;
-- context switch, CPU migration, syscall e wakeup;
-- byte copiati, allocazioni nel timed path e RSS componentizzato;
-- generation vive/ritirate, retire backlog e delay;
-- tempo e numero di socket con read interest disarmato per backpressure.
+- context switch, CPU migration, syscall and wakeup;
+- copied bytes, allocations in the timed path and componentized RSS;
+- live/retired generations, retire backlog and delay;
+- time and number of sockets with read interest disarmed for backpressure.
 
-Su Linux si raccolgono `perf stat` e `perf record` separando PID/TID Reader e Writer. Su macOS si
-usano Instruments Time Profiler/Counters e affinity/QoS dichiarati come advisory. Nessun contatore
-non disponibile viene stimato da throughput.
+On Linux, `perf stat` and `perf record` are collected separating the Reader and Writer PID/TID. On
+macOS, Instruments Time Profiler/Counters and affinity/QoS declared as advisory are used. No
+unavailable counter is estimated from throughput.
 
-## Gate per fase
+## Gate per phase
 
-### Prototipo volatile, una coppia
+### Volatile prototype, one pair
 
-- zero mutex/queue/allocation sul GET verificato con instrumentation;
-- due lookup massimi;
-- read-after-write e queue wraparound corretti;
-- memoria invariata dopo saturation/drain;
-- p99 GET sotto 95/5 non peggiore della baseline oltre il rumore interleaved.
+- zero mutex/queue/allocation on the GET, verified with instrumentation;
+- at most two lookups;
+- correct read-after-write and queue wraparound;
+- memory unchanged after saturation/drain;
+- GET p99 under 95/5 not worse than the baseline beyond the interleaved noise.
 
 ### Multi-pair
 
-- efficienza GET almeno 80% da 1→numero di coppie fisiche disponibili;
-- nessun traffico cross-pair dopo bind;
-- nessuna CPU migration nella baseline Linux hard-pinned;
-- pair lento non altera materialmente p99 degli altri pair.
+- GET efficiency of at least 80% from 1→the number of available physical pairs;
+- no cross-pair traffic after bind;
+- no CPU migration in the hard-pinned Linux baseline;
+- a slow pair does not materially alter the p99 of the other pairs.
 
-### Durabilità
+### Durability
 
-- outcome e recovery equivalenti alla suite v1;
-- nessun ACK sync/group prima del durable boundary;
-- queueing, publication e commit delay riportati separatamente;
-- crash/fault matrix completa per append→publish→durable→completion.
+- outcome and recovery equivalent to the v1 suite;
+- no sync/group ACK before the durable boundary;
+- queueing, publication and commit delay reported separately;
+- complete crash/fault matrix for append→publish→durable→completion.
 
-### Compaction e QSBR
+### Compaction and QSBR
 
-- nessuna attesa Reader per copy/commit;
-- retire backlog e memoria restano bounded durante output socket lento;
-- p99/p99.9 con overlap confrontati, non solo throughput;
-- nessuna reclamation prima della quiescenza dimostrata da TSAN e fault gate deterministici.
+- no Reader wait for copy/commit;
+- retire backlog and memory stay bounded during slow socket output;
+- p99/p99.9 with overlap compared, not only throughput;
+- no reclamation before the quiescence demonstrated by TSAN and deterministic fault gates.
 
-## Esperimenti da non confondere con la baseline
+## Experiments not to confuse with the baseline
 
-- Reader/Writer su sibling SMT;
+- Reader/Writer on SMT siblings;
 - oversubscription;
-- PGO/native CPU solo sul paired;
-- client e server concorrenti sugli stessi core;
-- tmpfs contro filesystem reale;
-- GET interno contro TCP;
-- durability policy o batch differenti.
+- PGO/native CPU only on the paired runtime;
+- client and server running concurrently on the same cores;
+- tmpfs versus a real filesystem;
+- internal GET versus TCP;
+- different durability policy or batch.
 
-Questi run sono utili come sensitivity analysis, ma non sostengono un claim architetturale.
+These runs are useful as sensitivity analysis, but do not support an architectural claim.
 
-## Risultati richiesti
+## Required results
 
-Il report finale deve mostrare valori assoluti, rapporto paired/current, min/median/max, dispersione e
-ambiente completo. Un esito è `pass`, `fail` o `inconclusive`; valori dentro lo spread combinato sono
-`inconclusive`. Il successo richiede insieme correttezza, boundedness e tail latency, non una media
-ops/s più alta.
+The final report must show absolute values, paired/current ratio, min/median/max, dispersion and the
+complete environment. An outcome is `pass`, `fail` or `inconclusive`; values within the combined
+spread are `inconclusive`. Success requires correctness, boundedness and tail latency together, not
+a higher mean ops/s.
 
-## Esito del primo gate e backlog
+## Outcome of the first gate and backlog
 
-Il data path GET isolato passa il gate preliminare: 2,75× a 64 B e 6,11× a 1 KiB, con p99 inferiore.
-Il prototipo nel suo insieme fallisce invece il throughput 95/5: 0,30× e 0,25× rispetto al current.
-La causa primaria è la copia cumulativa del delta e dei payload durante ogni publication.
+The isolated GET data path passes the preliminary gate: 2.75× at 64 B and 6.11× at 1 KiB, with a
+lower p99. The prototype as a whole instead fails the 95/5 throughput: 0.30× and 0.25× relative to
+the current runtime. The primary cause is the cumulative copy of the delta and of the payloads
+during every publication.
 
-Ordine vincolante prima dell'integrazione Reactor:
+Binding order before the Reactor integration:
 
-1. P0 — storage payload stabile e `RecordView` compatto generation-pinned — completato nel
-   prototipo con `StableRecord` condiviso fuori dal GET;
-2. P0 — delta senza copia cumulativa — completato con pagine immutable copy-on-write;
-3. P0 — instrumentation allocator/copy esatta — copie ingress, ownership directory, viste raw,
-   pagine e record logici sono misurati. PMR generalista e slab unico sono stati respinti dai gate;
-   gli hook allocator production vanno disegnati per classi di size e retention bounded;
-4. P1 — Reactor sperimentale con ownership socket e output lease QSBR;
-5. P1 — multi-pair 1/2/4/8, affinity/topologia e isolamento fra pair;
-6. P1 — TCP pipeline 1/8/32/128 e valori 64 B–256 KiB a semantica equivalente;
-7. P2 — Segment v1, durability sync/group/periodic, crash/fault/recovery;
-8. P2 — compaction incrementale e reclamation con socket lento.
+1. P0 — stable payload storage and compact generation-pinned `RecordView` — completed in the
+   prototype with a shared `StableRecord` outside the GET;
+2. P0 — delta without cumulative copy — completed with immutable copy-on-write pages;
+3. P0 — exact allocator/copy instrumentation — ingress copies, directory ownership, raw views,
+   pages and logical records are measured. General-purpose PMR and a single slab were rejected by
+   the gates; the production allocator hooks must be designed per size class and bounded retention;
+4. P1 — experimental Reactor with socket ownership and QSBR output lease;
+5. P1 — multi-pair 1/2/4/8, affinity/topology and isolation between pairs;
+6. P1 — TCP pipeline 1/8/32/128 and values 64 B–256 KiB with equivalent semantics;
+7. P2 — Segment v1, sync/group/periodic durability, crash/fault/recovery;
+8. P2 — incremental compaction and reclamation with a slow socket.
 
-Il secondo gate supera la condizione per il punto 4: 95/5 pari a 2,15× della baseline a 64 B e
-4,57× a 1 KiB, con p99 GET rispettivamente 208 e 208 ns contro 292 e 500 ns. Il risultato resta
-micro/in-process e non autorizza ancora l'attivazione default nel daemon.
+The second gate satisfies the condition for item 4: 95/5 at 2.15× the baseline at 64 B and 4.57× at
+1 KiB, with GET p99 of 208 and 208 ns respectively against 292 and 500 ns. The result remains
+micro/in-process and does not yet authorize default activation in the daemon.
 
-## Esito gate Reactor TCP a coppia singola
+## Outcome of the single-pair Reactor TCP gate
 
-Il target wire-to-wire usa il client C++ pubblico, una sola coppia, 1–8 connessioni, workload
-deterministico e ordine A/B interlacciato. Debug, ASan+UBSan e TSan passano tutti i 446 test. Il
-percorso di output lento è coperto forzando una write parziale e verificando pin e rilascio della
+The wire-to-wire target uses the public C++ client, a single pair, 1–8 connections, a deterministic
+workload and interleaved A/B order. Debug, ASan+UBSan and TSan all pass the 446 tests. The slow
+output path is covered by forcing a partial write and verifying the pin and the release of the
 generation.
 
-Esito per area:
+Outcome per area:
 
-| Area | Esito | Evidenza principale |
+| Area | Outcome | Main evidence |
 |---|---|---|
-| GET 64 B, pipeline 32 | pass throughput preliminare | +2,0%/+4,8%/+0,6%/+1,6% con 1/2/4/8 connessioni; p99 non uniforme |
-| GET 64 B, pipeline 1/8 | inconclusive | -1,8%/-2,5%, entro una fascia da confermare su host isolato |
-| GET 64 B, pipeline 128 | pass preliminare | +11,4%, p99 batch inferiore |
-| GET 1 KiB–256 KiB | pass preliminare | +21% fino a +233%; scatter/gather domina sui valori grandi |
-| mixed 64 B 99/1 | fail | -18%, p99 batch +38%, publication batch medio 1,07 |
-| mixed 64 B 95/5 | fail critico | -54%, p99 batch +131%, publication batch medio 1,25 |
-| mixed 64 B 90/10 | fail critico | -73%, p99 batch +262%, publication batch medio 1,43 |
-| bounded output/reclamation | pass | pin soltanto su write parziale, high-water bounded, zero backlog finale |
+| GET 64 B, pipeline 32 | preliminary throughput pass | +2.0%/+4.8%/+0.6%/+1.6% with 1/2/4/8 connections; p99 not uniform |
+| GET 64 B, pipeline 1/8 | inconclusive | -1.8%/-2.5%, within a band to confirm on an isolated host |
+| GET 64 B, pipeline 128 | preliminary pass | +11.4%, lower batch p99 |
+| GET 1 KiB–256 KiB | preliminary pass | +21% up to +233%; scatter/gather dominates on large values |
+| mixed 64 B 99/1 | fail | -18%, batch p99 +38%, mean publication batch 1.07 |
+| mixed 64 B 95/5 | critical fail | -54%, batch p99 +131%, mean publication batch 1.25 |
+| mixed 64 B 90/10 | critical fail | -73%, batch p99 +262%, mean publication batch 1.43 |
+| bounded output/reclamation | pass | pin only on partial write, bounded high-water, zero final backlog |
 
-Le latenze riportate dal target TCP sono p50/p99/p99.9 del completamento dell'intero batch client.
-Non possono essere presentate come p99 del solo GET quando il batch contiene una mutazione. Il
-prossimo benchmark deve separare istogrammi read/write e connessioni read-only/write-only.
+The latencies reported by the TCP target are p50/p99/p99.9 of the completion of the entire client
+batch. They cannot be presented as the p99 of the GET alone when the batch contains a mutation. The
+next benchmark must separate read/write histograms and read-only/write-only connections.
 
-Il gate vieta per ora multi-pair e integrazione nel daemon. Il nuovo P0 è il costo della mutazione
-isolata: ogni connessione ammette correttamente una sola mutazione prima della barriera read-after-
-write, quindi con quattro client il Writer forma batch medi troppo piccoli per ripagare handoff,
-publication immutabile e completion wakeup. Aumentare soltanto `max_wait` porta il batch 95/5 fino
-a 2,52 record a 32 us, ma riduce il throughput; non è una soluzione.
+For now the gate forbids multi-pair and daemon integration. The new P0 is the cost of the isolated
+mutation: every connection correctly admits a single mutation before the read-after-write barrier,
+so with four clients the Writer forms mean batches too small to repay the handoff, immutable
+publication and completion wakeup. Raising only `max_wait` brings the 95/5 batch up to 2.52 records
+at 32 us, but reduces throughput; it is not a solution.
 
-Ordine P0:
+P0 order:
 
-1. profilare separatamente submit→dequeue, build delta, publication e completion→ACK;
-2. adaptive spin/park del Reader dopo submit e wakeup Reader→Writer, distinti per profilo;
-3. ridurre allocazioni e cache-line traffic della publication isolata con retention bounded;
-4. consentire coalescing di PUT consecutivi della stessa connessione fino alla prima barriera GET,
-   senza ACK o visibilità anticipati;
-5. ripetere 99/1 e 95/5 a 64 B; autorizzare multi-pair solo se 99/1 rientra nel rumore e p99 GET
-   isolato migliora sotto Writer concorrente.
+1. profile separately submit→dequeue, build delta, publication and completion→ACK;
+2. adaptive spin/park of the Reader after submit and Reader→Writer wakeup, distinct per profile;
+3. reduce allocations and cache-line traffic of the isolated publication with bounded retention;
+4. allow coalescing of consecutive PUTs of the same connection up to the first GET barrier, without
+   early ACK or visibility;
+5. repeat 99/1 and 95/5 at 64 B; authorize multi-pair only if 99/1 falls within the noise and the
+   isolated GET p99 improves under a concurrent Writer.

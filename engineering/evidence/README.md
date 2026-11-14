@@ -1,52 +1,76 @@
-# Retained evidence drops for tagged claims (Phase D+).
-# Populate from CI artifacts / campaign records; do not invent E3/E4.
+# Retained evidence
 
-- [`blob-local-2026-11-07.md`](blob-local-2026-11-07.md) records the embedded 64 MiB
-  integration, sanitizer and 51-case SIGKILL campaign, including the allocation-test timeout.
-  It is local prototype evidence and does not close the blob gates.
-- [`blob-lifecycle-local-2026-11-07.md`](blob-lifecycle-local-2026-11-07.md) records local staging
-  cleanup, terminal exception, peak quota and sync-hook regressions for embedded blobs.
-  It covers a limited lifecycle subset and does not close the blob or durability gates.
-- [`compaction-delta-local-2026-11-07.md`](compaction-delta-local-2026-11-07.md) records the isolated
-  v1 bounded-delta native/sanitizer/allocation/crash campaign and controlled staging smoke samples.
-  It is local macOS prototype evidence, without a p99.9 improvement or release acceptance claim.
-- [`code-style-local-2026-11-07.md`](code-style-local-2026-11-07.md) records the shared pinned
-  formatter, native source coverage and eight-check static-analysis campaign, including the
-  concurrent-feature rebuild limitation. It is local evidence only.
-- [`cpp-correctness-local-2026-11-07.md`](cpp-correctness-local-2026-11-07.md) records the
-  local C++ allocation, deadline, observer, aliasing and cold-read lifetime repairs. It does not
-  promote a gate or provide CI, release or durability certification.
-- [`dependabot-local-2026-11-07.md`](dependabot-local-2026-11-07.md) records local CodeQL
-  revision/grouping regressions and TLC checks for Dependabot workflow repairs. It is neither
-  hosted CI nor release evidence.
+Durable pointers and reviewed campaign records behind GlifiStore's claims. They are populated from
+CI artifacts and campaign records, never written by hand in place of a missing CI run, and no E3 or
+E4 result is ever invented.
+
+Tagged release promotion follows the machine-readable contract in
+[release evidence](../../docs/distribution/release-evidence.md): evidence JSON and every log it
+references are carried as sealed release-candidate files. The release retention checklist is in
+[`release/`](release/README.md); no tagged drop exists yet.
+
+## Hosted CI
+
+- [`security-bounds-ci-2026-11-01.md`](security-bounds-ci-2026-11-01.md): three network-security
+  bounds workflows that completed successfully on one exact source and test commit
+  ([ADR 0041](../../docs/adr/0041-bounded-network-security-lifecycles.md), `GS-SEC-BOUNDS-001`,
+  `GS-SEC-PROFILE-001`, `HAZ-024`). `GATE-AUTH-TRANSPORT` is `PROVATA_IN_CI` for its retained
+  platform rows.
 - [`sdk-installed-secure-profile.md`](sdk-installed-secure-profile.md) defines the temporary CI
   evidence bundle for the installed six-SDK secure-profile matrix. It is not a tagged claim drop.
-- [`adr0036-slot-token-local-2026-08-27.md`](adr0036-slot-token-local-2026-08-27.md) records a local,
-  prototype-only Release/sanitizer campaign. It is neither CI nor release evidence.
-- [`paired-generation-admission-local-2026-08-27.md`](paired-generation-admission-local-2026-08-27.md)
-  records the local Alternative A retire-bound campaign. It is neither CI nor release evidence.
-- [`adr0036-fixed-shell-local-2026-08-27.md`](adr0036-fixed-shell-local-2026-08-27.md) records the
-  local fixed-shell, direct-object and two-thread publication candidate campaigns. It is neither CI
-  nor release evidence.
-- [`adr0036-production-slot-local-2026-08-27.md`](adr0036-production-slot-local-2026-08-27.md)
-  records local Wave 1 production-flag V1/V5/V6/V7/V9/V10 coverage. ADR 0036 remains proposed;
-  this is neither CI nor release evidence.
-- [`quality-hardening-local-2026-08-30.md`](quality-hardening-local-2026-08-30.md) records the local
-  documentation, formatting, static-analysis, strict, ASan+UBSan, and TSan hardening campaign. It
-  is neither CI nor release evidence.
-- [`correctness-assurance-local-2026-08-30.md`](correctness-assurance-local-2026-08-30.md) records
-  the local adversarial correctness campaign, confirmed defect repairs, analyzer triage, and
-  capability gaps. Its machine-readable broad clang-tidy result is retained in
-  [`correctness-clang-tidy-2026-08-30.json`](correctness-clang-tidy-2026-08-30.json). Neither file
-  is CI or release evidence.
 
-- [`platform-durability/`](platform-durability/) reserves per-row evidence path placeholders
-  (APFS/ext4/XFS/UFS/ZFS/FFS). Rows are **not** E3/E4 certified; see each subdirectory README.
+## Platform durability
 
-Tagged release promotion uses the machine-readable contract in
-[`docs/distribution/release-evidence.md`](../../docs/distribution/release-evidence.md). Evidence JSON
-and every referenced log are carried as sealed release candidate files; this directory stores only
-durable pointers or reviewed campaign records, never hand-written replacements for missing CI runs.
+[`platform-durability/`](platform-durability/) reserves an evidence path per row: APFS, ext4, XFS,
+UFS, ZFS and FFS. No row is E3 or E4 certified; each subdirectory README says what it holds.
 
-Release retention checklist (Wave 5 scaffolding, no tagged drops yet):
-[`release/README.md`](release/README.md).
+## Inventories
+
+[`memory-order-inventory-2026-08-30.json`](memory-order-inventory-2026-08-30.json) is the
+machine-readable record behind the
+[memory-order inventory](../../docs/assurance/memory-order-inventory.md).
+
+## Local campaigns
+
+Local records are prototype evidence
+([evidence taxonomy](../../docs/assurance/evidence-taxonomy.md)): none is hosted CI or release
+evidence. Each 2026-11-07 record keeps its raw logs in a directory with the same subject and date,
+such as `blob-2026-11-07/`.
+
+- [`blob-local-2026-11-07.md`](blob-local-2026-11-07.md): the embedded 64 MiB integration,
+  sanitizer and 51-case SIGKILL campaign, including the allocation-test timeout. It does not close
+  the blob gates.
+- [`blob-lifecycle-local-2026-11-07.md`](blob-lifecycle-local-2026-11-07.md): staging cleanup,
+  terminal exception, peak quota and sync-hook regressions for embedded blobs. A limited lifecycle
+  subset; it does not close the blob or durability gates.
+- [`compaction-delta-local-2026-11-07.md`](compaction-delta-local-2026-11-07.md): the isolated v1
+  bounded-delta native, sanitizer, allocation and crash campaign, with controlled staging smoke
+  samples, on macOS. No p99.9 improvement or release acceptance claim.
+- [`code-style-local-2026-11-07.md`](code-style-local-2026-11-07.md): the shared pinned formatter,
+  native source coverage and the eight-check static-analysis campaign, including the
+  concurrent-feature rebuild limitation.
+- [`cpp-correctness-local-2026-11-07.md`](cpp-correctness-local-2026-11-07.md): C++ allocation,
+  deadline, observer, aliasing and cold-read lifetime repairs. It promotes no gate and provides no
+  CI, release or durability certification.
+- [`dependabot-local-2026-11-07.md`](dependabot-local-2026-11-07.md): CodeQL revision and grouping
+  regressions and TLC checks for the Dependabot workflow repairs.
+- [`security-bounds-local-2026-11-01.md`](security-bounds-local-2026-11-01.md): the local
+  network-security bounds remediation under ADR 0041. It certifies neither production readiness,
+  hostile-public exposure nor physical durability.
+- [`quality-hardening-local-2026-08-30.md`](quality-hardening-local-2026-08-30.md): the
+  documentation, formatting, static-analysis, strict, ASan+UBSan and TSan hardening campaign.
+- [`correctness-assurance-local-2026-08-30.md`](correctness-assurance-local-2026-08-30.md): the
+  adversarial correctness campaign, confirmed defect repairs, analyzer triage and capability gaps.
+  Its broad clang-tidy result is machine-readable in
+  [`correctness-clang-tidy-2026-08-30.json`](correctness-clang-tidy-2026-08-30.json).
+- [`adr0036-slot-token-local-2026-08-27.md`](adr0036-slot-token-local-2026-08-27.md): a
+  prototype-only Release and sanitizer campaign.
+- [`adr0036-fixed-shell-local-2026-08-27.md`](adr0036-fixed-shell-local-2026-08-27.md): the
+  fixed-shell, direct-object and two-thread publication candidate campaigns.
+- [`adr0036-production-slot-local-2026-08-27.md`](adr0036-production-slot-local-2026-08-27.md):
+  production-flag V1, V5, V6, V7, V9 and V10 coverage. ADR 0036 remains proposed.
+- [`paired-generation-admission-local-2026-08-27.md`](paired-generation-admission-local-2026-08-27.md):
+  the Alternative A retire-bound campaign.
+- [`wave2-hotpath-local-2026-08-27.md`](wave2-hotpath-local-2026-08-27.md): hot-path residuals:
+  lane padding, generation adoption, the Writer wait ladder, zero-heap small GET, combining and
+  SPSC backpressure, with their non-goals.

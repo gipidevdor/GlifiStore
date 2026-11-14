@@ -1,18 +1,19 @@
-Status: descriptive of as-implemented paired Writer mutation lifecycle (behavior-neutral refactor baseline)
-Applies to: `ShardPairRuntime::run` and extracted Writer TUs (`writer_loop` / `writer_sync` / `writer_async` / `sync_lane`)
-Owner: store/concurrency maintainers
-Last reviewed: 2026-08-30
+# Mutation lifecycle
+
+**Descriptive** · `ShardPairRuntime::run` and the extracted Writer TUs · reviewed 2026-08-30
+
 Requirement: `GS-CONCUR-PAIR-001`
 
-# Mutation lifecycle (as implemented)
+This document maps the **current** paired Writer mutation lifecycle in `ShardPairRuntime::run` and
+the Writer TUs `writer_loop`, `writer_sync`, `writer_async` and `sync_lane`, as the baseline for
+behavior-neutral refactoring. It does not authorize protocol, ACK polarity, or fail-closed changes.
 
-This document maps the **current** paired Writer mutation lifecycle. It does not authorize
-protocol, ACK polarity, or fail-closed changes. Structural refactoring must preserve every
-outcome described here. When code and this text diverge, prefer the stricter fail-closed
-reading and update this document in the same commit as the behavioral lock.
+Structural refactoring must preserve every outcome described here. When code and this text diverge,
+prefer the stricter fail-closed reading and update this document in the same commit as the
+behavioral lock.
 
-Authoritative wire polarity: [error-taxonomy-v1.md](error-taxonomy-v1.md),
-[client-semantics-v1.md](client-semantics-v1.md).
+Authoritative wire polarity: [error taxonomy v1](error-taxonomy-v1.md),
+[client semantics v1](client-semantics-v1.md).
 
 ## 1. Three authorities (must stay distinct)
 

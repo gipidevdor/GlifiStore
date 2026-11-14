@@ -1,4 +1,6 @@
-# Durable GET path SIMD hot-cache probe (2026-07-25)
+# Durable GET path SIMD hot-cache probe
+
+**Historical** · durable GET path, local benchmark · 2026-07-25
 
 ## Scope
 

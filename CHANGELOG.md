@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+- Rewrite the documentation for clarity and economy. Each guide opens with one status line
+  (Normative, Descriptive, Roadmap or Historical);
+  [documentation](docs/development/documentation.md) holds the writing and review standard and
+  [docs/README.md](docs/README.md) maps every page.
+  Overlapping pages now have one home each: the ABI pages, the index, vacuum and safety models, the
+  public API contract, the architecture backup note, the operations handbook, Worker resharding and
+  the documentation roadmap merge into their nearest guide or specification; the final engineering
+  report and the debt-remediation lanes are retired. The documentation site build no longer fails
+  on the shared `blob.hpp` file name or an `index` heading. No contract, format or behavior change.
+  Claim ceiling unchanged.
+
 - Fix clang-format drift that failed Static analysis on `main` (client/store/daemon erase_batch
   paths and related litmus). Claim ceiling unchanged.
 
@@ -911,7 +922,7 @@
   ADR 0034).
 - ADR [0034](docs/adr/0034-zero-fence-hot-backup-deferred.md): freeze design requirements for
   zero-fence hot backup; 0.1.x keeps offline + online fenced paths only.
-- Docs P1: [operations handbook](docs/operations/handbook.md) and
+- Docs P1: [operations handbook](docs/operations/README.md) and
   [ADR 0033](docs/adr/0033-online-rebalance-deferred.md) (online rebalance design frozen,
   implementation deferred past 0.1.x).
 - Docs P1: normative [backup-restore-v1](docs/spec/backup-restore-v1.md) and

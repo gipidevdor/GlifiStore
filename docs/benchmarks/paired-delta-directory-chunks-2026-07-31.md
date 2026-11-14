@@ -1,65 +1,68 @@
-# Paired Delta directory-chunk COW — 2026-07-31
+# Paired Delta directory-chunk COW
 
-## Esito
+**Historical** · macOS arm64, advisory affinity, Release · 2026-07-31
 
-**Accettato come ottimizzazione strutturale bounded; magnitude mixed non chiusa su macOS.**
-Il follow-up P1 al gate
+## Outcome
+
+**Accepted as a bounded structural optimization; magnitude mixed, not closed on macOS.** The P1
+follow-up to the gate
 [`paired-generational-delta-arena-2026-07-29.md`](paired-generational-delta-arena-2026-07-29.md)
-riduce il costo di pubblicazione senza indebolire lifetime QSBR né la capacità per **versioni**.
+reduces the publication cost without weakening the QSBR lifetime or the capacity counted in
+**versions**.
 
-La spine del directory Delta a capacità massima (~40 960 entry) esponeva ~256
-`shared_ptr<DeltaDirectoryBlock>` copiati a ogni `DeltaBuilder`. Ogni PUT→GET a pipeline 1
-pagava quel traffico di refcount anche per un solo record. Il layout a chunk introduce un
-secondo livello COW (`DeltaDirectoryChunk`, 16 block per chunk): la publication copia ~16
-puntatori di chunk e fa COW solo del chunk/blocco/pagina toccati.
+The spine of the Delta directory at maximum capacity (~40,960 entries) exposed ~256
+`shared_ptr<DeltaDirectoryBlock>` copied on every `DeltaBuilder`. Every PUT→GET at pipeline 1 paid
+that refcount traffic even for a single record. The chunked layout introduces a second COW level
+(`DeltaDirectoryChunk`, 16 blocks per chunk): the publication copies ~16 chunk pointers and performs
+COW only on the touched chunk, block and page.
 
-Micro-opt collaterali, stesso lifetime:
+Side micro-optimizations, same lifetime:
 
-- contatori O(1) per byte chiave arena (niente scan dei key block a ogni update stats);
-- costruzione in-place della cella `DeltaRecord` da 64 B;
-- cache last-page sul builder per batch multi-mutation.
+- O(1) counters for arena key bytes (no scan of the key blocks on every stats update);
+- in-place construction of the 64 B `DeltaRecord` cell;
+- last-page cache on the builder for multi-mutation batches.
 
-## Invarianti preservati
+## Preserved invariants
 
-- celle arena 64 B, blocchi da 64 record, chiavi lunghe in blocchi 4 KiB;
-- capacità contata in versioni; merge/backpressure invariati;
-- publication release / Reader acquire come unico edge cross-thread;
-- reclamation solo dopo quiescenza QSBR;
-- nessuna catena Delta aggiuntiva, nessun handle `shared_ptr<ReadRecord>` per versione.
+- 64 B arena cells, blocks of 64 records, long keys in 4 KiB blocks;
+- capacity counted in versions; merge/backpressure unchanged;
+- publication release / Reader acquire as the only cross-thread edge;
+- reclamation only after QSBR quiescence;
+- no additional Delta chain, no `shared_ptr<ReadRecord>` handle per version.
 
-## Metodo A/B (advisory macOS)
+## A/B method (advisory macOS)
 
-- stesso host arm64, Apple LLVM 21, Release;
-- baseline = tree `fddb355` senza questo patch; candidate = patch;
-- ordine interleaved `old/new/new/old` (+ ciclo di conferma);
-- PUT→GET volatile p1: key 16 B, value 64 B, 1 pair, 8 client, warmup 2, repeats 5, 100 000 ops;
-- GET volatile p32 di controllo;
-- affinity Mach advisory; **non** hard-pinned.
+- same arm64 host, Apple LLVM 21, Release;
+- baseline = tree `fddb355` without this patch; candidate = patch;
+- interleaved order `old/new/new/old` (+ a confirmation cycle);
+- volatile PUT→GET p1: key 16 B, value 64 B, 1 pair, 8 clients, warmup 2, repeats 5, 100,000 ops;
+- volatile GET p32 as a control;
+- advisory Mach affinity; **not** hard-pinned.
 
 Raw: `benchmark-results/paired-shards/fddb355-dirty/macos-arm64/2026-07-31-p1-delta-directory-chunks/`.
 
-## Risultati
+## Results
 
-Lo spread termico/load sullo stesso host è ampio (campioni PUT→GET da ~60 k a ~208 k ops/s).
-Non si dichiara il recupero completo del −1,8% storico contro il pre-arena.
+The thermal/load spread on the same host is wide (PUT→GET samples from ~60 k to ~208 k ops/s). The
+full recovery of the historical −1.8% against the pre-arena layout is not claimed.
 
-| sottoinsieme | old median | new median | nota |
+| subset | old median | new median | note |
 |---|---:|---:|---|
-| tutti i campioni PUT→GET interleaved+confirm | ~122 k | ~149 k | spread dominante; non claim |
-| campioni ≥150 k ops/s (meno throttled) | ~179 k | ~205 k | direzionale, ancora advisory |
-| GET volatile p32 | 1,998 M | 1,967 M | ~−1,6%, entro rumore locale |
+| all interleaved+confirm PUT→GET samples | ~122 k | ~149 k | spread dominates; no claim |
+| samples ≥150 k ops/s (less throttled) | ~179 k | ~205 k | directional, still advisory |
+| volatile GET p32 | 1.998 M | 1.967 M | ~−1.6%, within local noise |
 
-Nessun claim production-ready su throughput medio. Nessun `e3_certified=yes`.
+No production-ready claim on mean throughput. No `e3_certified=yes`.
 
-## Verifica
+## Verification
 
-- Debug `glifistore_tests`: 471/471 sul tree candidate;
-- test arena overwrite/version capacity invariati (`pair_read_generation_tests`);
-- lifetime e merge path non ristrutturati oltre la spine directory.
+- Debug `glifistore_tests`: 471/471 on the candidate tree;
+- arena overwrite/version capacity tests unchanged (`pair_read_generation_tests`);
+- lifetime and merge path not restructured beyond the directory spine.
 
-## Decisione e seguito
+## Decision and follow-up
 
-Si promuove il chunked directory COW perché elimina una tassa strutturale sulla publication
-single-record senza toccare capacità o QSBR. Il residual P1 di **magnitude** (quanto del −1,8%
-misto storico è recuperato) resta aperto fino all'A/B Linux hard-pinned
+The chunked directory COW is promoted because it removes a structural tax on single-record
+publication without touching capacity or QSBR. The residual P1 on **magnitude** (how much of the
+historical mixed −1.8% is recovered) stays open until the hard-pinned Linux A/B
 ([`paired-shards-linux-p1.md`](paired-shards-linux-p1.md)).

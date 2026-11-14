@@ -1,21 +1,18 @@
-Status: normative policy for budget classes; descriptive for advisory snapshots
-Applies to: hosted CI regression, hardware self-hosted gates, soak/overload linkage
-Owner: performance / ops maintainers
-Last reviewed: 2026-08-27
-
 # Performance and soak budgets
 
-Machine-readable authority: [`engineering/performance/budgets.yaml`](../../engineering/performance/budgets.yaml).
+**Normative** · hosted CI regression, hardware gates, soak and overload · reviewed 2026-08-27
+
+The budget classes that link performance, soak and overload evidence to quality gates, and the
+absolute thresholds still waiting for hardware. The page is normative for budget classes and
+descriptive for advisory snapshots.
+
+Authority: [`engineering/performance/budgets.yaml`](../../engineering/performance/budgets.yaml).
 Validator: `python3 engineering/tools/validate_perf_budgets.py`.
 
-GlifiStore claim ceiling remains **architectural prototype**. Hosted GitHub runners produce
-**regression signals only**. Absolute throughput or p99 product claims require a labeled
-hardware runner (`glifistore-linux-perf`) and a `pass-candidate` manifest
-([evidence taxonomy](evidence-taxonomy.md) label `hardware`).
-
-Wave 6 scaffolding prepares absolute placeholders below. They stay
-`specified_waiting_for_runner` until retained hardware evidence exists. This document does
-**not** claim `ACCETTATA_PER_RILASCIO`, E3, or E4.
+The claim ceiling stays architectural prototype. Hosted GitHub runners produce regression signals
+only. An absolute throughput or p99 product claim requires the labeled hardware runner
+`glifistore-linux-perf` and a `pass-candidate` manifest: label `hardware` in the
+[evidence taxonomy](evidence-taxonomy.md).
 
 ## Budget classes
 
@@ -31,36 +28,36 @@ Wave 6 scaffolding prepares absolute placeholders below. They stay
 | `SOAK-SOFTWARE-EXTENDED` | `GATE-SOAK` | Scheduled/manual long/1h/4h software soak |
 | `OVERLOAD-RUNBOOK` | `GATE-OPS-RUNBOOKS` | Drain/overload runbook exercised in ops-runbooks CI |
 
-## Absolute placeholders (Wave 6 — not enforced)
+## Absolute placeholders (not enforced)
 
-Fill numeric thresholds only from a `glifistore-linux-perf` `pass-candidate` artifact. Until then,
-treat every cell as scaffolding:
+These placeholders are scaffolding. Each stays `specified_waiting_for_runner` until retained
+hardware evidence exists, and its numeric threshold may come only from a `glifistore-linux-perf`
+`pass-candidate` artifact. This page does not claim `ACCETTATA_PER_RILASCIO`, E3 or E4.
 
 | Placeholder | Intended metric | Draft rule (not enforced) | Evidence class | Status |
 | --- | --- | --- | --- | --- |
 | Scale 1/2/4/8 | efficiency vs 1-pair median ops/s on same pin | ≥ 80% to physical-core count, or documented bottleneck removal | `hardware` | `specified_waiting_for_runner` |
 | No CPU migration | `perf` `cpu-migrations` per cell | == 0 on hard-pinned run (harness flags otherwise) | `hardware` | `specified_waiting_for_runner` |
 | Client/server split | disjoint `SERVER_CPUS` / `CLIENT_CPUS` | required for pass-candidate | `hardware` | `specified_waiting_for_runner` |
-| Absolute p99 GET | GET p99 latency (ns) | **TBD** — do not invent | `hardware` | `specified_waiting_for_runner` |
-| Absolute p99 PUT | PUT p99 latency (ns) | **TBD** — do not invent | `hardware` | `specified_waiting_for_runner` |
+| Absolute p99 GET | GET p99 latency (ns) | TBD — do not invent | `hardware` | `specified_waiting_for_runner` |
+| Absolute p99 PUT | PUT p99 latency (ns) | TBD — do not invent | `hardware` | `specified_waiting_for_runner` |
 | Interleaved A/B | old/new/new/old | hard-reject >5% affine PUT 2t regression when closing ADR 0036 V12 | `hardware` | `specified_waiting_for_runner` |
 
 Harness: [`scripts/benchmark_paired_linux_ab.sh`](../../scripts/benchmark_paired_linux_ab.sh).
-Methodology: [`paired-shards-linux-p1.md`](../benchmarks/paired-shards-linux-p1.md).
+Methodology: [paired shards Linux P1 harness](../benchmarks/paired-shards-linux-p1.md).
 
-## Wave 6 blockers (honest open)
+## Open blockers
 
-1. Self-hosted runner labeled `glifistore-linux-perf` publishing a retained `pass-candidate`
+1. A self-hosted runner labeled `glifistore-linux-perf` that publishes a retained `pass-candidate`
    manifest (hard pins, NUMA, disjoint client/server CPUs, migration counters).
-2. Physical E3 durability lab (separate from this A/B harness); E3/E4 remain open — rehearsal ≠
-   certification ([evidence taxonomy](evidence-taxonomy.md)).
-3. No `ACCETTATA_PER_RILASCIO` promotion from this scaffolding alone.
+2. A physical E3 durability lab, separate from this A/B harness. E3/E4 remain open; rehearsal is
+   not certification ([evidence taxonomy](evidence-taxonomy.md)).
+3. This scaffolding alone promotes nothing to `ACCETTATA_PER_RILASCIO`.
 
 ## Related
 
 - [Benchmark standard](../spec/benchmark-standard.md)
-- [Paired Linux P1 harness](../benchmarks/paired-shards-linux-p1.md)
+- [Paired shards Linux P1 harness](../benchmarks/paired-shards-linux-p1.md)
 - [Evidence taxonomy](evidence-taxonomy.md)
-- [Debt remediation lanes](debt-remediation-lanes.md) (Wave 6)
 - [Soak profiles](../operations/soak.md)
 - [Graceful drain and overload](../operations/graceful-drain-and-overload.md)

@@ -1,7 +1,7 @@
 name: Coverage
 
 # Diagnostic only — line coverage is not an acceptance metric
-# (docs/development/test-strategy.md §7).
+# (docs/development/test-strategy.md, "Coverage policy").
 on:
   schedule:
     - cron: "11 3 * * 0"

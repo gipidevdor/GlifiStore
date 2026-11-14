@@ -96,7 +96,7 @@ requirements:
   autorita:
   - docs/spec/c-abi-v1.md
   - docs/adr/0038-stable-c-abi-artifact-delivery.md
-  - docs/abi/compatibility-policy.md
+  - docs/abi/README.md
   implementazione:
   - ABI_VERSION
   - include/glifistore/abi/glifistore.h

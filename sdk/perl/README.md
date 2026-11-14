@@ -1,26 +1,20 @@
 # GlifiStore Perl client
 
-Native synchronous Perl client for GlifiStore wire protocol v2. It uses only core modules, keeps
-one bound TCP connection per Worker, supports arbitrary byte strings, retries safe reads (including
-transient `unavailable` reconnects while routing metadata is stable), and preserves indeterminate
-mutation outcomes. Portable error/retry/deadline rules:
-[client semantics v1](../../docs/spec/client-semantics-v1.md).
+`GlifiStore::Client` is a native, synchronous Perl client for GlifiStore wire protocol v2.
 
-Worker routing follows ADR 0030: plain `GlifiStore/2` is FNV-1a; the extended INIT identity selects SipHash-2-4.
+## Guarantees
 
-**Security posture:** cleartext TCP by default (no authentication). Opt-in TLS 1.3 via
-`tls => 1` with `tls_ca` / `ca_file`, `cert_file` / `key_file` (mTLS), `server_name`, and
-`insecure_skip_verify` (lab only). Requires `IO::Socket::SSL`; if missing, TLS requests fail closed.
-Hostname/SNI verification is on by default. Use loopback / private network / sidecar for cleartext
-([security roadmap](../../docs/security/roadmap.md); OpenBSD uses LibreSSL on the daemon).
+- Keeps one bound TCP connection per Worker.
+- Routes each binary key to its owner Worker as
+  [ADR 0030](../../docs/adr/0030-keyed-worker-routing.md) specifies: a plain `GlifiStore/2` INIT
+  identity means canonical FNV-1a 64-bit; the extended INIT identity selects SipHash-2-4.
+- Supports arbitrary byte strings.
+- Follows [client semantics v1](../../docs/spec/client-semantics-v1.md) for portable error, retry
+  and deadline rules.
+- Retries safe reads, including transient `unavailable` reconnects while routing metadata is stable.
+- Preserves indeterminate mutation outcomes.
 
-License: BSD-3-Clause. Requires Perl ≥ 5.32.
-
-### Thread and fork contract
-
-`GlifiStore::Client` is **not** shareable across ithreads and has no internal mutexes. Do not use
-sockets created before `fork` in the child; open a new client per process (and per thread if you
-use threads). Prefer `execute_worker_pipelines` to overlap Workers inside one process.
+## Example
 
 ```perl
 use GlifiStore::Client;
@@ -31,21 +25,11 @@ my $value = $cache->get("session\x00key") if $stored->{outcome} eq 'committed';
 $cache->close;
 ```
 
-Ordered, non-atomic pipelines use hash references and return one positional result per request.
-`execute_batch` groups by Worker, overlaps per-Worker pipelines, and restores caller order (not a
-transaction). Prefer `execute_worker_pipelines` when you already have per-Worker vectors.
-
-```perl
-my $responses = $cache->execute_pipeline([
-    { opcode => 'put', key => 'key', value => 'value' },
-    { opcode => 'get', key => 'key' },
-]);
-my $ordered = $cache->execute_batch(\@mixed_worker_requests);
-```
-
 ## Install
 
-From CPAN (once published):
+The client needs Perl 5.32 or later and uses only core modules.
+
+From CPAN, once published:
 
 ```bash
 cpanm GlifiStore
@@ -57,78 +41,99 @@ From this source tree:
 cd sdk/perl && perl Makefile.PL && make && make test && make install
 ```
 
-## Tests and packaging
+The license is BSD-3-Clause.
 
-```bash
-./scripts/test-perl-client.sh
-./scripts/package-perl-client.sh
+## Configuration
+
+`connect` takes named options, such as `host` and `port` in the example. Besides TCP, the client
+can dial an AF_UNIX socket.
+
+## TLS
+
+Connections are cleartext TCP by default, without authentication: use cleartext only on loopback, a
+private network or a sidecar. TLS 1.3 is opt-in with `tls => 1`, plus `tls_ca` or `ca_file`,
+`cert_file` and `key_file` for mTLS, `server_name`, and `insecure_skip_verify` for lab use only.
+Hostname and SNI verification is on by default.
+
+TLS requires `IO::Socket::SSL`; without it, a TLS request fails closed. See the
+[security roadmap](../../docs/security/roadmap.md); on OpenBSD the daemon uses LibreSSL.
+
+## Errors and mutation outcomes
+
+A mutation result is a hash reference whose `outcome` is `committed`, `rejected` or
+`indeterminate`. Check it before relying on a write, as the example does.
+
+## Pipelines and batches
+
+Ordered, non-atomic pipelines take hash references and return one positional result per request.
+`execute_batch` groups requests by Worker, overlaps the per-Worker pipelines and restores caller
+order; it is not a transaction. When the work is already split per Worker, pass the per-Worker
+vectors to `execute_worker_pipelines`.
+
+```perl
+my $responses = $cache->execute_pipeline([
+    { opcode => 'put', key => 'key', value => 'value' },
+    { opcode => 'get', key => 'key' },
+]);
+my $ordered = $cache->execute_batch(\@mixed_worker_requests);
 ```
 
-`./scripts/test-perl-client.sh` runs **Perl::Critic at severity 1** (brutal) against
-`lib/` using `.perlcriticrc`, then the unit tests. Install the develop tools with
-`cpanm --installdeps --with-develop .` from `sdk/perl/`, or `cpanm Perl::Critic Perl::Tidy`.
-The packaging script also installs the normalized tarball under an isolated prefix and reruns the
-suite away from its source tree, preventing local `lib/` files from masking packaging defects.
+## Backup and lifecycle probes
 
-`GlifiStore::Protocol` exposes the full bidirectional codec and FNV-1a Worker routing. See
-[PACKAGING.md](PACKAGING.md) for PAUSE/MetaCPAN upload steps.
+`$client->backup($destination, timeout => $seconds)` issues wire `BACKUP` and returns the bounded
+ASCII report. The destination is a new, empty server-side path. BACKUP is an admin operation under
+secure authz and an online fenced copy, not a zero-fence hot snapshot. An ambiguous failure is
+reconciled first and never retried blindly.
 
-## Performance model
+`$client->health`, `$client->ready` and `$client->stats` issue wire `HEALTH`, `READY` and `STATS`
+with an empty key and value.
 
-The client is pure Perl, but its design is deliberately pipeline-first rather than a sequence of
-object-heavy synchronous calls:
+## Concurrency
 
-- one TCP connection is created and bound per Worker;
-- a Worker pipeline appends validated header/key/value fragments into one contiguous scalar, without
-  constructing a complete temporary frame per request, and drains it under one absolute deadline;
-- response bytes accumulate in a reusable connection buffer and multiple complete frames are parsed
+`GlifiStore::Client` is not shareable across ithreads and has no internal mutexes. Never use a
+socket created before `fork` in the child: create the client after `fork`, one per process, and one
+per thread if you use threads. Within one process, `execute_worker_pipelines` overlaps Workers.
+
+## Performance
+
+The client is pure Perl, designed pipeline-first rather than as a sequence of object-heavy
+synchronous calls:
+
+- a Worker pipeline appends validated header, key and value fragments into one contiguous scalar,
+  without building a complete temporary frame per request, and drains it under one absolute
+  deadline;
+- response bytes accumulate in a reusable connection buffer, and several complete frames are parsed
   from each `sysread`;
-- the client decoder keeps response metadata in a compact internal tuple, avoiding one transient
-  six-field hash per frame; the public protocol decoder retains its named-hash contract;
-- pipeline result slots are materialized once, at their decided success or failure outcome, rather
-  than allocating placeholder failure hashes that the success path immediately replaces;
-- `execute_worker_pipelines` drives all active Worker sockets through one `IO::Select` loop and
-  consumes the readiness already returned by that loop before waiting again; a fragmented response
-  returns to the same absolute-deadline wait path;
+- the client decoder keeps response metadata in a compact internal tuple instead of one transient
+  six-field hash per frame; the public protocol decoder keeps its named-hash contract;
+- pipeline result slots are built once, at their decided success or failure outcome, instead of
+  placeholder failure hashes that the success path immediately replaces;
+- `execute_worker_pipelines` drives every active Worker socket through one `IO::Select` loop and
+  consumes the readiness that loop already returned before waiting again; a fragmented response
+  returns to the same absolute-deadline wait;
 - `execute_batch` hashes each key exactly once while grouping, reuses that validated ownership while
-  encoding, overlaps the Worker pipelines, then restores caller order.
+  encoding, overlaps the Worker pipelines, then restores caller order;
 - Worker routing reuses the immutable identity validated during `INIT`; arbitrary routing hashes
   passed to the public protocol helpers are still normalized and checked on every call.
 
-Those choices reduce syscalls and expose server parallelism. They do **not** make the current Perl
-path allocation-free: public requests and results are hash references, encoded frames are assembled
-for non-pipeline calls, and successful GET values become owned Perl scalars. These are measurable
-costs and must not be described as negligible without a profile.
+These choices reduce syscalls and expose server parallelism. They do not make the Perl path
+allocation-free: public requests and results are hash references, non-pipeline calls assemble
+encoded frames, and successful GET values become owned Perl scalars. These costs are measurable and
+must not be described as negligible without a profile.
 
 For a throughput-sensitive application:
 
-- send ordered pipelines instead of alternating synchronous `put`/`get` calls;
-- use `execute_batch` for mixed owners or `execute_worker_pipelines` when work is already sharded;
-- create the client after `fork` and use one client per prefork process; do not share it across
-  ithreads;
-- choose pipeline depth from a throughput **and** tail-latency sweep on the deployment workload.
+- send ordered pipelines instead of alternating synchronous `put` and `get` calls;
+- use `execute_batch` for mixed owners, or `execute_worker_pipelines` when the work is already
+  sharded;
+- choose the pipeline depth from a throughput and tail-latency sweep on the deployment workload.
 
-Optimization work follows measured cost, in this order: Perl-level allocation/copy reduction,
-buffer reuse and parser shape; syscall and scheduling behavior; then an optional narrow XS codec or
-routing kernel if profiles still place CPU there. XS is a possible tool, not a pre-decided answer.
+Optimization follows measured cost, in this order: Perl-level allocation and copy reduction, buffer
+reuse and parser shape; then syscall and scheduling behavior; then, if profiles still place CPU
+there, an optional narrow XS codec or routing kernel. XS is a possible tool, not a decided answer.
 Wrapping the C++ client through FFI is outside the current native-SDK design.
 
-## Online backup
-
-`$client->backup($destination, timeout => $seconds)` issues wire `BACKUP` and returns the bounded
-ASCII report. The destination is a new empty server-side path. This is an admin operation under
-secure authz and an online fenced copy, not a zero-fence hot snapshot; ambiguous failures are
-reconcile-first and are never blindly retried.
-
-## Lifecycle probes
-
-`$client->health`, `$client->ready`, and `$client->stats` issue wire `HEALTH` / `READY` / `STATS`
-with empty key and value. AF_UNIX dial is supported; combining AF_UNIX with TLS is refused
-fail-closed.
-
-`connections_per_worker` and an event-loop adapter remain measurement-gated. More connections may
-help hot-Worker concurrency while increasing ordering, memory and reconnect complexity; an async
-adapter may improve application concurrency without improving single-pipeline CPU throughput.
+Run the benchmarks:
 
 ```bash
 # Sequential and concurrent matrix from the repository root:
@@ -143,5 +148,30 @@ perl sdk/perl/benchmarks/client_benchmark.pl --port 7379 --workers 4 \
 ```
 
 Compare SDKs only through `./scripts/benchmark_sdk_clients.sh`, which fixes the validated workload
-and result semantics. Do not promote a single local run or an old cross-runtime ratio into a client
+and result semantics. Do not turn a single local run or an old cross-runtime ratio into a client
 limit.
+
+## Limitations
+
+- The client does not combine AF_UNIX with TLS: it refuses that configuration fail-closed.
+- `connections_per_worker` and an event-loop adapter remain measurement-gated. More connections may
+  help hot-Worker concurrency but add ordering, memory and reconnect complexity; an async adapter
+  may improve application concurrency without improving single-pipeline CPU throughput.
+
+## Development
+
+From the repository root:
+
+```bash
+./scripts/test-perl-client.sh
+./scripts/package-perl-client.sh
+```
+
+`./scripts/test-perl-client.sh` runs Perl::Critic at severity 1 (brutal) against `lib/` with
+`.perlcriticrc`, then the unit tests. Install the develop tools from `sdk/perl/` with
+`cpanm --installdeps --with-develop .`, or with `cpanm Perl::Critic Perl::Tidy`.
+
+`GlifiStore::Protocol` exposes the full bidirectional codec and FNV-1a Worker routing.
+
+[Perl client packaging](PACKAGING.md) describes the packaging check and the PAUSE and MetaCPAN
+upload steps.

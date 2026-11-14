@@ -133,7 +133,6 @@ copy throughput evidence—not satisfied here.
 ## References
 
 - [Backup and restore v1](../spec/backup-restore-v1.md)
-- [Architecture backup-restore](../architecture/backup-restore.md)
 - [Operations backup-restore](../operations/backup-restore.md)
 - [ADR 0015 whole-Worker compaction](0015-whole-worker-compaction.md)
 - [ADR 0032 paired embedded concurrency](0032-paired-concurrency-embedded-store.md)

@@ -1,10 +1,8 @@
-Status: normative for official GlifiStore TCP clients and embedded ErrorCode mapping
-Applies to: wire protocol v2, C++ client, Python/Go/Perl/Ruby/Erlang SDKs, embedded Store errors that surface as wire statuses
-Owner: networking maintainers
-Last reviewed: 2026-08-02
-Requirement: `GS-PROTO-ERROR-001`
+# Error taxonomy v1
 
-# Error taxonomy v1 — wire, embedded, SDK
+**Normative** · wire v2, C++ client, official SDKs, embedded `ErrorCode` mapping · reviewed 2026-08-02
+
+Requirement: `GS-PROTO-ERROR-001`
 
 This specification is the **single normative authority** for the portable status → category →
 retryability contract. It authorizes:
@@ -70,7 +68,7 @@ When the C++ TCP client maps a wire status or local failure into `glifistore::Er
 | `invalid_argument`, `record_too_large` | `invalid_argument` |
 | `not_found` | `not_found` |
 | `resource_exhausted` | `overloaded` |
-| `unavailable` | `unavailable` (embedded/API); Reactor wire map uses `INTERNAL_ERROR` because Store sticky/fail-closed paths may already have linearized — see §6 |
+| `unavailable` | `unavailable` (embedded/API); Reactor wire map uses `INTERNAL_ERROR` because Store sticky/fail-closed paths may already have linearized — see §5 |
 | `io_error` | `transport` |
 | `corrupted_data` | `protocol` |
 | `internal_error` (and unlisted defaults) | `internal` |
@@ -150,7 +148,7 @@ centralized:
 | Post-commit / indeterminate / sticky | force `unavailable` before queue_response | `INTERNAL_ERROR` |
 | Pre-Store expire / fail-closed never-entered | `resource_exhausted` | `OVERLOADED` |
 
-Iron rules (unchanged by Phase 6):
+Invariant rules:
 
 - `OVERLOADED` ⇔ known-not-committed for mutation ACKs;
 - post-commit visibility/publication failure → `unavailable` / wire `INTERNAL_ERROR`;

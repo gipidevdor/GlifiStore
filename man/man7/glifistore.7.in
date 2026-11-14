@@ -96,9 +96,9 @@ and
 Project documentation (source tree):
 .Pa docs/cli.md ,
 .Pa docs/operations/durable-tcp-daemon.md ,
-.Pa docs/architecture/backup-restore.md .
+.Pa docs/spec/backup-restore-v1.md .
 .Sh AUTHORS
 GlifiStore contributors.
 .Sh BUGS
 Report issues at
-.Lk https://github.com/gpicchiarelli/GlifiStore .
+.Lk https://github.com/gipidevdor/GlifiStore .

@@ -1,12 +1,11 @@
-Status: normative checklist for official TCP clients; descriptive pseudocode
-Applies to: wire protocol v2 clients (C++, Python, Perl, Go, Erlang, Ruby)
-Owner: networking / SDK maintainers
-Last reviewed: 2026-09-12
+# TCP client conformance v1
 
-# TCP client conformance guide v1
+**Normative** · wire protocol v2 clients (C++, Python, Perl, Go, Erlang, Ruby) · reviewed 2026-09-12
 
-This guide tells client authors **what to implement and how to prove it**. Normative behavior is
-owned by:
+This guide tells client authors **what to implement and how to prove it**. The checklist is
+normative for official TCP clients; the pseudocode is descriptive.
+
+Normative behavior is owned by:
 
 - [wire protocol v2](wire-protocol-v2.md) — bytes, opcodes, framing
 - [client semantics v1](client-semantics-v1.md) — deadlines, retries, mutation outcomes
@@ -93,7 +92,7 @@ that matrix or document an explicit waiver.
 | AF_UNIX dial | ADR 0029; mutually exclusive with TLS |
 | Typed `health` / `ready` / `stats` | Wire opcodes 7–9; OK bodies `GlifiStore/live`, `GlifiStore/ready`, bounded `GlifiStore/stats`; do not treat HEALTH as traffic readiness |
 | Typed `backup` | Wire `BACKUP` (10); admin under secure authz; fenced semantics |
-| Per-call request timeout override | Overrides config for that call only; same §6 reset rules |
+| Per-call request timeout override | Overrides config for that call only; same reset rules as [client semantics v1 §6](client-semantics-v1.md) |
 | Async cancellation | Poison/reset Worker connection; classify via `bytes_sent` |
 
 ## 7. Explicit non-goals for clients
@@ -118,4 +117,4 @@ ctest --test-dir build/<preset> -R 'wire|error_taxonomy|client' --output-on-fail
 - [Client semantics v1](client-semantics-v1.md)
 - [Error taxonomy v1](error-taxonomy-v1.md)
 - [SDK roadmap](../architecture/sdk-roadmap.md)
-- ADR [0019](../adr/0019-client-error-retry-timeout.md)
+- [ADR 0019](../adr/0019-client-error-retry-timeout.md)

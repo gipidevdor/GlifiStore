@@ -214,13 +214,13 @@ class Store final {
     /// hot copy during the copy window; external offline backup_durable_store still fails if locked.
     [[nodiscard]] auto backup_to(const std::filesystem::path& destination, bool scan_records = true)
         -> Result<DurableStoreBackupReport>;
-    /// Runs at most one Worker compaction transaction. Durable mode replaces a
-    /// whole sealed Worker history; volatile mode vacuums selected sparse sealed
-    /// Segments. Calls do not queue behind an existing compaction. An empty
-    /// successful result (`compacted == false`) means no Worker currently offers a
-    /// physical Segment gain. Durable no-gain planning still reports the Worker
-    /// examined and exact Index-referenced sealed Record/byte counts verified
-    /// before the exact layout rejected the rewrite.
+    /// Runs at most one Worker compaction transaction. Durable mode replaces the
+    /// oldest sealed prefix of one Worker (ADR 0044); volatile mode vacuums
+    /// selected sparse sealed Segments. Calls do not queue behind an existing
+    /// compaction. An empty successful result (`compacted == false`) means no
+    /// Worker currently offers a physical Segment gain. Durable no-gain planning
+    /// still reports the Worker examined and exact Index-referenced sealed
+    /// Record/byte counts verified before the exact layout rejected the rewrite.
     [[nodiscard]] auto compact() -> Result<CompactionResult>;
     /// Observability for the optional MaintenanceController (ADR 0023).
     [[nodiscard]] auto maintenance_snapshot() const -> MaintenanceSnapshot;

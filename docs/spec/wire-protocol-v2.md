@@ -1,9 +1,9 @@
-# GlifiStore Wire Protocol v2
+# Wire protocol v2
 
-Status: normative for the current TCP server
-Applies to: protocol version 2
-Owner: networking maintainers
-Last reviewed: 2026-08-26
+**Normative** · protocol version 2, the current TCP server · reviewed 2026-08-26
+
+The byte-level contract between `glifistored` and every TCP client: frames, opcodes, status codes,
+session state, routing metadata, ordering, backpressure and compatibility.
 
 ## 1. Transport and byte order
 

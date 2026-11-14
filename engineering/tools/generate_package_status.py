@@ -115,7 +115,7 @@ def render(matrix: dict[str, Any]) -> str:
         "> GlifiStore remains an **architectural prototype**; no packaging gate is closed.",
         "",
         "Operator guide: [package CI](package-ci.md) · Open residuals:",
-        "[Wave 5 (L7) residuals](wave5-l7-residuals.md).",
+        "[release residuals](wave5-l7-residuals.md).",
         "",
         "## Backends",
         "",

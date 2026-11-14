@@ -72,7 +72,6 @@ requirements:
     Released-tag artifact consumption remains open.
   autorita:
   - docs/operations/backup-restore.md
-  - docs/architecture/backup-restore.md
   - docs/spec/backup-restore-v1.md
   implementazione:
   - src/persistence/store_backup.cpp
@@ -156,7 +155,7 @@ requirements:
   autorita:
   - docs/adr/0024-offline-worker-migration.md
   - docs/architecture/store-migration.md
-  - docs/operations/worker-resharding.md
+  - docs/operations/compatibility-and-migration.md
   implementazione:
   - src/persistence/store_migrate.cpp
   - tools/migrate_store.cpp

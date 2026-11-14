@@ -1,9 +1,9 @@
-# GlifiStore Benchmark Standard
+# Benchmark standard
 
-Status: normative measurement methodology
-Applies to: performance claims and regression reports
-Owner: performance maintainers
-Last reviewed: 2026-08-30
+**Normative** · performance claims and regression reports · reviewed 2026-08-30
+
+How GlifiStore performance is measured, validated, compared and reported, and what one reported
+result means.
 
 ## 1. Purpose
 

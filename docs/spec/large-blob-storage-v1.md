@@ -1,9 +1,10 @@
-Status: normative for the opt-in embedded prototype; release qualification remains open
-Applies to: Blob File v1 / BlobRef v1 in opt-in persistence family v2; embedded milestone first
-Owner: storage, concurrency, API and release maintainers
-Last reviewed: 2026-11-07
+# Large blob storage v1
 
-# Large Blob Storage v1
+**Normative** · Blob File v1 and BlobRef v1 in opt-in persistence family v2 · reviewed 2026-11-07
+
+Large values in the opt-in blob profile: limits, formats, commit, recovery, reclamation, the
+streaming API and the qualification matrix. The page is normative for the opt-in embedded
+prototype, the first milestone; release qualification remains open.
 
 [ADR 0042](../adr/0042-large-blob-storage.md) was accepted for implementation on 2026-11-07.
 The embedded prototype implements the opt-in v2 profile, streaming and owning reads/writes,
@@ -19,7 +20,7 @@ work belong to the [blob gate](../../engineering/gates/large-blobs.yaml).
 
 ## 1. Limits, placement and logical semantics
 
-| Quantity | Proposed contract |
+| Quantity | Contract |
 | --- | --- |
 | Maximum logical value | 67,108,864 bytes (64 MiB), excluding key and all metadata |
 | Normal encoded Record | At most 1,048,576 bytes, minimum 8-byte aligned extent |
@@ -52,7 +53,7 @@ The engine supports two separate profiles. Creation of a blob-capable Store is e
 opening a v1 Store never upgrades it or changes its limits. New-format constants must not replace
 the legacy codec constants globally.
 
-| Component | Legacy profile | Proposed blob profile |
+| Component | Legacy profile | Blob profile |
 | --- | --- | --- |
 | Persistence family | v1 | v2 |
 | Manifest | v1, 128-byte header | v2, 128-byte header with fields below |
@@ -192,7 +193,7 @@ short successful value.
 ## 4. Ownership, scheduling and commit
 
 Large payload I/O and hashing execute in a bounded pool outside the Reader and Writer. Existing
-small descriptor persistence may still wait at the normal Writer commit boundary; this proposal
+small descriptor persistence may still wait at the normal Writer commit boundary; this contract
 does not claim to eliminate the existing strict-mode synchronization cost.
 
 ```text
@@ -398,7 +399,7 @@ A future ADR must specify capability negotiation, begin/chunk/commit/abort/read 
 connection/principal/global credits, immutable owner binding, request sequencing, timeout and
 disconnect outcomes, transfer expiration and bounded persistent idempotency/resolution. It must
 define old-client behavior on a blob key before enabling blob-capable daemon Stores. There is no
-64 MiB frame or automatic retry allocation in this proposal.
+64 MiB frame or automatic retry allocation in this contract.
 
 ## 8. Acceptance matrix and implementation order
 

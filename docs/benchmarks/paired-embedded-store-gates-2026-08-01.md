@@ -1,8 +1,9 @@
-# Paired embedded Store — gate snapshot (2026-08-01)
+# Paired embedded Store gate snapshot
 
-Status: ADR 0032 product default verified on `main` (`92cb5d2` + ctor-order fix).
+**Historical** · macOS arm64, `macos-release`, Apple LLVM 21 · 2026-08-01
 
-Platform: macOS arm64, `macos-release`, Apple LLVM 21. Warmup 1, repeats 3 (median).
+ADR 0032 product default verified on `main` (`92cb5d2` + ctor-order fix). Warmup 1, repeats 3
+(median).
 
 ## Correctness / sanitizers
 

@@ -1,16 +1,16 @@
 # Recovery state-transition matrix v1
 
-Status: normative
-Applies to: persistence format v1 and durable Store recovery
-Owner: persistence maintainers
-Last reviewed: 2026-07-23
+**Normative** · persistence format v1 and durable Store recovery · reviewed 2026-07-23
+
+The restart outcome of every interrupted persistent transition in format v1.
 
 ## 1. Purpose and terminology
 
 This specification fixes the recovery result for every persistent transition implemented by
-GlifiStore v1: Store bootstrap, mutation/flush, active-Segment rotation, and whole-Worker
-compaction. It refines the ordering rules in [persistence v1](persistence-v1.md) without changing
-any encoded byte.
+GlifiStore v1: Store bootstrap, mutation/flush, active-Segment rotation, and compaction of the
+oldest sealed prefix of one Worker ([ADR 0044](../adr/0044-bounded-prefix-compaction-remap.md)).
+It refines the ordering rules in [persistence v1](persistence-v1.md) without changing any
+encoded byte.
 
 The following terms are used throughout:
 
@@ -141,7 +141,7 @@ An unlisted exact-next Segment is admissible only with exactly one sealed-active
 when pristine. An unrelated orphan, a non-pristine replacement, multiple sealed-active Workers, a
 sealed Manifest entry whose persisted state is active, or any identity mismatch fails closed.
 
-## 6. Whole-Worker compaction
+## 6. Oldest-prefix compaction
 
 The compaction intent embeds both exact authorities. Before the intent is durable, `Mold` is the
 only authority. Once the intent is durable, recovery admits exactly `Mold` or `Mnext`.
@@ -169,36 +169,34 @@ remove non-authoritative names. Every removal validates the expected immutable S
 missing obsolete names are accepted because cleanup is idempotent. No old source may be removed
 before `Mnext` and its directory entry are durable.
 
-The process-kill matrix covers pre-intent replacement preallocation/header/Record copy,
-Record synchronization, data and seal commit slots, intent write/sync/rename, the post-intent
-directory sync, replacement promotion, Manifest write/sync/rename, both source removals, intent
-removal, and all five directory-sync positions. Its online compaction seed is a deterministic
-30-operation history containing PUT,
-overwrite, ERASE, expired PUT, and active-Segment decisions across eight keys; every checkpoint
-reopens and checks the complete sequential model rather than only sentinel keys.
-Two additional multi-output cleanup scenarios SIGKILL after each of two replacement removals under
-`Mold` and each of three source removals under `Mnext`, including their retirement and intent
+The process-kill matrix covers pre-intent replacement preallocation/header/Record copy, Record
+synchronization, data and seal commit slots, intent write/sync/rename, the post-intent directory
+sync, replacement promotion, Manifest write/sync/rename, both source removals, intent removal, and
+all five directory-sync positions. Its online compaction seed is a deterministic 30-operation
+history containing PUT, overwrite, ERASE, expired PUT, and active-Segment decisions across eight
+keys; every checkpoint reopens and checks the complete sequential model rather than only sentinel
+keys. Two additional multi-output cleanup scenarios SIGKILL after each of two replacement removals
+under `Mold` and each of three source removals under `Mnext`, including their retirement and intent
 directory synchronizations. Each subsequent ordinary reopen must finish the remaining cleanup
-without changing the selected authority.
-An online 3-to-2 scenario adds differential checkpoints for second-replacement
-preallocation/header/promotion, the batched promotion directory sync, the final of 64 maximum-size Record writes,
-the second output's data and seal commit slots, the shifted Manifest/retirement/intent directory
-syncs, and the third source removal. Before Manifest directory sync, recovery must select `Mold`,
-remove both final and partial-temporary replacement identities, and leave all 64 values visible.
-At and after that sync it must select `Mnext`, retire all three sources, and preserve the same model.
-The opt-in `copy-matrix` adds `write_record#1` through `write_record#63`; the standard matrix owns
-`write_record#64`. Together they SIGKILL after every Record copy and cover 152 distinct persistence
-checkpoints.
-The opt-in `random-matrix` repeats nine representative old/next-authority checkpoint classes for
-four fixed seeds. Each 96-operation history combines PUT, overwrite, ERASE, expired PUT, and
-restoration, converges to exactly 64 maximum-size live values, and verifies the complete model after
-each of 36 process kills.
-The complementary `random-campaign` mode derives a fresh workload seed and one of those nine
-checkpoint classes for every iteration from a recorded decimal campaign seed using a repository-owned
-deterministic generator. It supports 1–10,000 local cases, writes a row per reopen to a non-overwritten
-TSV report, and keeps the full seed/boundary/outcome schedule reproducible. Hosted CI deliberately caps
-manual runs at 512 cases and schedules 256 cases weekly so timeout pressure cannot silently reduce the
-oracle matrix.
+without changing the selected authority. An online 3-to-2 scenario adds differential checkpoints for
+second-replacement preallocation/header/promotion, the batched promotion directory sync, the 64th of
+80 maximum-size Record writes (the first into the second output), the second output's data and seal
+commit slots, the shifted Manifest/retirement/intent directory syncs, and the third source removal.
+Before Manifest directory sync, recovery must select `Mold`, remove both final and partial-temporary
+replacement identities, and leave all 80 values visible. At and after that sync it must select
+`Mnext`, retire all three sources, and preserve the same model. The opt-in `copy-matrix` adds
+`write_record#1` through `write_record#63`; the standard matrix owns `write_record#64`. Together
+they SIGKILL after Record copies 1 to 64 of 80 and cover 152 distinct persistence checkpoints;
+copies 65 to 80 have no kill point of their own. The opt-in `random-matrix` repeats nine
+representative old/next-authority checkpoint classes for four fixed seeds. Each 120-operation
+history combines PUT, overwrite, ERASE, expired PUT, and restoration, converges to exactly 88
+maximum-size live values, and verifies the complete model after each of 36 process kills. The
+complementary `random-campaign` mode derives a fresh workload seed and one of those nine checkpoint
+classes for every iteration from a recorded decimal campaign seed using a repository-owned
+deterministic generator. It supports 1–10,000 local cases, writes a row per reopen to a
+non-overwritten TSV report, and keeps the full seed/boundary/outcome schedule reproducible. Hosted
+CI deliberately caps manual runs at 512 cases and schedules 256 cases weekly so timeout pressure
+cannot silently reduce the oracle matrix.
 
 ## 7. Ordinary recovery and rejection matrix
 
@@ -225,9 +223,9 @@ repair, and salvage are separate explicit operator workflows.
 | Evidence | Covered state |
 |---|---|
 | `glifistore_crash_sync` | 89 distinct SIGKILL checkpoints across bootstrap, sync mutation, rotation, single-output online compaction, differential online 3-to-2 build/publication, and two-output rollback/retirement cleanup |
-| `glifistore_crash_persistence --mode copy-matrix` | 63 opt-in multi-output SIGKILL checkpoints which, with the standard matrix, cover every one of 64 Record copies and 152 distinct checkpoints total |
-| `glifistore_crash_persistence --mode random-matrix` | 36 opt-in recoveries across four reproducible 96-operation multi-output histories and nine authority/copy/cleanup checkpoint classes |
-| `glifistore_crash_persistence --mode random-campaign` | bounded reproducible sampling of randomized 96-operation histories × nine checkpoint classes; every SIGKILL is followed by full-model reopen verification and a structured outcome row |
+| `glifistore_crash_persistence --mode copy-matrix` | 63 opt-in multi-output SIGKILL checkpoints which, with the standard matrix, cover Record copies 1 to 64 of 80 and 152 distinct checkpoints total |
+| `glifistore_crash_persistence --mode random-matrix` | 36 opt-in recoveries across four reproducible 120-operation multi-output histories and nine authority/copy/cleanup checkpoint classes |
+| `glifistore_crash_persistence --mode random-campaign` | bounded reproducible sampling of randomized 120-operation histories × nine checkpoint classes; every SIGKILL is followed by full-model reopen verification and a structured outcome row |
 | `glifistore_crash_periodic` | Record write, Record sync, slot write, and slot sync for deferred durability |
 | `glifistore_crash_group` | the same four boundaries for strict group commit |
 | `glifistore_crash_daemon_sync` / `group` / `periodic` | acknowledged wire mutation survives real-daemon SIGKILL; periodic waits through its flush window |

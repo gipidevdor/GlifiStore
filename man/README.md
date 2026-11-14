@@ -1,11 +1,11 @@
 # Manual pages
 
-GlifiStore ships portable [mdoc(7)](https://man.openbsd.org/mdoc.7) sources for
-every binary installed by the Runtime component.
+Portable [mdoc(7)](https://man.openbsd.org/mdoc.7) sources for every binary the Runtime component
+installs.
 
-| Page | Section | Binary |
-|---|---|---|
-| `glifistore.7` | 7 | overview |
+| Page | Section | Covers |
+| --- | --- | --- |
+| `glifistore.7` | 7 | Overview |
 | `glifistored.8` | 8 | `glifistored` |
 | `glifistore_demo.1` | 1 | `glifistore_demo` |
 | `glifistore_inspect_segment.1` | 1 | `glifistore_inspect_segment` |
@@ -23,25 +23,20 @@ cmake --build build --target glifistore_manpages
 cmake --install build --component Runtime
 ```
 
-Pages land under `${CMAKE_INSTALL_MANDIR}/man{1,7,8}` (from `GNUInstallDirs`),
-typically `share/man` on Linux/BSD and Homebrew prefixes on macOS.
-
-Optional gzip at install time:
+Pages install under `${CMAKE_INSTALL_MANDIR}/man{1,7,8}` from `GNUInstallDirs`: usually
+`share/man` on Linux and BSD, and the Homebrew prefix on macOS. Installs are uncompressed by
+default, so they do not need `gzip`; packaging may compress afterwards, or compress at install time:
 
 ```bash
 cmake -S . -B build -DGLIFISTORE_COMPRESS_MANPAGES=ON
 ```
 
-Default is uncompressed so installs do not require `gzip`; packaging may compress
-afterward.
-
-## Validation
+## Validate
 
 ```bash
-./scripts/validate-manpages.sh
-# or against a build tree:
-./scripts/validate-manpages.sh build/man
+./scripts/validate-manpages.sh             # build/macos-ci/man or build/man, else the sources
+./scripts/validate-manpages.sh build/man   # a given build tree
 ```
 
-Requires `mandoc` (OpenBSD/mandoc, macOS, or `mandoc` packages on Linux).
-On systems with only groff, the script falls back to `groff -mandoc -Tutf8`.
+The script needs `mandoc` (OpenBSD, macOS, or the `mandoc` package on Linux) and falls back to
+`groff -mandoc -Tutf8` where only groff exists.

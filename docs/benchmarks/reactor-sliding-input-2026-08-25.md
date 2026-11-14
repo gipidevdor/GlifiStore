@@ -1,9 +1,9 @@
-# Reactor sliding input buffer — advisory macOS A/B
+# Reactor sliding input buffer advisory A/B
 
-- Status: accepted implementation signal, not a release gate
-- Platform: Apple Silicon arm64, macOS, AppleClang 21, Release
-- Baseline: `a02157e`
-- Candidate: `codex/sliding-reactor-input` working tree
+**Historical** · Apple Silicon arm64, macOS, AppleClang 21, Release · 2026-08-25
+
+Accepted implementation signal, not a release gate. Baseline: `a02157e`. Candidate:
+`codex/sliding-reactor-input` working tree.
 
 The Reactor previously erased the consumed prefix after each asynchronous Store request. A fully
 received pipeline therefore moved the remaining suffix once per completion. The candidate retains

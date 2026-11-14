@@ -1,4 +1,4 @@
-# Architecture Decision Records
+# Architecture decision records
 
 An ADR records why a durable architectural choice was made. This directory holds only decisions
 that are **in force** or **open**. Rejected and fully superseded ADRs are removed from the tree and
@@ -19,7 +19,7 @@ ADR is never rewritten to pretend a later decision existed. New ADRs use [templa
 Removed: 0018 (replaced by 0031), 0035 (rejected; see
 [rejected optimizations](../architecture/hot-path-rejected-optimizations.md)), 0043 (replaced by 0044).
 
-## Index
+## Records
 
 ### Scope, storage and format
 

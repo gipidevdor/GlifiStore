@@ -57,6 +57,6 @@ Usage error.
 .Xr glifistored 8
 .Pp
 Source docs:
-.Pa docs/architecture/backup-restore.md .
+.Pa docs/spec/backup-restore-v1.md .
 .Sh AUTHORS
 GlifiStore contributors.

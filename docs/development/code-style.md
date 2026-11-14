@@ -1,13 +1,11 @@
-Status: normative for repository-owned native code
-Applies to: ISO C++23 implementation and C11 ABI consumers
-Owner: maintainers
-Last reviewed: 2026-11-07
-
 # Native code style
 
-Use one reproducible style throughout production code, tests, tools, benchmarks, fuzz targets,
-packaging consumers and diagnostic probes. Consistency makes invariants and exceptional paths
-easier to review. The [agent guidance](../../AGENTS.md) applies these rules to future changes.
+**Normative** · ISO C++23 implementation and C11 ABI consumers · reviewed 2026-11-07
+
+The style rules for repository-owned native code. Use one reproducible style throughout production
+code, tests, tools, benchmarks, fuzz targets, packaging consumers and diagnostic probes: consistency
+makes invariants and exceptional paths easier to review. The [agent guidance](../../AGENTS.md)
+applies these rules to future changes.
 
 ## Mechanical layout
 
@@ -98,5 +96,5 @@ triage. Enabling all available checks is not a substitute for reviewing their si
 Use the [test strategy](test-strategy.md) for behavioral validation. A mechanical cleanup needs a
 clean formatting check, a build with the supported warnings, appropriate tests and review of any
 token changes such as include ordering. Run the fail-closed tidy gate after C++ edits. Keep cosmetic
-changes distinct from fixes, retain local evidence honestly, and do not hide warnings through blanket
-`NOLINT` or `clang-format off` blocks.
+changes distinct from fixes, retain local evidence honestly, and do not hide warnings through
+blanket `NOLINT` or `clang-format off` blocks.

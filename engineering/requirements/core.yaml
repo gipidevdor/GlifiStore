@@ -7,7 +7,6 @@ requirements:
   descrizione: The installed C++ API is separated from implementation headers and uses owning reads (ADR
     0009). Internal access remains build-tree-only.
   autorita:
-  - docs/architecture/public-api-contract.md
   - docs/reference/cpp-api.md
   - docs/adr/0009-public-read-ownership.md
   - docs/spec/architecture.md

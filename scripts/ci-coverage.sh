@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Diagnostic coverage report (not a merge gate). See docs/development/test-strategy.md §7.
+# Diagnostic coverage report (not a merge gate). See docs/development/test-strategy.md, "Coverage policy".
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

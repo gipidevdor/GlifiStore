@@ -1,40 +1,38 @@
-Status: descriptive  
-Applies to: secure-profile TLS performance interpretation (not a wire or disk contract)  
-Owner: security maintainers  
-Last reviewed: 2026-07-20
+# TLS performance
 
-# TLS performance note (Phase 2.5)
+**Descriptive** · secure-profile TLS performance, not a wire or disk contract · reviewed 2026-07-20
 
-Secure-profile TLS 1.3 (ADR 0020) adds confidentiality and integrity on the outer transport. This
-note records how to measure the **TLS tax** on the same Go client pipeline harness used for
-cleartext TCP benches, and what a representative local run showed.
+How to measure the TLS tax of the secure-profile TLS 1.3 outer transport
+([ADR 0020](../adr/0020-tls-outer-transport.md)) on the Go client pipeline harness used for
+cleartext TCP benchmarks, and how to read the result. This note is Phase 2.5 of the
+[security roadmap](roadmap.md).
 
 ## Method
-
-Use `scripts/benchmark_tls_tax.sh`. It:
-
-1. Starts a volatile `glifistored` on loopback in cleartext mode and again in TLS-only mode
-   (ephemeral self-signed cert with SAN `DNS:localhost` / `IP:127.0.0.1`).
-2. Runs `sdk/go/cmd/glifistore-bench` with identical `--ops`, `--pipeline`, `--workers`,
-   `--execution concurrent`, warmup, and repeats.
-3. Writes per-cell outputs under `cleartext/` and `tls/`, plus a Markdown summary with
-   `TLS/cleartext` median ops/s ratios.
-
-Flags on the Go bench (same semantics as interop): `--tls`, `--tls-ca`, `--server-name`, optional
-mTLS `--tls-cert`/`--tls-key`, and `--insecure-skip-verify` for lab-only escapes.
 
 ```bash
 # Requires a TLS-capable glifistored (GLIFISTORE_ENABLE_TLS + LibreSSL/OpenSSL).
 OPS=50000 WARMUP=1 REPEATS=5 ./scripts/benchmark_tls_tax.sh
 ```
 
-Do not treat hosted CI runners as absolute throughput evidence. Prefer a quiet, thermally stable
-developer host before publishing absolute numbers.
+`scripts/benchmark_tls_tax.sh`:
 
-## Representative local result (macOS, OpenSSL 3.x daemon)
+1. starts a volatile `glifistored` on loopback in cleartext mode, then again in TLS-only mode, with
+   an ephemeral self-signed certificate whose SAN is `DNS:localhost` / `IP:127.0.0.1`;
+2. runs `sdk/go/cmd/glifistore-bench` with identical `--ops`, `--pipeline`, `--workers`,
+   `--execution concurrent`, warmup and repeats;
+3. writes per-cell outputs under `cleartext/` and `tls/`, plus a Markdown summary with the
+   `TLS/cleartext` median ops/s ratios.
 
-Captured 2026-07-20 on Apple Silicon against a Debug/Release TLS-capable `glifistored` (OpenSSL
-backend), volatile storage, Go SDK 0.1.0, `OPS=20000`, `REPEATS=3`, concurrent execution:
+The Go bench TLS flags have the same semantics as in interop: `--tls`, `--tls-ca`, `--server-name`,
+optional mTLS `--tls-cert` and `--tls-key`, and `--insecure-skip-verify` for lab-only escapes.
+
+Hosted CI runners are not absolute throughput evidence. Prefer a quiet, thermally stable developer
+host before publishing absolute numbers.
+
+## Representative local result
+
+Captured on 2026-07-20 on Apple Silicon against a Debug/Release TLS-capable `glifistored` (OpenSSL
+backend), with volatile storage, Go SDK 0.1.0, `OPS=20000`, `REPEATS=3` and concurrent execution:
 
 | workers | pipeline | cleartext median ops/s | TLS median ops/s | TLS/cleartext |
 | ---: | ---: | ---: | ---: | ---: |
@@ -45,36 +43,36 @@ backend), volatile storage, Go SDK 0.1.0, `OPS=20000`, `REPEATS=3`, concurrent e
 | 4 | 32 | 360,342 | 369,840 | 1.026 |
 | 4 | 128 | 394,905 | 377,655 | 0.956 |
 
-Ratios near 1.0 (and occasional TLS ≥ cleartext within noise) are expected on a warm loopback
-connection with deep pipelines. The largest relative tax here was about **10%** at `workers=4`,
-`pipeline=1`. Re-run with higher `OPS`/`REPEATS` on a quiet host before publishing capacity claims.
+Ratios near 1.0, and occasionally TLS at or above cleartext within noise, are expected on a warm
+loopback connection with deep pipelines. The largest relative tax in this run was about 10%, at
+`workers=4`, `pipeline=1`. Re-run with higher `OPS` and `REPEATS` on a quiet host before publishing
+capacity claims.
 
 ## Interpretation
 
-- **Shallow pipelines (p=1)** usually show the largest relative TLS tax: per-pair handshake/record
-  overhead and syscall boundaries dominate when the engine is not amortizing work across a deep
+- Shallow pipelines (p=1) usually show the largest relative TLS tax: per-pair handshake and record
+  overhead and syscall boundaries dominate when the engine does not amortize work across a deep
   pipeline.
-- **Deep pipelines (p=32–128)** typically recover most cleartext throughput. Record-layer cost is
-  amortized across many framed ops on a warm connection; the engine and SDK remain the bottleneck
-  more often than crypto.
-- **TLS is not free, but it is usually affordable** for the session/cache/gateway patterns in
-  [where-performance-matters.md](../architecture/where-performance-matters.md). Prefer measuring
-  your own loopback baseline before sizing hardware for a secure-profile deployment.
-- **OpenBSD / LibreSSL** must be re-measured on a native host (or the OpenBSD CI VM for smoke only).
-  Do not extrapolate macOS/OpenSSL ratios to OpenBSD; `fdatasync`≡`fsync` and LibreSSL performance
-  characteristics differ. CI gate: `.github/workflows/openbsd-libressl.yml` +
-  `scripts/ci-openbsd-libressl.sh` (correctness, not throughput).
+- Deep pipelines (p=32–128) typically recover most of the cleartext throughput. Record-layer cost
+  is amortized across many framed operations on a warm connection, and the engine and SDK remain the
+  bottleneck more often than crypto.
+- TLS is not free, but it is usually affordable for the session, cache and gateway patterns in
+  [where performance matters](../architecture/where-performance-matters.md). Measure your own
+  loopback baseline before sizing hardware for a secure-profile deployment.
+- OpenBSD with LibreSSL must be re-measured on a native host, or on the OpenBSD CI VM for smoke
+  only. Do not extrapolate macOS/OpenSSL ratios to OpenBSD: `fdatasync`≡`fsync` and LibreSSL
+  performance characteristics differ. The CI gate, `.github/workflows/openbsd-libressl.yml` with
+  `scripts/ci-openbsd-libressl.sh`, checks correctness, not throughput.
 
 ## Non-goals
 
-- This note does not change wire protocol v2, client semantics, or durability contracts.
-- It does not authorize weakening TLS 1.3-only policy, hostname verification defaults, or
-  fail-closed secure-profile configuration for speed.
+- This note does not change wire protocol v2, client semantics or durability contracts.
+- It does not authorize weakening the TLS 1.3-only policy, the hostname verification defaults or
+  the fail-closed secure-profile configuration for speed.
 - Absolute ops/s from CI VMs are informational only.
 
 ## Related
 
-- [Security roadmap](roadmap.md) Phase 2.5 / 2.6
-- [ADR 0020](../adr/0020-tls-outer-transport.md)
-- [Development / benchmark reports](../development.md)
-- `scripts/benchmark_go_client.sh` (cleartext baseline matrix)
+- [Security roadmap](roadmap.md), Phase 2.5 and 2.6
+- [Development](../development/README.md): benchmark reports
+- `scripts/benchmark_go_client.sh`: the cleartext baseline matrix
