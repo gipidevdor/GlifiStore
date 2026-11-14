@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -158,6 +159,8 @@ struct DurableGetPathWorkerStats {
     std::uint64_t cold_read_ns{};
     std::uint64_t crc_value_copy_ns{};
     std::uint64_t relinearization_retries{};
+    /// Durable GETs decoded from a resident Segment image (ADR 0046) instead of the file.
+    std::uint64_t resident_reads{};
     std::uint64_t hot_hits{};
     std::uint64_t hot_misses{};
     std::uint64_t hot_stale{};
@@ -528,9 +531,18 @@ class DurableRuntimeCatalog final {
     /// Immutable published GETs: pin/identity only. Servable after sticky fail-closed so
     /// drain-snapshot success-ACKs remain RAW via Store::get / reactor prepare_published.
     /// Mutable Index prepare_get still rejects when !healthy().
-    [[nodiscard]] auto prepare_published_get(PublishedReadRecord read, std::uint64_t now_ns)
+    ///
+    /// When the pinned generation is resident (ADR 0046) and the Record is at most
+    /// `resident_inline_limit_bytes`, the read completes here and returns a value: decoding an
+    /// image never blocks, so the caller needs no disk-read lane. Larger or cold Records return a
+    /// pinned cold read whose outcome is unchanged.
+    [[nodiscard]] auto prepare_published_get(
+        PublishedReadRecord read, std::uint64_t now_ns,
+        std::uint64_t resident_inline_limit_bytes = std::numeric_limits<std::uint64_t>::max())
         -> Result<PreparedRead>;
-    [[nodiscard]] auto prepare_published_get(PublishedReadView read, std::uint64_t now_ns)
+    [[nodiscard]] auto prepare_published_get(
+        PublishedReadView read, std::uint64_t now_ns,
+        std::uint64_t resident_inline_limit_bytes = std::numeric_limits<std::uint64_t>::max())
         -> Result<PreparedRead>;
     [[nodiscard]] auto complete_get(PinnedRead read,
                                     const detail::ColdReadCancellation* cancellation = nullptr,

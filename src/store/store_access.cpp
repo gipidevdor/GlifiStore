@@ -169,7 +169,8 @@ auto detail::StoreAccess::capture_durable_read(Store& store, const std::size_t w
 
 auto detail::StoreAccess::prepare_published_durable_get(Store& store, const std::size_t worker_index,
                                                         DurablePublishedReadView read,
-                                                        const std::uint64_t now_ns)
+                                                        const std::uint64_t now_ns,
+                                                        const std::uint64_t resident_inline_limit_bytes)
     -> Result<PreparedGet> try {
     if (worker_index >= store.worker_count() || read.worker_index() != worker_index) {
         return fail(ErrorCode::invalid_argument, "immutable durable GET targets the wrong Worker owner");
@@ -184,7 +185,8 @@ auto detail::StoreAccess::prepare_published_durable_get(Store& store, const std:
     if (!store.impl_->durable_runtime) {
         return fail(ErrorCode::invalid_argument, "immutable durable GET requires a durable Store");
     }
-    auto prepared = store.impl_->durable_runtime->prepare_published_get(read, now_ns);
+    auto prepared =
+        store.impl_->durable_runtime->prepare_published_get(read, now_ns, resident_inline_limit_bytes);
     if (!prepared) {
         return unexpected(prepared.error());
     }

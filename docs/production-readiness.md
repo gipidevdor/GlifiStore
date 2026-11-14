@@ -103,7 +103,7 @@ The volatile engine under `src/experimental/` is lab-only.
 - [ ] **GATE-DURABLE-READS** — Memory-resident durable reads and a pageable Index under one reserve
   State: `IMPLEMENTATA` · Release target: `prototype`
   Requirements: `GS-PERF-DREAD-001`, `GS-OPS-MEMRES-001`
-  Residual risk: ADR 0045 and ADR 0046 are proposed. The embedded path reads resident Segments from memory; glifistored still hops to the cold-read executor. Benchmarks against the ADR 0045 targets, TSan eviction runs and charging of the paired Reader index are outstanding.
+  Residual risk: ADR 0045 and ADR 0046 are proposed. Embedded callers and the glifistored Reader complete resident reads inline; only cold Segments use the executor. Daemon benchmarks against the ADR 0045 targets, TSan eviction runs concurrent with readers and charging of the paired Reader index are outstanding.
   Acceptance requires the ADR 0045 verification list as amended by ADR 0046: RAW litmus across residency states, eviction under ASan/TSan, recovery below the reserve, allocation faults with and without images and same-host A/B targets.
 
 - [x] **GATE-FAIL-CLOSED-IO** — Fail-closed on truncation corruption and I/O failures

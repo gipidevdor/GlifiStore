@@ -81,7 +81,9 @@ GLIFI_TEST("durable cold GET pipeline remains contiguous to preserve read overla
         {.port = 0, .maximum_connections = 1, .maximum_output_bytes = 256U * 1024U},
         {.storage_mode = glifistore::StorageMode::durable_sync,
          .data_directory = path,
-         .durable_open_mode = glifistore::DurableOpenMode::open_existing});
+         .durable_open_mode = glifistore::DurableOpenMode::open_existing,
+         // Cold-path test: resident images (ADR 0046) complete at prepare and take the value path.
+         .durable_limits = {.resident_reads_enabled = false}});
     GLIFI_REQUIRE(opened.has_value());
     auto& server = **opened;
     GLIFI_REQUIRE(server.start().has_value());

@@ -9,9 +9,10 @@ requirements:
     memory reserve (ADR 0045 as amended by ADR 0046). The Writer mirrors each Record into the active
     image before the append and publication; compaction outputs are mirrored while staged; images are
     loaded at open within the reserve. A resident read applies the cold path's CRC32C, identity,
-    key/hash and expiry validation without a file read. Segments without an image keep the pinned
-    cold path. Acknowledgement, visibility, recovery authority, persistence v1 and wire v2 are
-    unchanged.
+    key/hash and expiry validation without a file read, and completes on the calling thread (embedded
+    caller or glifistored Reader) without a disk-read lane when the Record fits the caller's response
+    budget. Segments without an image keep the pinned cold path. Acknowledgement, visibility,
+    recovery authority, persistence v1 and wire v2 are unchanged.
   autorita:
   - docs/adr/0045-memory-resident-durable-reads.md
   - docs/adr/0046-unified-memory-reserve.md
@@ -27,8 +28,11 @@ requirements:
   - src/persistence/runtime_catalog_rotate_ops.cpp
   - src/persistence/runtime_catalog_compact.cpp
   - src/persistence/compaction_builder.cpp
+  - src/persistence/runtime_catalog_read_ops.cpp
+  - src/server/reactor_execute.cpp
   prove:
   - tests/integration/resident_reads_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
   - tests/unit/memory_reserve_tests.cpp
   - tests/quality/allocation_fault_core_tests.cpp
   - tests/integration/persistence_recovery_tests.cpp
@@ -37,8 +41,8 @@ requirements:
   claim_massimo: architectural-prototype
   evidenze: []
   rischio_residuo:
-  - Local Debug proofs only; the ADR 0045 benchmark targets are not measured
-  - glifistored still completes resident reads on the cold-read executor (thread hop remains)
+  - Local proofs and one local embedded benchmark only; the ADR 0045 daemon targets are not measured
+  - A paged-out image page faults on the Reader thread like a paged Index page
   - Resident reads do not re-detect later on-disk corruption (HAZ-042)
   hazards: [HAZ-042]
   gates: [GATE-DURABLE-READS]

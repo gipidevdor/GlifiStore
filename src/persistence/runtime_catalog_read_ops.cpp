@@ -325,7 +325,8 @@ auto DurableRuntimeCatalog::capture_published_read(const std::size_t worker_inde
     return fail(ErrorCode::internal_error, "durable read publication capture failed");
 }
 
-auto DurableRuntimeCatalog::prepare_published_get(PublishedReadRecord read, const std::uint64_t now_ns)
+auto DurableRuntimeCatalog::prepare_published_get(PublishedReadRecord read, const std::uint64_t now_ns,
+                                                  const std::uint64_t resident_inline_limit_bytes)
     -> Result<PreparedRead> {
     // Immutable pin-backed reads must remain servable after sticky fail-closed:
     // sibling drain-snapshot success-ACKs keys into the published generation; RAW
@@ -337,11 +338,20 @@ auto DurableRuntimeCatalog::prepare_published_get(PublishedReadRecord read, cons
         return fail_closed(Error{ErrorCode::corrupted_data,
                                  "immutable durable read publication is internally inconsistent"});
     }
+    if (read.pin_.generation_->resident() && read.reference_.size.value <= resident_inline_limit_bytes) {
+        auto value = complete_generation_get(read.key_, read.key_hash_, now_ns, worker_index, read.reference_,
+                                             *read.pin_.generation_, nullptr, nullptr);
+        if (!value) {
+            return unexpected(std::move(value).error());
+        }
+        return PreparedRead{.value = std::move(value).value()};
+    }
     return PreparedRead{.cold = PinnedRead{std::move(read.key_), read.key_hash_, now_ns, worker_index,
                                            read.reference_, std::move(read.pin_.generation_), true}};
 }
 
-auto DurableRuntimeCatalog::prepare_published_get(const PublishedReadView read, const std::uint64_t now_ns)
+auto DurableRuntimeCatalog::prepare_published_get(const PublishedReadView read, const std::uint64_t now_ns,
+                                                  const std::uint64_t resident_inline_limit_bytes)
     -> Result<PreparedRead> {
     // Same RAW contract as the owned overload: published pins outlive fail-closed.
     if (read.pin_ == nullptr || !read.pin_->generation_) {
@@ -353,6 +363,15 @@ auto DurableRuntimeCatalog::prepare_published_get(const PublishedReadView read, 
         read.pin_->generation_->identity.owner_worker != workers_[worker_index]->worker_id) {
         return fail_closed(
             Error{ErrorCode::corrupted_data, "borrowed durable read publication is inconsistent"});
+    }
+    // The caller's lease keeps the generation alive for the duration of this call.
+    if (read.pin_->generation_->resident() && read.reference_.size.value <= resident_inline_limit_bytes) {
+        auto value = complete_generation_get(read.key_, read.key_hash_, now_ns, worker_index, read.reference_,
+                                             *read.pin_->generation_, nullptr, nullptr);
+        if (!value) {
+            return unexpected(std::move(value).error());
+        }
+        return PreparedRead{.value = std::move(value).value()};
     }
     return PreparedRead{.borrowed_cold = BorrowedPinnedRead{read.key_, read.key_hash_, now_ns, worker_index,
                                                             read.reference_, read.pin_->generation_.get()}};
@@ -374,6 +393,9 @@ auto DurableRuntimeCatalog::complete_generation_get(
     ReadContext context{.expected_key = key_bytes, .expected_hash = key_hash, .now_ns = now_ns};
     const auto cold_started = timing_now();
     auto visited = generation.visit_record(reference, read_scratch, &context, &copy_verified_value);
+    if (generation.resident()) {
+        metrics.resident_reads.fetch_add(1U, std::memory_order_relaxed);
+    }
     if constexpr (kGetPathTimingEnabled) {
         atomic_saturating_add(metrics.cold_read_ns, timing_elapsed_ns(cold_started));
         atomic_saturating_add(metrics.crc_value_copy_ns, context.crc_value_copy_ns);
@@ -426,14 +448,19 @@ auto DurableRuntimeCatalog::complete_get(PinnedRead read, const detail::ColdRead
         const auto cold_started = timing_now();
         auto visited =
             read.generation_->visit_record(read.reference_, read_scratch, &context, &copy_verified_value);
+        if (read.generation_->resident()) {
+            metrics.resident_reads.fetch_add(1U, std::memory_order_relaxed);
+        }
         if constexpr (kGetPathTimingEnabled) {
             atomic_saturating_add(metrics.cold_read_ns, timing_elapsed_ns(cold_started));
             atomic_saturating_add(metrics.crc_value_copy_ns, context.crc_value_copy_ns);
         }
 
         // Linearization point for a cold GET: the Worker index must still
-        // designate both the exact RecordRef and immutable generation pin
-        // captured by prepare_get(). No file I/O or CRC work holds either lock.
+        // designate both the exact RecordRef and the on-disk generation captured
+        // by prepare_get(). No file I/O or CRC work holds either lock. Rotation and
+        // image eviction republish a generation with the same shared file
+        // (ADR 0046); the bytes at the RecordRef are unchanged, so no retry.
         bool still_current{};
         {
             ExclusiveIndexQuiesce index_quiesce{worker, options_.exclusive_writer && flusher_ == nullptr};
@@ -466,8 +493,8 @@ auto DurableRuntimeCatalog::complete_get(PinnedRead read, const detail::ColdRead
                     return fail(ErrorCode::unavailable, "durable runtime is fail-closed");
                 }
                 const auto catalog_index = catalog_index_for_segment(current->segment_id);
-                still_current =
-                    catalog_index.has_value() && generation_pins_[*catalog_index] == read.generation_;
+                still_current = catalog_index.has_value() && generation_pins_[*catalog_index] != nullptr &&
+                                generation_pins_[*catalog_index]->file == read.generation_->file;
                 if constexpr (kGetPathTimingEnabled) {
                     atomic_saturating_add(metrics.generation_pin_lookup_ns, timing_elapsed_ns(pin_started));
                 }

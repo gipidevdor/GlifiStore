@@ -250,6 +250,11 @@ struct DurableRuntimeCatalog::RuntimeSegmentGeneration {
     // before the generation is first published and never changes afterwards.
     std::shared_ptr<SegmentImage> image{};
 
+    /// True when a read of this generation is a memory read: no syscall and no blocking I/O.
+    [[nodiscard]] auto resident() const noexcept -> bool {
+        return image != nullptr;
+    }
+
     /// Decode a referenced Record from the image when resident, otherwise from the file.
     [[nodiscard]] auto visit_record(const RecordRef& reference, std::vector<std::byte>& scratch,
                                     void* context, const RecordVisitor visitor) const -> Status {
@@ -299,6 +304,7 @@ struct DurableRuntimeCatalog::RuntimeWorker {
         std::atomic_uint64_t cold_read_ns{};
         std::atomic_uint64_t crc_value_copy_ns{};
         std::atomic_uint64_t relinearization_retries{};
+        std::atomic_uint64_t resident_reads{};
         std::atomic_uint64_t hot_hits{};
         std::atomic_uint64_t hot_misses{};
         std::atomic_uint64_t hot_stale_hits{};

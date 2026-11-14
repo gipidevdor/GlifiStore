@@ -80,8 +80,12 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
             response.status = reactor_detail::response_status(published.error());
             break;
         }
+        // A resident Record that fits the response budget is decoded inline: it never blocks, so
+        // it skips the disk-read lane (ADR 0046). Anything else keeps the ADR 0016 path, whose
+        // budget check below produces the same outcome as before.
+        const auto value_budget = config_.maximum_output_bytes - kResponseHeaderBytes;
         auto record = detail::StoreAccess::prepare_published_durable_get(store_, executor_id_, *published,
-                                                                         cached_now_ns);
+                                                                         cached_now_ns, value_budget);
         if (!record) {
             response.status = reactor_detail::response_status(record.error());
         } else {
@@ -95,7 +99,6 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
                     response.status = ResponseStatus::overloaded;
                     break;
                 }
-                const auto value_budget = config_.maximum_output_bytes - kResponseHeaderBytes;
                 auto& cold = record->cold;
                 if (!cold) {
                     response.status = ResponseStatus::internal_error;

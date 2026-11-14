@@ -616,6 +616,8 @@ GLIFI_TEST("paired Reader refreshes compacted durable pins and retires the old g
          .storage_mode = glifistore::StorageMode::durable_sync,
          .data_directory = temporary.store_path(),
          .durable_open_mode = glifistore::DurableOpenMode::create_new,
+         // Cold-pin lifetime test: resident images (ADR 0046) would complete reads at prepare.
+         .durable_limits = {.resident_reads_enabled = false},
          .filesystem_hooks = {.context = &blocker, .before = &BlockingCompactionIntent::before}});
     GLIFI_REQUIRE(opened.has_value());
     auto& store = **opened;
@@ -737,6 +739,8 @@ GLIFI_TEST("ADR 0036 V8 candidate preserves durable cold pin across compacted sl
          .storage_mode = glifistore::StorageMode::durable_sync,
          .data_directory = temporary.store_path(),
          .durable_open_mode = glifistore::DurableOpenMode::create_new,
+         // Cold-pin lifetime test: resident images (ADR 0046) would complete reads at prepare.
+         .durable_limits = {.resident_reads_enabled = false},
          .filesystem_hooks = {.context = &blocker, .before = &BlockingCompactionIntent::before}});
     GLIFI_REQUIRE(opened.has_value());
     auto& store = **opened;
@@ -1164,6 +1168,55 @@ GLIFI_TEST("durable read catalog refresh is isolated to the compacted shard pair
     GLIFI_REQUIRE(stats[1].read_refresh_attempts == 0);
     GLIFI_REQUIRE(stats[1].read_refresh_successes == 0);
 
+    GLIFI_REQUIRE((*executor)->stop_and_drain().has_value());
+    GLIFI_REQUIRE(store.close().has_value());
+}
+
+GLIFI_TEST("paired Reader completes resident durable reads at prepare without a disk-read lane") {
+    ServerTemporaryDirectory temporary;
+    auto opened = glifistore::Store::open({.worker_config = {.explicit_count = 1},
+                                           .concurrency = glifistore::StoreConcurrencyMode::paired,
+                                           .paired = {.async_lane_capacity = 8,
+                                                      .async_lane_payload_bytes = kTestMutationArenaBytes,
+                                                      .reader_epoch_lease = true},
+                                           .storage_mode = glifistore::StorageMode::durable_sync,
+                                           .data_directory = temporary.store_path(),
+                                           .durable_open_mode = glifistore::DurableOpenMode::create_new});
+    GLIFI_REQUIRE(opened.has_value());
+    auto& store = **opened;
+    GLIFI_REQUIRE(store.put("resident-key", bytes("resident-value")).has_value());
+
+    auto executor = glifistore::server::PairWriterPool::create(store, 1, 8, kTestMutationArenaBytes,
+                                                               std::chrono::milliseconds{0});
+    GLIFI_REQUIRE(executor.has_value());
+    GLIFI_REQUIRE((*executor)->start().has_value());
+    const auto* generation = (*executor)->adopt_read_generation(0);
+    GLIFI_REQUIRE(generation != nullptr);
+    const std::string key{"resident-key"};
+    const glifistore::HashedKey hashed{key, glifistore::hash_key(key)};
+    {
+        auto record = generation->prepare_durable(hashed);
+        GLIFI_REQUIRE(record.has_value());
+        // The active Segment is resident: the value is decoded here and no cold pin escapes.
+        auto inline_read =
+            glifistore::detail::StoreAccess::prepare_published_durable_get(store, 0, *record, 0);
+        GLIFI_REQUIRE(inline_read.has_value());
+        GLIFI_REQUIRE(!inline_read->cold.has_value());
+        GLIFI_REQUIRE(inline_read->value.has_value());
+        GLIFI_REQUIRE(text(inline_read->value->view()) == "resident-value");
+
+        // A Record above the caller's inline limit keeps the ADR 0016 cold path and its outcome.
+        auto bounded =
+            glifistore::detail::StoreAccess::prepare_published_durable_get(store, 0, *record, 0, 1U);
+        GLIFI_REQUIRE(bounded.has_value());
+        GLIFI_REQUIRE(!bounded->value.has_value());
+        GLIFI_REQUIRE(bounded->cold.has_value());
+        auto completed =
+            glifistore::detail::StoreAccess::complete_get_owned(store, 0, std::move(*bounded->cold));
+        GLIFI_REQUIRE(completed.has_value());
+        GLIFI_REQUIRE(text(completed->view()) == "resident-value");
+    }
+    GLIFI_REQUIRE(text(store.get("resident-key")->view()) == "resident-value");
     GLIFI_REQUIRE((*executor)->stop_and_drain().has_value());
     GLIFI_REQUIRE(store.close().has_value());
 }

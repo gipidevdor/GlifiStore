@@ -134,6 +134,7 @@ auto DurableRuntimeCatalog::get_path_stats() const -> std::vector<DurableGetPath
             .cold_read_ns = metrics.cold_read_ns.load(std::memory_order_relaxed),
             .crc_value_copy_ns = metrics.crc_value_copy_ns.load(std::memory_order_relaxed),
             .relinearization_retries = metrics.relinearization_retries.load(std::memory_order_relaxed),
+            .resident_reads = metrics.resident_reads.load(std::memory_order_relaxed),
             .hot_hits = metrics.hot_hits.load(std::memory_order_relaxed),
             .hot_misses = metrics.hot_misses.load(std::memory_order_relaxed),
             .hot_stale = metrics.hot_stale_hits.load(std::memory_order_relaxed),

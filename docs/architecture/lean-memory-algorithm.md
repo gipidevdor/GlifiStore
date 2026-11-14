@@ -25,7 +25,8 @@ GlifiStore keeps one rule for memory and storage:
   (when resident), then publishes the new reference in the Index. Acknowledgement points are those of
   the durability mode; RAM never decides what is durable.
 - A read finds the reference in the Index and decodes the Record from the image when resident,
-  otherwise from the file. Both paths verify the same checksum, identity, key and expiry.
+  otherwise from the file. Both paths verify the same checksum, identity, key and expiry. A resident
+  read completes on the calling thread; only a cold read takes a disk-read lane.
 - Recovery rebuilds the Index from the files. Images and spill files are never read back.
 
 ## One reserve, two priorities
@@ -66,6 +67,28 @@ cold live bytes leave through eviction, and the Index stays complete whatever ha
 | `memory_reserve_bytes` | How much derived state stays resident; 0 means Index only (paged), no images |
 | `index_spill_directory` | Where Index pages go beyond the reserve; empty means swap |
 | `resident_reads_enabled` | Kill switch for images; reads fall back to the file path |
+
+## Local measurement
+
+One local run, not release evidence: macOS arm64, Release build, one Worker, 100 000 keys of
+16 bytes, `durable_periodic`, 7 measured repeats after 2 warm-ups, median ns per GET.
+
+```bash
+glifistore_benchmarks --filter store-durable-periodic-get --ops 100000 --value-size N [--random] [--cold-reads]
+```
+
+| Value | Access | Resident | Cold | Speed-up |
+| --- | --- | ---: | ---: | ---: |
+| 64 B | sequential | 399 | 1 065 | 2.7× |
+| 1 KiB | sequential | 640 | 1 562 | 2.4× |
+| 4 KiB | sequential | 1 601 | 2 910 | 1.8× |
+| 64 B | random | 498 | 1 292 | 2.6× |
+| 1 KiB | random | 840 | 1 765 | 2.1× |
+| 4 KiB | random | 2 132 | 3 089 | 1.4× |
+
+The cold path here is served from the page cache, so the gap is the syscall and scratch copy alone;
+a cold read that reaches the device costs far more. The remaining resident cost grows with the value:
+CRC32C verification and the copy into the response.
 
 ## Limits of this design
 
