@@ -7,6 +7,7 @@ import argparse
 import re
 import shutil
 import subprocess
+from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
@@ -25,6 +26,13 @@ def stage_guides(destination: Path, source_url: str, revision: str) -> None:
     sources.append(SITE / "index.md")
     staged = {path: destination / path.relative_to(ROOT) for path in sources}
     staged[SITE / "index.md"] = destination / "glifistore.md"
+    # Doxygen resolves a header link by file name, so a name that two headers share is ambiguous
+    # and fails the build; such headers are linked in the repository instead.
+    header_names = Counter(
+        path.name
+        for path in (ROOT / "include").rglob("*")
+        if path.suffix in {".h", ".hpp"}
+    )
 
     def rewrite_target(match: re.Match[str], source: Path) -> str:
         target = match.group("target").strip("<>")
@@ -45,6 +53,7 @@ def stage_guides(destination: Path, source_url: str, revision: str) -> None:
             relative.parts
             and relative.parts[0] == "include"
             and resolved.suffix in {".h", ".hpp"}
+            and header_names[resolved.name] == 1
         ):
             replacement = resolved.as_posix() + suffix
         else:

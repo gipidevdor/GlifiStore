@@ -77,6 +77,37 @@ class DocumentationBuildTests(unittest.TestCase):
             self.assertIn("[example](missing.md)", staged)
             self.assertEqual(original, home.read_text(encoding="utf-8"))
 
+    def test_links_headers_with_a_shared_file_name_to_the_repository(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            site = root / "docs/doxygen"
+            site.mkdir(parents=True)
+            for area in ("store", "persistence"):
+                (root / "include" / area).mkdir(parents=True)
+                (root / "include" / area / "blob.hpp").touch()
+            (root / "include/store/config.hpp").touch()
+            home = site / "index.md"
+            home.write_text(
+                "# Home\n"
+                "[blob](../../include/store/blob.hpp)\n"
+                "[config](../../include/store/config.hpp)\n",
+                encoding="utf-8",
+            )
+            destination = root / "generated"
+            with (
+                patch.object(build_docs, "ROOT", root),
+                patch.object(build_docs, "SITE", site),
+            ):
+                build_docs.stage_guides(
+                    destination, "https://github.com/owner/repo", "abc123"
+                )
+            staged = (destination / "glifistore.md").read_text(encoding="utf-8")
+            self.assertIn(
+                "https://github.com/owner/repo/blob/abc123/include/store/blob.hpp",
+                staged,
+            )
+            self.assertIn(f"<{root}/include/store/config.hpp>", staged)
+
     def test_validates_pages_assets_and_cross_page_fragments(self) -> None:
         with TemporaryDirectory() as directory:
             html = Path(directory).resolve()
