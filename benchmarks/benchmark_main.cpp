@@ -24,6 +24,7 @@ struct Options {
     std::optional<std::size_t> threads;
     std::optional<glifistore::bench::ParallelDistribution> distribution;
     std::optional<bool> random_access;
+    std::optional<bool> cold_reads;
 };
 
 [[nodiscard]] auto parse_size(const char* value, const char* flag) -> std::size_t {
@@ -49,6 +50,10 @@ struct Options {
         }
         if (arg == "--random") {
             options.random_access = true;
+            continue;
+        }
+        if (arg == "--cold-reads") {
+            options.cold_reads = true;
             continue;
         }
         if (arg == "--pin-cpu") {
@@ -102,7 +107,8 @@ struct Options {
         }
         if (arg == "--help" || arg == "-h") {
             std::cout
-                << "usage: glifistore_benchmarks [--suite] [--random] [--pin-cpu] [--latency]\n"
+                << "usage: glifistore_benchmarks [--suite] [--random] [--cold-reads] [--pin-cpu] "
+                   "[--latency]\n"
                 << "       [--filter all|index-all|index|index-insert|index-replace|index-find-hit|\n"
                 << "                "
                    "index-find-miss|index-churn-miss|index-erase|store-put|store-put-batch|store-get|\n"
@@ -154,11 +160,14 @@ void apply_overrides(glifistore::bench::Config& config, const Options& options) 
     if (options.random_access) {
         config.random_access = *options.random_access;
     }
+    if (options.cold_reads) {
+        config.cold_reads = *options.cold_reads;
+    }
 }
 
 [[nodiscard]] auto has_custom_config(const Options& options) -> bool {
     return options.operations || options.key_size || options.value_size || options.workers ||
-           options.threads || options.distribution || options.random_access;
+           options.threads || options.distribution || options.random_access || options.cold_reads;
 }
 
 [[nodiscard]] auto result_is_valid(const glifistore::bench::Result& result) -> bool {

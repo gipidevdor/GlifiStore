@@ -143,6 +143,8 @@ struct Config {
     bool random_access{false};
     bool durable_periodic{false};
     bool durable_group{false};
+    /// Durable Stores keep every Segment cold (ADR 0046 images disabled); names gain `_cold`.
+    bool cold_reads{false};
 };
 
 struct RunSettings {

@@ -59,12 +59,18 @@ struct DurableContext {
             std::to_string(counter.fetch_add(1U, std::memory_order_relaxed)));
 }
 
+[[nodiscard]] auto with_durable_mode(Config config, bool Config::* const mode) -> Config {
+    config.*mode = true;
+    return config;
+}
+
 [[nodiscard]] auto durable_store_config(const Config& config, const std::filesystem::path& data_dir,
                                         const glifistore::DurableOpenMode open_mode)
     -> glifistore::StoreConfig {
     glifistore::StoreConfig store_config{.worker_config = {.explicit_count = config.workers},
                                          .data_directory = data_dir,
                                          .durable_open_mode = open_mode};
+    store_config.durable_limits.resident_reads_enabled = !config.cold_reads;
     if (config.durable_group) {
         store_config.storage_mode = glifistore::StorageMode::durable_group;
     } else if (config.durable_periodic) {
@@ -92,26 +98,38 @@ struct DurableContext {
     return config.durable_periodic ? "store_durable_periodic_put" : "store_durable_put";
 }
 
-[[nodiscard]] auto durable_get_benchmark_name(const Config& config) -> std::string {
+[[nodiscard]] auto durable_get_benchmark_name_base(const Config& config) -> std::string {
     if (config.durable_group) {
         return "store_durable_group_get_copy";
     }
     return config.durable_periodic ? "store_durable_periodic_get_copy" : "store_durable_get_copy";
 }
 
-[[nodiscard]] auto durable_put_get_benchmark_name(const Config& config) -> std::string {
+[[nodiscard]] auto durable_get_benchmark_name(const Config& config) -> std::string {
+    return durable_get_benchmark_name_base(config) + (config.cold_reads ? "_cold" : "");
+}
+
+[[nodiscard]] auto durable_put_get_benchmark_name_base(const Config& config) -> std::string {
     if (config.durable_group) {
         return "store_durable_group_put_get_copy";
     }
     return config.durable_periodic ? "store_durable_periodic_put_get_copy" : "store_durable_put_get_copy";
 }
 
-[[nodiscard]] auto durable_read_after_write_benchmark_name(const Config& config) -> std::string {
+[[nodiscard]] auto durable_put_get_benchmark_name(const Config& config) -> std::string {
+    return durable_put_get_benchmark_name_base(config) + (config.cold_reads ? "_cold" : "");
+}
+
+[[nodiscard]] auto durable_read_after_write_benchmark_name_base(const Config& config) -> std::string {
     if (config.durable_group) {
         return "store_durable_group_read_after_write_copy";
     }
     return config.durable_periodic ? "store_durable_periodic_read_after_write_copy"
                                    : "store_durable_read_after_write_copy";
+}
+
+[[nodiscard]] auto durable_read_after_write_benchmark_name(const Config& config) -> std::string {
+    return durable_read_after_write_benchmark_name_base(config) + (config.cold_reads ? "_cold" : "");
 }
 
 [[nodiscard]] auto make_parallel_material(const Config& config) -> ParallelMaterial {
@@ -1095,95 +1113,25 @@ template <typename SetupFn, typename BodyFn>
     case BenchmarkKind::store_durable_recovery_open:
         return run_store_durable_recovery_open(config, settings);
     case BenchmarkKind::store_durable_periodic_put:
-        return run_store_durable_put(Config{.operations = config.operations,
-                                            .key_size = config.key_size,
-                                            .value_size = config.value_size,
-                                            .workers = config.workers,
-                                            .threads = config.threads,
-                                            .distribution = config.distribution,
-                                            .random_access = config.random_access,
-                                            .durable_periodic = true},
-                                     settings);
+        return run_store_durable_put(with_durable_mode(config, &Config::durable_periodic), settings);
     case BenchmarkKind::store_durable_periodic_get:
-        return run_store_durable_get(Config{.operations = config.operations,
-                                            .key_size = config.key_size,
-                                            .value_size = config.value_size,
-                                            .workers = config.workers,
-                                            .threads = config.threads,
-                                            .distribution = config.distribution,
-                                            .random_access = config.random_access,
-                                            .durable_periodic = true},
-                                     settings);
+        return run_store_durable_get(with_durable_mode(config, &Config::durable_periodic), settings);
     case BenchmarkKind::store_durable_periodic_put_get:
-        return run_store_durable_put_get(Config{.operations = config.operations,
-                                                .key_size = config.key_size,
-                                                .value_size = config.value_size,
-                                                .workers = config.workers,
-                                                .threads = config.threads,
-                                                .distribution = config.distribution,
-                                                .random_access = config.random_access,
-                                                .durable_periodic = true},
-                                         settings);
+        return run_store_durable_put_get(with_durable_mode(config, &Config::durable_periodic), settings);
     case BenchmarkKind::store_durable_periodic_read_after_write:
-        return run_store_durable_read_after_write(Config{.operations = config.operations,
-                                                         .key_size = config.key_size,
-                                                         .value_size = config.value_size,
-                                                         .workers = config.workers,
-                                                         .threads = config.threads,
-                                                         .distribution = config.distribution,
-                                                         .random_access = config.random_access,
-                                                         .durable_periodic = true},
+        return run_store_durable_read_after_write(with_durable_mode(config, &Config::durable_periodic),
                                                   settings);
     case BenchmarkKind::store_durable_group_put:
-        return run_store_durable_put(Config{.operations = config.operations,
-                                            .key_size = config.key_size,
-                                            .value_size = config.value_size,
-                                            .workers = config.workers,
-                                            .threads = config.threads,
-                                            .distribution = config.distribution,
-                                            .random_access = config.random_access,
-                                            .durable_group = true},
-                                     settings);
+        return run_store_durable_put(with_durable_mode(config, &Config::durable_group), settings);
     case BenchmarkKind::store_durable_group_get:
-        return run_store_durable_get(Config{.operations = config.operations,
-                                            .key_size = config.key_size,
-                                            .value_size = config.value_size,
-                                            .workers = config.workers,
-                                            .threads = config.threads,
-                                            .distribution = config.distribution,
-                                            .random_access = config.random_access,
-                                            .durable_group = true},
-                                     settings);
+        return run_store_durable_get(with_durable_mode(config, &Config::durable_group), settings);
     case BenchmarkKind::store_durable_group_put_get:
-        return run_store_durable_put_get(Config{.operations = config.operations,
-                                                .key_size = config.key_size,
-                                                .value_size = config.value_size,
-                                                .workers = config.workers,
-                                                .threads = config.threads,
-                                                .distribution = config.distribution,
-                                                .random_access = config.random_access,
-                                                .durable_group = true},
-                                         settings);
+        return run_store_durable_put_get(with_durable_mode(config, &Config::durable_group), settings);
     case BenchmarkKind::store_durable_group_read_after_write:
-        return run_store_durable_read_after_write(Config{.operations = config.operations,
-                                                         .key_size = config.key_size,
-                                                         .value_size = config.value_size,
-                                                         .workers = config.workers,
-                                                         .threads = config.threads,
-                                                         .distribution = config.distribution,
-                                                         .random_access = config.random_access,
-                                                         .durable_group = true},
+        return run_store_durable_read_after_write(with_durable_mode(config, &Config::durable_group),
                                                   settings);
     case BenchmarkKind::store_durable_group_parallel_put:
-        return run_store_durable_parallel_put(Config{.operations = config.operations,
-                                                     .key_size = config.key_size,
-                                                     .value_size = config.value_size,
-                                                     .workers = config.workers,
-                                                     .threads = config.threads,
-                                                     .distribution = config.distribution,
-                                                     .random_access = config.random_access,
-                                                     .durable_group = true},
-                                              settings);
+        return run_store_durable_parallel_put(with_durable_mode(config, &Config::durable_group), settings);
     case BenchmarkKind::store_durable_parallel_put:
         return run_store_durable_parallel_put(config, settings);
     case BenchmarkKind::store_durable_parallel_get:
