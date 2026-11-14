@@ -234,9 +234,11 @@ GLIFI_TEST("blob concurrent commit cannot publish an upload after its chunk thro
     const std::vector<std::byte> chunk(kBlobChunkBytes, std::byte{0x26});
     Status written;
     Status committed;
-    std::jthread append_thread{[&] { written = writer->write(chunk); }};
+    // FreeBSD/OpenBSD libc++ versions in scope do not all expose std::jthread, so both threads
+    // are joined explicitly below.
+    std::thread append_thread{[&] { written = writer->write(chunk); }};
     context.entered.wait(false);
-    std::jthread commit_thread{[&] {
+    std::thread commit_thread{[&] {
         context.commit_started = true;
         context.commit_started.notify_all();
         committed = writer->commit();
