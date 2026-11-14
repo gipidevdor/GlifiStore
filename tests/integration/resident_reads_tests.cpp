@@ -1,9 +1,15 @@
 #include "glifistore/persistence/runtime_catalog.hpp"
+#include "glifistore/store/store.hpp"
 #include "persistence_recovery_test_support.hpp"
+#include "store/store_internal.hpp"
 
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <fcntl.h>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -76,6 +82,40 @@ void overwrite_on_disk_byte(const std::filesystem::path& path, const glifistore:
         static_cast<off_t>(reference.offset.value + glifistore::kEncodedRecordHeaderSize + 6U);
     GLIFI_REQUIRE(::pwrite(descriptor, &corruption, 1, value_offset) == 1);
     GLIFI_REQUIRE(::close(descriptor) == 0);
+}
+
+// Forces the next Record write to report a full Segment. Unlike RotationBudgetObserver it may be
+// armed by one thread while the Writer consumes it on another.
+struct ConcurrentRotationObserver {
+    std::atomic_bool force_segment_full{false};
+
+    static auto before(void* opaque, const glifistore::FilesystemOperation operation) -> glifistore::Status {
+        auto& observer = *static_cast<ConcurrentRotationObserver*>(opaque);
+        if (operation == glifistore::FilesystemOperation::write_record &&
+            observer.force_segment_full.exchange(false, std::memory_order_acq_rel)) {
+            return glifistore::fail(glifistore::ErrorCode::segment_full,
+                                    "injected full Segment before rotation");
+        }
+        return {};
+    }
+
+    static auto available(void*) -> glifistore::Result<std::uint64_t> {
+        return std::uint64_t{1} << 40U;
+    }
+};
+
+// A reserve that holds one active image and almost nothing else: every rotation must evict the
+// Worker's sealed images before it can admit the next active one.
+constexpr std::uint64_t kOneImageReserveBytes = glifistore::kSegmentSizeBytes + (std::uint64_t{1} << 20U);
+constexpr std::size_t kEvictionRotations = 48;
+constexpr std::size_t kEvictionReaders = 4;
+
+[[nodiscard]] auto eviction_key(const std::size_t index) -> std::string {
+    return "evict-" + std::to_string(index);
+}
+
+[[nodiscard]] auto eviction_value(const std::size_t index) -> std::string {
+    return "value-" + std::to_string(index);
 }
 
 } // namespace
@@ -202,4 +242,153 @@ GLIFI_TEST("resident reads keep load-time bytes while compaction still detects o
     GLIFI_REQUIRE(!compacted.compacted());
     GLIFI_REQUIRE(compacted.error.has_value());
     GLIFI_REQUIRE(compacted.error->code == glifistore::ErrorCode::checksum_mismatch);
+}
+
+GLIFI_TEST("image eviction at rotation is safe against concurrent durable readers") {
+    RecoveryTemporaryDirectory temporary;
+    static_cast<void>(seed_resident_store(temporary.path()));
+    ConcurrentRotationObserver observer;
+    auto directory = glifistore::DataDirectory::open_and_lock(
+        temporary.path(), {.context = &observer,
+                           .before = &ConcurrentRotationObserver::before,
+                           .available_space_bytes = &ConcurrentRotationObserver::available});
+    GLIFI_REQUIRE(directory.has_value());
+    auto limits = glifistore::DurableResourceLimits{};
+    limits.reserved_free_bytes = 0;
+    limits.memory_reserve_bytes = kOneImageReserveBytes;
+    auto runtime =
+        glifistore::DurableRuntimeCatalog::open_locked(std::move(*directory), 0, {.limits = limits});
+    GLIFI_REQUIRE(runtime.has_value());
+    auto& catalog = **runtime;
+
+    // Readers race the Writer's rotations: each one reads a seeded key and every key published so
+    // far, whose Segment may be resident, evicted or cold at that instant. Failures are counted,
+    // not asserted, because the test macro must run on the test thread.
+    std::atomic_size_t published{0};
+    std::atomic_bool stop{false};
+    std::atomic_size_t wrong_values{0};
+    std::atomic_size_t reads{0};
+    std::vector<std::thread> readers;
+    readers.reserve(kEvictionReaders);
+    for (std::size_t reader = 0; reader < kEvictionReaders; ++reader) {
+        readers.emplace_back([&, reader] {
+            std::size_t cursor = reader;
+            while (!stop.load(std::memory_order_acquire)) {
+                const auto stable = catalog.get("stable");
+                if (!stable || owned_text(*stable) != "stable-value") {
+                    wrong_values.fetch_add(1U, std::memory_order_relaxed);
+                }
+                const auto visible = published.load(std::memory_order_acquire);
+                if (visible != 0U) {
+                    const auto index = cursor++ % visible;
+                    const auto value = catalog.get(eviction_key(index));
+                    if (!value || owned_text(*value) != eviction_value(index)) {
+                        wrong_values.fetch_add(1U, std::memory_order_relaxed);
+                    }
+                }
+                reads.fetch_add(1U, std::memory_order_relaxed);
+            }
+        });
+    }
+
+    std::size_t committed{};
+    for (std::size_t index = 0; index < kEvictionRotations; ++index) {
+        observer.force_segment_full.store(true, std::memory_order_release);
+        if (resident_put(catalog, eviction_key(index), eviction_value(index)).committed()) {
+            ++committed;
+        }
+        published.store(index + 1U, std::memory_order_release);
+    }
+    // Keep the readers on the final layout for a moment before stopping them.
+    const auto reads_at_end = reads.load(std::memory_order_relaxed);
+    while (reads.load(std::memory_order_relaxed) < reads_at_end + kEvictionReaders * 8U) {
+        std::this_thread::yield();
+    }
+    stop.store(true, std::memory_order_release);
+    for (auto& reader : readers) {
+        reader.join();
+    }
+
+    GLIFI_REQUIRE(committed == kEvictionRotations);
+    GLIFI_REQUIRE(wrong_values.load() == 0U);
+    GLIFI_REQUIRE(catalog.healthy());
+    const auto stats = catalog.memory_reserve_stats();
+    GLIFI_REQUIRE(stats.image_evictions > 0U);
+    GLIFI_REQUIRE(stats.image_charged_bytes <= stats.reserve_bytes);
+    for (std::size_t index = 0; index < kEvictionRotations; ++index) {
+        require_value(catalog, eviction_key(index), eviction_value(index));
+    }
+}
+
+GLIFI_TEST("paired Readers stay exact while rotations evict resident images") {
+    RecoveryTemporaryDirectory temporary;
+    ConcurrentRotationObserver observer;
+    auto limits = glifistore::DurableResourceLimits{};
+    limits.reserved_free_bytes = 0;
+    limits.memory_reserve_bytes = kOneImageReserveBytes;
+    auto opened = glifistore::Store::open(
+        {.worker_config = {.explicit_count = 1},
+         .concurrency = glifistore::StoreConcurrencyMode::paired,
+         .storage_mode = glifistore::StorageMode::durable_sync,
+         .data_directory = temporary.path() / "paired-store",
+         .durable_open_mode = glifistore::DurableOpenMode::create_new,
+         .durable_limits = limits,
+         .filesystem_hooks = {.context = &observer,
+                              .before = &ConcurrentRotationObserver::before,
+                              .available_space_bytes = &ConcurrentRotationObserver::available}});
+    GLIFI_REQUIRE(opened.has_value());
+    auto& store = **opened;
+
+    std::atomic_size_t published{0};
+    std::atomic_bool stop{false};
+    std::atomic_size_t wrong_values{0};
+    std::vector<std::thread> readers;
+    readers.reserve(kEvictionReaders);
+    for (std::size_t reader = 0; reader < kEvictionReaders; ++reader) {
+        readers.emplace_back([&, reader] {
+            std::size_t cursor = reader;
+            while (!stop.load(std::memory_order_acquire)) {
+                const auto visible = published.load(std::memory_order_acquire);
+                if (visible == 0U) {
+                    std::this_thread::yield();
+                    continue;
+                }
+                const auto index = cursor++ % visible;
+                const auto value = store.get(eviction_key(index));
+                if (!value || owned_text(*value) != eviction_value(index)) {
+                    wrong_values.fetch_add(1U, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    std::size_t committed{};
+    for (std::size_t index = 0; index < kEvictionRotations; ++index) {
+        observer.force_segment_full.store(true, std::memory_order_release);
+        const auto key = eviction_key(index);
+        const auto value = eviction_value(index);
+        if (store.put(key, std::as_bytes(std::span{value})).has_value()) {
+            ++committed;
+        }
+        published.store(index + 1U, std::memory_order_release);
+    }
+    stop.store(true, std::memory_order_release);
+    for (auto& reader : readers) {
+        reader.join();
+    }
+
+    GLIFI_REQUIRE(committed == kEvictionRotations);
+    GLIFI_REQUIRE(wrong_values.load() == 0U);
+    const auto reserve = glifistore::detail::StoreAccess::memory_reserve(store);
+    GLIFI_REQUIRE(reserve != nullptr);
+    const auto stats = reserve->stats();
+    GLIFI_REQUIRE(stats.image_evictions > 0U);
+    // The Worker Index and the paired Reader bases are both charged.
+    GLIFI_REQUIRE(stats.index_charged_bytes > 0U);
+    for (std::size_t index = 0; index < kEvictionRotations; ++index) {
+        const auto value = store.get(eviction_key(index));
+        GLIFI_REQUIRE(value.has_value());
+        GLIFI_REQUIRE(owned_text(*value) == eviction_value(index));
+    }
+    GLIFI_REQUIRE(store.close().has_value());
 }
