@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=b971a15
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+cooperative,1,0.138821,138.821125,29.341000,4.032541,95.793208,8.948583,0.159001,108.933333,138.274333,0.288291,0.258501,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,2,0.133743,133.742667,29.057084,4.302375,90.809542,8.956250,0.138333,104.206500,133.263584,0.268917,0.210166,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,3,0.141027,141.026666,29.849250,3.742083,96.862417,9.942250,0.178292,110.725042,140.574292,0.263875,0.188499,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,4,0.141415,141.415084,32.905291,4.796208,92.122709,10.771167,0.184041,107.874125,140.779416,0.303292,0.332376,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,5,0.136725,136.725500,32.406166,4.836208,89.815792,8.995250,0.130792,103.778042,136.184208,0.278125,0.263167,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,6,0.187636,187.635791,46.819792,6.005083,118.804167,14.988125,0.157917,139.955292,186.775084,0.547250,0.313457,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,7,0.141795,141.794666,33.311250,4.876792,92.011750,10.963583,0.100792,107.952917,141.264167,0.279791,0.250708,1,1,1,1,1,1,1,1,0,32515776,4

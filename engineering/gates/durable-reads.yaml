@@ -1,0 +1,29 @@
+gates:
+- id: GATE-DURABLE-READS
+  titolo: Memory-resident durable reads and a pageable Index under one reserve
+  sezione: durability_recovery
+  livello_rilascio: prototype
+  requisiti: [GS-PERF-DREAD-001, GS-OPS-MEMRES-001]
+  prove:
+  - tests/integration/resident_reads_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/unit/memory_reserve_tests.cpp
+  - tests/quality/allocation_fault_core_tests.cpp
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  evidenze: []
+  stato: IMPLEMENTATA
+  rischio_residuo: >-
+    ADR 0045 and ADR 0046 are proposed. Embedded callers and the glifistored Reader complete resident
+    reads inline; only cold Segments use the executor. The Worker and paired Reader indexes share the
+    reserve. Eviction concurrent with catalog and paired readers is proven locally under TSan and ASan.
+    Daemon benchmarks against the ADR 0045 targets and CI-retained evidence are outstanding.
+  riapertura:
+  - Any change to acknowledgement, visibility or recovery authority to obtain read speed
+  - Image unmap not governed by generation reclamation
+  - Resident read path that skips any cold-path validation
+  - Index growth refused because of the memory reserve
+  - An allocation after a persistent publication boundary
+  narrative: >-
+    Acceptance requires the ADR 0045 verification list as amended by ADR 0046: RAW litmus across
+    residency states, eviction under ASan/TSan, recovery below the reserve, allocation faults with and
+    without images and same-host A/B targets.

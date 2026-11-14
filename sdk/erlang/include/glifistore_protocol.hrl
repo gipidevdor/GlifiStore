@@ -1,0 +1,26 @@
+-define(GS_VERSION, 2).
+-define(GS_REQUEST_HEADER_BYTES, 40).
+-define(GS_RESPONSE_HEADER_BYTES, 40).
+-define(GS_MAX_FRAME_BYTES, 2097152).
+-define(GS_NO_WORKER, 16#FFFFFFFF).
+
+-define(GS_OP_INIT, 1).
+-define(GS_OP_PING, 2).
+-define(GS_OP_GET, 3).
+-define(GS_OP_PUT, 4).
+-define(GS_OP_ERASE, 5).
+-define(GS_OP_BIND, 6).
+-define(GS_OP_HEALTH, 7).
+-define(GS_OP_READY, 8).
+-define(GS_OP_STATS, 9).
+-define(GS_OP_BACKUP, 10).
+
+-define(GS_ST_OK, 0).
+-define(GS_ST_INVALID, 1).
+-define(GS_ST_UNSUPPORTED, 2).
+-define(GS_ST_INTERNAL, 3).
+-define(GS_ST_NOT_FOUND, 4).
+-define(GS_ST_OVERLOADED, 5).
+-define(GS_ST_WRONG_OWNER, 6).
+-define(GS_ST_NOT_BOUND, 7).
+-define(GS_ST_PERMISSION_DENIED, 8).

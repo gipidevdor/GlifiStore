@@ -1,0 +1,40 @@
+# glifistore paired-shard A/B benchmark
+# git=31bd35f-dirty
+# operations=500000 keys=4096 value_bytes=1024 repeats=7 warmup=1 batch_records=32 batch_wait_us=2
+# latency sampling=1/64 GET operations; current returns an owning copy; paired returns a span
+kind,implementation,workload,repeat,ops_per_second,p50_get_ns,p95_get_ns,p99_get_ns,p999_get_ns,latency_samples,checksum
+sample,paired-span,get100,0,13665526.989,83.000,125.000,167.000,2375.000,7813,13020530856
+sample,current-store-copy,get100,0,2172854.561,458.000,583.000,708.000,1000.000,7813,13020530856
+sample,paired-span-async,get95-put5,0,11066384.474,83.000,125.000,167.000,209.000,7813,19336248731
+sample,current-store-copy,get95-put5,0,1817556.414,458.000,625.000,875.000,1542.000,7813,18299017780
+sample,current-store-copy,get100,1,1466037.590,584.000,1000.000,1125.000,1417.000,7813,25499580856
+sample,paired-span,get100,1,13275129.149,84.000,125.000,125.000,209.000,7813,25499580856
+sample,current-store-copy,get95-put5,1,1879127.916,458.000,541.000,584.000,1000.000,7813,30153067780
+sample,paired-span-async,get95-put5,1,10681506.840,83.000,125.000,167.000,208.000,7813,31815269123
+sample,paired-span,get100,2,13389808.690,84.000,125.000,125.000,500.000,7813,37978630856
+sample,current-store-copy,get100,2,2268397.984,417.000,500.000,875.000,1166.000,7813,37978630856
+sample,paired-span-async,get95-put5,2,10962738.485,83.000,125.000,167.000,209.000,7813,44294452626
+sample,current-store-copy,get95-put5,2,1923161.675,458.000,500.000,625.000,1625.000,7813,42007117780
+sample,current-store-copy,get100,3,2297575.024,417.000,500.000,625.000,1041.000,7813,50457680856
+sample,paired-span,get100,3,13125527.187,84.000,125.000,125.000,208.000,7813,50457680856
+sample,current-store-copy,get95-put5,3,1886497.319,458.000,541.000,583.000,875.000,7813,53861167780
+sample,paired-span-async,get95-put5,3,10683979.614,83.000,125.000,167.000,250.000,7813,56773441875
+sample,paired-span,get100,4,13247430.985,84.000,125.000,125.000,250.000,7813,62936730856
+sample,current-store-copy,get100,4,2268886.924,417.000,500.000,875.000,1708.000,7813,62936730856
+sample,paired-span-async,get95-put5,4,10874431.052,83.000,125.000,167.000,250.000,7813,69252383058
+sample,current-store-copy,get95-put5,4,1933790.554,417.000,500.000,625.000,917.000,7813,65715217780
+sample,current-store-copy,get100,5,2243009.517,417.000,500.000,875.000,1542.000,7813,75415780856
+sample,paired-span,get100,5,13096233.191,84.000,125.000,166.000,250.000,7813,75415780856
+sample,current-store-copy,get95-put5,5,1777184.069,458.000,708.000,916.000,1834.000,7813,77569267780
+sample,paired-span-async,get95-put5,5,11663371.764,83.000,167.000,250.000,375.000,7813,81718009300
+sample,paired-span,get100,6,14516421.702,83.000,125.000,167.000,250.000,7813,87894830856
+sample,current-store-copy,get100,6,1739822.836,459.000,917.000,1125.000,1875.000,7813,87894830856
+sample,paired-span-async,get95-put5,6,10579137.311,83.000,125.000,167.000,209.000,7813,94210461817
+sample,current-store-copy,get95-put5,6,1910237.614,458.000,500.000,542.000,667.000,7813,89423317780
+# final_state_verification=pass
+kind,implementation,workload,samples,median_ops_per_second,median_p99_get_ns,median_p999_get_ns
+summary,paired-span,get100,7,13275129.149,125.000,250.000
+summary,current-store-copy,get100,7,2243009.517,875.000,1417.000
+summary,paired-span-async,get95-put5,7,10874431.052,167.000,209.000
+summary,current-store-copy,get95-put5,7,1886497.319,625.000,1000.000
+telemetry,publications,43270,publication_records,204096,publication_latency_ns,251325878,writer_batch_wait_ns,90909355,writer_batch_deadline_closes,42801,publication_storage_bytes,422400,ingress_value_bytes_copied,208994304,payload_allocations,204096,payload_bytes_allocated,212000554,delta_directory_entries_copied,4348976,delta_page_view_entries_copied,22154240,delta_pages_copied,201504,delta_pages_allocated,202528,delta_merges,1,generation_high_watermark,9,generation_retired,43270,generation_retire_delay_ns,596792285,publication_backpressure,0,generation_slot_reuses,43262

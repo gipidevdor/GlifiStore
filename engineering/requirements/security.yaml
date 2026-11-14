@@ -1,0 +1,120 @@
+requirements:
+- id: GS-SEC-PROFILE-001
+  titolo: Secure profile TLS mTLS authz and abuse controls
+  categoria: security
+  criticita: alta
+  stato: provato
+  descrizione: Optional secure profile provides TLS 1.3, mTLS principals, capability/prefix authorization,
+    rate limits, audit events, and local CRL fail-closed as specified.
+  autorita:
+  - docs/security/secure-profile.md
+  - docs/security/threat-model.md
+  - docs/adr/0020-tls-outer-transport.md
+  - docs/adr/0022-authorization-capabilities.md
+  - docs/adr/0041-bounded-network-security-lifecycles.md
+  implementazione:
+  - src/server/tls.cpp
+  - src/server
+  prove:
+  - scripts/test-secure-profile-interop.sh
+  - scripts/test-secure-profile-installed-artifacts.sh
+  - engineering/evidence/sdk-installed-secure-profile.md
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - openbsd
+  claim_massimo: secure-profile-lab
+  evidenze:
+  - workflow: ci.yml
+  - workflow: openbsd-libressl.yml
+  - path: engineering/evidence/security-bounds-ci-2026-11-01.md
+    note: Fresh ADR 0041 hosted platform and installed SDK controls on bc0b41e
+  rischio_residuo:
+  - >-
+    Hostile public bind still wants operator CRL; multi-tenant Phase 8 remainder
+    unsupported/deferred (ADR 0028, at-rest crypto); restart-only TLS certs;
+    OpenMetrics/Prometheus intentional non-support; physical E3 honesty open;
+    blocked audit sinks suppress best-effort events, with pending output potentially lost at exit
+  hazards:
+  - HAZ-023
+  - HAZ-024
+  gates:
+  - GATE-AUTH-TRANSPORT
+- id: GS-SEC-BOUNDS-001
+  titolo: Bounded TLS output denied attempts and audit lifecycles
+  categoria: security
+  criticita: alta
+  stato: provato
+  descrizione: Pending TLS consumes bounded connection slots without blocking Readers; output
+    progress expires independently of input; decided responses saturate byte windows; denied
+    attempts consume quotas before audit; a fixed process-wide queue isolates sink I/O from
+    Readers and Server destruction, with explicit delivery and suppression telemetry.
+  autorita:
+  - docs/adr/0041-bounded-network-security-lifecycles.md
+  - docs/security/secure-profile.md
+  - docs/spec/connection-drain-state-machine.md
+  - docs/spec/client-semantics-v1.md
+  implementazione:
+  - src/server/reactor_tls.cpp
+  - src/server/reactor_timeouts.cpp
+  - src/server/reactor_dispatch.cpp
+  - src/server/abuse_limits.cpp
+  - src/server/security_audit.cpp
+  prove:
+  - tests/unit/tls_tests.cpp
+  - tests/integration/server_security_bounds_tests.cpp
+  - tests/integration/server_reactor_limits_timeout_tests.cpp
+  - tests/unit/abuse_limits_tests.cpp
+  - tests/unit/security_audit_tests.cpp
+  - tests/security_audit_sink_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/security-bounds-local-2026-11-01.md
+    note: Local full suite, TLS-off, ASan/UBSan and mutation controls
+  - path: engineering/evidence/security-bounds-ci-2026-11-01.md
+    note: Source bc0b41e; Linux/macOS CI and FreeBSD/OpenBSD native rows passed
+  rischio_residuo:
+  - A blocked stderr retains one process-lifetime emitter and bounded queue; events are best effort,
+    may be suppressed or lost at exit, and require operator draining. No durable audit or rotation.
+  - One decided response may exceed residual byte allowance; packet-level shaping is not provided.
+  - Both timeout knobs zero deliberately disable output expiry in the explicit trusted configuration.
+  hazards:
+  - HAZ-024
+  gates:
+  - GATE-AUTH-TRANSPORT
+- id: GS-SUPPLY-ACTIONS-001
+  titolo: GitHub Actions pinned to immutable commit SHAs
+  categoria: security
+  criticita: media
+  stato: implementato
+  descrizione: Every third-party `uses:` in `.github/workflows/*.yml` pins a 40-character commit
+    SHA (tag comment optional). Mutable tags/branches and mixed CodeQL Action revisions
+    are rejected by CI. Dependabot groups all CodeQL steps for version and security updates.
+  autorita:
+  - docs/security/actions-pinning.md
+  - docs/security/threat-model.md
+  implementazione:
+  - .github/workflows
+  - engineering/tools/validate_actions_pins.py
+  prove:
+  - engineering/tools/validate_actions_pins.py
+  - scripts/tests/test_actions_pins.py
+  - .github/workflows/actionlint.yml
+  piattaforme:
+  - linux-x86_64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: assurance.yml
+  - workflow: actionlint.yml
+  - path: engineering/evidence/dependabot-local-2026-11-07.md
+    note: Local CodeQL revision and Dependabot grouping regression campaign; no hosted CI promotion
+  rischio_residuo:
+  - Dependabot must rewrite floating tags to 40-character commit SHAs before merge
+  - A skipped, cancelled, queued, or unavailable hosted workflow is not evidence for the candidate
+  gates:
+  - GATE-THREAT-SUPPLY

@@ -1,0 +1,11 @@
+# Portable install-prefix example. Native packages install an OS-specific
+# preserved sample separately; review every limit before non-loopback use.
+profile=production
+bind=127.0.0.1
+port=7379
+shard-pairs=1
+storage-mode=durable-periodic
+data-dir=@GLIFISTORE_DEFAULT_DATA_DIR@
+open-mode=open-or-create
+log-format=json
+shutdown-drain-ms=30000

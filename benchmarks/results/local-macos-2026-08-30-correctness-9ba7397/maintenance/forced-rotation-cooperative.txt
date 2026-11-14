@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=9ba7397
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+cooperative,1,0.155067,155.066833,29.361833,3.872750,101.902709,19.274542,0.125166,125.175167,154.537000,0.291667,0.238166,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,2,0.384596,384.596250,37.537833,4.852541,124.361875,216.850667,0.121709,346.186792,383.724625,0.601333,0.270292,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,3,0.158995,158.995125,33.407833,3.843542,102.086708,18.999458,0.102584,125.032292,158.440125,0.286292,0.268708,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,4,0.154161,154.160875,32.271708,3.873833,97.923042,19.326750,0.111000,121.234625,153.506333,0.326917,0.327625,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,5,0.181474,181.473625,34.396333,3.840084,120.076000,22.506875,0.094833,146.517792,180.914125,0.286500,0.273000,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,6,0.159360,159.360416,33.539958,3.889958,101.953375,19.285375,0.106542,125.235250,158.775208,0.313709,0.271499,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,7,0.155626,155.626334,35.166958,4.044541,96.775292,18.978250,0.104917,119.903000,155.069958,0.300958,0.255418,1,1,1,1,1,1,1,1,0,32515776,4

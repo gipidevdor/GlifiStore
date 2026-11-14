@@ -1,0 +1,6 @@
+# benchmark=glifistore_durable_compaction
+# git_sha=f999cac-dirty
+# storage_mode=durable-periodic;seed_flush_before_measurement=true
+# compaction_scope=public Store::compact;one Worker;maintenance disabled
+# warmups=1;measured_repeats=7
+scenario,repeat,operations,live_keys,value_bytes,compacted,seed_s,compact_ms,reopen_ms,verify_ms,segments_before,segments_after,logical_mib_before,logical_mib_after,logical_mib_reclaimed,allocated_mib_before,allocated_mib_after,allocated_mib_reclaimed,source_records_verified,source_mib_verified,records_copied,copied_mib,records_dropped,expired_records_dropped,effective_scan_mib_s,copy_mib_s

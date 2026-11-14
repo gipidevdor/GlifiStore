@@ -1,0 +1,2 @@
+[PASS] paired durable Writer fail-closes when mutate throws after durable I/O begins
+1 tests, 0 failures

@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=31bd35f-dirty
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+cooperative,1,0.194332,194.331959,137.034583,4.760084,36.943500,15.002834,0.116957,56.823375,193.857958,0.248417,0.225584,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,2,0.240390,240.390042,144.993375,3.746375,69.979917,21.014500,0.122667,94.863459,239.856834,0.266459,0.266749,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,3,0.196565,196.564583,145.160750,3.918208,35.913667,10.930541,0.200876,50.963292,196.124042,0.228625,0.211916,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,4,0.249270,249.269667,182.950584,3.729459,46.014500,15.951583,0.104958,65.800500,248.751084,0.248833,0.269750,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,5,0.224453,224.453083,141.884791,3.825666,63.010625,15.180042,0.100584,82.116917,224.001708,0.260917,0.190458,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,6,0.219844,219.844292,155.383875,3.876250,43.049250,16.905166,0.106417,63.937083,219.320958,0.273167,0.250167,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,7,0.199971,199.971459,141.533375,3.888083,37.985125,15.966542,0.096916,57.936666,199.470041,0.269167,0.232251,1,1,1,1,1,1,1,1,0,32515776,4

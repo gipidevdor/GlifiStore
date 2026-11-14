@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=mixed
+# threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,generation_backpressure_retries,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_no_gain_scans_suppressed,maintenance_no_gain_retry_after_ns,maintenance_pacing_delay_ms,maintenance_pacing_sleep_count,maintenance_pacing_burst_bytes,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after
+background,1,15360,14615,745,0,0.213449,71961.025796,22.166000,72.958000,856.375000,26106.459000,21.917000,36.791000,56.334000,8353.125000,359.500000,1594.084000,3704.833000,26106.459000,1,1,1,0,32515776,9,10,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3
+background,2,15360,14615,745,0,0.164402,93429.544191,21.584000,68.125000,618.417000,6816.708000,21.417000,33.625000,47.708000,1113.208000,232.166000,1105.583000,2191.667000,6816.708000,1,1,1,0,32515776,17,18,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3
+background,3,15360,14615,745,0,0.168394,91214.448226,22.000000,71.041000,634.292000,6678.542000,21.833000,36.584000,52.250000,965.209000,274.208000,1072.541000,2061.750000,6678.542000,1,1,1,0,32515776,8,9,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3
+background,4,15360,14615,745,0,0.307160,50006.585828,23.083000,76.667000,2038.083000,14119.958000,22.791000,42.333000,63.958000,1534.166000,524.083000,3111.084000,5360.792000,14119.958000,1,1,1,0,32515776,9,10,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3
+background,5,15360,14615,745,0,0.278301,55192.114642,22.333000,76.458000,1853.375000,19923.125000,22.125000,40.083000,61.792000,1387.584000,327.709000,2770.125000,7462.000000,19923.125000,1,1,1,0,32515776,9,10,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3
+background,6,15360,14615,745,0,0.270205,56845.807136,21.750000,65.875000,1832.625000,25947.000000,21.625000,32.666000,45.250000,1624.083000,307.625000,2639.291000,5969.875000,25947.000000,1,1,1,0,32515776,8,9,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3
+background,7,15360,14615,745,0,0.335974,45717.851843,22.791000,118.209000,1919.292000,29506.042000,22.542000,41.916000,117.709000,7423.833000,604.542000,2813.292000,7293.125000,29506.042000,1,1,1,0,32515776,12,13,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,3

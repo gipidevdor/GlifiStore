@@ -1,0 +1,29 @@
+BasedOnStyle: LLVM
+Language: Cpp
+# clang-format 21 names its newest parser mode Latest; compilation remains ISO C++23.
+Standard: Latest
+ColumnLimit: 110
+IndentWidth: 4
+ContinuationIndentWidth: 4
+PointerAlignment: Left
+ReferenceAlignment: Left
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+BreakBeforeBraces: Attach
+DerivePointerAlignment: false
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+UseTab: Never
+LineEnding: LF
+IndentCaseLabels: false
+IndentPPDirectives: None
+AccessModifierOffset: -2
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always
+# Formatting must preserve qualifiers, braces, parentheses and statement tokens.
+QualifierAlignment: Leave
+InsertBraces: false
+RemoveBracesLLVM: false
+RemoveParentheses: Leave
+RemoveSemicolon: false
+ReflowComments: IndentOnly

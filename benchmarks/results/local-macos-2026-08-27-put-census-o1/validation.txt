@@ -1,0 +1,11 @@
+release glifistore_tests: 629 tests, 0 failures
+release ctest: 53/53 passed; real time 272.79 s
+release allocation fault injection: passed
+asan+ubsan paired Delta arena retains immutable overwrite versions in fixed record blocks: passed
+asan+ubsan paired Store concurrent*: 4 tests, 0 failures
+tsan embedded volatile combining preserves same-key FIFO under contention: passed
+tsan paired Store concurrent GET and PUT on one key stay linearized: passed
+tsan paired large delta copies only touched persistent directory blocks: passed
+assurance: 30 requirements, 31 hazards, 26 gates, 2 waivers, 0 warnings
+git diff --check: passed
+

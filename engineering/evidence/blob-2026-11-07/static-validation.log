@@ -1,0 +1,14 @@
+Documentation including new evidence OK (291 files, 1334 links)
+$ python3 engineering/tools/validate_assurance.py
+Assurance validation OK (45 requirements, 40 hazards, 33 gates, 3 waivers; 0 warning(s))
+$ python3 scripts/generate_blob_fixtures.py --check
+Blob fixtures match independent Python encoding
+$ python3 engineering/tools/validate_cmake_deps.py
+CMake dependency validation OK (11 targets, 4 include rules)
+$ python3 engineering/tools/validate_structure_debt.py
+Structure debt validation OK (max_lines=1600, files=380, waivers=3)
+$ python3 engineering/tools/validate_durability_claims.py
+Durability claim validation OK (E0–E2 honesty; no unpinned E3/E4)
+$ python3 engineering/tools/validate_claims.py
+Claims validation OK (1 claim(s))
+$ git diff --check

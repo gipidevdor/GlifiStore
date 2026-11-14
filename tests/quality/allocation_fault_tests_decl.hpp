@@ -1,0 +1,43 @@
+#pragma once
+
+#include "allocation_fault_test_support.hpp"
+
+namespace allocation_fault_test {
+void run_exhaustive_allocation_failures(const Scenario& scenario);
+void run_client_mutation_allocation_failures();
+void run_client_late_response_allocation();
+void run_slot_pool_mirror_without_allocation();
+void run_no_post_write_allocation(const glifistore::DurableRuntimeOptions options);
+void run_paired_volatile_get_inline_zero_heap();
+void run_exhaustive_read_failures();
+void run_background_allocation_failure_waiters();
+void run_exhaustive_compaction_allocation_failures(bool resident_images);
+void run_compaction_remap_without_allocation();
+void run_volatile_rotation_allocation_failures();
+void run_volatile_vacuum_publication_allocation_failures();
+void run_index_tombstone_rebuild_allocation_failures();
+void run_paired_async_durable_coalesced_fail_closed();
+void run_paired_async_durable_sibling_publish_after_capture_fail();
+void run_paired_durable_batch_stops_after_indeterminate_ttl();
+void run_paired_volatile_multichunk_fail_closed();
+void run_multi_owner_batch_allocation_failures();
+void run_paired_durable_sync_multichunk_fail_closed();
+void run_paired_volatile_sync_midchunk_fail_closed_resource_exhausted();
+void run_paired_volatile_sync_midchunk_catch_preserves_resource_exhausted();
+void run_paired_sync_durable_group_catch_preserves_resource_exhausted();
+void run_paired_sync_durable_sync_drain_after_capture_fail();
+void run_paired_sync_durable_sync_ack_after_publish_catch();
+void run_paired_sync_durable_sync_erase_ack_after_publish_catch();
+void run_paired_sync_durable_sync_ack_after_index_account();
+void run_paired_sync_durable_sync_erase_ack_after_index_account();
+void run_paired_async_durable_sync_ack_after_index_account();
+void run_paired_sync_durable_group_ack_after_index_account();
+void run_paired_volatile_sync_ack_after_publish_catch();
+void run_paired_volatile_sync_erase_ack_after_publish_catch();
+void run_paired_async_volatile_ack_after_publish_catch();
+void run_paired_async_durable_sync_ack_after_publish_catch();
+void run_paired_async_durable_sync_erase_ack_after_publish_catch();
+void run_paired_async_volatile_erase_ack_after_publish_catch();
+void run_paired_async_durable_group_ack_after_index_account();
+void run_paired_async_durable_group_erase_ack_after_index_account();
+} // namespace allocation_fault_test

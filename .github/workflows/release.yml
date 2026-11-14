@@ -1,0 +1,1483 @@
+name: Release
+
+# Candidate -> Verify -> Publish. Verify and Publish never rebuild GlifiStore;
+# both consume the exact candidate bytes and re-check their transitive seals.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    name: Candidate / build once
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-candidate.yml
+    with:
+      tag: ${{ github.ref_name }}
+
+  sdk-installed-evidence:
+    name: Certify installed SDKs against candidate bytes
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.x"
+          cache-dependency-path: sdk/go/go.mod
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: "3.4"
+      - name: Install SDK certification toolchains
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y clang erlang lsof pkgconf rebar3
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Verify and extract the exact candidate
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate \
+            --seal candidate-seal.json
+          archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-*-linux-*.tar.xz' \
+            ! -name 'glifistore-abi-v*-consumer-*' \
+            ! -name 'glifistore-wire-v*-client-*' -print -quit)"
+          test -n "$archive"
+          mkdir -p build/release-sdk-prefix
+          tar -xJf "$archive" -C build/release-sdk-prefix --strip-components=1
+          test -x build/release-sdk-prefix/bin/glifistored
+          test -f build/release-sdk-prefix/lib/cmake/GlifiStore/GlifiStoreConfig.cmake
+      - name: Prove installed C and C++ consumers
+        run: |
+          set -euo pipefail
+          evidence=build/release-input-sdk
+          mkdir -p "$evidence"
+          {
+            cmake -S tests/consumer -B build/release-sdk-consumer -G Ninja \
+              -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/build/release-sdk-prefix"
+            cmake --build build/release-sdk-consumer
+            ctest --test-dir build/release-sdk-consumer --output-on-failure
+            read -r -a pkg_config_flags <<< "$(
+              PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/build/release-sdk-prefix/lib/pkgconfig" \
+                pkg-config --cflags --libs glifistore-abi
+            )"
+            cc -std=c11 tests/consumer/abi.c \
+              "${pkg_config_flags[@]}" \
+              -o build/release-sdk-consumer/pkgconfig-abi-consumer
+            LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/build/release-sdk-prefix/lib" \
+              build/release-sdk-consumer/pkgconfig-abi-consumer
+          } 2>&1 | tee "$evidence/native-consumers.log"
+      - name: Package and exercise every installed SDK
+        run: |
+          set -euo pipefail
+          evidence=build/release-input-sdk
+          {
+            ./scripts/package-python-client.sh
+            ./scripts/package-perl-client.sh
+            ./scripts/package-go-client.sh
+            ./scripts/package-ruby-client.sh
+            ./scripts/package-erlang-client.sh
+            INSTALLED_INTEROP_PROFILE=plain \
+              GLIFISTORED="${GITHUB_WORKSPACE}/build/release-sdk-prefix/bin/glifistored" \
+              GLIFISTORE_CPP_PREFIX="${GITHUB_WORKSPACE}/build/release-sdk-prefix" \
+              ./scripts/test-secure-profile-installed-artifacts.sh
+          } 2>&1 | tee "$evidence/sdk-installed.log"
+          grep -Fqx \
+            'Installed C++/Python/Perl/Ruby/Go/Erlang plain interop PASSED' \
+            "$evidence/sdk-installed.log"
+      - name: Bind installed SDK evidence to the candidate seal
+        run: |
+          set -euo pipefail
+          cat >build/sdk-installed-checks.json <<'JSON'
+          [
+            {"id":"source-isolation","command":"package all SDKs, install outside checkout, reject source-tree loads, then run plain interop","evidence_ref":"sdk-installed.log"},
+            {"id":"c","command":"configure/build/test external C consumer and pkg-config C11 consumer against extracted prefix","evidence_ref":"native-consumers.log"},
+            {"id":"cpp","command":"configure/build/test external C++ consumer and installed-package interop peer against extracted prefix","evidence_ref":"sdk-installed.log"},
+            {"id":"python","command":"package-python-client.sh then installed plain interop","evidence_ref":"sdk-installed.log"},
+            {"id":"perl","command":"package-perl-client.sh then installed plain interop","evidence_ref":"sdk-installed.log"},
+            {"id":"go","command":"package-go-client.sh then installed plain interop","evidence_ref":"sdk-installed.log"},
+            {"id":"erlang","command":"package-erlang-client.sh then installed plain interop","evidence_ref":"sdk-installed.log"},
+            {"id":"ruby","command":"package-ruby-client.sh then installed plain interop","evidence_ref":"sdk-installed.log"}
+          ]
+          JSON
+          python engineering/tools/release_evidence.py create \
+            --root . \
+            --type sdk_installed_interop \
+            --subject dist/release-candidate/candidate-seal.json \
+            --output build/release-input-sdk/sdk-installed-interop-evidence.json \
+            --check-plan build/sdk-installed-checks.json \
+            --limitation 'candidate TLS is disabled; secure-profile installed interop remains a separate CI gate' \
+            --require-ci
+      - name: Upload same-run installed SDK evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-sdk-installed
+          path: build/release-input-sdk/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  persistent-compatibility-evidence:
+    name: Certify persistence v1 against prior tagged Store
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install artifact-only persistence harness dependencies
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y clang lsof
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Verify and extract the exact candidate
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate \
+            --seal candidate-seal.json
+          archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-*-linux-*.tar.xz' \
+            ! -name 'glifistore-abi-v*-consumer-*' \
+            ! -name 'glifistore-wire-v*-client-*' -print -quit)"
+          test -n "$archive"
+          mkdir -p build/release-persistence-prefix
+          tar -xJf "$archive" -C build/release-persistence-prefix --strip-components=1
+          test -x build/release-persistence-prefix/bin/glifistored
+      - name: Select a real prior tagged Store fixture
+        run: |
+          set -euo pipefail
+          python engineering/tools/persistence_fixture.py select \
+            --directory tests/fixtures/released-stores \
+            --before-version "$(cat VERSION)" \
+            --repository . \
+            >build/prior-store-fixture.txt
+          fixture="$(cat build/prior-store-fixture.txt)"
+          python engineering/tools/persistence_fixture.py validate \
+            "$fixture" --before-version "$(cat VERSION)" --repository .
+      - name: Build the protocol probe only from installed candidate metadata
+        run: |
+          ./scripts/build-installed-cpp-interop.sh \
+            build/release-persistence-prefix \
+            build/release-persistence-client
+      - name: Exercise old Store open, recovery, migration, backup, and repair
+        run: |
+          set -euo pipefail
+          evidence=build/release-input-persistence
+          fixture="$(cat build/prior-store-fixture.txt)"
+          mkdir -p "$evidence"
+          for check in new-opens-old fixture-recovery migration backup-verify-repair; do
+            ./scripts/test-installed-persistence-compat.sh \
+              --prefix build/release-persistence-prefix \
+              --fixture "$fixture" \
+              --client build/release-persistence-client \
+              --check "$check" 2>&1 | tee "$evidence/persistent-$check.log"
+            grep -Fq "PERSISTENCE-COMPAT $check PASSED" \
+              "$evidence/persistent-$check.log"
+          done
+      - name: Bind persistence evidence to the candidate seal
+        run: |
+          set -euo pipefail
+          cat >build/persistent-compatibility-checks.json <<'JSON'
+          [
+            {"id":"new-opens-old","command":"candidate verify and daemon open-existing against the newest strictly older tagged Store fixture, then exact probe GET","evidence_ref":"persistent-new-opens-old.log"},
+            {"id":"fixture-recovery","command":"two candidate open-existing cycles with intervening offline verification and exact probe GET","evidence_ref":"persistent-fixture-recovery.log"},
+            {"id":"migration","command":"candidate offline Worker-count migration into a new Store, verify, reopen, and exact probe GET","evidence_ref":"persistent-migration.log"},
+            {"id":"backup-verify-repair","command":"candidate backup, restore, verify, orphan quarantine repair, reopen, and exact probe GET","evidence_ref":"persistent-backup-verify-repair.log"}
+          ]
+          JSON
+          python engineering/tools/release_evidence.py create \
+            --root . \
+            --type persistent_compatibility \
+            --subject dist/release-candidate/candidate-seal.json \
+            --output build/release-input-persistence/persistent-compatibility-evidence.json \
+            --check-plan build/persistent-compatibility-checks.json \
+            --limitation 'requires a permanent tagged Store fixture strictly older than the candidate; no such baseline is inferred from current-tree codec vectors' \
+            --require-ci
+      - name: Upload same-run persistence evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-persistent-compatibility
+          path: build/release-input-persistence/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  abi-compatibility-evidence:
+    name: Certify C ABI v1 against prior official release
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install ABI harness dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils pkgconf
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Verify and extract the exact candidate
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-*-linux-*.tar.xz' \
+            ! -name 'glifistore-abi-v*-consumer-*' \
+            ! -name 'glifistore-wire-v*-client-*' -print -quit)"
+          test -n "$archive"
+          mkdir -p build/abi-candidate-prefix
+          tar -xJf "$archive" -C build/abi-candidate-prefix --strip-components=1
+          test -f build/abi-candidate-prefix/share/GlifiStore/ABI_VERSION
+      - name: Select and download the newest prior ABI-compatible release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          abi_major="$(cut -d. -f1 build/abi-candidate-prefix/share/GlifiStore/ABI_VERSION)"
+          python engineering/tools/prior_release.py select \
+            --repository . --before-version "$(cat VERSION)" --abi-major "$abi_major" \
+            >build/prior-release-tag.txt
+          prior_tag="$(cat build/prior-release-tag.txt)"
+          mkdir -p build/prior-release-download build/prior-release build/prior-provenance
+          gh release download "$prior_tag" --dir build/prior-release-download
+          mapfile -t provenance < <(find build/prior-release-download -maxdepth 1 -type f \
+            -name 'verified-seal.sigstore.json' -print)
+          test "${#provenance[@]}" -eq 1
+          cp "${provenance[0]}" build/prior-provenance/verified-seal.sigstore.json
+          find build/prior-release-download -maxdepth 1 -type f \
+            ! -name 'verified-seal.sigstore.json' -exec cp {} build/prior-release/ \;
+      - name: Verify prior release seal, policy, identity, and attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          prior_tag="$(cat build/prior-release-tag.txt)"
+          prior_sha="$(git rev-parse "$prior_tag^{commit}")"
+          abi_major="$(cut -d. -f1 build/abi-candidate-prefix/share/GlifiStore/ABI_VERSION)"
+          python engineering/tools/prior_release.py validate \
+            --directory build/prior-release --repository . --tag "$prior_tag" \
+            --before-version "$(cat VERSION)" --abi-major "$abi_major" \
+            --architecture "$(uname -m)" --output build/prior-release.json
+          gh attestation verify build/prior-release/verified-seal.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle build/prior-provenance/verified-seal.sigstore.json \
+            --signer-workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-ref "refs/tags/$prior_tag" --source-digest "$prior_sha"
+      - name: Extract sealed prior prefix and compiled consumer
+        run: |
+          set -euo pipefail
+          read_field() {
+            python - "$1" <<'PY'
+          import json
+          import sys
+          print(json.load(open("build/prior-release.json", encoding="utf-8"))[sys.argv[1]])
+          PY
+          }
+          install_archive="$(read_field install_archive)"
+          consumer_archive="$(read_field abi_consumer_archive)"
+          mkdir -p build/abi-prior-prefix
+          tar -xJf "build/prior-release/$install_archive" \
+            -C build/abi-prior-prefix --strip-components=1
+          python engineering/tools/abi_consumer_fixture.py \
+            --archive "build/prior-release/$consumer_archive" \
+            --expected-version "$(read_field product_version)" \
+            --expected-git-sha "$(read_field git_sha)" \
+            --expected-abi-major "$(cut -d. -f1 build/abi-candidate-prefix/share/GlifiStore/ABI_VERSION)" \
+            --extract-to build/prior-abi-consumer
+      - name: Exercise exact symbols, layout, and both binary directions
+        run: |
+          set -euo pipefail
+          evidence=build/release-input-abi
+          mkdir -p "$evidence" build/abi-check-work
+          for check in exact-symbols layout old-consumer-new-library new-consumer-old-library; do
+            ./scripts/test-installed-abi-compat.sh \
+              --candidate-prefix build/abi-candidate-prefix \
+              --prior-prefix build/abi-prior-prefix \
+              --prior-consumer build/prior-abi-consumer \
+              --work build/abi-check-work --check "$check" \
+              2>&1 | tee "$evidence/abi-$check.log"
+            grep -Fq "ABI-COMPAT $check PASSED" "$evidence/abi-$check.log"
+          done
+      - name: Bind ABI evidence to the candidate seal
+        run: |
+          cat >build/abi-compatibility-checks.json <<'JSON'
+          [
+            {"id":"exact-symbols","command":"inspect the candidate shared library and require the exact ABI-v1 symbol authority","evidence_ref":"abi-exact-symbols.log"},
+            {"id":"layout","command":"compile fixed layout assertions through candidate installed metadata and execute with candidate library","evidence_ref":"abi-layout.log"},
+            {"id":"old-consumer-new-library","command":"execute the prior release sealed compiled consumer with the candidate ABI library and prove loader resolution","evidence_ref":"abi-old-consumer-new-library.log"},
+            {"id":"new-consumer-old-library","command":"compile the new consumer against candidate headers and execute with the prior official library, proving loader resolution","evidence_ref":"abi-new-consumer-old-library.log"}
+          ]
+          JSON
+          python engineering/tools/release_evidence.py create \
+            --root . --type abi_compatibility \
+            --subject dist/release-candidate/candidate-seal.json \
+            --output build/release-input-abi/abi-compatibility-evidence.json \
+            --check-plan build/abi-compatibility-checks.json \
+            --limitation 'requires a complete attested prior release with the same ABI major and its sealed compiled consumer fixture' \
+            --require-ci
+      - name: Upload same-run ABI evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-abi-compatibility
+          path: build/release-input-abi/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  wire-compatibility-evidence:
+    name: Certify wire v2 against prior official release
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install wire harness dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lsof
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Verify and extract the exact candidate server and client
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          install_archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-*-linux-*.tar.xz' \
+            ! -name 'glifistore-abi-v*-consumer-*' \
+            ! -name 'glifistore-wire-v*-client-*' -print -quit)"
+          wire_archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-wire-v2-client-*-linux-*.tar.xz' -print -quit)"
+          test -n "$install_archive"
+          test -n "$wire_archive"
+          mkdir -p build/wire-candidate-prefix
+          tar -xJf "$install_archive" -C build/wire-candidate-prefix --strip-components=1
+          python engineering/tools/wire_client_fixture.py \
+            --archive "$wire_archive" --expected-version "$(cat VERSION)" \
+            --expected-git-sha "$(git rev-parse HEAD)" --expected-wire-version 2 \
+            --extract-to build/candidate-wire-client
+      - name: Select and download the newest prior compatible release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          abi_major="$(cut -d. -f1 build/wire-candidate-prefix/share/GlifiStore/ABI_VERSION)"
+          python engineering/tools/prior_release.py select \
+            --repository . --before-version "$(cat VERSION)" --abi-major "$abi_major" \
+            >build/prior-wire-release-tag.txt
+          prior_tag="$(cat build/prior-wire-release-tag.txt)"
+          mkdir -p build/prior-wire-download build/prior-wire-release build/prior-wire-provenance
+          gh release download "$prior_tag" --dir build/prior-wire-download
+          mapfile -t provenance < <(find build/prior-wire-download -maxdepth 1 -type f \
+            -name 'verified-seal.sigstore.json' -print)
+          test "${#provenance[@]}" -eq 1
+          cp "${provenance[0]}" build/prior-wire-provenance/verified-seal.sigstore.json
+          find build/prior-wire-download -maxdepth 1 -type f \
+            ! -name 'verified-seal.sigstore.json' -exec cp {} build/prior-wire-release/ \;
+      - name: Verify prior release seal, policy, identity, and attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          prior_tag="$(cat build/prior-wire-release-tag.txt)"
+          prior_sha="$(git rev-parse "$prior_tag^{commit}")"
+          abi_major="$(cut -d. -f1 build/wire-candidate-prefix/share/GlifiStore/ABI_VERSION)"
+          python engineering/tools/prior_release.py validate \
+            --directory build/prior-wire-release --repository . --tag "$prior_tag" \
+            --before-version "$(cat VERSION)" --abi-major "$abi_major" \
+            --wire-version 2 --architecture "$(uname -m)" \
+            --output build/prior-wire-release.json
+          gh attestation verify build/prior-wire-release/verified-seal.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle build/prior-wire-provenance/verified-seal.sigstore.json \
+            --signer-workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-ref "refs/tags/$prior_tag" --source-digest "$prior_sha"
+      - name: Extract the sealed prior server and compiled client
+        run: |
+          set -euo pipefail
+          read_field() {
+            python - "$1" <<'PY'
+          import json
+          import sys
+          print(json.load(open("build/prior-wire-release.json", encoding="utf-8"))[sys.argv[1]])
+          PY
+          }
+          install_archive="$(read_field install_archive)"
+          wire_archive="$(read_field wire_client_archive)"
+          mkdir -p build/wire-prior-prefix
+          tar -xJf "build/prior-wire-release/$install_archive" \
+            -C build/wire-prior-prefix --strip-components=1
+          python engineering/tools/wire_client_fixture.py \
+            --archive "build/prior-wire-release/$wire_archive" \
+            --expected-version "$(read_field product_version)" \
+            --expected-git-sha "$(read_field git_sha)" --expected-wire-version 2 \
+            --extract-to build/prior-wire-client
+      - name: Exercise all wire compatibility directions
+        run: |
+          set -euo pipefail
+          evidence=build/release-input-wire
+          mkdir -p "$evidence" build/wire-check-work
+          for check in new-client-new-server old-client-new-server new-client-old-server; do
+            ./scripts/test-installed-wire-compat.sh \
+              --candidate-prefix build/wire-candidate-prefix \
+              --prior-prefix build/wire-prior-prefix \
+              --candidate-client build/candidate-wire-client \
+              --prior-client build/prior-wire-client \
+              --work build/wire-check-work --check "$check" \
+              2>&1 | tee "$evidence/wire-$check.log"
+            grep -Fq "WIRE-COMPAT $check PASSED" "$evidence/wire-$check.log"
+          done
+      - name: Bind wire evidence to the candidate seal
+        run: |
+          cat >build/wire-compatibility-checks.json <<'JSON'
+          [
+            {"id":"new-client-new-server","command":"execute candidate sealed wire-v2 client against candidate installed daemon through PUT/GET/ERASE/not-found","evidence_ref":"wire-new-client-new-server.log"},
+            {"id":"old-client-new-server","command":"execute prior release sealed wire-v2 client against candidate installed daemon through PUT/GET/ERASE/not-found","evidence_ref":"wire-old-client-new-server.log"},
+            {"id":"new-client-old-server","command":"execute candidate sealed wire-v2 client against prior official installed daemon through PUT/GET/ERASE/not-found","evidence_ref":"wire-new-client-old-server.log"}
+          ]
+          JSON
+          python engineering/tools/release_evidence.py create \
+            --root . --type wire_compatibility \
+            --subject dist/release-candidate/candidate-seal.json \
+            --output build/release-input-wire/wire-compatibility-evidence.json \
+            --check-plan build/wire-compatibility-checks.json \
+            --limitation 'plain TCP wire-v2 baseline; requires a complete attested prior release with its sealed compiled wire client and does not imply compatibility with any other wire version' \
+            --require-ci
+      - name: Upload same-run wire evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-wire-compatibility
+          path: build/release-input-wire/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  freebsd-package-evidence:
+    name: Certify native FreeBSD package lifecycle
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Admit native-package prerequisites and exact candidate
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          python engineering/tools/validate_bsd_packaging.py --release
+      - name: Build, install, exercise, restart, and remove package on FreeBSD
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1.6.0
+        env:
+          CANDIDATE_SEAL_SHA256: ${{ needs.candidate.outputs.candidate-seal-sha256 }}
+        with:
+          release: "14.3"
+          arch: x86_64
+          usesh: true
+          copyback: true
+          sync: rsync
+          mem: 8192
+          prepare: |
+            pkg install -y bash cmake git ninja openssl pkgconf python3
+            test -d /usr/ports/.git || \
+              git clone --depth 1 https://git.FreeBSD.org/ports.git /usr/ports
+          run: |
+            set -e
+            mkdir -p build/release-input-freebsd
+            python3 engineering/tools/generate_release_context.py \
+              --output build/release-input-freebsd/release-context.json --replace
+            export GLIFISTORE_RELEASE_CONTEXT=build/release-input-freebsd/release-context.json
+            chmod +x scripts/test-freebsd-package-lifecycle.sh
+            bash scripts/test-freebsd-package-lifecycle.sh \
+              dist/release-candidate build/release-input-freebsd
+            rm -rf build/unix-release
+      - name: Bind SPDX SBOM to native package
+        run: |
+          set -euo pipefail
+          sudo ./scripts/install-syft.sh
+          mapfile -t packages < <(find build/release-input-freebsd -maxdepth 1 \
+            -type f -name 'glifistore-*-freebsd*.pkg' -print)
+          test "${#packages[@]}" -eq 1
+          input=build/freebsd-package.spdx.json
+          syft "${packages[0]}" -o "spdx-json=$input"
+          python engineering/tools/release_bundle.py bind-sbom \
+            --artifact "${packages[0]}" --input "$input" \
+            --metadata dist/release-candidate/build-metadata.json \
+            --output "${packages[0]}.spdx.json"
+          python engineering/tools/release_bundle.py validate-sbom \
+            "${packages[0]}.spdx.json"
+          python engineering/tools/release_evidence.py --require-ci \
+            build/release-input-freebsd/freebsd-package-evidence.json
+      - name: Upload native FreeBSD package and evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-freebsd-package
+          path: build/release-input-freebsd/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  openbsd-package-evidence:
+    name: Certify native OpenBSD package lifecycle
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Admit native-package prerequisites and exact candidate
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          python engineering/tools/validate_bsd_packaging.py --release
+      - name: Build, install, exercise, restart, and remove package on OpenBSD
+        uses: vmactions/openbsd-vm@f1ca8bc8ecc5b6ef7218e5b914836e067e1546d3 # v1.4.9
+        env:
+          CANDIDATE_SEAL_SHA256: ${{ needs.candidate.outputs.candidate-seal-sha256 }}
+        with:
+          release: "7.9"
+          arch: x86_64
+          usesh: true
+          copyback: true
+          sync: rsync
+          mem: 8192
+          prepare: |
+            pkg_add -I bash cmake git ninja pkgconf python3
+            test -d /usr/ports/.git || \
+              git clone --depth 1 https://github.com/openbsd/ports.git /usr/ports
+          run: |
+            set -e
+            mkdir -p build/release-input-openbsd
+            python3 engineering/tools/generate_release_context.py \
+              --output build/release-input-openbsd/release-context.json --replace
+            export GLIFISTORE_RELEASE_CONTEXT=build/release-input-openbsd/release-context.json
+            chmod +x scripts/test-openbsd-package-lifecycle.sh
+            bash scripts/test-openbsd-package-lifecycle.sh \
+              dist/release-candidate build/release-input-openbsd
+            rm -rf build/unix-release
+      - name: Bind SPDX SBOM to native package
+        run: |
+          set -euo pipefail
+          sudo ./scripts/install-syft.sh
+          mapfile -t packages < <(find build/release-input-openbsd -maxdepth 1 \
+            -type f -name 'glifistore-*-openbsd*.tgz' -print)
+          test "${#packages[@]}" -eq 1
+          input=build/openbsd-package.spdx.json
+          syft "${packages[0]}" -o "spdx-json=$input"
+          python engineering/tools/release_bundle.py bind-sbom \
+            --artifact "${packages[0]}" --input "$input" \
+            --metadata dist/release-candidate/build-metadata.json \
+            --output "${packages[0]}.spdx.json"
+          python engineering/tools/release_bundle.py validate-sbom \
+            "${packages[0]}.spdx.json"
+          python engineering/tools/release_evidence.py --require-ci \
+            build/release-input-openbsd/openbsd-package-evidence.json
+      - name: Upload native OpenBSD package and evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-openbsd-package
+          path: build/release-input-openbsd/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  optional-package-backends:
+    name: Build the optional package backends from candidate bytes
+    needs: candidate
+    permissions:
+      contents: read
+    # Optional by policy, not by rigour. deb, rpm, MacPorts and Homebrew are
+    # required_for_release: false in engineering/distribution/package-matrix.yaml, so
+    # this call is deliberately absent from the verify job's needs: it can neither
+    # admit an artifact nor relax the exact-artifact and no-rebuild rules below. It
+    # never writes into the release-input-* namespace that verify imports, and its
+    # artifacts are diagnostic until a gate promotes those backends.
+    #
+    # It is still fail-closed: the profile builds only from the sealed candidate
+    # source archive (a checkout of HEAD is refused there), and a real packaging
+    # defect fails this job instead of being written off.
+    #
+    # freebsd and openbsd are absent here on purpose: they are required_for_release
+    # and keep their native jobs above, which produce the artifacts the release policy
+    # demands. The release-profile call also runs Wave F package admission in
+    # package-ci.yml closure against the optional packages.
+    uses: ./.github/workflows/package-ci.yml
+    with:
+      profile: release
+      backends: optional
+      candidate-artifact: ${{ needs.candidate.outputs.artifact-name }}
+      candidate-seal-sha256: ${{ needs.candidate.outputs.candidate-seal-sha256 }}
+
+  package-admission:
+    name: Admit required package bytes against the sealed candidate
+    needs: [candidate, freebsd-package-evidence, openbsd-package-evidence]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    # Wave F: resolve the SemVer N-1 baseline, bind the artifact identity graph to
+    # the sealed source digest, adapt FreeBSD/OpenBSD release_evidence without
+    # inventing package-matrix PASS rows, and retain package-admission.json.
+    # Deliberately absent from verify's needs: blockers such as the cross-SDK
+    # package-installed matrix (NOT_RUN) and unset package-upgrade stay visible in
+    # the report via --allow-blocking; this job fails only when the orchestrator
+    # cannot produce a schema-valid report. It never writes into release-input-*.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install framework dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-input-${{ github.sha }}-*-package
+          path: build/package-evidence
+          merge-multiple: false
+      - name: Run Wave F package admission fail-closed
+        env:
+          CANDIDATE_SEAL_SHA256: ${{ needs.candidate.outputs.candidate-seal-sha256 }}
+        run: |
+          set -euo pipefail
+          test -n "$CANDIDATE_SEAL_SHA256"
+          python engineering/tools/run_package_admission.py \
+            --profile release \
+            --candidate dist/release-candidate \
+            --evidence-root build/package-evidence \
+            --artifact-root build/package-evidence \
+            --candidate-seal-sha256 "$CANDIDATE_SEAL_SHA256" \
+            --output-dir build/package-admission \
+            --allow-blocking \
+            --replace
+          test -f build/package-admission/package-admission.json
+          test -f build/package-admission/upgrade-baseline.json
+          test -f build/package-admission/artifact-manifest.json
+          test -f build/package-admission/installed-sdk-matrix.json
+      - name: Retain the package admission report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-admission-release-${{ github.sha }}
+          path: build/package-admission/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  security-sanitizers:
+    name: Security sanitizer / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan + UBSan
+            id: asan-ubsan
+            preset: unix-asan
+            checks: asan ubsan
+          - name: TSan
+            id: tsan
+            preset: unix-tsan
+            checks: tsan
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install sanitizer build tools
+        run: python -m pip install --disable-pip-version-check cmake ninja
+      - name: Build and execute sanitizer suite
+        env:
+          CC: clang
+          CXX: clang++
+          SECURITY_PRESET: ${{ matrix.preset }}
+          SECURITY_CHECKS: ${{ matrix.checks }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/security-logs
+          combined="build/security-logs/security-${{ matrix.id }}.combined.log"
+          {
+            cmake --preset "$SECURITY_PRESET"
+            cmake --build --preset "$SECURITY_PRESET"
+            ctest --preset "$SECURITY_PRESET" --output-on-failure
+          } 2>&1 | tee "$combined"
+          for check in $SECURITY_CHECKS; do
+            {
+              cat "$combined"
+              echo "SECURITY $check PASSED"
+            } >"build/security-logs/security-$check.log"
+          done
+      - name: Retain sanitizer logs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: security-input-${{ github.sha }}-sanitizer-${{ matrix.id }}
+          path: build/security-logs/security-*.log
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  security-codeql:
+    name: Security CodeQL / ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c-cpp
+            build-mode: manual
+          - language: python
+            build-mode: none
+          - language: go
+            build-mode: manual
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.language == 'go'
+        with:
+          go-version: "1.27.x"
+          cache-dependency-path: sdk/go/go.mod
+      - name: Install C++ analysis build tools
+        if: matrix.language == 'c-cpp'
+        run: python -m pip install --disable-pip-version-check cmake ninja
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - name: Build C++ database
+        if: matrix.language == 'c-cpp'
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug
+      - name: Build Go database
+        if: matrix.language == 'go'
+        run: cd sdk/go && go build ./...
+      - name: Analyze without implicit SARIF upload
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}
+          output: codeql-results-${{ matrix.language }}
+          upload: never
+          upload-database: false
+      - name: Validate and retain CodeQL result
+        env:
+          CODEQL_LANGUAGE: ${{ matrix.language }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/security-logs
+          mapfile -t reports < <(find "codeql-results-$CODEQL_LANGUAGE" \
+            -type f -name '*.sarif' -size +0c -print | sort)
+          test "${#reports[@]}" -ge 1
+          python - "${reports[@]}" <<'PY' \
+            | tee "build/security-logs/security-codeql-$CODEQL_LANGUAGE.log"
+          import json
+          import sys
+          total = 0
+          for path in sys.argv[1:]:
+              value = json.load(open(path, encoding="utf-8"))
+              runs = value.get("runs")
+              if not isinstance(runs, list) or not runs:
+                  raise SystemExit(f"invalid SARIF runs: {path}")
+              total += sum(len(run.get("results", [])) for run in runs if isinstance(run, dict))
+          print(f"validated_sarif={len(sys.argv) - 1} findings={total}")
+          PY
+          echo "SECURITY codeql-$CODEQL_LANGUAGE PASSED" \
+            >>"build/security-logs/security-codeql-$CODEQL_LANGUAGE.log"
+      - name: Retain CodeQL SARIF and validation log
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: security-input-${{ github.sha }}-codeql-${{ matrix.language }}
+          path: |
+            codeql-results-${{ matrix.language }}/*.sarif
+            build/security-logs/security-codeql-${{ matrix.language }}.log
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  security-static:
+    name: Security static analysis and strict build
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install static-analysis tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja clang-format==21.1.8
+          sudo apt-get update
+          sudo apt-get install -y binutils clang-tidy
+      - name: Run clang-tidy and formatting gates
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          mkdir -p build/security-logs
+          {
+            cmake --preset unix-clang-tidy
+            cmake --build --preset unix-clang-tidy
+            find include src tests benchmarks fuzz -type f \
+              \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+              | xargs -0 clang-format --dry-run --Werror
+            echo 'SECURITY static-analysis PASSED'
+          } 2>&1 | tee build/security-logs/security-static-analysis.log
+      - name: Prove warnings-as-errors and emitted hardening flags
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          {
+            cmake --preset unix-strict
+            cmake --build --preset unix-strict
+            python scripts/verify_hardening.py build/unix-strict
+            ctest --preset unix-strict --output-on-failure
+            echo 'SECURITY warnings-as-errors PASSED'
+          } 2>&1 | tee build/security-logs/security-warnings-as-errors.log
+      - name: Retain static and strict logs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: security-input-${{ github.sha }}-static
+          path: build/security-logs/security-*.log
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  security-supply-chain:
+    name: Security dependencies secrets and licenses
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.x"
+          cache-dependency-path: sdk/go/go.mod
+      - name: Prepare retained supply-chain logs
+        run: mkdir -p build/security-logs
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Record successful secret scan
+        run: echo 'SECURITY secret-scan PASSED' >build/security-logs/security-secret-scan.log
+      - name: Run blocking Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          format: sarif
+          output: build/security-logs/trivy-fs.sarif
+      - name: Validate dependency scan report
+        run: |
+          set -euo pipefail
+          test -s build/security-logs/trivy-fs.sarif
+          python - <<'PY' | tee build/security-logs/security-dependency-scan.log
+          import json
+          value = json.load(open("build/security-logs/trivy-fs.sarif", encoding="utf-8"))
+          runs = value.get("runs")
+          if not isinstance(runs, list) or not runs:
+              raise SystemExit("Trivy SARIF has no runs")
+          findings = sum(len(run.get("results", [])) for run in runs if isinstance(run, dict))
+          print(f"trivy_sarif_runs={len(runs)} findings={findings}")
+          print("SECURITY dependency-scan PASSED")
+          PY
+      - name: Validate licensing and notice closure
+        run: |
+          set -euo pipefail
+          ./scripts/ci-license-check.sh 2>&1 \
+            | tee build/security-logs/security-license-validation.log
+          echo 'SECURITY license-validation PASSED' \
+            >>build/security-logs/security-license-validation.log
+      - name: Retain supply-chain logs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: security-input-${{ github.sha }}-supply-chain
+          path: build/security-logs/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  security-matrix-evidence:
+    name: Bind complete security matrix to candidate
+    needs: [candidate, security-sanitizers, security-codeql, security-static, security-supply-chain]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install exact-binary inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: security-input-${{ github.sha }}-*
+          path: build/security-inputs
+          merge-multiple: false
+      - name: Verify candidate SBOMs and exact distributed ELF hardening
+        run: |
+          set -euo pipefail
+          output=build/release-input-security
+          mkdir -p "$output" build/security-candidate-prefix
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          python engineering/tools/release_bundle.py validate-sbom \
+            dist/release-candidate/*.spdx.json \
+            2>&1 | tee "$output/security-sbom-validation.log"
+          echo 'SECURITY sbom-validation PASSED' >>"$output/security-sbom-validation.log"
+          archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-*-linux-*.tar.xz' \
+            ! -name 'glifistore-abi-v*-consumer-*' \
+            ! -name 'glifistore-wire-v*-client-*' -print -quit)"
+          test -n "$archive"
+          tar -xJf "$archive" -C build/security-candidate-prefix --strip-components=1
+          python scripts/verify_hardening.py \
+            --binary build/security-candidate-prefix/bin/glifistored \
+            2>&1 | tee "$output/security-binary-hardening.log"
+          echo 'SECURITY binary-hardening PASSED' >>"$output/security-binary-hardening.log"
+      - name: Close and validate every retained security log
+        run: |
+          set -euo pipefail
+          output=build/release-input-security
+          collect_one() {
+            local name="$1"
+            mapfile -t matches < <(find build/security-inputs -type f \
+              -name "security-$name.log" -print | sort)
+            test "${#matches[@]}" -eq 1
+            cp "${matches[0]}" "$output/security-$name.log"
+            grep -Fq "SECURITY $name PASSED" "$output/security-$name.log"
+          }
+          for check in asan ubsan tsan static-analysis warnings-as-errors \
+            dependency-scan secret-scan license-validation; do
+            collect_one "$check"
+          done
+          mapfile -t codeql_logs < <(find build/security-inputs -type f \
+            -name 'security-codeql-*.log' -print | sort)
+          test "${#codeql_logs[@]}" -eq 4
+          cat "${codeql_logs[@]}" >"$output/security-codeql.log"
+          for language in actions c-cpp go python; do
+            grep -Fq "SECURITY codeql-$language PASSED" "$output/security-codeql.log"
+          done
+          echo 'SECURITY codeql PASSED' >>"$output/security-codeql.log"
+      - name: Bind security evidence to the candidate seal
+        run: |
+          cat >build/security-matrix-checks.json <<'JSON'
+          [
+            {"id":"asan","command":"configure, build and execute the complete unix-asan CTest suite with AddressSanitizer enabled","evidence_ref":"security-asan.log"},
+            {"id":"ubsan","command":"configure, build and execute the complete unix-asan CTest suite with UndefinedBehaviorSanitizer enabled","evidence_ref":"security-ubsan.log"},
+            {"id":"tsan","command":"configure, build and execute the complete unix-tsan CTest suite","evidence_ref":"security-tsan.log"},
+            {"id":"codeql","command":"produce and validate non-empty SARIF for C/C++, Python, Go and GitHub Actions using pinned CodeQL actions","evidence_ref":"security-codeql.log"},
+            {"id":"static-analysis","command":"build the exact tag through clang-tidy and require clang-format dry-run closure","evidence_ref":"security-static-analysis.log"},
+            {"id":"warnings-as-errors","command":"build and test unix-strict, then inspect emitted ISO C++23, warning and hardening flags","evidence_ref":"security-warnings-as-errors.log"},
+            {"id":"dependency-scan","command":"run blocking Trivy filesystem scan for fixed HIGH/CRITICAL findings and validate retained SARIF","evidence_ref":"security-dependency-scan.log"},
+            {"id":"secret-scan","command":"run pinned Gitleaks over full tag history","evidence_ref":"security-secret-scan.log"},
+            {"id":"license-validation","command":"run REUSE, notice, SDK license and Go/Python dependency-license closure","evidence_ref":"security-license-validation.log"},
+            {"id":"sbom-validation","command":"validate every SPDX document cryptographically against the externally anchored exact candidate","evidence_ref":"security-sbom-validation.log"},
+            {"id":"binary-hardening","command":"extract the sealed Linux prefix and inspect the distributed glifistored ELF for PIE, RELRO, BIND_NOW and stack protector","evidence_ref":"security-binary-hardening.log"}
+          ]
+          JSON
+          python engineering/tools/release_evidence.py create \
+            --root . --type security_matrix \
+            --subject dist/release-candidate/candidate-seal.json \
+            --output build/release-input-security/security-matrix-evidence.json \
+            --check-plan build/security-matrix-checks.json \
+            --limitation 'Linux release matrix; findings policy follows the blocking configuration of each pinned analyzer and does not replace native BSD hardening evidence' \
+            --require-ci
+      - name: Upload same-run security evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-security-matrix
+          path: build/release-input-security/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  reproducibility-evidence:
+    name: Independently rebuild and compare release archives
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      CC: clang
+      CXX: clang++
+      LD: ld
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Verify reference candidate and export identical build environment
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD)" >>"$GITHUB_ENV"
+          echo "TZ=UTC" >>"$GITHUB_ENV"
+      - name: Build an isolated second release tree
+        run: |
+          set -euo pipefail
+          evidence=build/release-input-reproducibility
+          mkdir -p "$evidence" dist/rebuilt-release
+          {
+            cmake -S . -B build/release-candidate -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/build/release-prefix" \
+              -DBUILD_TESTING=ON \
+              -DGLIFISTORE_BUILD_BENCHMARKS=OFF \
+              -DGLIFISTORE_BUILD_FUZZERS=OFF \
+              -DGLIFISTORE_ENABLE_TLS=OFF \
+              -DGLIFISTORE_FAULT_INJECTION=OFF \
+              -DGLIFISTORE_NATIVE_CPU=OFF \
+              -DGLIFISTORE_WARNINGS_AS_ERRORS=ON
+            cmake --build build/release-candidate --parallel 2
+            cmake --install build/release-candidate
+            cmake -S tests/consumer -B build/release-consumer -G Ninja \
+              -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/build/release-prefix"
+            cmake --build build/release-consumer
+            echo 'REPRODUCIBILITY independent-rebuild PASSED'
+          } 2>&1 | tee "$evidence/reproducibility-independent-rebuild.log"
+          grep -Fq 'REPRODUCIBILITY independent-rebuild PASSED' \
+            "$evidence/reproducibility-independent-rebuild.log"
+      - name: Repackage all deterministic release archives
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          python engineering/tools/release_bundle.py build-metadata \
+            --tag "$RELEASE_TAG" \
+            --output build/repro-build-metadata.json \
+            --cmake-cache build/release-candidate/CMakeCache.txt \
+            --target-os linux \
+            --target-os-version "$(. /etc/os-release && printf '%s' "$VERSION_ID")" \
+            --architecture "$(uname -m)" \
+            --tls-backend none \
+            --build-option BUILD_TESTING=ON \
+            --build-option CMAKE_BUILD_TYPE=Release \
+            --build-option GLIFISTORE_BUILD_BENCHMARKS=OFF \
+            --build-option GLIFISTORE_BUILD_FUZZERS=OFF \
+            --build-option GLIFISTORE_ENABLE_TLS=OFF \
+            --build-option GLIFISTORE_FAULT_INJECTION=OFF \
+            --build-option GLIFISTORE_NATIVE_CPU=OFF \
+            --build-option GLIFISTORE_WARNINGS_AS_ERRORS=ON
+          python engineering/tools/release_bundle.py validate-metadata \
+            build/repro-build-metadata.json
+          python scripts/package-source-release.py \
+            --tag "$RELEASE_TAG" --output-directory dist/rebuilt-release
+          python scripts/package-install-prefix.py \
+            --tag "$RELEASE_TAG" --prefix build/release-prefix \
+            --target-os linux --architecture "$(uname -m)" \
+            --output-directory dist/rebuilt-release
+          python scripts/package-abi-consumer.py \
+            --tag "$RELEASE_TAG" \
+            --consumer build/release-consumer/glifistore_abi_consumer_smoke \
+            --target-os linux --architecture "$(uname -m)" \
+            --output-directory dist/rebuilt-release
+          python scripts/package-wire-client.py \
+            --tag "$RELEASE_TAG" \
+            --client build/release-candidate/glifistore_interop_client \
+            --target-os linux --architecture "$(uname -m)" \
+            --output-directory dist/rebuilt-release
+      - name: Compare the complete archive set byte for byte
+        run: |
+          set -euo pipefail
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+          abi_major="$(cut -d. -f1 ABI_VERSION)"
+          python engineering/tools/compare_release_rebuild.py \
+            --reference dist/release-candidate \
+            --rebuilt dist/rebuilt-release \
+            --version "$(cat VERSION)" --abi-major "$abi_major" \
+            --wire-version 2 --target-os linux --architecture "$(uname -m)" \
+            --reference-metadata dist/release-candidate/build-metadata.json \
+            --rebuilt-metadata build/repro-build-metadata.json \
+            2>&1 | tee build/release-input-reproducibility/reproducibility-artifact-compare.log
+          grep -Fq 'REPRODUCIBILITY artifact-compare PASSED' \
+            build/release-input-reproducibility/reproducibility-artifact-compare.log
+      - name: Bind reproducibility evidence to the candidate seal
+        run: |
+          cat >build/reproducibility-checks.json <<'JSON'
+          [
+            {"id":"independent-rebuild","command":"on a distinct runner, configure, compile and install the exact tag with the candidate toolchain and build options, then independently build retained ABI/wire consumers","evidence_ref":"reproducibility-independent-rebuild.log"},
+            {"id":"artifact-compare","command":"repackage source, Linux prefix, ABI consumer and wire client, require the exact closed archive set, then compare every size and SHA-256 with the sealed candidate","evidence_ref":"reproducibility-artifact-compare.log"}
+          ]
+          JSON
+          python engineering/tools/release_evidence.py create \
+            --root . --type reproducibility \
+            --subject dist/release-candidate/candidate-seal.json \
+            --output build/release-input-reproducibility/reproducibility-evidence.json \
+            --check-plan build/reproducibility-checks.json \
+            --limitation 'same ubuntu-latest image family and declared toolchain; this does not claim cross-distribution or cross-compiler reproducibility' \
+            --require-ci
+      - name: Retain independent rebuild archives for diagnosis
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reproducibility-rebuild-${{ github.sha }}
+          path: dist/rebuilt-release/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload same-run reproducibility evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-input-${{ github.sha }}-reproducibility
+          path: build/release-input-reproducibility/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  verify:
+    name: Verify exact candidate bytes
+    needs: [candidate, sdk-installed-evidence, persistent-compatibility-evidence, abi-compatibility-evidence, wire-compatibility-evidence, freebsd-package-evidence, openbsd-package-evidence, security-matrix-evidence, reproducibility-evidence]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.candidate.outputs.artifact-name }}
+          path: dist/release-candidate
+      - name: Admit the exact candidate before evidence aggregation
+        run: |
+          echo "${{ needs.candidate.outputs.candidate-seal-sha256 }}  dist/release-candidate/candidate-seal.json" | sha256sum -c -
+          python engineering/tools/release_bundle.py admit-candidate \
+            --directory dist/release-candidate \
+            --candidate-seal candidate-seal.json
+          python engineering/tools/release_bundle.py validate-sbom \
+            dist/release-candidate/*.spdx.json
+      - name: Test installed binary archive without rebuilding GlifiStore
+        run: |
+          set -euo pipefail
+          archive="$(find dist/release-candidate -maxdepth 1 -type f \
+            -name 'glifistore-*-linux-*.tar.xz' \
+            ! -name 'glifistore-abi-v*-consumer-*' \
+            ! -name 'glifistore-wire-v*-client-*' -print -quit)"
+          test -n "$archive"
+          mkdir -p build/extracted
+          tar -xJf "$archive" -C build/extracted
+          prefix="$(find build/extracted -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          test -x "$prefix/bin/glifistored"
+          test "$("$prefix/bin/glifistored" --version)" = \
+            "glifistored $(cat VERSION)"
+          cmake -S tests/consumer -B build/verified-consumer -G Ninja \
+            -DCMAKE_PREFIX_PATH="$prefix"
+          cmake --build build/verified-consumer
+          ctest --test-dir build/verified-consumer --output-on-failure
+          read -r -a pkg_config_flags <<< "$(
+            PKG_CONFIG_PATH="$prefix/lib/pkgconfig" \
+              pkg-config --cflags --libs glifistore-abi
+          )"
+          cc -std=c11 tests/consumer/abi.c \
+            "${pkg_config_flags[@]}" \
+            -o build/verified-consumer/pkgconfig-abi-consumer
+          LD_LIBRARY_PATH="$prefix/lib" build/verified-consumer/pkgconfig-abi-consumer
+      - name: Download same-run certification inputs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-input-${{ github.sha }}-*
+          path: dist/release-inputs
+          merge-multiple: false
+      - name: Import the closed evidence and native-package set
+        run: |
+          set -euo pipefail
+          mapfile -t sources < <(find dist/release-inputs -mindepth 1 -maxdepth 1 \
+            -type d -print | sort)
+          if (( ${#sources[@]} == 0 )); then
+            echo "no same-run release certification inputs were produced" >&2
+            exit 1
+          fi
+          arguments=()
+          for source in "${sources[@]}"; do
+            arguments+=(--source-directory "$source")
+          done
+          python engineering/tools/release_bundle.py import-evidence \
+            --directory dist/release-candidate "${arguments[@]}"
+          python engineering/tools/release_bundle.py validate-evidence-import \
+            --directory dist/release-candidate
+      - name: Bind verification, release manifest, and checksums
+        run: |
+          set -euo pipefail
+          python engineering/tools/release_bundle.py verification \
+            --directory dist/release-candidate
+          python engineering/tools/release_bundle.py manifest \
+            --directory dist/release-candidate
+          python engineering/tools/release_bundle.py validate-manifest \
+            --directory dist/release-candidate
+          python engineering/tools/validate_bsd_packaging.py --release
+          python engineering/tools/release_evidence.py --require-ci \
+            dist/release-candidate/*-evidence.json
+          python engineering/tools/release_bundle.py validate-release-policy \
+            --directory dist/release-candidate
+          python engineering/tools/release_bundle.py checksums \
+            --directory dist/release-candidate
+          python engineering/tools/release_bundle.py verify-checksums \
+            --directory dist/release-candidate
+          python engineering/tools/release_bundle.py seal \
+            --directory dist/release-candidate \
+            --seal verified-seal.json \
+            --kind verified
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate \
+            --seal verified-seal.json
+      - name: Attest the verified transitive seal
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/release-candidate/verified-seal.json
+      - name: Retain and verify offline Sigstore bundle
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release-provenance
+          cp "${{ steps.attest.outputs.bundle-path }}" \
+            dist/release-provenance/verified-seal.sigstore.json
+          gh attestation verify dist/release-candidate/verified-seal.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle dist/release-provenance/verified-seal.sigstore.json \
+            --signer-workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-ref "$GITHUB_REF" \
+            --source-digest "$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-release-${{ github.sha }}
+          path: dist/release-candidate/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-provenance-${{ github.sha }}
+          path: dist/release-provenance/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    name: Publish verified bytes
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-release-${{ github.sha }}
+          path: dist/release-candidate
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-provenance-${{ github.sha }}
+          path: dist/release-provenance
+      - name: Reverify promotion input without rebuilding
+        run: |
+          set -euo pipefail
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate \
+            --seal verified-seal.json
+          python engineering/tools/release_bundle.py verify-checksums \
+            --directory dist/release-candidate
+          python engineering/tools/release_bundle.py validate-manifest \
+            --directory dist/release-candidate
+          gh attestation verify dist/release-candidate/verified-seal.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle dist/release-provenance/verified-seal.sigstore.json \
+            --signer-workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+            --source-ref "$GITHUB_REF" \
+            --source-digest "$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Refuse release asset replacement
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "release $RELEASE_TAG already exists; published assets are immutable" >&2
+            exit 1
+          fi
+      - name: Publish the same verified bytes
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: GlifiStore ${{ github.ref_name }}
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            Architectural-prototype release artifacts for GlifiStore.
+
+            Candidate bytes were built once, sealed, independently verified,
+            attested, and promoted without rebuilding. `release-manifest.json`,
+            `SHA256SUMS`, SPDX SBOMs, and the offline Sigstore bundle are attached.
+
+            This prerelease does not claim production readiness, E3/E4 physical
+            durability certification, or BSD package proof unless those exact
+            platform artifacts and evidence are present in the manifest.
+          files: |
+            dist/release-candidate/*
+            dist/release-provenance/*

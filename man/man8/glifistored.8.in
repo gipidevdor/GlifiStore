@@ -1,0 +1,317 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORED 8
+.Os
+.Sh NAME
+.Nm glifistored
+.Nd GlifiStore network daemon
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Nm
+.Fl Fl help
+.Nm
+.Fl Fl version
+.Sh DESCRIPTION
+.Nm
+is the GlifiStore network process around an embedded Store.
+For version
+.Sy @PROJECT_VERSION@
+it runs only the paired Reader/Writer shard-pair runtime: each owner shard has
+one Reader/Reactor and one serial Writer connected by SPSC lanes.
+.Pp
+Settings resolve as
+.Sy defaults < deployment profile < config file < environment < CLI .
+Unknown keys, unknown profile names, empty values, duplicate keys in one file,
+and conflicting
+.Cm --reuse-port
+/
+.Cm --no-reuse-port
+fail closed before the process listens.
+.Pp
+.Dv SIGINT
+and
+.Dv SIGTERM
+request an orderly stop: stop accepting, drain connections and admitted durable
+mutations (bounded by
+.Fl Fl shutdown-drain-ms ) ,
+then close the Store.
+Queued mutations that have not entered Store execution when the drain deadline
+expires complete as unavailable; in-flight Store work is never cancelled.
+.Sh OPTIONS
+.Ss General
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.It Fl Fl config Ar PATH
+Load settings from
+.Ar PATH
+(file cannot set
+.Cm config , help ,
+or
+.Cm version ) .
+.It Fl Fl profile Ar NAME
+Apply a deployment preset:
+.Cm dev
+(volatile, no background maintenance),
+.Cm embedded
+(durable-periodic with constrained caps), or
+.Cm production
+(durable-periodic with background maintenance; still requires
+.Fl Fl data-dir ) .
+Also
+.Ev GLIFISTORE_PROFILE .
+.It Fl Fl dump-config
+Print the resolved effective settings
+.Pq GlifiStore/config ASCII key=value
+after the same validation used before listen, then exit without binding or
+opening a Store.
+CLI-only.
+.It Fl q , Fl Fl quiet
+Suppress normal startup/shutdown messages (never suppresses errors).
+.It Fl Fl log-format Ar FORMAT
+.Cm human
+(default) or
+.Cm json
+(JSON-lines lifecycle events on stderr).
+.El
+.Ss Listen and topology
+.Bl -tag -width Ds
+.It Fl b Ar IPv4 , Fl Fl bind Ar IPv4
+Bind address (default
+.Cm 127.0.0.1 ) .
+Non-loopback cleartext has no authentication — trusted networks only.
+.It Fl p Ar PORT , Fl Fl port Ar PORT
+Listen port; 0 selects ephemeral (default 7379).
+.It Fl Fl shard-pairs Ar COUNT
+Number of Reader/Writer shard pairs (default 1).
+.It Fl w Ar COUNT , Fl Fl workers Ar COUNT
+Deprecated 0.1.x alias for
+.Fl Fl shard-pairs .
+Naming both flags together fails closed.
+Wire and Manifest still report
+.Cm worker_count
+as this pair count.
+.It Fl Fl max-connections Ar COUNT
+Concurrent connection limit (default 4096).
+.It Fl Fl handoff-capacity Ar COUNT
+Per-connection handoff queue bound (default 4096).
+.It Fl Fl event-batch-size Ar COUNT
+Readiness events per wait (default 256).
+.It Fl Fl max-input-bytes Ar BYTES
+Buffered input per connection (default 4MiB).
+.It Fl Fl max-output-bytes Ar BYTES
+Buffered output per connection (default 4MiB).
+.It Fl Fl durable-mutation-queue-capacity Ar COUNT
+Admitted mutations per ShardPair (default 256).
+.It Fl Fl durable-mutation-queue-bytes Ar BYTES
+Owned mutation bytes per ShardPair (default 16MiB).
+.It Fl Fl durable-mutation-queue-wait-ms Ar MS
+Expire queued mutations after this wait; 0 disables (default 0).
+.It Fl Fl shutdown-drain-ms Ar MS
+Bound drain after stop (default 30000; 0 unbounded).
+.It Fl Fl reuse-port
+Enable per-executor
+.Dv SO_REUSEPORT
+where supported.
+.It Fl Fl no-reuse-port
+Disable
+.Dv SO_REUSEPORT .
+Mutually exclusive with
+.Fl Fl reuse-port .
+.It Fl Fl executor-affinity
+Request executor CPU affinity where supported (strict on Linux, advisory on
+macOS).
+.It Fl Fl unix-socket Ar PATH
+Also listen on
+.Dv AF_UNIX
+.Ar PATH
+(owner-only socket mode).
+.It Fl Fl unix-peercred
+Map UDS peers to authz principal
+.Cm unix:uid=N
+via
+.Dv SO_PEERCRED / getpeereid
+(requires
+.Fl Fl unix-socket ;
+not a TLS replacement).
+.El
+.Ss Storage and maintenance
+.Bl -tag -width Ds
+.It Fl Fl storage-mode Ar MODE
+.Cm volatile ,
+.Cm durable-sync ,
+.Cm durable-periodic ,
+or
+.Cm durable-group .
+.It Fl Fl data-dir Ar PATH
+Durable v1 data directory (required for durable modes).
+.It Fl Fl open-mode Ar MODE
+.Cm open-or-create
+(default),
+.Cm create-new ,
+or
+.Cm open-existing .
+.It Fl Fl maintenance-mode Ar MODE
+.Cm cooperative ,
+.Cm background
+(default), or
+.Cm disabled .
+.It Fl Fl maintenance-max-copy-bytes-per-cycle Ar BYTES
+Limit one normal compaction (default 128MiB; 0 disables).
+.It Fl Fl maintenance-max-copy-bytes-per-sec Ar BYTES
+Normal-mode copy budget per second (default 0=unlimited).
+.It Fl Fl maintenance-max-cpu-ms-per-window Ar MS
+Normal-mode wall-time budget per second (default 0=unlimited).
+.It Fl Fl maintenance-suspend-on-p99-latency-ms Ar MS
+Suspend normal compaction on foreground mutation p99 (default 0=disabled).
+.It Fl Fl maintenance-suspend-on-p99-min-samples Ar COUNT
+Samples required before p99 suspension (default 32).
+.It Fl Fl maintenance-max-latency-deferral-ms Ar MS
+Admit one reclaim after continuous latency deferral (default 30000).
+.It Fl Fl maintenance-unread-ttl-pressure-probe Ar BOOL
+Probe unread expired sealed puts under pressure/emergency (default true).
+.It Fl Fl maintenance-unread-ttl-normal-scheduling Ar BOOL
+Include unread expired sealed puts in normal dead-byte threshold (default false).
+.It Fl Fl sync-interval-ms Ar MS
+Durable-periodic flush interval (default 1000).
+.It Fl Fl group-max-records Ar COUNT
+Strict-group / periodic batch record limit.
+.It Fl Fl group-max-bytes Ar BYTES
+Strict-group / periodic batch byte limit.
+.It Fl Fl group-max-wait-ms Ar MS
+Strict-group / periodic batch close wait.
+.It Fl Fl max-store-bytes Ar BYTES
+Cap durable Segment bytes (default 8GiB).
+.It Fl Fl reserved-free-bytes Ar BYTES
+Keep this much free space unused (default 256MiB).
+.It Fl Fl max-segments Ar COUNT
+Cap durable Segment count (default 127).
+.It Fl Fl max-hot-cache-bytes Ar BYTES
+Retained 0.1.x durable-limit compatibility setting.
+The paired daemon disables the legacy hot cache and reads from immutable generations.
+.It Fl Fl max-hot-cache-value-bytes Ar BYTES
+Retained 0.1.x durable-limit compatibility setting; no effect on paired daemon reads.
+.It Fl Fl disable-hot-cache
+Explicitly disable the legacy hot cache (already disabled by the paired daemon).
+.It Fl Fl max-temporary-compaction-bytes Ar BYTES
+Cap temporary compaction peak (default 1GiB).
+.El
+.Ss TLS and authorization
+Requires a build with LibreSSL/OpenSSL
+.Pq GLIFISTORE_ENABLE_TLS .
+.Bl -tag -width Ds
+.It Fl Fl tls-cert Ar PATH
+PEM certificate chain for TLS 1.3 (requires
+.Fl Fl tls-key ) .
+.It Fl Fl tls-key Ar PATH
+PEM private key (requires
+.Fl Fl tls-cert ) .
+.It Fl Fl tls-client-ca Ar PATH
+PEM CA for client certificates (enables mTLS).
+.It Fl Fl tls-crl Ar PATH
+PEM CRL for mTLS revocation (fail closed; requires
+.Fl Fl tls-client-ca ) .
+.It Fl Fl tls-ocsp-fail-closed
+Require fail-closed revocation via
+.Fl Fl tls-crl
+(live AIA OCSP HTTP unsupported).
+.It Fl Fl tls-port Ar PORT
+TLS on
+.Ar PORT
+while
+.Fl Fl port
+stays cleartext (incompatible with
+.Fl Fl secure-profile ) .
+Without
+.Fl Fl tls-port ,
+TLS makes
+.Fl Fl port
+TLS-only.
+.It Fl Fl authz-map Ar PATH
+Static principal capability map (read/write/admin; optional prefix=; default-deny).
+.It Fl Fl secure-profile
+Fail-closed secure profile: require TLS+mTLS+authz-map; refuse dual cleartext
+.Fl Fl tls-port ;
+apply Phase 5 abuse-limit defaults (explicit 0 refused); with
+.Fl Fl unix-socket
+also require
+.Fl Fl unix-peercred ;
+randomize Index mix and Worker routing seeds unless overridden.
+.It Fl Fl index-hash-seed Ar U64
+Process-lifetime Index mix seed (ADR 0026).
+.It Fl Fl worker-hash-seed Ar U64
+Worker ownership SipHash-2-4 seed (ADR 0030); persists in Manifest for durable
+Stores.
+.El
+.Ss Abuse controls
+Distinct from maintenance rate budgets. Zero disables each limit (trusted
+cleartext default).
+.Bl -tag -width Ds
+.It Fl Fl max-accepts-per-sec Ar COUNT
+Accepted connections/handshakes per second.
+.It Fl Fl idle-timeout-ms Ar MS
+Close idle connections after this wait.
+.It Fl Fl request-timeout-ms Ar MS
+Bound partial-frame assembly and in-flight response wait.
+Store mutations already executing are not cancelled.
+.It Fl Fl connection-max-requests-per-sec Ar COUNT
+Per-connection request admission.
+.It Fl Fl principal-max-requests-per-sec Ar COUNT
+Per-principal request admission.
+.It Fl Fl principal-max-bytes-per-sec Ar BYTES
+Per-principal request+response byte budget.
+.El
+.Sh ENVIRONMENT
+File keys are long option names without
+.Cm --
+.Pq e.g. Cm port = 7379 .
+Environment variables use
+.Ev GLIFISTORE_
+plus the long name in
+.Dv SCREAMING_SNAKE_CASE
+.Pq e.g. Ev GLIFISTORE_PORT , Ev GLIFISTORE_DATA_DIR .
+Boolean flags accept
+.Cm true/false , yes/no , on/off ,
+or
+.Cm 1/0 .
+.Sh WIRE PROBES
+Wire-protocol
+.Cm HEALTH
+(opcode 7) and
+.Cm READY
+(opcode 8) are accepted before
+.Cm INIT/BIND_WORKER .
+.Cm STATS
+(opcode 9) returns a bounded ASCII admin report while live.
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Success
+.Pq including help/version/dump-config .
+.It 1
+Runtime, configuration, or operating-system failure.
+.It 2
+Invalid command-line usage.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+glifistored --bind 127.0.0.1 --port 7379 --shard-pairs 4
+glifistored --config /etc/glifistore/daemon.conf
+glifistored --profile embedded --data-dir /var/lib/glifistore --dump-config
+glifistored --secure-profile --bind 127.0.0.1 --port 7379 \e
+  --tls-cert ... --tls-key ... --tls-client-ca ... --authz-map ...
+.Ed
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_verify_store 1 ,
+.Xr glifistore_backup_store 1
+.Pp
+Source docs:
+.Pa docs/cli.md ,
+.Pa docs/operations/durable-tcp-daemon.md .
+.Sh AUTHORS
+GlifiStore contributors.

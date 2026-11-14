@@ -1,0 +1,68 @@
+@newgroup _glifistore
+@newuser _glifistore:_glifistore:daemon:GlifiStore daemon:/var/glifistore:/sbin/nologin
+@bin bin/glifistore_backup_store
+@bin bin/glifistore_demo
+@bin bin/glifistore_inspect_segment
+@bin bin/glifistore_migrate_store
+@bin bin/glifistore_rebuild_index
+@bin bin/glifistore_repair_store
+@bin bin/glifistore_verify_store
+@bin bin/glifistored
+include/glifistore/abi/glifistore.h
+include/glifistore/client/client.hpp
+include/glifistore/core/error.hpp
+include/glifistore/core/types.hpp
+include/glifistore/core/worker_routing.hpp
+include/glifistore/persistence/blob.hpp
+include/glifistore/persistence/compaction_intent.hpp
+include/glifistore/persistence/filesystem.hpp
+include/glifistore/persistence/filesystem_hooks.hpp
+include/glifistore/persistence/manifest.hpp
+include/glifistore/persistence/namespace_audit.hpp
+include/glifistore/persistence/resource_limits.hpp
+include/glifistore/persistence/store_backup.hpp
+include/glifistore/persistence/store_verify.hpp
+include/glifistore/segment/record.hpp
+include/glifistore/segment/segment_header.hpp
+include/glifistore/server/protocol.hpp
+include/glifistore/store/blob.hpp
+include/glifistore/store/config.hpp
+include/glifistore/store/maintenance_types.hpp
+include/glifistore/store/store.hpp
+include/glifistore/store/value.hpp
+lib/cmake/GlifiStore/FindGlifiStoreTls.cmake
+lib/cmake/GlifiStore/GlifiStoreConfig.cmake
+lib/cmake/GlifiStore/GlifiStoreConfigVersion.cmake
+lib/cmake/GlifiStore/GlifiStoreTargets-release.cmake
+lib/cmake/GlifiStore/GlifiStoreTargets.cmake
+@lib lib/libglifistore.so.${LIBglifistore_VERSION}
+lib/libglifistore_client.a
+lib/libglifistore_core.a
+lib/libglifistore_tls_layer.a
+lib/libglifistore_wire.a
+lib/pkgconfig/glifistore-abi.pc
+share/GlifiStore/ABI_VERSION
+share/GlifiStore/LICENSE
+share/GlifiStore/NOTICE
+share/GlifiStore/THIRD_PARTY_NOTICES.md
+share/GlifiStore/VERSION
+share/GlifiStore/examples/glifistored.conf.sample
+share/examples/glifistore/glifistored.conf
+@sample ${SYSCONFDIR}/glifistored.conf
+@rcscript ${RCDIR}/glifistored
+@man man/man1/glifistore_backup_store.1
+@man man/man1/glifistore_demo.1
+@man man/man1/glifistore_inspect_segment.1
+@man man/man1/glifistore_migrate_store.1
+@man man/man1/glifistore_rebuild_index.1
+@man man/man1/glifistore_repair_store.1
+@man man/man1/glifistore_verify_store.1
+@man man/man7/glifistore.7
+@man man/man8/glifistored.8
+@mode 0750
+@owner _glifistore
+@group _glifistore
+@sample /var/glifistore/
+@mode
+@owner
+@group

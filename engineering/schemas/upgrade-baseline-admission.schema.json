@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/upgrade-baseline-admission-v1.json",
+  "title": "GlifiStore N-1 upgrade baseline admission receipt",
+  "description": "Receipt written by engineering/tools/upgrade_baseline.py admit. It exists only after the downloaded previous-release bundle verified byte for byte against the digests recorded in its own release manifest, so an upgrade proven against it cannot have been proven against a local rebuild of N-1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "current_version", "tag", "product_version", "git_sha", "abi_version", "architecture", "artifacts", "verified_by", "limitations"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "current_version": {"type": "string", "minLength": 5},
+    "tag": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"},
+    "product_version": {"type": "string", "minLength": 5},
+    "git_sha": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "abi_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "architecture": {"type": "string", "minLength": 1},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_archive", "install_archive", "abi_consumer_archive", "wire_client_archive"],
+      "properties": {
+        "source_archive": {"$ref": "#/$defs/artifact"},
+        "install_archive": {"$ref": "#/$defs/artifact"},
+        "abi_consumer_archive": {"$ref": "#/$defs/artifact"},
+        "wire_client_archive": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "verified_by": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["verified-seal.json", "SHA256SUMS", "release-manifest.json", "release-policy", "annotated-tag-identity"]}
+    },
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

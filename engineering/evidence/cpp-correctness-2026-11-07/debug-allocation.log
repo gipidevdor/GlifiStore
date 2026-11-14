@@ -1,0 +1,4 @@
+slot pool publication mirrors allocate no control blocks
+client mutation allocation failures preserve outcomes and reset connections
+client late mutation responses respect the absolute deadline
+allocation fault injection passed

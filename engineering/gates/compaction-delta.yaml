@@ -1,0 +1,34 @@
+gates:
+- id: GATE-COMPACTION-DELTA
+  titolo: Concurrent sealed-prefix compaction preserves v1 authority and bounded foreground work
+  sezione: durability_recovery
+  livello_rilascio: prototype
+  requisiti: [GS-PERSIST-DELTA-001]
+  prove:
+  - tests/integration/persistence_compaction_remap_tests.cpp
+  - tests/integration/persistence_compaction_prefix_tests.cpp
+  - tests/integration/compaction_recovery_tests.cpp
+  - tests/unit/compaction_prefix_tests.cpp
+  - tests/unit/compaction_model_tests.cpp
+  - tests/integration/persistence_compaction_model_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
+  - tests/quality/allocation_fault_compaction_remap_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  evidenze:
+  - path: engineering/evidence/compaction-delta-local-2026-11-07.md
+    note: Local macOS v1 scope only; no hosted or cross-platform promotion
+  stato: IMPLEMENTATA
+  rischio_residuo: >-
+    ADR 0044 replaced the journal on 2026-11-14; the 2026-11-07 local campaign covered the former
+    design and must be repeated (native, sanitizers, allocation, process-kill) before this gate
+    returns to PROVATA_LOCALMENTE. Linux/BSD and tail-latency campaigns pending; no release acceptance
+  riapertura:
+  - Remap that allocates, can fail after the next Manifest, or retargets a superseded entry
+  - Changed authority, tombstone domain, acknowledgement or recovery ordering
+  - Non-prefix source sets, asynchronous cleanup or persistent/partial MVCC introduction
+  narrative: >-
+    Commit-time conditional remap retains exact persistence v1 transitions and existing Reader pins;
+    rotation rebase keeps exactly two authorities.

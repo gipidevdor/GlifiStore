@@ -1,0 +1,104 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE 7
+.Os
+.Sh NAME
+.Nm glifistore
+.Nd GlifiStore key-value store overview
+.Sh DESCRIPTION
+GlifiStore is a C++23 key-value store with a durable persistence format (v1),
+a wire protocol (v2), and a network daemon.
+Version
+.Sy @PROJECT_VERSION@
+ships the following installed command-line programs.
+.Pp
+The sole
+.Nm glifistored
+runtime uses paired Reader/Writer shard pairs
+.Pq see ADR 0031 .
+Embedded
+.Nm Store::open
+defaults to the same paired concurrency model.
+.Ss Network daemon
+.Bl -tag -width "glifistored" -compact
+.It Xr glifistored 8
+TCP/TLS/UDS daemon around an embedded Store.
+.El
+.Ss Offline maintenance
+Stop writers before using offline tools that take the exclusive Store directory
+lock.
+.Bl -tag -width "glifistore_inspect_segment" -compact
+.It Xr glifistore_inspect_segment 1
+Read-only validation of one Segment file.
+.It Xr glifistore_verify_store 1
+Read-only structural validation of a data directory.
+.It Xr glifistore_backup_store 1
+Offline verified backup or restore between directories.
+.It Xr glifistore_migrate_store 1
+Offline Worker reshard / logical rewrite.
+.It Xr glifistore_repair_store 1
+Offline catalog repair into an empty workspace.
+.It Xr glifistore_rebuild_index 1
+Durable v1 Index rebuild is refused; documents the operator path.
+.El
+.Ss Sample binary
+.Bl -tag -width "glifistore_demo" -compact
+.It Xr glifistore_demo 1
+Prints topology bootstrap diagnostics; not an operator tool.
+.El
+.Sh COMMON CLI CONTRACT
+Unless a page says otherwise:
+.Bl -bullet -compact
+.It
+.Fl h , Fl Fl help
+prints help on standard output and exits 0.
+.It
+.Fl V , Fl Fl version
+prints the program name and GlifiStore version.
+.It
+Long options accept
+.Cm --option value
+and
+.Cm --option=value .
+.It
+.Cm --
+ends option parsing.
+.It
+Invalid usage exits 2; runtime/I/O failures exit 1; success exits 0.
+.It
+Byte-size values accept bytes or
+.Cm KB , KiB , MB , MiB , GB ,
+and
+.Cm GiB
+suffixes (decimal and binary suffixes are distinct).
+.El
+.Sh DURABILITY HONESTY
+Durable modes use synchronous write-through semantics as documented for the
+selected
+.Cm --storage-mode .
+Physical power-loss certification (E3/E4) and zero-fence hot backup are not
+implied by installing these manuals.
+.Sh FILES
+.Bl -tag -width "/usr/local/share/GlifiStore" -compact
+.It Pa share/GlifiStore
+Installed
+.Pa LICENSE , NOTICE , VERSION ,
+and
+.Pa THIRD_PARTY_NOTICES.md
+.Pq under the configured CMAKE_INSTALL_DATADIR .
+.El
+.Sh SEE ALSO
+.Xr glifistored 8 ,
+.Xr glifistore_verify_store 1 ,
+.Xr glifistore_backup_store 1
+.Pp
+Project documentation (source tree):
+.Pa docs/cli.md ,
+.Pa docs/operations/durable-tcp-daemon.md ,
+.Pa docs/spec/backup-restore-v1.md .
+.Sh AUTHORS
+GlifiStore contributors.
+.Sh BUGS
+Report issues at
+.Lk https://github.com/gipidevdor/GlifiStore .

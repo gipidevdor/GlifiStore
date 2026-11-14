@@ -1,0 +1,5 @@
+case=volatile-w1-c1-p32-get-only-v262144
+result=benchmark-harness-seed-burst-rejected-before-timed-region
+root_cause=fixed-count seed pipeline accumulated approximately 16MiB of PUT frames against a 4MiB bounded input
+remediation=seed batching now bounded to 2MiB and covered by glifistore_benchmark_server_tcp_large_get
+timed_engine_result=not-produced-by-pre-fix-attempt

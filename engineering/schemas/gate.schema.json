@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.local/schemas/gate.schema.json",
+  "title": "GlifiStore quality gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "titolo",
+    "sezione",
+    "livello_rilascio",
+    "requisiti",
+    "prove",
+    "piattaforme",
+    "evidenze",
+    "stato",
+    "rischio_residuo",
+    "riapertura"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^GATE-[A-Z0-9-]+$"
+    },
+    "titolo": { "type": "string", "minLength": 1 },
+    "sezione": {
+      "type": "string",
+      "enum": [
+        "public_contract",
+        "durability_recovery",
+        "verification",
+        "operations_security",
+        "distribution_lifecycle"
+      ]
+    },
+    "livello_rilascio": {
+      "type": "string",
+      "enum": ["prototype", "alpha", "beta", "rc", "stable"]
+    },
+    "requisiti": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GS-[A-Z]+-[A-Z0-9]+-[0-9]{3}$" }
+    },
+    "prove": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "piattaforme": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidenze": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "workflow": { "type": "string" },
+          "path": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "stato": {
+      "type": "string",
+      "enum": [
+        "NON_INIZIATA",
+        "SPECIFICATA",
+        "IMPLEMENTATA",
+        "PROVATA_LOCALMENTE",
+        "PROVATA_IN_CI",
+        "PROVATA_SU_HARDWARE",
+        "VERIFICATA_INDIPENDENTEMENTE",
+        "ACCETTATA_PER_RILASCIO"
+      ]
+    },
+    "rischio_residuo": { "type": "string", "minLength": 1 },
+    "riapertura": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "narrative": { "type": "string" }
+  }
+}

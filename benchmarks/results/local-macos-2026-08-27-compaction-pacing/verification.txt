@@ -1,0 +1,26 @@
+GlifiStore compaction pacing verification ledger
+Date: 2026-08-27 Europe/Rome
+Host: Apple M4 / macOS 26.6.2 arm64
+Source base: 5feccd33b518e73bb5ac96ad3658fb2633020613 + documented dirty worktree
+
+PASS  Release complete build (all targets; zero compiler warnings from changed code)
+PASS  Release glifistore_tests: 637 tests, 0 failures
+PASS  Release final-delta paced durable compaction target: 1 test, 0 failures
+PASS  Release STATS pacing field target: 1 test, 0 failures
+PASS  glifistore_allocation_fault_tests: exit 0
+PASS  crash ctest glifistore_crash_sync + glifistore_crash_group: 2/2
+PASS  ASan+UBSan compaction filter: 52 tests, 0 failures
+PASS  ASan+UBSan physical paced-write target: 1 test, 0 failures
+PASS  ASan+UBSan limiter target: 2 tests, 0 failures
+PASS  ASan+UBSan final-delta paced durable compaction target: 1 test, 0 failures
+PASS  TSan compaction filter: 52 tests, 0 failures
+PASS  TSan physical paced-write target: 1 test, 0 failures
+PASS  TSan final-delta paced durable compaction target: 1 test, 0 failures
+PASS  assurance validation: 30 requirements, 33 hazards, 26 gates, 2 waivers, 0 warnings
+PASS  git diff --check
+
+Residual verification limits:
+- sanitizer runs are focused, not the complete 637-test suite;
+- no native power-loss campaign;
+- no Linux/FreeBSD/OpenBSD or shared-device performance row;
+- benchmark p99.9, syscall/device-queue counters and multi-hour reclaim debt remain open.

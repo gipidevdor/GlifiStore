@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "capability-bitmask-combinations",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "file": "include/glifistore/server/authz.hpp",
+      "message": "The value '*' provided to the cast expression is not in the valid range of values for 'Capability'",
+      "classification": "D",
+      "rationale": "Capability is an explicitly uint8_t-backed flags type. operator| forms only combinations of the three declared bits, normalize_capabilities tests those bits, and no value is used as an enum discriminator. The analyzer models only named enumerators and therefore rejects valid flag combinations."
+    },
+    {
+      "id": "io-interest-bitmask-combinations",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "file": "include/glifistore/server/poller.hpp",
+      "message": "The value '*' provided to the cast expression is not in the valid range of values for 'IoInterest'",
+      "classification": "D",
+      "rationale": "IoInterest is an explicitly uint8_t-backed two-bit flags type. The only constructed combination is read|write and consumers inspect individual bits; the analyzer treats the flags type as a closed discriminator."
+    },
+    {
+      "id": "io-flags-bitmask-combinations",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "file": "include/glifistore/server/poller.hpp",
+      "message": "The value '*' provided to the cast expression is not in the valid range of values for 'IoFlags'",
+      "classification": "D",
+      "rationale": "IoFlags is an explicitly uint8_t-backed four-bit flags type populated by the poller backends. operator| combines only declared bits and every consumer uses has_flag; the analyzer cannot represent unnamed but valid bit combinations."
+    },
+    {
+      "id": "generation-retirement-preallocated-vector",
+      "check": "bugprone-exception-escape",
+      "file": "include/glifistore/store/paired/publication_coordinator.hpp",
+      "message": "an exception may be thrown in function 'install_writer_generation' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "Every Lane reserves kMaximumRetiredReadGenerations cells during construction. Admission is checked immediately before push_back, shared_ptr copy/move is non-throwing, and a contract breach terminates before publication. clang-tidy does not propagate the reserved-capacity invariant across callers."
+    },
+    {
+      "id": "client-deadline-bounded-serialized-receive",
+      "check": "clang-analyzer-unix.BlockInCriticalSection",
+      "file": "src/client/client_detail.hpp",
+      "message": "Call to blocking function 'recv' inside of critical section",
+      "classification": "D",
+      "rationale": "The per-worker connection mutex deliberately serializes a complete request/response exchange so frames cannot be consumed by the wrong caller. The socket is nonblocking; EAGAIN is delegated to a poll wait bounded by request_timeout_ms, and the critical section acquires no other lock."
+    },
+    {
+      "id": "client-receive-prefix-initialization",
+      "check": "cppcoreguidelines-pro-type-member-init",
+      "file": "src/client/client_detail.hpp",
+      "message": "uninitialized record type: 'chunk'",
+      "classification": "D",
+      "rationale": "recv or the TLS read overwrites a prefix of chunk and the code appends exactly that returned prefix. No byte outside the initialized prefix is observed; zeroing the full 64 KiB transport scratch buffer on every iteration would add work without changing safety."
+    },
+    {
+      "id": "bootstrap-private-directory-stream",
+      "check": "concurrency-mt-unsafe",
+      "file": "src/persistence/filesystem_directory.cpp",
+      "message": "function is not thread safe",
+      "classification": "D",
+      "rationale": "The readdir call operates on a function-local DIR stream created from a freshly opened descriptor and never shared between threads. The name-based check cannot distinguish independent streams from concurrent access to one stream."
+    },
+    {
+      "id": "audit-private-directory-stream",
+      "check": "concurrency-mt-unsafe",
+      "file": "src/persistence/namespace_audit.cpp",
+      "message": "function is not thread safe",
+      "classification": "D",
+      "rationale": "Namespace audit owns a fresh function-local DIR stream for the full enumeration and never publishes it. The name-based check cannot distinguish independent streams from concurrent access to one stream."
+    },
+    {
+      "id": "crash-hook-startup-environment",
+      "check": "concurrency-mt-unsafe",
+      "file": "src/server/crash_test_hooks.cpp",
+      "message": "function is not thread safe",
+      "classification": "D",
+      "rationale": "These three getenv calls run during single-threaded daemon configuration before Store or server worker threads start. The process does not mutate its environment after startup; the analyzer does not model this lifecycle boundary."
+    },
+    {
+      "id": "daemon-config-startup-environment",
+      "check": "concurrency-mt-unsafe",
+      "file": "src/server/daemon_config_detail.hpp",
+      "message": "function is not thread safe",
+      "classification": "D",
+      "rationale": "The default environment lookup is used while parsing daemon configuration before worker creation. Production does not mutate the process environment after startup, and tests inject a lookup instead of racing setenv with this function."
+    },
+    {
+      "id": "disk-executor-preallocated-noexcept-paths",
+      "check": "bugprone-exception-escape",
+      "file": "src/server/disk_read_executor.cpp",
+      "message": "an exception may be thrown in function '*' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "Lane slot and free-index vectors are sized/reserved at construction and capacity is checked before reuse. The worker catches allocation and arbitrary task failures into a default-constructed Error, while both index queues require nothrow-movable elements. clang-tidy does not carry these capacity and element-trait invariants."
+    },
+    {
+      "id": "kqueue-opaque-token-abi",
+      "check": "performance-no-int-to-ptr",
+      "file": "src/server/poller_kqueue.cpp",
+      "message": "integer to pointer cast pessimizes optimization opportunities",
+      "classification": "D",
+      "rationale": "The kqueue kevent ABI exposes udata as an opaque void pointer. GlifiStore round-trips the uint64 connection token through uintptr_t without dereferencing it; the cast is the platform ABI boundary and is guarded by pointer-width static assertions."
+    },
+    {
+      "id": "reactor-preallocated-close",
+      "check": "bugprone-exception-escape",
+      "file": "src/server/reactor.cpp",
+      "message": "an exception may be thrown in function 'close_connection' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "Poller removal is contained by catch-all, connection members have non-throwing reset/clear operations, and free_slots is reserved to maximum_connections and receives each live non-retired slot at most once. The analyzer cannot infer the slot-capacity and lifecycle invariant."
+    },
+    {
+      "id": "mutation-pool-preallocated-free-list",
+      "check": "bugprone-exception-escape",
+      "file": "src/store/paired/mutation_slot_pool.cpp",
+      "message": "an exception may be thrown in function '*' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "free_slots is reserved to slot_capacity at construction; rollback/release validate ownership and sequence, check capacity before push_back, and return each occupied slot exactly once. clang-tidy does not infer that push_back cannot grow the vector."
+    },
+    {
+      "id": "sync-lane-stable-noexcept-hooks",
+      "check": "bugprone-exception-escape",
+      "file": "src/store/paired/shard_pair_runtime_sync_lane.cpp",
+      "message": "an exception may be thrown in function 'process_sync_lane' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "All std::function hooks are constructed inside the surrounding try block from non-throwing targets before use; construction failure arms fail-closed state and returns. Bounded vectors are reserved before Store entry. The checker treats std::function invocation as an arbitrary throwing call."
+    },
+    {
+      "id": "embedded-sync-status-result-invariant",
+      "check": "bugprone-exception-escape",
+      "file": "src/store/paired/shard_pair_runtime_sync_lane.cpp",
+      "message": "an exception may be thrown in function 'operator()' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "The diagnostic points to shadow_resolve_status. Its only potentially throwing expression is Status::error(), reached exclusively in the false branch of Status::operator bool(); for Result<void>, false is exactly the invariant that the optional Error is engaged. The checker does not propagate that class invariant through the branch.",
+      "line": 396
+    },
+    {
+      "id": "async-writer-stable-noexcept-hooks",
+      "check": "bugprone-exception-escape",
+      "file": "src/store/paired/shard_pair_runtime_writer_async.cpp",
+      "message": "an exception may be thrown in function '*' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "Hook pointers refer only to nonempty Writer-loop std::function objects constructed from non-throwing targets inside a caught setup phase. Batch vectors are reserved to the bounded maximum before mutation processing; the checker does not propagate those object and capacity invariants."
+    },
+    {
+      "id": "writer-loop-stable-noexcept-hooks",
+      "check": "bugprone-exception-escape",
+      "file": "src/store/paired/shard_pair_runtime_writer_loop.cpp",
+      "message": "an exception may be thrown in function '*' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "Stable std::function hooks are assigned from non-throwing lambdas in a caught setup phase before any invocation, and all mutation-processing exceptions are translated to fail-closed outcomes. The checker models std::function::operator() without the established target invariant."
+    },
+    {
+      "id": "sync-writer-stable-noexcept-hooks",
+      "check": "bugprone-exception-escape",
+      "file": "src/store/paired/shard_pair_runtime_writer_sync.cpp",
+      "message": "an exception may be thrown in function '*' which should not throw exceptions",
+      "classification": "D",
+      "rationale": "Hook pointers refer only to nonempty Writer-loop std::function objects constructed from non-throwing targets inside a caught setup phase. Bounded work vectors are reserved before Store entry; the checker cannot infer either invariant."
+    }
+  ]
+}

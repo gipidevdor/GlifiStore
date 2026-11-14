@@ -1,0 +1,58 @@
+name: PGO Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pgo-smoke
+  cancel-in-progress: true
+
+jobs:
+  pgo-smoke:
+    name: PGO generate/train/use smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y llvm
+
+      - name: Configure PGO instrumentation build
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset unix-pgo-generate
+
+      - name: Build PGO training targets
+        run: >-
+          cmake --build --preset unix-pgo-generate --target
+          glifistore_benchmarks glifistore_pgo_durable
+
+      - name: Train profile
+        env:
+          PGO_PRESET: unix-pgo-generate
+        run: ./scripts/pgo-train.sh
+
+      - name: Configure PGO optimized build
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset unix-pgo-use
+
+      - name: Build optimized benchmarks
+        run: cmake --build --preset unix-pgo-use --target glifistore_benchmarks
+
+      - name: Run optimized smoke benchmark
+        run: ./build/unix-pgo-use/glifistore_benchmarks --filter store-put-get --ops 50000 --warmup 1 --repeats 3

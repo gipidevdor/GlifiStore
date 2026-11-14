@@ -1,0 +1,90 @@
+requirements:
+- id: GS-PERF-REGRESSION-001
+  titolo: Benchmark CI median regression signal
+  categoria: performance
+  criticita: media
+  stato: implementato
+  descrizione: Benchmark CI emits median ops/s deltas against the previous baseline only when the
+    recorded environment and benchmark-contract identities match, including each result's operation,
+    warmup, and repeat counts. Hosted results and the 10% review threshold are advisory
+    regression signals; overlapping min/max ranges remain inconclusive, not a hard release gate or
+    absolute product claim. Retained CI reports fail closed on incomplete or internally inconsistent
+    benchmark output and on sampling weaker than the fixed source contract. Same-revision deltas
+    are preserved as repeat-variance evidence and cannot be classified as code regression or
+    improvement candidates. Hosted runs also bind comparisons to recorded CMake and Ninja identities
+    and retain a versioned digest of the invocation workflow plus tracked build, product, and
+    benchmark-source inputs. Identical benchmark subjects across different commits are classified as
+    repeat variance because the measured code/configuration is unchanged; missing or changed subjects
+    do not hide candidates. Complete TCP
+    matrices validate filename/runtime coordinates and derive
+    per-depth Worker speedup, scaling efficiency,
+    and the highest observed median pipeline. The hosted contract also requires ordered Reactor
+    input/output-buffer compaction and copied-byte profiles, normalized per timed operation in the report.
+    It derives the smallest measured pipeline retaining at least 95% of the best same-Worker median,
+    exposing that economical depth as advice rather than silently changing client behavior.
+    Same-process TCP samples record their client/Reactor/Writer foreground-thread floor, while the
+    retained environment records logical and physical CPU counts. The report labels rows exceeding
+    either capacity as oversubscription sensitivity measurements rather than physical-core scaling
+    evidence.
+    Durable profile summaries require explicit durable storage metadata and cannot be inferred from
+    shared completion counters alone. First-party specialized CSV/TSV benchmarks emit the common
+    evidence metadata and are parsed into direction-aware structured diagnostics with complete
+    repeat identities and ordered ranges; these diagnostics remain advisory unless a separate
+    reviewed budget explicitly promotes them into a gate.
+  autorita:
+  - docs/spec/benchmark-standard.md
+  - docs/benchmarks/paired-shards-plan.md
+  implementazione:
+  - benchmarks
+  - engineering/performance/hosted-benchmark-contract.json
+  - engineering/tools/benchmark_subject_digest.py
+  - scripts/benchmark_report.py
+  - scripts/sdk_benchmark_report.py
+  prove:
+  - benchmarks
+  - scripts/tests/test_benchmark_report.py
+  - scripts/tests/test_benchmark_subject_digest.py
+  - scripts/tests/test_benchmark_workflow.py
+  - scripts/tests/test_sdk_benchmark_report.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: ci-regression-signal
+  evidenze:
+  - workflow: benchmarks.yml
+  rischio_residuo:
+  - Controlled-hardware CI evidence and enforced tail-latency release budgets remain open until
+    GS-PERF-BUDGET-001 hardware runner publishes pass-candidate
+  gates:
+  - GATE-PERFORMANCE
+- id: GS-PERF-BUDGET-001
+  titolo: Hardware-gated performance budgets and advisory snapshots
+  categoria: performance
+  criticita: media
+  stato: implementato
+  descrizione: Absolute / hard-pinned release budgets are machine-readable and linked to
+    GATE-PERFORMANCE. Hosted CI must not treat absolute numbers as product claims. Hardware
+    A/B remains specified_waiting_for_runner until glifistore-linux-perf publishes pass-candidate.
+  autorita:
+  - docs/assurance/performance-budgets.md
+  - docs/spec/benchmark-standard.md
+  - docs/benchmarks/paired-shards-linux-p1.md
+  - engineering/performance/budgets.yaml
+  implementazione:
+  - engineering/performance/budgets.yaml
+  - engineering/tools/validate_perf_budgets.py
+  - scripts/benchmark_paired_linux_ab.sh
+  prove:
+  - engineering/performance/budgets.yaml
+  - engineering/tools/validate_perf_budgets.py
+  piattaforme:
+  - linux-x86_64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: assurance.yml
+  - workflow: paired-linux-performance.yml
+  - note: Hardware absolute thresholds wait for labeled self-hosted runner
+  rischio_residuo:
+  - No pass-candidate hardware evidence published yet; advisory macOS snapshots are not release gates
+  gates:
+  - GATE-PERFORMANCE

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "wire_protocol": 2,
+  "client_semantics": 1,
+  "persistence_format": 1,
+  "clients": {
+    "cpp": {
+      "distribution": "repository-tag-cmake-install",
+      "required_artifacts": []
+    },
+    "python": {
+      "distribution": "github-release-and-pypi",
+      "required_artifacts": [
+        {"role": "wheel", "name": "glifistore-{version}-py3-none-any.whl"},
+        {"role": "sdist", "name": "python-glifistore-{version}.tar.gz"}
+      ]
+    },
+    "perl": {
+      "distribution": "github-release-and-pause",
+      "required_artifacts": [
+        {"role": "cpan-tarball", "name": "perl-GlifiStore-{version}.tar.gz"}
+      ]
+    },
+    "ruby": {
+      "distribution": "github-release-and-rubygems",
+      "required_artifacts": [
+        {"role": "gem", "name": "glifistore-{version}.gem"}
+      ]
+    },
+    "go": {
+      "distribution": "repository-submodule-tag",
+      "required_artifacts": [
+        {"role": "tracked-source", "name": "glifistore-go-{version}.tar.gz"}
+      ]
+    },
+    "erlang": {
+      "distribution": "tracked-source-archive",
+      "required_artifacts": [
+        {"role": "tracked-source", "name": "glifistore-erlang-{version}.tar.gz"}
+      ]
+    }
+  }
+}

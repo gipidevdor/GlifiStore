@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=forced-rotation
+# threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+disabled,1,0.104368,104.367500,0.000208,4.725834,92.422708,6.418750,0.240875,103.808167,103.808375,0.316958,0.242167,1,1,0,1,1,0,0,0,0,0,7
+disabled,2,0.107184,107.184416,0.000208,4.467375,91.944042,9.924459,0.217666,106.553542,106.553750,0.326125,0.304541,1,1,0,1,1,0,0,0,0,0,7
+disabled,3,0.110808,110.807958,0.000416,4.280792,96.087417,9.717958,0.199417,110.285584,110.286000,0.258041,0.263917,1,1,0,1,1,0,0,0,0,0,7
+disabled,4,0.151900,151.899792,0.000375,5.494750,136.671416,9.099500,0.140126,151.405792,151.406167,0.262625,0.231000,1,1,0,1,1,0,0,0,0,0,7
+disabled,5,0.179693,179.693208,0.000250,5.490375,161.526625,11.092083,0.191834,178.300917,178.301167,1.159667,0.232374,1,1,0,1,1,0,0,0,0,0,7
+disabled,6,0.112279,112.278500,0.000084,5.700708,97.868041,7.898291,0.232043,111.699083,111.699167,0.356792,0.222541,1,1,0,1,1,0,0,0,0,0,7
+disabled,7,0.132587,132.586834,0.000500,5.228167,118.192584,8.399500,0.236582,132.056833,132.057333,0.301916,0.227585,1,1,0,1,1,0,0,0,0,0,7

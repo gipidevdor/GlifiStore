@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=1ff35c3
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+disabled,1,0.048598,48.598000,0.000167,4.014208,34.954500,8.960041,0.160292,48.089041,48.089208,0.275084,0.233708,1,1,0,1,1,0,0,0,0,0,7
+disabled,2,0.052739,52.738625,0.000166,5.317750,38.846916,7.889000,0.202793,52.256459,52.256625,0.249666,0.232334,1,1,0,1,1,0,0,0,0,0,7
+disabled,3,0.066747,66.746750,0.000792,4.059000,51.949584,9.758083,0.220416,65.987083,65.987875,0.358667,0.400208,1,1,0,1,1,0,0,0,0,0,7
+disabled,4,0.052927,52.926542,0.000208,4.433041,32.830250,14.937167,0.245917,52.446375,52.446583,0.257958,0.222001,1,1,0,1,1,0,0,0,0,0,7
+disabled,5,0.051168,51.167750,0.000208,4.632792,34.951125,10.880625,0.169208,50.633750,50.633958,0.291875,0.241917,1,1,0,1,1,0,0,0,0,0,7
+disabled,6,0.098024,98.023792,0.000333,5.287416,79.989500,11.799542,0.293042,97.369500,97.369833,0.321958,0.332001,1,1,0,1,1,0,0,0,0,0,7
+disabled,7,0.063453,63.453417,0.000584,3.821250,47.888333,10.618500,0.500417,62.828500,62.829084,0.269958,0.354375,1,1,0,1,1,0,0,0,0,0,7

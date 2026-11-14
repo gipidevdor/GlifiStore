@@ -1,0 +1,2 @@
+# crash-daemon storage=durable-sync checkpoint=post-ack SIGKILL
+ok

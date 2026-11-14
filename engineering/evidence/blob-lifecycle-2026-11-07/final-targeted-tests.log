@@ -1,0 +1,27 @@
+[RUN] blob staged abort and destruction remove files and return quota without GC
+[PASS] blob staged abort and destruction remove files and return quota without GC
+1 tests, 0 failures
+[RUN] blob failed chunk dispatch is terminal cleans staging and returns credits
+[PASS] blob failed chunk dispatch is terminal cleans staging and returns credits
+1 tests, 0 failures
+[RUN] blob quota reserves the peak staging extent before creating a file
+[PASS] blob quota reserves the peak staging extent before creating a file
+1 tests, 0 failures
+[RUN] blob parent directory sync retains configured syscall fault hooks
+[PASS] blob parent directory sync retains configured syscall fault hooks
+1 tests, 0 failures
+[RUN] blob exact peak staging quota permits commit and survives reopen
+[PASS] blob exact peak staging quota permits commit and survives reopen
+1 tests, 0 failures
+[RUN] blob close aborts active staging before revoking retained handles
+[PASS] blob close aborts active staging before revoking retained handles
+1 tests, 0 failures
+[RUN] blob concurrent commit cannot publish an upload after its chunk throws
+[PASS] blob concurrent commit cannot publish an upload after its chunk throws
+1 tests, 0 failures
+[RUN] blob and v2 codecs match independent Python golden fixtures
+[PASS] blob and v2 codecs match independent Python golden fixtures
+1 tests, 0 failures
+[RUN] blob recovery budget rejects insufficient metadata capacity before creation
+[PASS] blob recovery budget rejects insufficient metadata capacity before creation
+1 tests, 0 failures

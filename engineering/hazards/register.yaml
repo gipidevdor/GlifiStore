@@ -1,0 +1,935 @@
+hazards:
+- id: HAZ-001
+  evento_pericoloso: Conferma falsa di durabilità
+  cause:
+  - ACK before durable boundary
+  - Incorrect flush policy
+  conseguenze:
+  - Client observes committed data that is lost after crash
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  rischio_residuo: E3/E4 physical power-loss not certified
+  stato: aperto
+  accettazione_rischio: Maintainers accept prototype claim ceiling E2 only
+  requisiti:
+  - GS-PERSIST-ACK-001
+- id: HAZ-002
+  evento_pericoloso: Perdita silenziosa
+  cause:
+  - Ignored I/O errors
+  - Truncation without fail-closed
+  conseguenze:
+  - Data disappears without error to caller
+  severita: catastrofica
+  probabilita: bassa
+  rilevabilita: bassa
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  rischio_residuo: System-level disk-full matrices open
+  stato: mitigato
+  accettazione_rischio: Fail-closed recovery policy; residual system matrices open
+  requisiti:
+  - GS-RECOVERY-FAILCLOSED-001
+- id: HAZ-003
+  evento_pericoloso: Lettura obsoleta come corrente
+  cause:
+  - Stale ReadGeneration adopted as current
+  - Missing publish/adopt ordering
+  conseguenze:
+  - Readers observe superseded values as latest
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/concurrency/linearizability_tests.cpp
+  rischio_residuo: Checker histories are bounded; durable adversarial I/O schedules remain open
+  stato: mitigato
+  accettazione_rischio: B1 linearizability smoke accepted for prototype claim ceiling
+  requisiti:
+  - GS-CONCUR-PAIR-001
+  - GS-CONCUR-LIN-001
+- id: HAZ-004
+  evento_pericoloso: Resurrezione di una cancellazione
+  cause:
+  - Tombstone lost in compaction/recovery
+  - Wrong visibility rules
+  conseguenze:
+  - Deleted key reappears
+  severita: alta
+  probabilita: bassa
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/integration/compaction_recovery_tests.cpp
+  rischio_residuo: Multi-output compaction cleanup residual paths
+  stato: mitigato
+  accettazione_rischio: Crash checkpoints cover compaction; residual native matrices open
+  requisiti:
+  - GS-RECOVERY-DET-001
+  - GS-PERSIST-ORDER-001
+- id: HAZ-005
+  evento_pericoloso: Doppia applicazione
+  cause:
+  - Replay of committed mutation
+  - Non-idempotent retry without fencing
+  conseguenze:
+  - Duplicate side effects / wrong value
+  severita: alta
+  probabilita: bassa
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - docs/spec/client-semantics-v1.md
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
+  rischio_residuo: Client indeterminate outcomes require careful retries
+  stato: mitigato
+  accettazione_rischio: Client semantics define committed/rejected/indeterminate
+  requisiti:
+  - GS-PROTO-WIRE-001
+  - GS-PERSIST-ACK-001
+- id: HAZ-006
+  evento_pericoloso: Recupero non deterministico
+  cause:
+  - Ambiguous manifest authority
+  - Unordered scan
+  conseguenze:
+  - Different rebuilds from same bytes
+  severita: catastrofica
+  probabilita: bassa
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - docs/spec/recovery-state-matrix-v1.md
+  rischio_residuo: Exhaustive native matrices open
+  stato: mitigato
+  accettazione_rischio: Matrix + crash suite; residual platform coverage open
+  requisiti:
+  - GS-RECOVERY-DET-001
+- id: HAZ-007
+  evento_pericoloso: Perdita di una mutazione confermata
+  cause:
+  - Power loss after ACK
+  - Group/periodic window misunderstood
+  conseguenze:
+  - Acknowledged mutation missing after restart
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - docs/architecture/platform-durability-evidence.md
+  rischio_residuo: Physical E3 hardware campaign not published
+  stato: aperto
+  accettazione_rischio: 'Honesty rule: e3_certified=no until pinned campaign'
+  requisiti:
+  - GS-PERSIST-ACK-001
+- id: HAZ-008
+  evento_pericoloso: Uso dopo liberazione
+  cause:
+  - Reclaim while reader still addresses segment
+  - Borrow lifetime bug
+  conseguenze:
+  - Memory corruption / crash / wrong bytes
+  severita: catastrofica
+  probabilita: bassa
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/concurrency_tests.cpp
+  - tests/unit/value_tests.cpp
+  - tests/unit/prepared_read_tests.cpp
+  rischio_residuo: ASan/UBSan CI smoke; not exhaustive schedules
+  stato: mitigato
+  accettazione_rischio: Sanitizer CI + generation model; adversarial schedules Phase B
+  requisiti:
+  - GS-CONCUR-PAIR-001
+  - GS-CORE-CLOSE-001
+- id: HAZ-009
+  evento_pericoloso: Recupero prematuro di segmenti
+  cause:
+  - Vacuum/compaction frees live segment
+  conseguenze:
+  - Readers or recovery lose live records
+  severita: alta
+  probabilita: bassa
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/rebuild_vacuum_tests.cpp
+  - tests/integration/compaction_recovery_tests.cpp
+  rischio_residuo: Adversarial schedule coverage incomplete
+  stato: mitigato
+  accettazione_rischio: Existing vacuum/compaction tests; Phase B fault hooks
+  requisiti:
+  - GS-CONCUR-PAIR-001
+- id: HAZ-010
+  evento_pericoloso: Scrittura nella partizione errata
+  cause:
+  - Routing hash mismatch
+  - Wrong owner mutation accepted
+  conseguenze:
+  - Data placed under wrong Worker / lost on migrate
+  severita: catastrofica
+  probabilita: bassa
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - scripts/test-sdk-interop.sh
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  rischio_residuo: Keyed routing interop residual toolchain gaps
+  stato: mitigato
+  accettazione_rischio: WRONG_OWNER + owner binding; keyed SipHash covered in secure-profile smoke
+  requisiti:
+  - GS-PROTO-WIRE-001
+  - GS-CONCUR-PAIR-001
+- id: HAZ-011
+  evento_pericoloso: Divergenza fra instradamento e manifesto
+  cause:
+  - Manifest worker_count/seed disagrees with runtime routing
+  conseguenze:
+  - Clients route differently than durable topology
+  severita: alta
+  probabilita: bassa
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - docs/adr/0030-keyed-worker-routing.md
+  - tests/fixtures
+  rischio_residuo: Cross-release routing matrices open
+  stato: mitigato
+  accettazione_rischio: Persisted seed/topology reopen rules documented
+  requisiti:
+  - GS-COMPAT-FIXTURE-001
+  - GS-PROTO-WIRE-001
+- id: HAZ-012
+  evento_pericoloso: Compattazione che elimina dati visibili
+  cause:
+  - Compaction drops live records
+  - Intent not crash-safe
+  conseguenze:
+  - Visible keys disappear
+  severita: catastrofica
+  probabilita: bassa
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  - Replacement outputs remain private until sealed and verified; intent precedes canonical-name promotion
+  - Pre-intent recovery removes only recognized private temporaries after scanning Mold completely
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/compaction_recovery_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  rischio_residuo: Hardware power-cut during compaction uncertified
+  stato: mitigato
+  accettazione_rischio: Crash checkpoints include compaction; E3 open
+  requisiti:
+  - GS-RECOVERY-DET-001
+  - GS-PERSIST-ORDER-001
+- id: HAZ-013
+  evento_pericoloso: Rotazione incompleta
+  cause:
+  - Crash mid-rotation
+  - Sealed-active marker inconsistency
+  conseguenze:
+  - Unreadable active segment / recovery failure
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  rischio_residuo: Native exhaustive rotation matrices open
+  stato: mitigato
+  accettazione_rischio: Exact-intent rotation completion + crash suite
+  requisiti:
+  - GS-RECOVERY-DET-001
+- id: HAZ-014
+  evento_pericoloso: Corruzione del manifesto
+  cause:
+  - Bit rot
+  - Torn write
+  - Malicious modification
+  conseguenze:
+  - Store fails open or adopts wrong authority
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  - fuzz
+  - engineering/formal/persistence/PersistenceRecovery.tla
+  rischio_residuo: CRC not a MAC; no cryptographic authenticity
+  stato: accettato
+  accettazione_rischio: Threat model accepts checksum-only integrity for prototype
+  requisiti:
+  - GS-PERSIST-ORDER-001
+  - GS-RECOVERY-FAILCLOSED-001
+- id: HAZ-015
+  evento_pericoloso: Corruzione delle caselle di conferma
+  cause:
+  - Torn commit slot
+  - Partial sync
+  conseguenze:
+  - False durability or unreadable commit
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/integration/persistence_recovery_tests.cpp
+  - engineering/formal/persistence/PersistenceRecovery.tla
+  rischio_residuo: Power-loss certification platform dependent
+  stato: aperto
+  accettazione_rischio: Alternating checksummed slots; E3/E4 open
+  requisiti:
+  - GS-PERSIST-ORDER-001
+- id: HAZ-016
+  evento_pericoloso: Esaurimento dello spazio
+  cause:
+  - ENOSPC during mutation/rotation
+  - ENOSPC / storage_exhausted during compaction staging, intent, or promotion
+  - ENOSPC / storage_exhausted during online backup segment/manifest copy or destination sync
+  conseguenze:
+  - Availability loss; risk of partial publish if mishandled
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/unit/store_backup_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  rischio_residuo: System-level disk-full matrices open; E3/E4 not certified
+  stato: mitigato
+  accettazione_rischio: Deterministic ENOSPC seams + resource preflight
+  requisiti:
+  - GS-RECOVERY-FAILCLOSED-001
+  - GS-OPS-CONFIG-001
+  - GS-PERSIST-FAULT-001
+- id: HAZ-017
+  evento_pericoloso: Quota esaurita
+  cause:
+  - EDQUOT
+  conseguenze:
+  - Mutations fail; recovery must stay fail-closed
+  severita: alta
+  probabilita: bassa
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  rischio_residuo: System-level quota matrices open
+  stato: mitigato
+  accettazione_rischio: Fault-injection covers EDQUOT seams
+  requisiti:
+  - GS-RECOVERY-FAILCLOSED-001
+- id: HAZ-018
+  evento_pericoloso: Errori di scrittura differita
+  cause:
+  - Writeback errors after ACK on some FS
+  conseguenze:
+  - Silent loss on unsupported FS
+  severita: alta
+  probabilita: media
+  rilevabilita: bassa
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - docs/architecture/platform-durability-evidence.md
+  rischio_residuo: Remote/user-space FS unsupported
+  stato: accettato
+  accettazione_rischio: Unsupported FS explicitly out of scope in README
+  requisiti:
+  - GS-PERSIST-ACK-001
+- id: HAZ-019
+  evento_pericoloso: Errori di sincronizzazione
+  cause:
+  - fsync/fdatasync failures
+  - Directory sync skipped
+  - Strict Writer batch threshold published as deferred before the explicit commit boundary
+  conseguenze:
+  - ACK without durability
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  - engineering/formal/persistence/PersistenceRecovery.tla
+  rischio_residuo: OpenBSD fdatasync≡fsync cost; platform matrices open
+  stato: mitigato
+  accettazione_rischio: Platform-aware sync paths + fault tests
+  requisiti:
+  - GS-PERSIST-ORDER-001
+- id: HAZ-020
+  evento_pericoloso: Fallimento durante la chiusura
+  cause:
+  - Final flush fails in close
+  - Executor teardown race
+  conseguenze:
+  - Indeterminate durability; resource leaks
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/store_tests.cpp
+  rischio_residuo: Formal drain timeout proofs Phase B
+  stato: mitigato
+  accettazione_rischio: close makes final flush failure observable
+  requisiti:
+  - GS-CORE-CLOSE-001
+- id: HAZ-021
+  evento_pericoloso: Arresto durante il backup
+  cause:
+  - Kill during online backup fence
+  - Incomplete destination tree (Manifest missing / partial Segment copy)
+  - One concurrent backup releases another backup's admission fence during catalog copy
+  conseguenze:
+  - Incomplete backup tree / inconsistent snapshot
+  severita: media
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  - Destination must verify before promotion; Manifest copied last
+  - Concurrent backup owners retain counted admission fences until their own copy completes
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  - Incomplete destinations fail verify/restore; live source remains usable after failed online backup
+  prove:
+  - scripts/exercise_ops_runbooks.sh
+  - tests/unit/store_backup_tests.cpp
+  - tests/crash/crash_backup.cpp
+  - tests/crash/crash_backup_wire.cpp
+  - tests/crash/crash_backup_daemon.cpp
+  rischio_residuo: Zero-fence hot backup deferred (ADR 0034); online path remains admission-fenced; Store + in-process Server/wire + real glifistored exec mid-BACKUP kill covered (lab hooks)
+  stato: mitigato
+  accettazione_rischio: Online backup is fenced not zero-impact; operator verify required before promotion
+  requisiti:
+  - GS-OPS-BACKUP-001
+- id: HAZ-022
+  evento_pericoloso: Ripristino incompatibile
+  cause:
+  - Restore across unsupported versions
+  - Partial artifact
+  conseguenze:
+  - Open fails or silent semantic change
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - docs/architecture/version-lifecycle.md
+  - tests/fixtures
+  - tests/unit/store_backup_tests.cpp
+  rischio_residuo: Tagged N/N-1 codec drops and the first complete prior-release Store remain release-process steps
+  stato: mitigato
+  accettazione_rischio: >
+    Fail-closed verify/restore/open for synthetic future Manifest/Record versions,
+    truncated Manifests, and Worker-count mismatch after restore; permanent released
+    fixture drops still open; the artifact-only persistence producer therefore fails closed
+  requisiti:
+  - GS-OPS-BACKUP-001
+  - GS-COMPAT-FIXTURE-001
+  - GS-COMPAT-NN1-001
+- id: HAZ-023
+  evento_pericoloso: Errore di autorizzazione
+  cause:
+  - Authz map misconfig
+  - Missing mTLS
+  conseguenze:
+  - Unauthorized mutate/read
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - scripts/test-secure-profile-interop.sh
+  rischio_residuo: >
+    Cleartext default for loopback; hostile public needs CRL; Phase 8 remainder
+    unsupported/deferred (ADR 0028); restart-only TLS cert material
+  stato: mitigato
+  accettazione_rischio: Secure profile default-deny; cleartext trusted-bind only
+  requisiti:
+  - GS-SEC-PROFILE-001
+- id: HAZ-024
+  evento_pericoloso: Aggiramento dei limiti
+  cause:
+  - Missing rate limits
+  - Oversized frame CPU DoS
+  - Stalled TLS handshakes or response output
+  - Uncharged oversized responses and denied attempts before quota admission
+  conseguenze:
+  - Availability loss
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - scripts/test-secure-profile-interop.sh
+  - tests/unit/tls_tests.cpp
+  - tests/integration/server_security_bounds_tests.cpp
+  - tests/unit/abuse_limits_tests.cpp
+  - tests/unit/security_audit_tests.cpp
+  - tests/security_audit_sink_tests.cpp
+  - engineering/evidence/security-bounds-ci-2026-11-01.md
+  rischio_residuo: >
+    Limits require secure-profile/operator config; both timeout knobs zero disable output expiry.
+    A blocked operator stderr retains one process-lifetime emitter with a fixed queue; Readers
+    and Server destruction never wait for sink I/O. Suppression/delivery is observable, but audit
+    is best effort and pending events may be lost at exit. One decided response may exceed the
+    residual byte allowance; physical durability and hostile-public readiness are not inferred.
+  stato: mitigato
+  accettazione_rischio: Phase 5 abuse controls when enabled
+  requisiti:
+  - GS-SEC-PROFILE-001
+  - GS-SEC-BOUNDS-001
+  - GS-OPS-CONFIG-001
+- id: HAZ-025
+  evento_pericoloso: Saturazione delle code
+  cause:
+  - SPSC/MPSC full
+  - Accept flood
+  conseguenze:
+  - OVERLOADED / connection close; progress stalls
+  severita: media
+  probabilita: alta
+  rilevabilita: alta
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  - Oldest FIFO admission deadline caps durable-group coalescing before Store entry
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - docs/operations/graceful-drain-and-overload.md
+  - scripts/exercise_ops_runbooks.sh
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  rischio_residuo: Queue deadlines bound voluntary coalescing, but scheduler descheduling and
+    in-flight Store service remain outside the pre-Store budget
+  stato: mitigato
+  accettazione_rischio: Bounded queues + overload runbooks
+  requisiti:
+  - GS-OPS-CONFIG-001
+  - GS-OPS-SOAK-001
+  - GS-CONCUR-PAIR-001
+- id: HAZ-026
+  evento_pericoloso: Starvation
+  cause:
+  - Maintenance vs foreground
+  - Unfair scheduling
+  conseguenze:
+  - Mutations delayed indefinitely
+  severita: media
+  probabilita: media
+  rilevabilita: bassa
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  - Dedicated paired Writer limits sync turns to 32 records and preserves older remainders in a FIFO continuation
+  - Observe advances the round-robin compaction cursor even on reclaim_threshold skips
+  - Exact no-gain candidates suppress repeated full scans until physical invalidation or bounded retry
+  - Complete replacement copy/seal/verification precedes the global publication lease
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - docs/operations/durable-tcp-daemon.md
+  - docs/architecture/maintenance-controller.md
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  - tests/unit/maintenance_controller_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  rischio_residuo: >
+    The post-staging v1 intent/promotion/publication/retirement window remains monolithic;
+    copy pacing and multi-hour adversarial cross-platform fairness soak remain open
+    (Wave 4 adversarial-reclaim / hot-key soak profiles are software stubs only)
+  stato: mitigato
+  accettazione_rischio: Cursor advance, bounded no-gain memo, pressure bypass, and p99 deferral hysteresis are documented and tested
+  requisiti:
+  - GS-OPS-CONFIG-001
+- id: HAZ-027
+  evento_pericoloso: Blocco permanente
+  cause:
+  - Lock order bug
+  - Missing wake
+  conseguenze:
+  - Hang
+  severita: alta
+  probabilita: bassa
+  rilevabilita: bassa
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/concurrency_tests.cpp
+  rischio_residuo: Default close still unbounded; no dedicated deadlock detector in CI
+  stato: mitigato
+  accettazione_rischio: Optional close_drain_deadline_ms and compact try_lock; detector still open
+  requisiti:
+  - GS-CONCUR-PAIR-001
+  - GS-CONCUR-LIVE-001
+  - GS-CORE-CLOSE-001
+- id: HAZ-028
+  evento_pericoloso: Errore nella pubblicazione delle generazioni
+  cause:
+  - Publish without release barrier
+  - Adopt torn generation
+  conseguenze:
+  - Stale or invalid reads; UAF risk
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Normative specs + fail-closed implementation paths linked via requirements
+  contenimento:
+  - Stop serving affected ops; operator repair/salvage modes are explicit
+  prove:
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/concurrency/linearizability_tests.cpp
+  - docs/spec/concurrency-memory-model.md
+  - docs/assurance/memory-order-inventory.md
+  rischio_residuo: Inventory is review-based; TLA+ model omits durable publication
+  stato: mitigato
+  accettazione_rischio: B1 inventory + release/acquire publish/adopt + reduced TLA+
+  requisiti:
+  - GS-CONCUR-PAIR-001
+  - GS-CONCUR-MEM-001
+  - GS-CONCUR-TLA-001
+- id: HAZ-029
+  evento_pericoloso: Deriva o contaminazione della C ABI pubblica
+  cause:
+  - Rimozione o modifica silenziosa di un simbolo ABI 1
+  - Esportazione accidentale di simboli C++ o server interni
+  - Cambio di layout o semantica senza ABI major bump
+  conseguenze:
+  - Crash o corruzione nei consumer già compilati
+  - Impossibilità di upgrade sicuro della shared library
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - ABI_VERSION separato e ADR 0038
+  - Visibility hidden, allowlist esatta e static assertion di layout
+  - Consumer C esterno sigillato e matrice bidirezionale su release precedente attestata
+  contenimento:
+  - Fallire build, package verification o caricamento prima di aprire lo Store
+  - Incrementare ABI major per ogni rottura deliberata
+  prove:
+  - tests/abi/c_abi_tests.c
+  - tests/abi/c_abi_durable_tests.cpp
+  - tests/consumer/abi.c
+  - engineering/tools/check_abi_symbols.py
+  - scripts/package-abi-consumer.py
+  - engineering/tools/abi_consumer_fixture.py
+  - engineering/tools/prior_release.py
+  - scripts/test-installed-abi-compat.sh
+  - tests/abi/c_abi_layout_probe.c
+  - scripts/tests/test_artifact_release_workflow.py
+  rischio_residuo: Non esiste ancora una release ufficiale completa precedente; la compatibilità cross-release non è provabile oggi
+  stato: mitigato
+  accettazione_rischio: Contratto e producer sono presenti; nessun claim C ABI 1.x cross-release fino a evidence same-run trattenuta
+  requisiti:
+  - GS-COMPAT-CABI-001
+- id: HAZ-030
+  evento_pericoloso: Pubblicazione di byte diversi da quelli verificati o con identita non provata
+  cause:
+  - Rebuild fra verifica e publish
+  - Tag e VERSION discordanti o tag non annotato
+  - Asset sostituito dopo la verifica
+  - Package o SBOM alterato, incompleto o non attestato
+  - Evidence JSON dichiarato passed senza matrice completa, log trattenuti o subject digest
+  - Evidence aggiunta dopo il candidate seal senza un inventario chiuso o proveniente da un run ambiguo
+  - Reference port confuso con package nativo provato
+  conseguenze:
+  - Supply-chain compromise o impossibilita di ricondurre il binario alle sorgenti
+  - Installazione di ABI, wire o formato persistente differenti dal manifest dichiarato
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Candidate Verify Publish con unico build e seal SHA-256 transitivo
+  - Release manifest, SPDX, tag identity, OIDC attestation e release Environment
+  - Policy release fail-closed per package BSD ed evidenze compatibility/security
+  - Schema evidence chiuso con check obbligatori, log non vuoti e binding a commit/versione/artefatto
+  - Exact candidate admission prima dell'import e digest inventory degli input di certificazione same-run
+  contenimento:
+  - Abortire la promotion; non usare clobber; ritirare la release e creare una nuova versione
+  prove:
+  - scripts/tests/test_release_artifacts.py
+  - scripts/tests/test_bsd_packaging.py
+  - scripts/tests/test_artifact_release_workflow.py
+  - engineering/tools/release_bundle.py
+  - engineering/tools/release_evidence.py
+  - engineering/tools/persistence_fixture.py
+  - scripts/test-installed-persistence-compat.sh
+  - scripts/tests/test_persistence_fixture.py
+  - scripts/package-wire-client.py
+  - engineering/tools/wire_client_fixture.py
+  - scripts/test-installed-wire-compat.sh
+  - engineering/tools/compare_release_rebuild.py
+  - scripts/verify_hardening.py
+  - scripts/test-freebsd-package-lifecycle.sh
+  rischio_residuo: La filiera completa non puo essere provata finche non esistono il primo tag e package nativi installati
+  stato: mitigato
+  accettazione_rischio: Nessuna pubblicazione e permessa finche validate-release-policy e il gate BSD release falliscono
+  requisiti:
+  - GS-RELEASE-ARTIFACT-001
+- id: HAZ-031
+  evento_pericoloso: Amplificazione memoria o alta marea RSS non attribuita nel runtime paired
+  cause:
+  - Copie COW e strutture temporanee durante publication e merge
+  - Generazioni condivise o ritirate e cache dell'allocatore non incluse nel censimento corrente
+  - Segment mapping, stack e overhead di allocazione confusi con payload logico
+  conseguenze:
+  - OOM, pressione di memoria e jitter di latenza su dataset o shard count elevati
+  - Dimensionamento operativo basato su un rapporto bytes-per-key non credibile
+  severita: alta
+  probabilita: alta
+  rilevabilita: media
+  prevenzione:
+  - Layout base compatto con 5 byte per bucket e Record immutabile da 64 byte
+  - Mapping anonime guarded per i grandi array Record, classi geometriche e un solo spare bounded
+    per lineage; nessun lock nel GET o nella publication Delta ordinaria
+  - Censimento coerente O(1), con conteggi esatti page/block/chunk aggiornati dal solo Writer, e
+    benchmark RSS separato
+  - Limiti esistenti su delta, generazioni ritirate, merge post-cut, lane e buffer connessione
+  contenimento:
+  - Conservare il claim di prototipo e dimensionare con RSS/peak RSS nativi, non col solo payload logico
+  - Applicare backpressure sui limiti esistenti e ridurre shard/dataset quando il budget non e provato
+  prove:
+  - tests/unit/pair_read_generation_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  - benchmarks/memory_census_benchmark.cpp
+  - benchmarks/results/local-macos-2026-08-27-read-generation-memory/README.md
+  - benchmarks/results/local-macos-2026-08-27-put-census-o1/README.md
+  rischio_residuo: Il current mapping e lo spare bounded sono ora attribuiti e il residuo RSS locale
+    a un solo shard e diminuito del 56%; restano da attribuire univocamente generazioni condivise o
+    ritirate, merge builder, stack, pagine residenti dei Segment e due regioni native 4/8 MiB, oltre
+    alle prove steady-state e multi-piattaforma
+  stato: aperto
+  accettazione_rischio: Nessuna chiusura; mitigazione parziale e misure locali conservate sotto il
+    claim ceiling di architectural prototype
+  requisiti:
+  - GS-CONCUR-PAIR-001
+- id: HAZ-032
+  evento_pericoloso: Debito di merge paired concentrato in una pausa terminale o overload spurio
+  cause:
+  - Quantum fisso non rapportato alla dimensione della base e alla capacita post-cut residua
+  - Invocazioni duplicate di housekeeping nello stesso turno del combiner
+  - Transizione delta-ready rinviata quando l'ultimo slot coincide esattamente col budget
+  conseguenze:
+  - Jitter elevato della latenza PUT e head-of-line blocking del Writer
+  - Esaurimento del post-delta seguito da retry concentrati o rifiuto prima dello Store
+  - Merge non avviato quando l'ultimo batch raggiunge la soglia e il Writer dedicato diventa idle
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Budget proporzionale ceil(debito residuo per record entranti diviso capacita post-cut residua)
+  - Un quantum minimo per PUT singolo e due quantum ammortizzati per publication coalesciata, senza
+    crescita lineare controllata dal batch client
+  - Transizioni initialize-base-delta-ready gratuite rispetto al conteggio degli slot
+  - Turno idle del Writer dedicato successivo agli ACK, con rilascio del token fra quantum
+  contenimento:
+  - Conservare bounds di delta e post-delta e rifiutare prima dello Store solo se l'ammissione resta
+    impossibile dopo l'avanzamento proporzionale
+  - Osservare debito, capacita residua, massimo quantum e backpressure per shard
+  prove:
+  - tests/unit/pair_read_generation_tests.cpp
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  - benchmarks/results/local-macos-2026-08-27-merge-debt-scheduler/README.md
+  rischio_residuo: Su basi molto grandi il budget proporzionale puo superare il quantum minimo per
+    evitare l'esaurimento bounded; p99 e soglie ottimali richiedono campagne multi-piattaforma con
+    overlap GET, compaction e dataset oltre LLC
+  stato: mitigato
+  accettazione_rischio: Nessuna chiusura del rischio finche le campagne p99 multi-piattaforma non
+    sono conservate; il claim resta architectural prototype
+  requisiti:
+  - GS-CONCUR-PAIR-001
+  - GS-CONCUR-COMBINE-001
+- id: HAZ-033
+  evento_pericoloso: Compaction I/O causa jitter foreground o il rate gate affama candidati grandi
+  cause:
+  - Budget per secondo applicato come limite all'intera transazione invece che alle scritture
+  - Record grande ritardato ma poi emesso con una singola scrittura fisica non bounded
+  - Attesa introdotta dopo la pubblicazione dell'intent con autorita persistente ambigua
+  conseguenze:
+  - Crollo del throughput e aumento p99/p99.9 durante maintenance
+  - Debito di reclaim che non converge per candidati maggiori del rate configurato
+  - Finestra di recovery_required prolungata artificialmente
+  severita: alta
+  probabilita: alta
+  rilevabilita: alta
+  prevenzione:
+  - Pacing monotonic allocation-free prima dell'intent con burst massimo di 1 MiB
+  - Segment Record write suddivisa secondo ogni grant fisico senza cambiare i byte v1
+  - Candidato iniziale ammesso anche se supera un secondo di banda e window gate solo fra job adiacenti
+  - Bypass esplicito per pressure/emergency e default dei profili sovrascrivibili
+  contenimento:
+  - Disabilitare o ricalibrare il rate e osservare delay, sleep, burst, debito e latency foreground
+  - Conservare il claim di prototipo finche non esistono campagne multi-piattaforma e su device condiviso
+  prove:
+  - tests/unit/byte_rate_limiter_tests.cpp
+  - tests/unit/segment_file_tests.cpp
+  - tests/unit/maintenance_controller_tests.cpp
+  - tests/unit/daemon_config_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - benchmarks/results/local-macos-2026-08-27-compaction-pacing/README.md
+  rischio_residuo: sleep granularity, filesystem caching e condivisione del device richiedono tuning
+    e campagne su Linux, FreeBSD, OpenBSD e hardware controllato; il bypass di pressione resta un burst
+    deliberato per recuperare capacita
+  stato: mitigato
+  accettazione_rischio: Mitigazione locale e configurabile; nessun claim universale o production-ready
+  requisiti:
+  - GS-OPS-CONFIG-001
+  - GS-OPS-DEBT-001
+  - GS-PERSIST-AMP-001
+- id: HAZ-034
+  evento_pericoloso: Pacchetto dichiarato provato oltre le prove effettivamente eseguite
+  cause:
+  - Riga structural letta come prova di build, installazione, servizio o accettazione upstream
+  - Check saltato riportato come PASS invece di NOT_RUN, BLOCKED o OPEN_GATE
+  - Tabella di stato scritta a mano che diverge dalla matrice machine-readable
+  - Marker di account upstream o accettazione ports sintetizzato dalla CI
+  - Backend promosso a required_for_release senza evidence trattenuta e senza ADR
+  - Upgrade dichiarato initial baseline mentre esiste una release precedente pubblicata
+  conseguenze:
+  - Operatori che installano un pacchetto mai installato ne avviato in alcun run
+  - Claim di distribuzione o di accettazione upstream falsi nella documentazione pubblica
+  - Release policy indebolita da artifact opzionali trattati come richiesti
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Matrice unica con vocabolario di check, categoria per check e limitazioni obbligatorie
+  - Schema package-evidence chiuso in cui il risultato non puo superare i propri check e un PASS
+    deve citare un log trattenuto
+  - docs/distribution/package-status.md generato dalla matrice e verificato in unittest
+  - PORTS_ACCOUNT_REGISTERED e upstream-ports-acceptance solo in lettura, mai scritti dalla CI
+  - required_for_release limitato agli artifact gia richiesti da validate_release_policy
+  contenimento:
+  - Rifiutare la chiusura del profilo quando una riga pianificata non ha evidence valida
+  - Riportare il gate a IMPLEMENTATA e ripristinare i residual finche l'esecuzione non esiste
+  prove:
+  - scripts/tests/test_package_matrix.py
+  - scripts/tests/test_package_evidence.py
+  - scripts/tests/test_package_ci.py
+  - scripts/tests/test_package_ci_plan.py
+  - scripts/tests/test_package_status_docs.py
+  - scripts/tests/test_package_admission.py
+  - scripts/tests/test_package_admission_orchestrator.py
+  - scripts/tests/test_package_upgrade_baseline.py
+  - scripts/tests/test_n1_package_artifacts.py
+  - engineering/tools/validate_package_evidence.py
+  - engineering/tools/run_package_admission.py
+  - engineering/tools/n1_package_artifacts.py
+  - engineering/tools/generate_package_status.py
+  rischio_residuo: La matrice cross-SDK package-installed ha PASS nightly trattenuti per deb/rpm
+    (run 34666166603); admitted resta false finche package-upgrade non esercita un predecessore
+    SemVer N-1 sigillato. Linux deb/rpm, FreeBSD/OpenBSD e MacPorts/Homebrew implementano
+    install→seed→upgrade→verify quando GLIFISTORE_N1_PACKAGE_DIR fornisce quei byte (mai
+    ricostruiti da HEAD); manca ancora un PASS trattenuto su pacchetti N-1 pubblicati. I
+    lifecycle nativi MacPorts/Homebrew e BSD restano senza run trattenuto, quindi la difesa
+    positiva non e ancora completa
+  stato: mitigato
+  accettazione_rischio: Accettato finche il claim resta architectural prototype e nessun gate di
+    packaging e chiuso; la prima esecuzione trattenuta puo legittimamente riportare FAIL
+  requisiti:
+  - GS-RELEASE-PACKAGE-001
+  - GS-RELEASE-UPGRADE-001
+  - GS-RELEASE-ARTIFACT-001

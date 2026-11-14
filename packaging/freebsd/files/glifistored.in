@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# PROVIDE: glifistored
+# REQUIRE: DAEMON FILESYSTEMS NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="glifistored"
+rcvar="glifistored_enable"
+
+load_rc_config "${name}"
+: ${glifistored_enable:="NO"}
+: ${glifistored_user:="glifistore"}
+: ${glifistored_config:="%%PREFIX%%/etc/glifistored.conf"}
+: ${glifistored_data_dir:="/var/db/glifistore"}
+: ${glifistored_runtime_dir:="/var/run/glifistored"}
+
+pidfile="${glifistored_runtime_dir}/glifistored.pid"
+procname="%%PREFIX%%/bin/glifistored"
+command="/usr/sbin/daemon"
+command_args="-f -p ${pidfile} -u ${glifistored_user} ${procname} --config ${glifistored_config}"
+required_files="${glifistored_config}"
+start_precmd="glifistored_precmd"
+
+glifistored_precmd()
+{
+    install -d -o "${glifistored_user}" -g "${glifistored_user}" -m 0750 \
+        "${glifistored_data_dir}" "${glifistored_runtime_dir}"
+}
+
+run_rc_command "$1"

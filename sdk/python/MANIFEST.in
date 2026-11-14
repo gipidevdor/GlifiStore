@@ -1,0 +1,11 @@
+include LICENSE
+include NOTICE
+include THIRD_PARTY_NOTICES.md
+include README.md
+include CHANGELOG.md
+include PACKAGING.md
+include pyproject.toml
+graft src
+graft tests
+graft benchmarks
+global-exclude *.py[cod] __pycache__ .DS_Store *.so

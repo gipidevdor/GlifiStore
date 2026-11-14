@@ -1,0 +1,92 @@
+requirements:
+- id: GS-PROTO-WIRE-001
+  titolo: Wire protocol v2 framing and session semantics
+  categoria: protocol
+  criticita: alta
+  stato: provato
+  descrizione: Wire protocol v2 request/response framing, session INIT/BIND, and status codes are normative
+    and covered by golden fixtures across official codecs.
+  autorita:
+  - docs/spec/wire-protocol-v2.md
+  - docs/spec/connection-drain-state-machine.md
+  - docs/adr/0041-bounded-network-security-lifecycles.md
+  - docs/spec/client-semantics-v1.md
+  - docs/spec/error-taxonomy-v1.md
+  - docs/spec/tcp-client-conformance-v1.md
+  implementazione:
+  - src/server
+  - src/client
+  - sdk
+  prove:
+  - tests/fixtures
+  - scripts/test-sdk-interop.sh
+  - tests/fixtures/error_taxonomy_v1.json
+  - tests/integration/server_reactor_security_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+    note: sdk-clients / interop
+  rischio_residuo:
+  - ADR 0041 bounds output progress/drain and over-quota denied streams without changing
+    indeterminate-on-disconnect or no-cancel admitted mutations. Both timeout knobs zero
+    deliberately disable output expiry; one decided response may exceed residual byte allowance.
+  hazards:
+  - HAZ-010
+  - HAZ-011
+  gates:
+  - GATE-DISK-WIRE-VERSIONS
+- id: GS-PROTO-ERROR-001
+  titolo: Unified portable error taxonomy across wire embedded and SDKs
+  categoria: protocol
+  criticita: alta
+  stato: provato
+  descrizione: Wire ResponseStatus, C++ ErrorCode collapses used by the TCP client, and official
+    SDK structured errors share one status→category→retryability contract defined by
+    error-taxonomy-v1 and proven by the shared fixture matrix (including unknown wire status →
+    protocol).
+  autorita:
+  - docs/spec/error-taxonomy-v1.md
+  - docs/spec/client-semantics-v1.md
+  - docs/spec/tcp-client-conformance-v1.md
+  - docs/spec/wire-protocol-v2.md
+  implementazione:
+  - include/glifistore/client/client.hpp
+  - src/client/client.cpp
+  - src/client/client_error.cpp
+  - src/client/client_detail.hpp
+  - sdk
+  prove:
+  - tests/fixtures/error_taxonomy_v1.json
+  - tests/unit/client_error_taxonomy_tests.cpp
+  - tests/unit/client_transport_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
+  - sdk/python/tests/test_error_taxonomy.py
+  - sdk/go/client/error_taxonomy_test.go
+  - sdk/perl/t/03-error-taxonomy.t
+  - sdk/ruby/test/test_error_taxonomy.rb
+  - sdk/erlang/test/glifistore_error_taxonomy_SUITE.erl
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+    note: sdk-clients job runs taxonomy conformance
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Local C++ OOM polarity and elapsed-deadline regressions; not hosted CI
+  rischio_residuo:
+  - The new C++ allocation/deadline regressions have local macOS evidence; cross-platform
+    sanitizer campaigns and equivalent post-send allocation vectors in other SDKs remain open
+  hazards:
+  - HAZ-005
+  - HAZ-010
+  gates:
+  - GATE-CONCURRENCY-SPEC
+  - GATE-DISK-WIRE-VERSIONS

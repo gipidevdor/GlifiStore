@@ -1,0 +1,27 @@
+# One-shard, 200000 entries, key=16, value=64, final-state inspection
+# Before: compact lookup plus general-purpose allocation for every immutable record array.
+physical_footprint=201.7M
+malloc_large_active_virtual=92.0M
+malloc_large_active_resident=54.0M
+malloc_large_empty_virtual=133.5M
+malloc_large_empty_resident=133.5M
+malloc_large_empty_regions=19
+malloc_large_empty_region_sizes=4M,2.5M,3M,3.5M,8M,4.5M,5M,5.5M,6M,6.5M,7M,8M,8.5M,9M,9.5M,10M,10.5M,11M,11.5M
+
+# After: per-lineage guarded geometric mapping pool, one current plus at most one spare.
+physical_footprint=85.9M
+physical_footprint_peak=85.9M
+malloc_large_active_virtual=80.0M
+malloc_large_active_resident=42.0M
+malloc_large_empty_virtual=12.0M
+malloc_large_empty_resident=12.0M
+malloc_large_empty_regions=2
+malloc_large_empty_region_sizes=4M,8M
+vm_allocate_virtual=32.1M
+vm_allocate_resident=23.5M
+immutable_current_mapping=16M_virtual,12M_resident
+immutable_spare_mapping=16M_virtual,11.5M_resident
+
+# The remaining 4/8 MiB allocator regions do not match the eliminated sequence of base-record
+# merge sizes and remain residual work. The benchmark's final RSS sample was 90,849,280 bytes;
+# vmmap's physical-footprint sample was taken while the process was held for inspection.

@@ -1,0 +1,166 @@
+# Performance budgets (Phase E).
+# Hosted CI may report relative regression signals only. Absolute / p99 release
+# thresholds require a labeled hardware runner and remain not_enforced until then.
+
+version: 1
+
+honesty:
+  claim_ceiling: architectural-prototype
+  hosted_ci: regression_signal_only
+  absolute_product_claims: forbidden_without_hardware_evidence
+
+classes:
+  - id: HOSTED-MEDIAN-REGRESSION
+    gate: GATE-PERFORMANCE
+    requirement: GS-PERF-REGRESSION-001
+    enforcement: advisory_snapshot_only
+    status: advisory_not_release_gate
+    metric: median_ops_per_second
+    rule:
+      type: review_regression_percent_vs_compatible_baseline
+      value: 10
+    workflows:
+      - benchmarks.yml
+    notes: Flag for review when a compatible prior baseline has a disjoint lower range and its median
+      differs by more than 10%; hosted noise prevents this advisory signal from failing a release gate.
+
+  - id: HARDWARE-PAIRED-LINUX-AB
+    gate: GATE-PERFORMANCE
+    requirement: GS-PERF-BUDGET-001
+    enforcement: hardware_self_hosted
+    runner_label: glifistore-linux-perf
+    status: specified_waiting_for_runner
+    metric: pass_candidate_manifest
+    evidence_class: hardware
+    rule:
+      type: manifest_status_equals
+      value: pass-candidate
+    workflows:
+      - paired-linux-performance.yml
+    harness: scripts/benchmark_paired_linux_ab.sh
+    authority:
+      - docs/benchmarks/paired-shards-linux-p1.md
+      - docs/benchmarks/paired-shards-plan.md
+      - docs/assurance/performance-budgets.md
+      - docs/assurance/evidence-taxonomy.md
+    notes: >
+      Absolute A/B and scale claims require hard CPU pins, NUMA binding, disjoint client/server
+      CPUs, migration checks, and working-set evidence. Hosted Ubuntu and macOS advisory affinity
+      must not close this budget. Wave 6 scaffolding only — no invented pass-candidate.
+
+  - id: HARDWARE-SCALE-EFFICIENCY-1-8
+    gate: GATE-PERFORMANCE
+    requirement: GS-PERF-BUDGET-001
+    enforcement: hardware_self_hosted
+    runner_label: glifistore-linux-perf
+    status: specified_waiting_for_runner
+    metric: scaling_efficiency_percent
+    evidence_class: hardware
+    rule:
+      type: gte_percent_placeholder
+      value: 80
+    workflows:
+      - paired-linux-performance.yml
+    harness: scripts/benchmark_paired_linux_ab.sh
+    authority:
+      - docs/assurance/performance-budgets.md
+      - docs/benchmarks/paired-shards-linux-p1.md
+    notes: >
+      Placeholder absolute scale budget (1/2/4/8 pairs). Threshold 80% is draft only; not enforced
+      until a hardware pass-candidate fills efficiency-scaffold.csv with real medians.
+
+  - id: HARDWARE-ABSOLUTE-P99-GET
+    gate: GATE-PERFORMANCE
+    requirement: GS-PERF-BUDGET-001
+    enforcement: hardware_self_hosted
+    runner_label: glifistore-linux-perf
+    status: specified_waiting_for_runner
+    metric: p99_get_latency_ns
+    evidence_class: hardware
+    rule:
+      type: absolute_threshold_placeholder
+      value: null
+    workflows:
+      - paired-linux-performance.yml
+    harness: scripts/benchmark_paired_linux_ab.sh
+    authority:
+      - docs/assurance/performance-budgets.md
+    notes: >
+      Absolute p99 GET placeholder. Numeric threshold intentionally null until
+      glifistore-linux-perf publishes retained samples. Do not invent values.
+
+  - id: HARDWARE-ABSOLUTE-P99-PUT
+    gate: GATE-PERFORMANCE
+    requirement: GS-PERF-BUDGET-001
+    enforcement: hardware_self_hosted
+    runner_label: glifistore-linux-perf
+    status: specified_waiting_for_runner
+    metric: p99_put_latency_ns
+    evidence_class: hardware
+    rule:
+      type: absolute_threshold_placeholder
+      value: null
+    workflows:
+      - paired-linux-performance.yml
+    harness: scripts/benchmark_paired_linux_ab.sh
+    authority:
+      - docs/assurance/performance-budgets.md
+    notes: >
+      Absolute p99 PUT placeholder. Numeric threshold intentionally null until
+      glifistore-linux-perf publishes retained samples. Do not invent values.
+
+  - id: ADVISORY-EMBEDDED-DURABLE-GET-P99
+    gate: GATE-PERFORMANCE
+    requirement: GS-PERF-BUDGET-001
+    enforcement: advisory_snapshot_only
+    status: advisory_not_release_gate
+    metric: p99_latency
+    snapshot:
+      path: docs/benchmarks/paired-embedded-store-gates-2026-08-01.md
+      platform: macos-arm64
+      workload: store-durable-parallel-get
+      observed_p99: "~40 µs"
+      observed_median_ops_s: "~372k"
+    notes: Snapshot for trend awareness only; not a release threshold.
+
+  - id: SOAK-SOFTWARE-SMOKE
+    gate: GATE-SOAK
+    requirement: GS-OPS-SOAK-001
+    enforcement: hosted_ci
+    status: enforced
+    metric: soak_profile_complete
+    rule:
+      type: profile_equals
+      value: smoke
+    workflows:
+      - ops-runbooks.yml
+    harness: scripts/soak_daemon.sh
+    notes: PR/push smoke soak (~45s). Not E3/E4 and not hardware soak.
+
+  - id: SOAK-SOFTWARE-EXTENDED
+    gate: GATE-SOAK
+    requirement: GS-OPS-SOAK-001
+    enforcement: scheduled_or_manual
+    status: enforced_path_exists
+    metric: soak_profile_complete
+    profiles: [long, 1h, 4h]
+    workflows:
+      - ops-runbooks.yml
+      - soak-extended.yml
+    notes: >
+      Multi-hour software path evidence. Controlled hardware soak with mandatory
+      rotation evidence remains open (residual on GATE-SOAK). Wave 4 adversarial
+      profiles (hot-key, connection-churn, queue-saturation, adversarial-reclaim)
+      are software stubs in scripts/soak_daemon.sh and do not close HAZ-026 fairness.
+
+  - id: OVERLOAD-RUNBOOK
+    gate: GATE-OPS-RUNBOOKS
+    requirement: GS-OPS-SOAK-001
+    enforcement: hosted_ci
+    status: enforced
+    metric: runbook_exercise
+    workflows:
+      - ops-runbooks.yml
+    authority:
+      - docs/operations/graceful-drain-and-overload.md
+    notes: HEALTH/READY/STATS drain and overload procedures exercised by ops-runbooks CI.

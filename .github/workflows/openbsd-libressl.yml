@@ -1,0 +1,85 @@
+name: OpenBSD LibreSSL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openbsd-libressl-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openbsd-libressl:
+    name: OpenBSD / LibreSSL TLS gate (${{ matrix.shard_label }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard_index: 0
+            shard_label: 1-of-2
+            skip_go_smoke: "0"
+          - shard_index: 1
+            shard_label: 2-of-2
+            skip_go_smoke: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and test on OpenBSD with system LibreSSL
+        uses: vmactions/openbsd-vm@f1ca8bc8ecc5b6ef7218e5b914836e067e1546d3 # v1.4.9
+        with:
+          release: "7.9"
+          arch: x86_64
+          usesh: true
+          copyback: true
+          sync: rsync
+          mem: 8192
+          cache-after-prepare: true
+          prepare: |
+            pkg_add -I cmake ninja git go bash pkgconf
+          run: |
+            set -e
+            mkdir -p engineering/evidence/native-ci
+            chmod +x scripts/ci-openbsd-libressl.sh
+            export GLIFISTORE_TEST_SHARD_COUNT=2
+            export GLIFISTORE_TEST_SHARD_INDEX=${{ matrix.shard_index }}
+            export GLIFISTORE_SKIP_GO_SMOKE=${{ matrix.skip_go_smoke }}
+            native_status=0
+            bash -o pipefail -c \
+              'bash scripts/ci-openbsd-libressl.sh 2>&1 | tee engineering/evidence/native-ci/openbsd-${{ matrix.shard_label }}.log' \
+              || native_status=$?
+            printf '%s\n' "$native_status" \
+              > engineering/evidence/native-ci/openbsd-${{ matrix.shard_label }}.status
+            rm -rf build sdk/go/bin
+      - name: Retain native OpenBSD log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openbsd-native-${{ github.sha }}-${{ matrix.shard_label }}
+          path: engineering/evidence/native-ci/openbsd-${{ matrix.shard_label }}.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce native OpenBSD result
+        if: always()
+        shell: bash
+        run: |
+          status_file="engineering/evidence/native-ci/openbsd-${{ matrix.shard_label }}.status"
+          if [[ ! -f "$status_file" ]]; then
+            echo "error: native OpenBSD status was not copied back" >&2
+            exit 1
+          fi
+          native_status="$(<"$status_file")"
+          if [[ ! "$native_status" =~ ^[0-9]+$ ]]; then
+            echo "error: invalid native OpenBSD status '$native_status'" >&2
+            exit 1
+          fi
+          if (( native_status != 0 )); then
+            echo "error: native OpenBSD gate failed with status $native_status" >&2
+            exit "$native_status"
+          fi

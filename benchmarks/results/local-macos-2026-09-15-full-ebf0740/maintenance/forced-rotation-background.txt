@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=forced-rotation
+# threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+background,1,0.219673,219.672667,51.757292,5.062916,151.114125,10.080166,0.436835,166.694042,218.451334,0.764333,0.457000,1,1,1,1,1,3,2,2,1,32515776,3
+background,2,0.166941,166.940750,27.240000,4.874584,123.117334,10.820292,0.278832,139.091042,166.331042,0.283500,0.326208,1,1,1,1,1,2,2,2,0,32515776,3
+background,3,0.142879,142.879167,33.205792,4.874625,92.622542,10.755833,0.763750,109.016750,142.222542,0.372750,0.283875,1,1,1,1,1,2,2,2,0,32515776,3
+background,4,0.164423,164.422750,33.262250,3.800084,117.976250,8.502542,0.258416,130.537292,163.799542,0.335583,0.287625,1,1,1,1,1,2,2,2,0,32515776,3
+background,5,0.179059,179.058959,40.594833,6.170125,116.546959,13.961042,0.454874,137.133000,177.727833,1.045125,0.286001,1,1,1,1,1,2,2,2,0,32515776,3
+background,6,0.109982,109.981709,29.524292,3.715708,66.936833,8.902958,0.263501,79.819000,109.343292,0.343250,0.295167,1,1,1,1,1,2,2,2,0,32515776,3
+background,7,0.058590,58.589750,21.068166,1.424250,27.289667,7.861834,0.217583,36.793334,57.861500,0.315500,0.412750,1,1,1,1,1,2,2,2,0,32515776,3

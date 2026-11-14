@@ -1,0 +1,5 @@
+value_bytes,operations,keys,publications,publication_records,publication_latency_ns,publication_storage_bytes,ingress_value_bytes_copied,generation_high_watermark,generation_retired,generation_retire_delay_ns,publication_backpressure,final_state
+64,500000,4096,6402,204096,2462841220,2162086,13062144,2,6402,1852028970,0,pass
+1024,500000,4096,6396,204096,6971318352,10019686,208994304,2,6396,5013488398,0,pass
+65536,20000,256,209,6256,260025458,33460158,409993216,2,209,238011409,0,pass
+262144,10000,128,75,2128,165298669,65849234,557842432,3,75,153961955,0,pass

@@ -1,0 +1,419 @@
+name: Package CI
+
+# Packaging profiles for pull requests, main, nightly and release.
+#
+# Everything this workflow knows comes from two tools:
+#   engineering/tools/generate_package_matrix.py  which backends and targets exist
+#   engineering/tools/package_ci_plan.py          which profile this event runs, whether
+#                                                 a pull request may skip packaging CI,
+#                                                 how deep the lifecycle may go, and how
+#                                                 long the evidence is retained
+# No version, backend, runner, timeout, retention or path filter is restated here, and
+# the lifecycle itself lives in scripts/package-ci.sh and its backend modules, never in
+# YAML.
+#
+# There is deliberately no `paths:` trigger filter: change detection is centralised in
+# package_ci_plan.py, which fails closed and runs the full profile whenever the diff is
+# unavailable or touches CMake, headers, sources, packaging, the framework tools or the
+# release workflows.
+#
+# Retention is evidence, not distribution: no job caches anything, and a cache is never
+# an artifact store. The artifacts of deb, rpm, MacPorts and Homebrew are diagnostic
+# only - those backends stay required_for_release: false until a gate promotes them.
+#
+# Honesty note for the release profile: freebsd and openbsd are required_for_release:
+# true, and their upstream service-account allocation and ports acceptance do not exist
+# yet, so their rows close as OPEN_GATE and release.yml stays red on the required
+# artifact set until the real registration happens. No marker is ever synthesised here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly extended and negative packaging profile.
+    - cron: "27 4 * * *"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Packaging profile to run (the release profile is driven by release.yml)
+        required: true
+        type: choice
+        options: [pr, main, nightly]
+        default: pr
+      allow-native:
+        description: >-
+          Run the MacPorts/Homebrew native lifecycle on the hosted macOS runner. It
+          installs into the runner package manager, so it is never on by default.
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      profile:
+        description: Packaging profile the caller needs
+        required: true
+        type: string
+      backends:
+        description: >-
+          Which slice of the matrix to run: all, optional (required_for_release: false,
+          so never an admitted release artifact) or required.
+        required: false
+        type: string
+        default: all
+      candidate-artifact:
+        description: Sealed release-candidate artifact name to admit before any package build
+        required: false
+        type: string
+        default: ""
+      candidate-seal-sha256:
+        description: External anchor for the candidate seal
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    package-ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}-${{
+    inputs.profile || github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  plan:
+    name: Plan packaging profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      profile: ${{ steps.plan.outputs.profile }}
+      run: ${{ steps.plan.outputs.run }}
+      retention-days: ${{ steps.plan.outputs.retention-days }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      backends: ${{ steps.plan.outputs.backends }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install framework dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - name: Validate the package matrix before planning anything
+        run: python engineering/tools/generate_package_matrix.py validate
+      - name: Collect the changed paths of a pull request
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          # An unavailable diff must never be read as "nothing to do": the plan tool
+          # runs the full profile when this file is missing.
+          if ! git diff --name-only "$BASE_SHA" "$GITHUB_SHA" >build/changed-paths.txt; then
+            rm -f build/changed-paths.txt
+          fi
+      - name: Resolve the packaging plan
+        id: plan
+        env:
+          # workflow_dispatch and workflow_call share the `profile` input, so the event
+          # is resolved before the tool sees it: a manual run may never claim the
+          # release profile, and a tag push only reaches this workflow through a call.
+          PACKAGE_CI_EVENT: >-
+            ${{ github.event_name == 'workflow_dispatch' && 'workflow_dispatch'
+            || (inputs.profile && 'workflow_call' || github.event_name) }}
+          PACKAGE_CI_PROFILE_INPUT: ${{ inputs.profile || '' }}
+          PACKAGE_CI_BACKENDS: ${{ inputs.backends || 'all' }}
+          PACKAGE_CI_ALLOW_NATIVE: ${{ inputs.allow-native || false }}
+        run: |
+          set -euo pipefail
+          arguments=(
+            plan
+            --event "$PACKAGE_CI_EVENT"
+            --ref "$GITHUB_REF"
+            --profile-input "$PACKAGE_CI_PROFILE_INPUT"
+            --backends "$PACKAGE_CI_BACKENDS"
+            --output build/package-ci-plan.json
+            --replace
+            --github-output "$GITHUB_OUTPUT"
+          )
+          if [[ -f build/changed-paths.txt ]]; then
+            arguments+=(--changed-from build/changed-paths.txt)
+          fi
+          if [[ "$PACKAGE_CI_ALLOW_NATIVE" == "true" ]]; then
+            arguments+=(--allow-native)
+          fi
+          python engineering/tools/package_ci_plan.py "${arguments[@]}"
+      - name: Retain the resolved plan
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-ci-plan-${{ steps.plan.outputs.profile }}-${{ github.sha }}
+          path: build/package-ci-plan.json
+          if-no-files-found: error
+          retention-days: ${{ steps.plan.outputs.retention-days }}
+
+  backends:
+    name: ${{ needs.plan.outputs.profile }} / ${{ matrix.id }}
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install framework dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - name: Download the sealed release candidate
+        if: inputs.candidate-artifact != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.candidate-artifact }}
+          path: dist/release-candidate
+      - name: Admit the exact candidate before any package build
+        if: inputs.candidate-artifact != ''
+        env:
+          CANDIDATE_SEAL_SHA256: ${{ inputs.candidate-seal-sha256 }}
+        run: |
+          set -euo pipefail
+          test -n "$CANDIDATE_SEAL_SHA256"
+          seal=dist/release-candidate/candidate-seal.json
+          observed="$(python3 -c \
+            'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' \
+            "$seal")"
+          if [[ "$observed" != "$CANDIDATE_SEAL_SHA256" ]]; then
+            echo "error: candidate seal digest mismatch: $observed" >&2
+            exit 1
+          fi
+          python engineering/tools/release_bundle.py verify-seal \
+            --directory dist/release-candidate --seal candidate-seal.json
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.container_lifecycle == true
+        with:
+          go-version: "1.27.x"
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        if: matrix.container_lifecycle == true
+        with:
+          ruby-version: "3.4"
+      - name: Install Erlang/rebar3 for sealed language SDK archives
+        if: matrix.container_lifecycle == true
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends erlang rebar3
+      - name: Package sealed language SDK archives for the installed matrix
+        if: matrix.container_lifecycle == true
+        run: ./scripts/package-language-sdk-archives.sh
+      - name: Run the packaging lifecycle
+        id: lifecycle
+        timeout-minutes: ${{ matrix.step_timeout_minutes }}
+        env:
+          PROFILE: ${{ needs.plan.outputs.profile }}
+          BACKEND: ${{ matrix.backend }}
+          PLATFORM: ${{ matrix.platform }}
+          CONTAINER_LIFECYCLE: ${{ matrix.container_lifecycle }}
+          NATIVE_LIFECYCLE: ${{ matrix.native_lifecycle }}
+          CANDIDATE_ARTIFACT: ${{ inputs.candidate-artifact }}
+          CANDIDATE_SEAL_SHA256: ${{ inputs.candidate-seal-sha256 }}
+        run: |
+          set -euo pipefail
+          # One isolated directory per version, commit, profile, backend, platform and
+          # run, outside the checkout so nothing a package writes can reach the source.
+          work="${RUNNER_TEMP}/package-ci/$(cat VERSION)/$(git rev-parse --short=12 HEAD)"
+          work="${work}/${PROFILE}/${BACKEND}/${PLATFORM}/${GITHUB_RUN_ID}"
+          mkdir -p "$work"
+          echo "work=$work" >>"$GITHUB_OUTPUT"
+          arguments=(--profile "$PROFILE" --backend "$BACKEND" --output-dir "$work")
+          if [[ -n "$CANDIDATE_ARTIFACT" ]]; then
+            arguments+=(--candidate dist/release-candidate)
+          fi
+          if [[ "$CONTAINER_LIFECYCLE" == "true" ]]; then
+            export GLIFISTORE_PACKAGE_CI_CONTAINER=1
+          fi
+          if [[ "$NATIVE_LIFECYCLE" == "true" ]]; then
+            export GLIFISTORE_PACKAGE_CI_NATIVE=1
+          fi
+          ./scripts/package-ci.sh "${arguments[@]}"
+      - name: Validate the retained evidence against the matrix
+        if: always() && steps.lifecycle.outputs.work != ''
+        env:
+          PROFILE: ${{ needs.plan.outputs.profile }}
+          BACKEND: ${{ matrix.backend }}
+          STAGE: ${{ matrix.stage }}
+          EVIDENCE_FILE: ${{ matrix.evidence_file }}
+          WORK: ${{ steps.lifecycle.outputs.work }}
+        run: |
+          set -euo pipefail
+          python engineering/tools/validate_package_evidence.py validate \
+            "$WORK/$BACKEND/$STAGE/$EVIDENCE_FILE" \
+            --release-context "$WORK/release-context.json" \
+            --backend "$BACKEND" --profile "$PROFILE" \
+            --artifact-root "$WORK/$BACKEND/$STAGE" \
+            --require-ci
+      - name: Retain the packaging evidence
+        if: always() && steps.lifecycle.outputs.work != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-${{ needs.plan.outputs.profile }}-${{ matrix.id }}-${{ github.sha }}
+          path: |
+            ${{ steps.lifecycle.outputs.work }}
+            !${{ steps.lifecycle.outputs.work }}/*/work
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: ${{ needs.plan.outputs.retention-days }}
+
+  extended:
+    name: ${{ needs.plan.outputs.profile }} / framework negative and stage sweep
+    needs: plan
+    if: needs.plan.outputs.run == 'true' && needs.plan.outputs.profile == 'nightly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install framework dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - name: Exercise the packaging framework negative suites
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          mkdir -p build/package-ci-extended
+          log=build/package-ci-extended/framework-negative.log
+          : >"$log"
+          # The negative cases of the framework itself: refused matrices, refused
+          # evidence, refused versions, refused artifact graphs and refused backends.
+          for pattern in 'test_*package*.py' 'test_artifact_manifest.py' \
+            'test_release_context.py' 'test_semver_policy.py'; do
+            python -m unittest discover -s scripts/tests -p "$pattern" -v 2>&1 | tee -a "$log"
+          done
+      - name: Prove every lifecycle stage stays isolated
+        timeout-minutes: 15
+        env:
+          PROFILE: ${{ needs.plan.outputs.profile }}
+          BACKENDS: ${{ needs.plan.outputs.backends }}
+        run: |
+          set -euo pipefail
+          log=build/package-ci-extended/stage-sweep.log
+          work="${RUNNER_TEMP}/package-ci-stages/${GITHUB_RUN_ID}"
+          : >"$log"
+          # Each thin wrapper owns exactly one stage for exactly one backend; a stage
+          # that silently ran another one would show up here as a second evidence file
+          # under the same isolated run directory. The backend list comes from the
+          # plan, so this sweep cannot drift from the matrix.
+          for backend in $BACKENDS; do
+            for wrapper in build inspect install verify upgrade remove; do
+              ./scripts/package-"$wrapper".sh --profile "$PROFILE" --backend "$backend" \
+                --output-dir "$work/$backend/$wrapper" 2>&1 | tee -a "$log"
+              produced="$(find "$work/$backend/$wrapper" \
+                -name "$backend-*-package-evidence.json" | wc -l)"
+              test "$produced" -eq 1
+            done
+          done
+      - name: Retain the extended and negative logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-ci-extended-${{ github.sha }}
+          path: build/package-ci-extended/
+          if-no-files-found: error
+          retention-days: ${{ needs.plan.outputs.retention-days }}
+
+  closure:
+    name: Close the ${{ needs.plan.outputs.profile }} packaging evidence set
+    needs: [plan, backends]
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install framework dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: package-ci-plan-${{ needs.plan.outputs.profile }}-${{ github.sha }}
+          path: build/package-ci-plan
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-${{ needs.plan.outputs.profile }}-*-${{ github.sha }}
+          path: build/package-evidence
+          merge-multiple: false
+      - name: Require one validated evidence file per planned row
+        run: |
+          set -euo pipefail
+          python engineering/tools/package_ci_plan.py close \
+            --plan build/package-ci-plan/package-ci-plan.json \
+            --evidence-root build/package-evidence \
+            --artifact-suffix "$GITHUB_SHA" \
+            --expect-commit "$GITHUB_SHA" \
+            --require-ci \
+            --output build/package-ci-closure.json --replace
+      - name: Download the sealed release candidate for admission
+        if: inputs.candidate-artifact != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.candidate-artifact }}
+          path: dist/release-candidate
+      - name: Bind package evidence to the sealed candidate (Wave F)
+        if: inputs.candidate-artifact != ''
+        env:
+          CANDIDATE_SEAL_SHA256: ${{ inputs.candidate-seal-sha256 }}
+          PROFILE: ${{ needs.plan.outputs.profile }}
+        run: |
+          set -euo pipefail
+          test -n "$CANDIDATE_SEAL_SHA256"
+          # Fail-closed for tool execution: the orchestrator must always retain a
+          # schema-valid report. Known residual blockers (cross-SDK NOT_RUN, missing
+          # N-1 upgrade rows) stay visible inside package-admission.json instead of
+          # being rounded up; --allow-blocking keeps those residuals from inventing a
+          # green admission while still refusing a missing or malformed report.
+          python engineering/tools/run_package_admission.py \
+            --profile "$PROFILE" \
+            --candidate dist/release-candidate \
+            --evidence-root build/package-evidence \
+            --artifact-root build/package-evidence \
+            --candidate-seal-sha256 "$CANDIDATE_SEAL_SHA256" \
+            --output-dir build/package-admission \
+            --allow-blocking \
+            --replace
+          test -f build/package-admission/package-admission.json
+          test -f build/package-admission/upgrade-baseline.json
+          test -f build/package-admission/artifact-manifest.json
+          test -f build/package-admission/installed-sdk-matrix.json
+      - name: Retain the closure record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-ci-closure-${{ needs.plan.outputs.profile }}-${{ github.sha }}
+          path: build/package-ci-closure.json
+          if-no-files-found: error
+          retention-days: ${{ needs.plan.outputs.retention-days }}
+      - name: Retain the package admission report
+        if: inputs.candidate-artifact != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-admission-${{ needs.plan.outputs.profile }}-${{ github.sha }}
+          path: build/package-admission/
+          if-no-files-found: error
+          retention-days: ${{ needs.plan.outputs.retention-days }}

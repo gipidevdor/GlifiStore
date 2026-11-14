@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=f999cac-dirty
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+disabled,1,0.113720,113.719583,0.000375,4.709416,98.473959,9.940792,0.111749,113.235916,113.236291,0.273125,0.210167,1,1,0,1,1,0,0,0,0,0,7
+disabled,2,0.109541,109.541459,0.000292,5.081834,93.917792,9.953875,0.106707,109.060208,109.060500,0.268333,0.212626,1,1,0,1,1,0,0,0,0,0,7
+disabled,3,0.113805,113.804584,0.000167,4.603542,98.654875,9.991209,0.106415,113.356041,113.356208,0.246042,0.202334,1,1,0,1,1,0,0,0,0,0,7
+disabled,4,0.110033,110.033250,0.000042,5.662667,93.852209,9.953875,0.109832,109.578583,109.578625,0.264500,0.190125,1,1,0,1,1,0,0,0,0,0,7
+disabled,5,0.109633,109.632583,0.000333,4.171916,94.914292,9.959459,0.106208,109.151875,109.152208,0.279208,0.201167,1,1,0,1,1,0,0,0,0,0,7
+disabled,6,0.056259,56.258667,0.000292,4.778750,43.864500,7.068541,0.103250,55.815041,55.815333,0.241500,0.201834,1,1,0,1,1,0,0,0,0,0,7
+disabled,7,0.043803,43.802834,0.000291,4.223000,30.904542,8.122500,0.107833,43.357875,43.358166,0.251250,0.193418,1,1,0,1,1,0,0,0,0,0,7

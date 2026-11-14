@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.local/schemas/waiver.schema.json",
+  "title": "GlifiStore waiver",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "titolo",
+    "ambito",
+    "motivo",
+    "scadenza",
+    "approvatore",
+    "stato"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^WAV-[0-9]{3}$"
+    },
+    "titolo": { "type": "string", "minLength": 1 },
+    "ambito": { "type": "string", "minLength": 1 },
+    "motivo": { "type": "string", "minLength": 1 },
+    "scadenza": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "approvatore": { "type": "string", "minLength": 1 },
+    "stato": {
+      "type": "string",
+      "enum": ["attiva", "scaduta", "revocata"]
+    },
+    "requisiti": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GS-[A-Z]+-[A-Z0-9]+-[0-9]{3}$" }
+    },
+    "gates": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GATE-[A-Z0-9-]+$" }
+    },
+    "paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Optional repo-relative paths covered by this waiver (Phase C size/todo debt)."
+    }
+  }
+}

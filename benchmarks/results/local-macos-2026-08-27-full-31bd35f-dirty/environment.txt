@@ -1,0 +1,115 @@
+generated_at=2026-08-27T03:27:37Z
+git_sha=31bd35f11f1874fe68963100b040db18c7e22977
+git_describe=31bd35f-dirty
+branch=codex/paired-write-pressure
+tree_state=dirty-precommit
+status_porcelain_sha256=68f3edf5ed3a11f0d8d05b46782569bf19de5dbd9e6dda0fa2e665fbeb8edec8
+tracked_diff_sha256=192a1ede897e2c0a29655a9e6a42a24e7d2402d6febea7325c5fe7c0c27e26a9
+runner_os=macOS
+runner_arch=arm64
+runner_image=local-apple-silicon
+runner_image_version=2026-08-27
+kernel_release=25.6.0
+cpu_model=Apple M4
+physical_cpu_count=10
+logical_cpu_count=10
+memory_bytes=17179869184
+compiler_identity=Apple clang version 21.0.0 (clang-2100.1.1.101)
+cmake_version=cmake version 4.4.0
+ninja_version=1.13.0.git.kitware.jobserver-pipe-1
+build_preset=macos-native-release
+build_type=Release
+native_cpu=ON
+lto=OFF
+affinity=macOS-advisory-requested-but-unavailable
+client_server_placement=same-process-shared-host
+thermal_note=no hardware thermal telemetry available; campaign serialized
+storage_note=durable temporary Stores on current APFS volume
+sampling=warmup-1-repeats-7 unless file metadata states otherwise
+benchmark_command_count=222
+benchmark_contract_sha256=c0969c047328465ffb2730402eac94cdbab391333c0320d0eda6740719a3df71
+Darwin iMacdiGIACOMO63.fritz.box 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64
+Now drawing from 'AC Power'
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                    17885.
+Pages active:                                 298370.
+Pages inactive:                               276403.
+Pages speculative:                             20847.
+Pages throttled:                                   0.
+Pages wired down:                             122390.
+Pages purgeable:                               14390.
+"Translation faults":                     2524786373.
+Pages copy-on-write:                       140021913.
+Pages zero filled:                        1464971967.
+Pages reactivated:                         103420444.
+Pages purged:                               18292328.
+File-backed pages:                            215962.
+Anonymous pages:                              379658.
+Pages stored in compressor:                   788464.
+Pages occupied by compressor:                 265934.
+Decompressions:                             69011118.
+Compressions:                               90697904.
+Pageins:                                    67410315.
+Pageouts:                                     940238.
+Swapins:                                       30091.
+Swapouts:                                     126320.
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   460Gi   412Gi    25Gi    95%    3.2M  266M    1%   /System/Volumes/Data
+Device Identifier:         disk3s1s1
+   Device Node:               /dev/disk3s1s1
+   Whole:                     No
+   Part of Whole:             disk3
+
+   Volume Name:               Macintosh HD
+   Mounted:                   Yes
+   Mount Point:               /
+
+   Partition Type:            41504653-0000-11AA-AA11-00306543ECAC
+   File System Personality:   APFS
+   Type (Bundle):             apfs
+   Name (User Visible):       APFS
+   Owners:                    Enabled
+
+   OS Can Be Installed:       No
+   Booter Disk:               disk3s2
+   Recovery Disk:             disk3s3
+   Media Type:                Generico
+   Protocol:                  Apple Fabric
+   SMART Status:              Verified
+   Volume UUID:               B75EAD20-468B-47D5-943C-104D4C79F38E
+   Disk / Partition UUID:     B75EAD20-468B-47D5-943C-104D4C79F38E
+
+   Disk Size:                 494.4 GB (494384795648 Bytes) (exactly 965595304 512-Byte-Units)
+   Device Block Size:         4096 Bytes
+
+   Volume Used Space:         12.6 GB (12639510528 Bytes) (exactly 24686544 512-Byte-Units)
+   Container Total Space:     494.4 GB (494384795648 Bytes) (exactly 965595304 512-Byte-Units)
+   Container Free Space:      27.2 GB (27232931840 Bytes) (exactly 53189320 512-Byte-Units)
+   Allocation Block Size:     4096 Bytes
+
+   Media OS Use Only:         No
+   Media Read-Only:           Yes
+   Volume Read-Only:          Yes (read-only mount flag set)
+
+   Device Location:           Internal
+   Removable Media:           Fixed
+
+   Solid State:               Yes
+   Hardware AES Support:      Yes
+
+   This disk is an APFS Volume Snapshot.  APFS Information:
+   APFS Snapshot Name:        com.apple.os.update-60587424F5399FC05D957DF05B4D2F65543462495C77AEF520F790FBB57CB212
+   APFS Snapshot UUID:        B75EAD20-468B-47D5-943C-104D4C79F38E
+   APFS Container:            disk3
+   APFS Physical Store:       disk0s2
+   APFS Volume Group:         4F983271-1809-4697-92B9-23A7020C3A53
+   EFI Driver In macOS:       2811160007000004
+   Encrypted:                 No
+   FileVault:                 Yes
+   Sealed:                    Yes
+   Locked:                    No
+
+   APFS Snapshots are defined upon this APFS Volume.  Snapshot list:
+   Snapshot UUID:             B75EAD20-468B-47D5-943C-104D4C79F38E
+   Name:                      com.apple.os.update-60587424F5399FC05D957DF05B4D2F65543462495C77AEF520F790FBB57CB212
+   XID:                       115793716

@@ -1,0 +1,11 @@
+generated_at=2026-07-31T15:31:04Z
+git_sha=fddb355517ac5b25d60526bdadc887ea8ac4e450
+git_describe=fddb355-dirty
+candidate=directory-chunk-cow+o1-key-bytes+inplace-store
+baseline=fddb355-tree-without-candidate
+affinity=macos-advisory-not-hard-pinned
+status=advisory-macos
+Darwin iMacdiGIACOMO63.fritz.box 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:26:29 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T8132 arm64
+Apple M4
+10
+17179869184

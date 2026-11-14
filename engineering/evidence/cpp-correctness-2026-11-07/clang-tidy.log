@@ -1,0 +1,1 @@
+clang-tidy high-signal gate OK (111 production sources; 4 fail-closed checks)

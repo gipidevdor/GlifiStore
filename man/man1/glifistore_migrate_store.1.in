@@ -1,0 +1,64 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE_MIGRATE_STORE 1
+.Os
+.Sh NAME
+.Nm glifistore_migrate_store
+.Nd offline Worker reshard of a GlifiStore data directory
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Op Fl Fl json
+.Op Fl Fl no-scan
+.Fl Fl workers Ar N
+.Ar source-data-dir destination-data-dir
+.Sh DESCRIPTION
+.Nm
+performs an offline Worker reshard / logical rewrite (GlifiStore
+.Sy @PROJECT_VERSION@ ) .
+.Sy Stop writers first.
+It verifies the source, copies every live key/value/expiry into a new
+destination Store created with
+.Fl Fl workers Ar N ,
+checkpoints progress in
+.Pa destination.migrate-state ,
+verifies the destination, then removes the checkpoint.
+.Pp
+Re-run the same command to resume after interrupt.
+The source is never mutated.
+The same Worker count is allowed as an offline rewrite into a new Store
+identity.
+Online resharding is not supported.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.It Fl Fl json
+Emit a stable JSON report on stdout.
+.It Fl Fl no-scan
+Skip committed Record scans during source/destination verify.
+.It Fl w Ar N , Fl Fl workers Ar N
+Destination Worker count (required, 1..256).
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Success.
+.It 1
+Validation, migration, or I/O failure.
+.It 2
+Usage error.
+.El
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_verify_store 1 ,
+.Xr glifistore_backup_store 1
+.Pp
+Source docs:
+.Pa docs/architecture/store-migration.md ,
+.Pa docs/operations/compatibility-and-migration.md .
+.Sh AUTHORS
+GlifiStore contributors.

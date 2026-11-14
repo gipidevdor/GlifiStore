@@ -1,0 +1,47 @@
+waivers:
+  - id: WAV-001
+    titolo: Oversized hot-path and suite sources pending Phase C decomposition
+    ambito: size
+    motivo: >
+      Closed: store.cpp, reactor.cpp, runtime_catalog.cpp, and the three oversized
+      test suites were split under the Phase C line budget. Kept for audit trail.
+    scadenza: "2026-12-31"
+    approvatore: maintainers
+    stato: revocata
+    requisiti:
+      - GS-CORE-BUILD-001
+    gates:
+      - GATE-CMAKE-INSTALL
+    paths: []
+  - id: WAV-002
+    titolo: Phase C decomposition follow-up for newly enlarged sources
+    ambito: size
+    motivo: >
+      Closed: shard_pair_runtime_writer_loop.cpp was split into writer_loop and
+      writer_async translation units under the 1600-line structural gate. Kept for
+      audit trail.
+    scadenza: "2026-12-31"
+    approvatore: maintainers
+    stato: revocata
+    requisiti:
+      - GS-CORE-BUILD-001
+    gates:
+      - GATE-CMAKE-INSTALL
+    paths: []
+  - id: WAV-003
+    titolo: Post-Phase-C structure debt follow-up (2026-08)
+    ambito: size
+    motivo: >
+      Closed: further production TU splits under the 1600-line gate (reactor I/O/execute,
+      daemon_config materialize/dump, client transport/error taxonomy, filesystem directory,
+      segment_file IO, runtime_catalog batch/compact, writer_sync drain, read_generation
+      internals/immutable, maintenance evaluate) plus shared little-endian codecs and
+      client_detail ODR hygiene. Kept for audit trail; active size waiver set remains empty.
+    scadenza: "2026-12-31"
+    approvatore: maintainers
+    stato: revocata
+    requisiti:
+      - GS-CORE-BUILD-001
+    gates:
+      - GATE-CMAKE-INSTALL
+    paths: []

@@ -1,0 +1,35 @@
+Darwin iMacdiGIACOMO63.fritz.box 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:26:22 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8132 arm64
+ProductName:		macOS
+ProductVersion:		26.5.2
+BuildVersion:		25F84
+Apple M4
+10
+10
+17179869184
+cmake version 4.4.0
+Apple clang version 21.0.0 (clang-2100.1.1.101)
+d2077cf7b004802dc857c1489dfa82af0846abc3
+ M README.md
+ M benchmarks/paired_reactor_benchmark.cpp
+ M docs/README.md
+ M docs/architecture/paired-shard-volatile-prototype.md
+ M docs/architecture/ruby-sdk-roadmap.md
+ M docs/architecture/sdk-roadmap.md
+ M docs/architecture/where-performance-matters.md
+ M docs/benchmarks/paired-shards-plan.md
+ M docs/cli.md
+ M docs/operations/secure-profile-certs.md
+ M docs/production-readiness.md
+ M docs/reference/cpp-client-api.md
+ M docs/security/roadmap.md
+ M docs/security/secure-profile.md
+ M docs/spec/client-semantics-v1.md
+ M sdk/erlang/README.md
+ M sdk/go/README.md
+ M sdk/perl/README.md
+ M sdk/perl/lib/GlifiStore.pm
+ M sdk/python/README.md
+ M sdk/ruby/README.md
+ M src/experimental/paired_reactor.cpp
+ M src/experimental/paired_reactor.hpp
+ M tests/integration/paired_reactor_prototype_tests.cpp

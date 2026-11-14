@@ -1,0 +1,56 @@
+Source: @SOURCE_PACKAGE@
+Section: database
+Priority: optional
+Maintainer: @MAINTAINER@
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.25),
+               ninja-build,
+               pkgconf,
+               libssl-dev (>= 3.0.0)
+Standards-Version: 4.6.2
+Homepage: @HOMEPAGE@
+Rules-Requires-Root: no
+
+Package: @RUNTIME_PACKAGE@
+Architecture: any
+Depends: @LIB_PACKAGE@ (= ${binary:Version}),
+         ${shlibs:Depends},
+         ${misc:Depends}
+Description: paired reader/writer key-value storage daemon
+ GlifiStore is an architectural prototype of a key-value store built on paired
+ Reader-Writer shards, partition ownership, immutable read generations and
+ fail-closed recovery. It speaks wire protocol v2 and writes persistence
+ format v1.
+ .
+ This package installs the glifistored daemon, the operator tools
+ (verify, repair, backup, migrate, rebuild-index, inspect-segment), the manuals
+ and a systemd unit. The unit is installed but neither enabled nor started: the
+ shipped configuration binds the loopback interface and every limit has to be
+ reviewed before non-loopback use.
+ .
+ The project publishes no production-readiness, durability-certification or
+ hostile-deployment claim.
+
+Package: @LIB_PACKAGE@
+Architecture: any
+Section: libs
+Multi-Arch: no
+Depends: ${shlibs:Depends},
+         ${misc:Depends}
+Description: GlifiStore C ABI shared library
+ Runtime shared library exposing the stable GlifiStore C ABI, versioned by the
+ ABI_VERSION authority of the source tree rather than by the product version.
+ .
+ The package is deliberately not Multi-Arch: same. The installed pkg-config file
+ derives its prefix from its own location two levels up, which only holds while
+ the library lives in a non-multiarch libdir.
+
+Package: @DEV_PACKAGE@
+Architecture: any
+Section: libdevel
+Depends: @LIB_PACKAGE@ (= ${binary:Version}),
+         ${misc:Depends}
+Description: GlifiStore development files
+ Headers, static libraries, the pkg-config file and the CMake package
+ configuration needed to build an external consumer against an installed
+ GlifiStore.

@@ -1,0 +1,22 @@
+# git_sha=8ff89d3
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.4.1.1)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+implementation	repeat	seconds	publications_per_second	ns_per_publication	sample_p50_ns	sample_p99_ns	reader_get_p50_ns	reader_get_p99_ns	reader_adoptions	reader_epoch_skips	pool_exhaustions	live_high_watermark	reader_affinity	reader_cpu	writer_affinity	writer_cpu	checksum
+shared_slot_protocol	0	0.018893	1058579	944.66	1166.00	1458.00	0.00	0.00	3921603	13	0	9	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	0	0.016825	1188701	841.25	1042.00	1708.00	0.00	0.00	3687497	8	0	8	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	1	0.016694	1198044	834.69	1042.00	1458.00	0.00	0.00	3702483	5	0	7	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	1	0.017478	1144326	873.88	1042.00	1667.00	0.00	0.00	3678585	54	0	30	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	2	0.017175	1164449	858.77	1083.00	1542.00	0.00	0.00	3686266	770	0	36	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	2	0.017026	1174674	851.30	1083.00	1500.00	0.00	0.00	3794792	13	0	14	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	3	0.017353	1152511	867.67	1125.00	1584.00	0.00	0.00	3711020	4	0	6	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	3	0.017490	1143519	874.49	1042.00	1417.00	0.00	0.00	3668386	30	0	19	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	4	0.017971	1112927	898.53	1083.00	1416.00	0.00	0.00	3778102	1	0	5	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	4	0.016904	1183161	845.19	1166.00	1542.00	0.00	0.00	3712984	92	2	65	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	5	0.017984	1112071	899.22	1125.00	2042.00	0.00	0.00	3968741	691	0	32	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	5	0.017461	1145443	873.02	1042.00	1417.00	0.00	0.00	3522452	852	0	37	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	6	0.018965	1054549	948.27	1166.00	1458.00	0.00	0.00	3932758	27	0	13	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	6	0.017586	1137284	879.29	1084.00	1541.00	0.00	0.00	3823086	39	0	15	unavailable	-1	unavailable	-1	40000

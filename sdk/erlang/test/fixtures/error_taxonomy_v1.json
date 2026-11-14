@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "authority": [
+    "docs/spec/error-taxonomy-v1.md",
+    "docs/spec/client-semantics-v1.md",
+    "docs/spec/wire-protocol-v2.md"
+  ],
+  "requirement": "GS-PROTO-ERROR-001",
+  "cases": [
+    {
+      "id": "invalid_request",
+      "wire_status": 1,
+      "category": "invalid_argument",
+      "read_retryability": "never",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "reconcile_first",
+      "pipeline_outcome": "failed",
+      "unhealthy": false
+    },
+    {
+      "id": "unsupported",
+      "wire_status": 2,
+      "category": "invalid_argument",
+      "read_retryability": "never",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "reconcile_first",
+      "pipeline_outcome": "failed",
+      "unhealthy": false
+    },
+    {
+      "id": "internal_error",
+      "wire_status": 3,
+      "category": "internal",
+      "read_retryability": "new_attempt",
+      "mutation_outcome": "indeterminate",
+      "mutation_retryability": "reconcile_first",
+      "pipeline_outcome": "indeterminate",
+      "unhealthy": false
+    },
+    {
+      "id": "not_found",
+      "wire_status": 4,
+      "category": "not_found",
+      "read_retryability": "new_attempt",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "new_attempt",
+      "pipeline_outcome": "failed",
+      "unhealthy": false
+    },
+    {
+      "id": "overloaded",
+      "wire_status": 5,
+      "category": "overloaded",
+      "read_retryability": "never",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "never",
+      "pipeline_outcome": "failed",
+      "unhealthy": false
+    },
+    {
+      "id": "wrong_owner",
+      "wire_status": 6,
+      "category": "protocol",
+      "read_retryability": "new_attempt",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "reconcile_first",
+      "pipeline_outcome": "failed",
+      "unhealthy": true
+    },
+    {
+      "id": "not_bound",
+      "wire_status": 7,
+      "category": "unavailable",
+      "read_retryability": "never",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "never",
+      "pipeline_outcome": "failed",
+      "unhealthy": true
+    },
+    {
+      "id": "permission_denied",
+      "wire_status": 8,
+      "category": "permission_denied",
+      "read_retryability": "never",
+      "mutation_outcome": "rejected",
+      "mutation_retryability": "never",
+      "pipeline_outcome": "failed",
+      "unhealthy": false
+    },
+    {
+      "id": "unknown_wire_status",
+      "wire_status": 99,
+      "category": "protocol",
+      "read_retryability": "new_attempt",
+      "mutation_outcome": "indeterminate",
+      "mutation_retryability": "reconcile_first",
+      "pipeline_outcome": "indeterminate",
+      "unhealthy": false
+    }
+  ]
+}

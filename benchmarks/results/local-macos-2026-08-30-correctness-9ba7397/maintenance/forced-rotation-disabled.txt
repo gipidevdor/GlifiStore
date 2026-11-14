@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=9ba7397
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+disabled,1,0.124169,124.169125,0.000166,5.678958,103.714959,14.139000,0.153750,123.686667,123.686833,0.294583,0.187709,1,1,0,1,1,0,0,0,0,0,7
+disabled,2,0.112670,112.669917,0.000584,4.263792,94.823084,12.868041,0.187541,112.142458,112.143042,0.316250,0.210625,1,1,0,1,1,0,0,0,0,0,7
+disabled,3,0.114753,114.753125,0.000250,4.184542,99.956125,9.956167,0.122958,114.219792,114.220042,0.303709,0.229374,1,1,0,1,1,0,0,0,0,0,7
+disabled,4,0.118907,118.907250,0.000458,9.500208,94.768042,13.910250,0.167000,118.345500,118.345958,0.311000,0.250292,1,1,0,1,1,0,0,0,0,0,7
+disabled,5,0.111371,111.370584,0.000292,5.039833,95.742875,9.972833,0.103959,110.859500,110.859792,0.286166,0.224626,1,1,0,1,1,0,0,0,0,0,7
+disabled,6,0.112238,112.237959,0.000208,4.727500,96.937459,9.988417,0.113874,111.767250,111.767458,0.268083,0.202418,1,1,0,1,1,0,0,0,0,0,7
+disabled,7,0.117610,117.610167,0.000125,10.701458,97.273833,9.033250,0.104667,117.113208,117.113333,0.278833,0.218001,1,1,0,1,1,0,0,0,0,0,7

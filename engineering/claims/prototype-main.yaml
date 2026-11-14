@@ -1,0 +1,20 @@
+# Template / example claim (not a tagged release). Real tag claims are written under
+# engineering/claims/<tag>.yaml by scripts/package-release-claim.sh on version tags.
+claims:
+  - id: CLAIM-prototype-main
+    tag: main
+    commit: "68890893e8ece4db56588bb3a000bd7cc767a88d"
+    claim_massimo: architectural-prototype
+    gates:
+      - GATE-DISK-WIRE-VERSIONS
+      - GATE-CMAKE-INSTALL
+      - GATE-THREAT-SUPPLY
+    evidence:
+      - workflow: assurance.yml
+      - workflow: release-compat.yml
+      - path: engineering/compatibility/n-n1-matrix.yaml
+      - note: Placeholder commit; replaced when packaging a real tag claim.
+    created: "2026-08-01"
+    notes: >
+      Honest ceiling remains architectural-prototype until alpha gates are
+      PROVATA_IN_CI / ACCETTATA_PER_RILASCIO with retained evidence.

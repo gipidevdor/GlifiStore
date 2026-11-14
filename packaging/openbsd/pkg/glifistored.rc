@@ -1,0 +1,11 @@
+#!/bin/ksh
+
+daemon="${TRUEPREFIX}/bin/glifistored"
+daemon_user="_glifistore"
+daemon_flags="--config ${SYSCONFDIR}/glifistored.conf"
+rc_bg=YES
+rc_reload=NO
+
+. /etc/rc.d/rc.subr
+
+rc_cmd $1

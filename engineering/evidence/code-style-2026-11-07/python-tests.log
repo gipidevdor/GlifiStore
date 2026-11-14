@@ -1,0 +1,42 @@
+...........................................................................................................................................................................................................................................................................................................................package status FAILED: backend deb claims required_for_release without a release policy artifact
+.package status FAILED: missing /var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/tmpcvh6jz2v/package-status.md (run: python3 engineering/tools/generate_package_status.py --write-generated)
+package status FAILED: /var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/tmpcvh6jz2v/package-status.md is stale (run: python3 engineering/tools/generate_package_status.py --write-generated)
+..................................................................................................................................
+----------------------------------------------------------------------
+Ran 446 tests in 89.945s
+
+OK
+Validated local pages, assets, and fragment links in 2 HTML files.
+MISSING  configuration /etc/glifistore/glifistored.conf
+OK       configuration /etc/glifistore/glifistored.conf
+PRESENT  service       /lib/systemd/system/glifistored.service
+WRONGKIND runtime      /usr/bin/glifistored (not executable)
+MISSING  runtime       /usr/bin/glifistore_backup_store
+MISSING  runtime       /usr/bin/glifistore_demo
+MISSING  runtime       /usr/bin/glifistore_inspect_segment
+MISSING  runtime       /usr/bin/glifistore_migrate_store
+MISSING  runtime       /usr/bin/glifistore_rebuild_index
+MISSING  runtime       /usr/bin/glifistore_repair_store
+MISSING  runtime       /usr/bin/glifistore_verify_store
+MISSING  runtime       /usr/share/GlifiStore/VERSION
+MISSING  runtime       /usr/share/GlifiStore/ABI_VERSION
+MISSING  runtime       /usr/share/GlifiStore/LICENSE
+MISSING  runtime       /usr/share/GlifiStore/NOTICE
+MISSING  runtime       /usr/share/GlifiStore/THIRD_PARTY_NOTICES.md
+MISSING  runtime       /usr/share/GlifiStore/examples/glifistored.conf.sample
+Wrote /var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/tmpcvh6jz2v/package-status.md
+package status OK (docs/distribution/package-status.md matches the package matrix)
+package status OK (docs/distribution/package-status.md matches the package matrix)
+/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/glifistore-release-test-ssx9dw9o/extracted-abi-consumer
+/var/folders/07/57bk4fl91n9_9gk_j124c_q80000gn/T/glifistore-release-test-f1_3nrwz/extracted-wire-client
+build authority matches for source, target, toolchain, versions, and options
+GlifiStore-0.1.0.tar.xz reference_size=37 rebuilt_size=37 reference_sha256=b70c088c661ad08d120be7e2b3a1f908adbc23b6dd8ee6af3b3628bc5a6e2104 rebuilt_sha256=b70c088c661ad08d120be7e2b3a1f908adbc23b6dd8ee6af3b3628bc5a6e2104 byte_equal=yes
+glifistore-0.1.0-linux-x86_64.tar.xz reference_size=50 rebuilt_size=50 reference_sha256=651b0ce23b04a0dd3336df54b677b1966638059d3d09a257cd90fe430a2b4905 rebuilt_sha256=651b0ce23b04a0dd3336df54b677b1966638059d3d09a257cd90fe430a2b4905 byte_equal=yes
+glifistore-abi-v1-consumer-0.1.0-linux-x86_64.tar.xz reference_size=66 rebuilt_size=66 reference_sha256=acab1a9dfb1fb34be7ac5c28be4be3fd65817270c42b5710b4f90abdb2079d5c rebuilt_sha256=acab1a9dfb1fb34be7ac5c28be4be3fd65817270c42b5710b4f90abdb2079d5c byte_equal=yes
+glifistore-wire-v2-client-0.1.0-linux-x86_64.tar.xz reference_size=65 rebuilt_size=65 reference_sha256=b01a99606edfa2dd2bab7473291ff7c10ee00290e70114e7b46c2c62ec52cfd8 rebuilt_sha256=b01a99606edfa2dd2bab7473291ff7c10ee00290e70114e7b46c2c62ec52cfd8 byte_equal=yes
+REPRODUCIBILITY artifact-compare PASSED
+GlifiStore-0.1.0.tar.xz reference_size=37 rebuilt_size=37 reference_sha256=b70c088c661ad08d120be7e2b3a1f908adbc23b6dd8ee6af3b3628bc5a6e2104 rebuilt_sha256=b70c088c661ad08d120be7e2b3a1f908adbc23b6dd8ee6af3b3628bc5a6e2104 byte_equal=yes
+glifistore-0.1.0-linux-x86_64.tar.xz reference_size=50 rebuilt_size=50 reference_sha256=651b0ce23b04a0dd3336df54b677b1966638059d3d09a257cd90fe430a2b4905 rebuilt_sha256=651b0ce23b04a0dd3336df54b677b1966638059d3d09a257cd90fe430a2b4905 byte_equal=yes
+glifistore-abi-v1-consumer-0.1.0-linux-x86_64.tar.xz reference_size=66 rebuilt_size=66 reference_sha256=acab1a9dfb1fb34be7ac5c28be4be3fd65817270c42b5710b4f90abdb2079d5c rebuilt_sha256=acab1a9dfb1fb34be7ac5c28be4be3fd65817270c42b5710b4f90abdb2079d5c byte_equal=yes
+glifistore-wire-v2-client-0.1.0-linux-x86_64.tar.xz reference_size=65 rebuilt_size=9 reference_sha256=b01a99606edfa2dd2bab7473291ff7c10ee00290e70114e7b46c2c62ec52cfd8 rebuilt_sha256=9d6f965ac832e40a5df6c06afe983e3b449c07b843ff51ce76204de05c690d11 byte_equal=no
+v0.1.0

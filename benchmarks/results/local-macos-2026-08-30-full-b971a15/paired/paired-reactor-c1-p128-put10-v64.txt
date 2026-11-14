@@ -1,0 +1,16 @@
+# paired Reactor TCP A/B git=b971a15 ops=100000 keys=4096 value_bytes=64 pipeline=128 clients=1 put_percent=10 batch_wait_us=2
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,204380,514.666,1951.83,3048,5760000
+sample,current,0,424922,279.625,611.334,775.959,5760000
+sample,current,1,480143,248.125,607.792,705.916,5760000
+sample,paired,1,368499,334.5,495.083,559.708,5760000
+sample,paired,2,386980,324.792,432.125,479.417,5760000
+sample,current,2,490138,250.125,463.209,725.208,5760000
+sample,current,3,493778,246.917,505.208,851.708,5760000
+sample,paired,3,274672,380.958,1848.46,3670.62,5760000
+sample,paired,4,172485,406.166,3470.21,6656.08,5760000
+sample,current,4,511224,225.125,534.125,1125.21,5760000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,490138,534.125,775.959
+summary,paired,274672,1848.46,3048
+telemetry,writev_calls,127842,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,60000,measured_publication_records,60000,average_publication_batch,1,maximum_writer_batch,1,generation_output_pin_high_watermark,0,publication_backpressure,0

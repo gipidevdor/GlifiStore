@@ -1,0 +1,19 @@
+#!/bin/sh
+# GlifiStore runtime postinst. Generated; see packaging/debian/templates/.
+set -e
+
+if [ "$1" = "configure" ]; then
+    @SERVICE_ACCOUNT_SNIPPET@
+
+    # The durable Store directory is handed to the service account. An operator
+    # who already narrowed the mode keeps it: this only ever narrows, never
+    # widens, and it never touches the contents.
+    if [ -d '@STATEDIR@' ]; then
+        chown '@SERVICE_USER@:@SERVICE_GROUP@' '@STATEDIR@'
+        chmod 0750 '@STATEDIR@'
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0

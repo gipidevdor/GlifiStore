@@ -1,0 +1,13 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=31bd35f-dirty
+# scenario=mixed
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after
+disabled,1,15360,14615,745,0.173660,88448.607792,20.125000,59.291000,487.208000,12076.125000,20.042000,23.334000,28.625000,823.250000,215.916000,2289.583000,4230.417000,12076.125000,0,0,0,0,0,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,2,15360,14615,745,0.498728,30798.368975,21.833000,103.750000,1363.125000,241306.458000,21.708000,29.542000,67.083000,87835.000000,477.666000,3281.375000,9566.666000,241306.458000,0,0,0,0,0,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,3,15360,14615,745,0.175130,87706.421073,20.084000,59.458000,508.291000,9711.167000,20.041000,23.167000,27.042000,803.375000,218.250000,2529.375000,5919.959000,9711.167000,0,0,0,0,0,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+maintenance benchmark error: foreground or cooperative maintenance validation failed: operations=15360/15360 get_hits=14615/14615 put_successes=682/745 failures=63 maintenance_errors=0

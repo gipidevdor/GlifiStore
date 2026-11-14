@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=9ba7397
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+background,1,0.169388,169.387667,30.418125,3.748666,114.097708,20.477792,0.108668,138.432834,168.850959,0.283958,0.252750,1,1,1,1,1,2,2,2,0,32515776,3
+background,2,0.093070,93.070208,31.708584,3.893875,39.857500,16.997000,0.100666,60.849041,92.557625,0.233125,0.279458,1,1,1,1,1,2,2,2,0,32515776,3
+background,3,0.079209,79.208792,27.754542,3.027583,34.843750,12.987417,0.148583,51.007333,78.761875,0.242750,0.204167,1,1,1,1,1,2,2,2,0,32515776,3
+background,4,0.101846,101.846041,29.446250,2.857750,53.911208,14.974208,0.119959,71.863125,101.309375,0.247083,0.289583,1,1,1,1,1,2,2,2,0,32515776,3
+background,5,0.089956,89.955959,31.441708,3.881834,39.925541,14.074750,0.100000,57.982125,89.423833,0.274167,0.257959,1,1,1,1,1,2,2,2,0,32515776,3
+background,6,0.089855,89.854833,33.364916,3.858708,36.009167,15.974291,0.100918,55.943084,89.308000,0.267958,0.278875,1,1,1,1,1,2,2,2,0,32515776,3
+background,7,0.109971,109.970917,34.409125,4.698709,53.556542,16.497542,0.098748,74.851541,109.260666,0.439792,0.270459,1,1,1,1,1,2,2,2,0,32515776,3

@@ -1,0 +1,529 @@
+# GlifiStore package backend matrix (Wave A framework).
+#
+# Authority for which packaging backends exist, which CI profile exercises them,
+# which lifecycle checks each backend owes, and which artifacts the release policy
+# already requires. Version numbers never appear here: VERSION is the single source
+# of truth and engineering/tools/generate_release_context.py derives every package
+# version from it.
+#
+# Validator / expander: engineering/tools/generate_package_matrix.py
+# Consumers: scripts/package-ci.sh locally, and .github/workflows/package-ci.yml through
+#   engineering/tools/package_ci_plan.py, which adds the CI-only policy (profile per event,
+#   change detection, lifecycle depth, timeouts, evidence retention) without restating a
+#   single backend, target or version here.
+#
+# status values:
+#   PLANNED    - no packaging implementation exists yet; CI may only emit honest non-PASS evidence
+#   STRUCTURAL - repository-side structure is validated, native lifecycle is not wired here yet
+#   IMPLEMENTED- the full lifecycle runs in CI and retains evidence
+version: 1
+
+profiles:
+  pr:
+    description: Fast subset on pull requests; metadata and structure before any long lifecycle.
+    requires_sealed_artifacts: false
+  main:
+    description: Full available matrix on main with retained intermediate evidence.
+    requires_sealed_artifacts: false
+  nightly:
+    description: Upgrade loops and negative cases where a runner exists.
+    requires_sealed_artifacts: false
+  release:
+    description: Exact sealed artifacts only; no rebuild between verify and publish.
+    requires_sealed_artifacts: true
+
+# Formal lifecycle chain that evidence lifecycle_state values must belong to.
+lifecycle_states:
+  - NONE
+  - STRUCTURAL
+  - BUILT
+  - INSTALLED
+  - FUNCTIONALLY_VERIFIED
+  - LIFECYCLE_VERIFIED
+  - UPGRADE_VERIFIED
+  - RELEASE_ADMITTED
+
+# Shared check vocabulary. Evidence may only use these ids (plus the backend extras
+# declared in backends[].checks), so a backend cannot invent a favourable check name.
+#
+# category separates what a row may ever be read as (Wave D):
+#   structural       - repository-side structure and metadata only
+#   native-build     - the package was actually built from sealed sources
+#   package          - the package manager installed, inspected or removed it
+#   service          - the packaged service ran and answered the protocol
+#   upstream-accepted- an upstream distribution actually accepted the packaging
+# A category is optional while a backend is PLANNED and mandatory as soon as the
+# backend declares any real status, so a structural PASS can never be read as a
+# package, service or upstream-acceptance proof.
+lifecycle_checks:
+  - id: structural-metadata
+    stage: metadata
+    category: structural
+    description: load the release context and package matrix and refuse an unknown backend
+  - id: reference-port-structure
+    stage: metadata
+    category: structural
+    description: validate the in-repo reference port against VERSION, ABI_VERSION and service policy
+  - id: ports-account-registration
+    stage: metadata
+    category: upstream-accepted
+    description: read the upstream service-account allocation marker without ever creating it
+  - id: upstream-ports-acceptance
+    stage: metadata
+    category: upstream-accepted
+    description: record whether an upstream ports tree or tap accepted the packaging
+  - id: package-metadata-render
+    stage: metadata
+    category: structural
+    description: render backend packaging metadata from the release context without a hard-coded version
+  - id: package-lint
+    stage: metadata
+    category: structural
+    description: run the native packaging linter or auditor over the rendered metadata
+  - id: sealed-source-admission
+    stage: build
+    category: native-build
+    description: admit the sealed candidate source archive by seal digest before any package build
+  - id: package-build
+    stage: build
+    category: native-build
+    description: build the native package from the sealed source archive
+  - id: package-inspect
+    stage: inspect
+    category: package
+    description: inspect package metadata, dependencies and binary hardening before installation
+  - id: prefix-isolation
+    stage: inspect
+    category: package
+    description: prove the installed binaries link only inside their own package-manager prefix
+  - id: package-install
+    stage: install
+    category: package
+    description: install the package on a clean target and prove the declared file inventory
+  - id: external-consumer
+    stage: verify
+    category: package
+    description: build an external consumer against the installed prefix without the source tree
+  - id: service-lifecycle
+    stage: verify
+    category: service
+    description: start, health-check and stop the packaged service through the platform init system
+  - id: put-get-erase
+    stage: verify
+    category: service
+    description: protocol-v2 PUT, exact GET, ERASE and NOT_FOUND through the packaged service
+  - id: restart-recovery
+    stage: verify
+    category: service
+    description: restart the packaged service and recover the exact durable value
+  - id: package-upgrade
+    stage: upgrade
+    category: package
+    description: >-
+      upgrade from the sealed N-1 package and prove dataset continuity
+      (Linux deb/rpm, FreeBSD/OpenBSD, and MacPorts/Homebrew run
+      install→seed→upgrade→verify when GLIFISTORE_N1_PACKAGE_DIR supplies sealed
+      predecessor packages or macOS source archives; package bytes / source archives
+      are never rebuilt from HEAD. MacPorts/Homebrew still render the Portfile/formula
+      from tip templates against that sealed source digest until archive-owned recipes
+      are retained)
+  - id: config-preservation
+    stage: remove
+    category: package
+    description: reinstall over an operator-modified configuration and prove it survives
+  - id: package-remove
+    stage: remove
+    category: package
+    description: remove the package under the config-vs-data retention policy
+    # policy: packaging/common/config-data-policy.md
+
+# Explicitly out of scope. Listed so the matrix expander can refuse them instead of
+# silently accepting a new target later.
+out_of_scope:
+  - id: windows
+    reason: Windows is not a supported GlifiStore platform; no runtime, durability or service model exists.
+    required_before_scope: accepted ADR plus platform durability evidence rows
+  - id: apple-pkg
+    reason: >-
+      Apple .pkg installers are deliberately not part of this architecture: no ADR, no Apple
+      signing/notarization identity and no update model. macOS is served by MacPorts and Homebrew.
+    required_before_scope: accepted ADR, signing identity and an update model
+  - id: msi
+    reason: Windows installer format; follows the Windows out-of-scope decision.
+    required_before_scope: accepted ADR plus platform durability evidence rows
+
+# Artifacts that engineering/tools/release_bundle.py::validate_release_policy already
+# requires for every release. This list is the reason required_for_release starts true
+# only for freebsd and openbsd; new backends stay false until a gate promotes them.
+release_policy_artifacts:
+  - id: source
+    description: sealed source archive GlifiStore-<version>.tar.xz
+    required_for_release: true
+  - id: linux
+    description: Linux install prefix archive
+    required_for_release: true
+  - id: abi_consumer
+    description: ABI consumer fixture archive
+    required_for_release: true
+  - id: wire_client
+    description: wire client fixture archive
+    required_for_release: true
+  - id: freebsd
+    description: native FreeBSD .pkg
+    required_for_release: true
+  - id: openbsd
+    description: native OpenBSD .tgz
+    required_for_release: true
+
+backends:
+  - id: deb
+    display_name: Debian / Ubuntu .deb
+    package_kind: deb
+    status: STRUCTURAL
+    lifecycle_state: STRUCTURAL
+    required_for_release: false
+    wave: B
+    profiles: [pr, main, nightly, release]
+    # Container images are pinned by digest, never by tag: the lifecycle refuses to
+    # build inside an unpinned image, and the validator refuses an IMPLEMENTED
+    # backend whose target has no digest.
+    targets:
+      - id: deb-debian-12-amd64
+        platform: debian-12
+        arch: amd64
+        runner: ubuntu-24.04
+        container: docker.io/library/debian:12
+        container_digest: sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
+        profiles: [pr, main, nightly, release]
+      - id: deb-ubuntu-24.04-amd64
+        platform: ubuntu-24.04
+        arch: amd64
+        runner: ubuntu-24.04
+        container: docker.io/library/ubuntu:24.04
+        container_digest: sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+        profiles: [main, nightly, release]
+    checks:
+      - structural-metadata
+      - package-metadata-render
+      - package-lint
+      - sealed-source-admission
+      - package-build
+      - package-inspect
+      - prefix-isolation
+      - package-install
+      - external-consumer
+      - service-lifecycle
+      - put-get-erase
+      - restart-recovery
+      - package-upgrade
+      - config-preservation
+      - package-remove
+    required_checks:
+      pr: [structural-metadata, package-metadata-render]
+      main: [structural-metadata, package-metadata-render]
+      nightly: [structural-metadata, package-metadata-render]
+      release: [structural-metadata, package-metadata-render, sealed-source-admission]
+    limitations:
+      - >-
+        packaging/debian/templates is rendered by
+        engineering/tools/render_package_metadata.py; the build, install, service and removal
+        rows only run inside the digest-pinned container
+        (GLIFISTORE_PACKAGE_CI_CONTAINER=1) or on a disposable root host
+        (GLIFISTORE_PACKAGE_CI_NATIVE=1). Every other environment reports them BLOCKED.
+      - >-
+        .github/workflows/package-ci.yml retains this backend's evidence per profile.
+        Retained nightly container runs reach LIFECYCLE_VERIFIED with service-lifecycle PASS
+        under systemd as PID 1 (run 34662210614); overall result stays NOT_RUN without a sealed
+        candidate. required_for_release stays false until a gate promotes this backend.
+      - >-
+        package-upgrade selects the SemVer predecessor from the release context. When
+        GLIFISTORE_N1_PACKAGE_DIR supplies sealed predecessor packages, the container
+        lifecycle runs install→seed→upgrade→verify; otherwise the check stays
+        NOT_APPLICABLE_INITIAL_BASELINE or NOT_RUN. N-1 is never rebuilt from HEAD.
+      - >-
+        The library package is not Multi-Arch: same and installs into a non-multiarch libdir,
+        because the installed glifistore-abi.pc derives its prefix two levels above itself.
+      - >-
+        Only the executed Debian and Ubuntu rows may ever be reported; no other Debian
+        derivative is claimed.
+
+  - id: rpm
+    display_name: Fedora / RPM
+    package_kind: rpm
+    status: STRUCTURAL
+    lifecycle_state: STRUCTURAL
+    required_for_release: false
+    wave: B
+    profiles: [main, nightly, release]
+    targets:
+      - id: rpm-fedora-43-amd64
+        platform: fedora-43
+        arch: amd64
+        runner: ubuntu-24.04
+        container: quay.io/fedora/fedora:43
+        container_digest: sha256:37d4208f1aa0f4c883d9407b06dfce4d739e6f6d769ee29a6a9faeea2bfbdb39
+        profiles: [main, nightly, release]
+    checks:
+      - structural-metadata
+      - package-metadata-render
+      - package-lint
+      - sealed-source-admission
+      - package-build
+      - package-inspect
+      - prefix-isolation
+      - package-install
+      - external-consumer
+      - service-lifecycle
+      - put-get-erase
+      - restart-recovery
+      - package-upgrade
+      - config-preservation
+      - package-remove
+    required_checks:
+      main: [structural-metadata, package-metadata-render]
+      nightly: [structural-metadata, package-metadata-render]
+      release: [structural-metadata, package-metadata-render, sealed-source-admission]
+    limitations:
+      - >-
+        packaging/rpm/templates/glifistore.spec.in is rendered by
+        engineering/tools/render_package_metadata.py; the build, install, service and removal
+        rows only run inside the digest-pinned container
+        (GLIFISTORE_PACKAGE_CI_CONTAINER=1) or on a disposable root host
+        (GLIFISTORE_PACKAGE_CI_NATIVE=1). Every other environment reports them BLOCKED.
+      - >-
+        .github/workflows/package-ci.yml retains this backend's evidence per profile.
+        Retained nightly container runs reach LIFECYCLE_VERIFIED with service-lifecycle PASS
+        under systemd as PID 1 (run 34662210614 on the previous Fedora 41 pin); overall result
+        stays NOT_RUN without a sealed candidate. The live target is digest-pinned Fedora 43
+        (Fedora 41 is EOL). required_for_release stays false until a gate promotes this backend.
+      - >-
+        package-upgrade selects the SemVer predecessor from the release context. When
+        GLIFISTORE_N1_PACKAGE_DIR supplies sealed predecessor packages, the container
+        lifecycle runs install→seed→upgrade→verify; otherwise the check stays
+        NOT_APPLICABLE_INITIAL_BASELINE or NOT_RUN. N-1 is never rebuilt from HEAD.
+      - >-
+        RPM has no purge action, so erase is the terminal state for the configuration: the
+        operator edit survives as the file itself or as a .rpmsave sibling.
+      - Rocky, Alma and RHEL are not claimed; only the executed Fedora row may ever be reported.
+
+  - id: macports
+    display_name: MacPorts Portfile
+    package_kind: macports_port
+    status: STRUCTURAL
+    lifecycle_state: STRUCTURAL
+    required_for_release: false
+    wave: C
+    profiles: [pr, main, nightly, release]
+    targets:
+      # GitHub retires macos-14 on 2026-11-02 (actions/runner-images#13518).
+      - id: macports-macos-15-arm64
+        platform: macos-15
+        arch: arm64
+        runner: macos-15
+        container: null
+        container_digest: null
+        profiles: [pr, main, nightly, release]
+    checks:
+      - structural-metadata
+      - package-metadata-render
+      - upstream-ports-acceptance
+      - package-lint
+      - package-build
+      - package-inspect
+      - prefix-isolation
+      - package-install
+      - external-consumer
+      - service-lifecycle
+      - put-get-erase
+      - restart-recovery
+      - package-upgrade
+      - package-remove
+    required_checks:
+      pr: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+      main: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+      nightly: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+      release: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+    limitations:
+      - >-
+        packaging/macports/Portfile.in is rendered by
+        engineering/tools/render_macos_packaging.py; the native port, install and daemon rows
+        only run on a macOS host with MacPorts and GLIFISTORE_PACKAGE_CI_NATIVE=1.
+      - >-
+        The port declares an unprivileged launchd startup item
+        (startupitem.user/group glifistore); the native lifecycle loads and unloads it when
+        GLIFISTORE_PACKAGE_CI_NATIVE=1. Without a retained native run, service-lifecycle
+        stays an open gate and this backend cannot report PASS.
+      - >-
+        package-upgrade stays NOT_APPLICABLE_INITIAL_BASELINE or NOT_RUN until sealed N-1
+        source archives are supplied via GLIFISTORE_N1_PACKAGE_DIR; the native lifecycle
+        then runs install→seed→upgrade→verify. Sealed source bytes are never rebuilt from
+        HEAD; the Portfile is still rendered from tip templates against that sealed digest
+        until archive-owned packaging recipes are retained.
+      - In-repo packaging is the project pipeline; it is not an upstream ports-tree acceptance claim.
+
+  - id: homebrew
+    display_name: Homebrew Formula
+    package_kind: homebrew_formula
+    status: STRUCTURAL
+    lifecycle_state: STRUCTURAL
+    required_for_release: false
+    wave: C
+    profiles: [main, nightly, release]
+    targets:
+      - id: homebrew-macos-15-arm64
+        platform: macos-15
+        arch: arm64
+        runner: macos-15
+        container: null
+        container_digest: null
+        profiles: [main, nightly, release]
+    checks:
+      - structural-metadata
+      - package-metadata-render
+      - upstream-ports-acceptance
+      - package-lint
+      - package-build
+      - package-inspect
+      - prefix-isolation
+      - package-install
+      - external-consumer
+      - service-lifecycle
+      - put-get-erase
+      - restart-recovery
+      - package-upgrade
+      - package-remove
+    limitations:
+      - >-
+        packaging/homebrew/glifistore.rb.in is rendered by
+        engineering/tools/render_macos_packaging.py; the native audit, build, install and daemon
+        rows only run on a macOS host with Homebrew and GLIFISTORE_PACKAGE_CI_NATIVE=1.
+      - >-
+        The formula declares a brew services block; the native lifecycle starts, health-checks and
+        stops it when GLIFISTORE_PACKAGE_CI_NATIVE=1. Without a retained native run,
+        service-lifecycle stays an open gate and this backend cannot report PASS.
+      - >-
+        package-upgrade stays NOT_APPLICABLE_INITIAL_BASELINE or NOT_RUN until sealed N-1
+        source archives are supplied via GLIFISTORE_N1_PACKAGE_DIR; the native lifecycle
+        then runs install→seed→upgrade→verify. Sealed source bytes are never rebuilt from
+        HEAD; the formula is still rendered from tip templates against that sealed digest
+        until archive-owned packaging recipes are retained.
+      - In-repo packaging is the project pipeline; it is not an official tap acceptance claim.
+    required_checks:
+      main: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+      nightly: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+      release: [structural-metadata, package-metadata-render, upstream-ports-acceptance]
+
+  - id: freebsd
+    display_name: FreeBSD reference port and .pkg
+    package_kind: freebsd_pkg
+    status: STRUCTURAL
+    lifecycle_state: STRUCTURAL
+    required_for_release: true
+    wave: D
+    profiles: [pr, main, nightly, release]
+    targets:
+      - id: freebsd-14-amd64
+        platform: freebsd-14
+        arch: amd64
+        runner: ubuntu-latest
+        container: null
+        container_digest: null
+        profiles: [pr, main, nightly, release]
+    checks:
+      - structural-metadata
+      - reference-port-structure
+      - ports-account-registration
+      - upstream-ports-acceptance
+      - sealed-source-admission
+      - package-build
+      - package-inspect
+      - package-install
+      - external-consumer
+      - service-lifecycle
+      - put-get-erase
+      - restart-recovery
+      - package-upgrade
+      - config-preservation
+      - package-remove
+    required_checks:
+      pr: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance]
+      main: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance]
+      nightly: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance, package-upgrade]
+      release: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance, sealed-source-admission, package-build, package-inspect,
+        package-install, service-lifecycle, put-get-erase, restart-recovery, package-upgrade,
+        config-preservation, package-remove]
+    limitations:
+      - >-
+        scripts/package-ci.sh --backend freebsd runs the native package/service lifecycle
+        (scripts/test-freebsd-package-lifecycle.sh) only on a native FreeBSD host with the sealed
+        candidate; every other host reports the native rows as BLOCKED.
+      - PORTS_ACCOUNT_REGISTERED is a real upstream UID/GID allocation and is never synthesised by CI.
+      - >-
+        An in-repo reference port is the project packaging pipeline, not a FreeBSD ports-tree
+        acceptance; upstream-ports-acceptance stays an open gate until upstream accepts it.
+      - >-
+        package-upgrade stays NOT_APPLICABLE_INITIAL_BASELINE or NOT_RUN until sealed N-1
+        .pkg packages are supplied via GLIFISTORE_N1_PACKAGE_DIR; the native lifecycle
+        then runs install→seed→upgrade→verify (never rebuilds N-1 from HEAD).
+
+  - id: openbsd
+    display_name: OpenBSD reference port and .tgz
+    package_kind: openbsd_tgz
+    status: STRUCTURAL
+    lifecycle_state: STRUCTURAL
+    required_for_release: true
+    wave: D
+    profiles: [pr, main, nightly, release]
+    targets:
+      - id: openbsd-7-amd64
+        platform: openbsd-7
+        arch: amd64
+        runner: ubuntu-latest
+        container: null
+        container_digest: null
+        profiles: [pr, main, nightly, release]
+    checks:
+      - structural-metadata
+      - reference-port-structure
+      - ports-account-registration
+      - upstream-ports-acceptance
+      - sealed-source-admission
+      - package-build
+      - package-inspect
+      - package-install
+      - external-consumer
+      - service-lifecycle
+      - put-get-erase
+      - restart-recovery
+      - package-upgrade
+      - config-preservation
+      - package-remove
+    required_checks:
+      pr: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance]
+      main: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance]
+      nightly: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance, package-upgrade]
+      release: [structural-metadata, reference-port-structure, ports-account-registration,
+        upstream-ports-acceptance, sealed-source-admission, package-build, package-inspect,
+        package-install, service-lifecycle, put-get-erase, restart-recovery, package-upgrade,
+        config-preservation, package-remove]
+    limitations:
+      - >-
+        scripts/package-ci.sh --backend openbsd runs the native package/service lifecycle
+        (scripts/test-openbsd-package-lifecycle.sh) only on a native OpenBSD host with the sealed
+        candidate; every other host reports the native rows as BLOCKED.
+      - LibreSSL from base remains the only supported TLS backend on OpenBSD.
+      - PORTS_ACCOUNT_REGISTERED is a real upstream UID/GID allocation and is never synthesised by CI.
+      - >-
+        An in-repo reference port is the project packaging pipeline, not an OpenBSD ports-tree
+        acceptance; upstream-ports-acceptance stays an open gate until upstream accepts it.
+      - >-
+        package-upgrade stays NOT_APPLICABLE_INITIAL_BASELINE or NOT_RUN until sealed N-1
+        .tgz packages are supplied via GLIFISTORE_N1_PACKAGE_DIR; the native lifecycle
+        then runs install→seed→upgrade→verify (never rebuilds N-1 from HEAD).

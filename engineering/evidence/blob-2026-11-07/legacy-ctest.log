@@ -1,0 +1,52 @@
+Test project /Users/gpicchiarelli/Documents/GlifiStore/build/macos-debug
+      Start 25: glifistore_crash_sync
+      Start 24: glifistore_allocation_fault_tests
+ 1/18 Test #24: glifistore_allocation_fault_tests ...............***Timeout 180.04 sec
+
+      Start 28: glifistore_crash_random_smoke
+ 2/18 Test #28: glifistore_crash_random_smoke ...................   Passed   19.99 sec
+      Start 35: glifistore_crash_backup
+ 3/18 Test #35: glifistore_crash_backup .........................   Passed    3.57 sec
+      Start 36: glifistore_crash_backup_wire
+ 4/18 Test #36: glifistore_crash_backup_wire ....................   Passed    4.62 sec
+      Start 37: glifistore_crash_backup_daemon
+ 5/18 Test #37: glifistore_crash_backup_daemon ..................   Passed    3.50 sec
+      Start 32: glifistore_crash_daemon_periodic
+ 6/18 Test #32: glifistore_crash_daemon_periodic ................   Passed    3.82 sec
+      Start 27: glifistore_crash_group
+ 7/18 Test #27: glifistore_crash_group ..........................   Passed    1.56 sec
+      Start 30: glifistore_crash_daemon_sync
+ 8/18 Test #30: glifistore_crash_daemon_sync ....................   Passed    1.06 sec
+      Start 26: glifistore_crash_periodic
+ 9/18 Test #26: glifistore_crash_periodic .......................   Passed    1.09 sec
+      Start  4: glifistore_c_abi_durable_tests
+10/18 Test  #4: glifistore_c_abi_durable_tests ..................   Passed    4.25 sec
+      Start 31: glifistore_crash_daemon_group
+11/18 Test #31: glifistore_crash_daemon_group ...................   Passed    0.28 sec
+      Start 33: glifistore_crash_daemon_pre_commit
+12/18 Test #33: glifistore_crash_daemon_pre_commit ..............   Passed    0.29 sec
+      Start 34: glifistore_crash_daemon_erase
+13/18 Test #34: glifistore_crash_daemon_erase ...................   Passed    0.31 sec
+      Start 29: glifistore_crash_pause_smoke
+14/18 Test #29: glifistore_crash_pause_smoke ....................   Passed    0.15 sec
+      Start  3: glifistore_c_abi_tests
+15/18 Test  #3: glifistore_c_abi_tests ..........................   Passed    0.20 sec
+      Start  6: glifistore_abi_symbol_gate_rejects_unexpected
+16/18 Test  #6: glifistore_abi_symbol_gate_rejects_unexpected ...   Passed    0.06 sec
+      Start  5: glifistore_abi_symbols
+17/18 Test  #5: glifistore_abi_symbols ..........................   Passed    0.13 sec
+18/18 Test #25: glifistore_crash_sync ...........................   Passed  292.73 sec
+
+94% tests passed, 1 tests failed out of 18
+
+Label Time Summary:
+abi                =   4.65 sec*proc (4 tests)
+crash              = 332.97 sec*proc (13 tests)
+durability         =   4.25 sec*proc (1 test)
+fault-injection    = 180.04 sec*proc (1 test)
+negative           =   0.06 sec*proc (1 test)
+
+Total Test time (real) = 292.74 sec
+
+The following tests FAILED:
+	 24 - glifistore_allocation_fault_tests (Timeout)       fault-injection

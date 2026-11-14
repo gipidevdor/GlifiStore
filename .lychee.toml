@@ -1,0 +1,25 @@
+# Lychee configuration for docs link checking (diagnostic CI hygiene).
+# Fail closed on broken http(s) and file links; skip local/example hosts.
+# Schema: lychee v0.24.x (timeout is seconds as u64; exclude_path is regex).
+
+timeout = 40
+max_concurrency = 8
+accept = ["200", "206", "429"]
+
+exclude = [
+  '^https?://127\\.0\\.0\\.1',
+  '^https?://localhost',
+  '^https?://0\\.0\\.0\\.0',
+  '^https?://\\[::1\\]',
+  '^https?://example\\.(com|org|net)',
+  '^https?://host\\.docker\\.internal',
+  # cmake.org help intermittently returns 5xx/timeouts from GitHub runners.
+  '^https?://cmake\\.org/',
+]
+
+# exclude_path values are regular expressions (not globs).
+exclude_path = [
+  '(^|/)node_modules(/|$)',
+  '(^|/)build(/|$)',
+  '(^|/)\\.git(/|$)',
+]

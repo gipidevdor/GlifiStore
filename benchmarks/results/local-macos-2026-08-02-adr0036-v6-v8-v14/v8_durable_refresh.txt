@@ -1,0 +1,5 @@
+[PASS] paired Reader refreshes compacted durable pins and retires the old generation
+[PASS] paired Reader refreshes durable pins after a Writer-owned rotation
+2 tests, 0 failures
+[PASS] durable read catalog refresh is isolated to the compacted shard pair
+1 tests, 0 failures

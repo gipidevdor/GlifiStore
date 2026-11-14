@@ -1,0 +1,87 @@
+# Build systems
+/build/
+/out/
+/cmake-build-*/
+/CMakeUserPresets.json
+/compile_commands.json
+
+# Local development toolchain
+/.tools/
+/.cache/
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*~
+
+# Generated diagnostics
+.interop-*.txt
+Testing/
+coverage/
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+*.lcov
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+sanitizer-*.log
+benchmark-results/
+/benchmark-results-*/
+
+# Native SDK packaging artifacts
+sdk/python/dist/
+sdk/python/build/
+sdk/python/**/*.egg-info/
+sdk/perl/dist/
+sdk/perl/blib/
+sdk/perl/pm_to_blib
+sdk/perl/Makefile
+sdk/perl/Makefile.old
+sdk/perl/MYMETA.*
+sdk/perl/GlifiStore-*.tar.gz
+sdk/go/dist/
+sdk/go/bin/
+sdk/ruby/dist/
+sdk/ruby/*.gem
+sdk/erlang/dist/
+sdk/erlang/_build/
+sdk/cpp-dist/
+dist/sdk-artifacts/
+
+# Fuzzing output (seed corpora belong under fuzz/corpus when intentionally committed)
+crash-*
+leak-*
+oom-*
+slow-unit-*
+timeout-*
+fuzz-artifacts/
+fuzz-corpus-local/
+
+# GlifiStore runtime artifacts
+*.gseg
+*.gwal
+*.gsf
+*.glifitmp
+erl_crash.dump
+
+# Local durability campaign outputs (retain outside the tree or as CI artifacts)
+/durability-evidence/
+
+# Temporary TLC state databases (the model sources and configurations are retained)
+/engineering/formal/*/states/
+# macOS Finder "foo 2[.ext]" duplicate copies
+* 2
+* 2.*

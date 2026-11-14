@@ -1,0 +1,23 @@
+=== ADR 0036 under macos-tsan 2026-08-01T23:43:08Z ===
+[PASS] ADR 0036 V1 prototype: adopt publishes one immutable generation atomically
+[PASS] ADR 0036 V3 prototype: pinned generation bytes survive publish and retire races
+[PASS] ADR 0036 V9 prototype: slot-pool starvation increments publication backpressure
+[PASS] ADR 0036 V2 prototype: reclaim never frees a pinned or pre-quiescent generation
+[PASS] ADR 0036 V7 prototype: delta merge under pin slot pressure keeps committed keys
+[PASS] ADR 0036 V13 prototype: pin adopt merge reclaim stress
+6 tests, 0 failures
+--- paired Store overwrite storm ---
+[PASS] paired Store concurrent GET observes live generation under overwrite storm
+1 tests, 0 failures
+--- paired Store (full filter) ---
+[PASS] paired Store read-after-write and close drain
+[PASS] paired Store concurrent GET and PUT on one key stay linearized
+[PASS] paired Store concurrent read-after-write keeps adopted generations alive
+[PASS] paired Store concurrent GET observes live generation under overwrite storm
+[PASS] paired Store put_batch publishes once per shard and keeps RAW
+[PASS] paired Store put_batch preserves same-key FIFO within one batch
+[PASS] paired Store concurrent histories stay linearizable (seeded)
+[PASS] paired Store TTL put-get stays linearizable under fixed clock
+[PASS] paired Store close_drain_deadline_ms is honored when idle
+[PASS] paired Store close linearizes against late mutations
+10 tests, 0 failures

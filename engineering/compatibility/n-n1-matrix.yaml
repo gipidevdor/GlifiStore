@@ -1,0 +1,176 @@
+# N↔N-1 compatibility matrix (Phase D).
+# Authority for supported / intentionally rejected / not-promised combinations.
+# Validator: engineering/tools/validate_compat_matrix.py
+
+version: 1
+current_line: "0.1.x"
+persistence_format: 1
+wire_protocol: 2
+
+# Store open (durable data directory reopen / offline tools)
+store_open:
+  - id: STORE-SAME-LINE
+    writer: "0.1.x"
+    reader: "0.1.x"
+    status: supported
+    conditions:
+      - persistence_format_v1
+      - unchanged_worker_count
+    evidence:
+      - tests/fixtures/released/self-v1
+      - workflow: release-compat.yml
+    notes: Same-directory reopen across 0.1.x binaries that implement Manifest/Segment/Record v1.
+
+  - id: STORE-WORKER-RESHARD
+    writer: "0.1.x"
+    reader: "0.1.x"
+    status: supported_offline_only
+    conditions:
+      - offline_glifistore_migrate_store
+      - new_destination_directory
+    evidence:
+      - docs/adr/0024-offline-worker-migration.md
+      - tests/unit/store_migrate_tests.cpp
+    notes: Worker-count changes require offline migrate into a new Store; in-place reopen is refused.
+      Checkpoint resume and fail-closed mismatch/corrupt cases are covered in unit tests
+      (requirement GS-OPS-MIGRATE-001).
+
+  - id: STORE-PRE-V1
+    writer: "pre-v1"
+    reader: "0.1.x"
+    status: unsupported
+    notes: No legacy persistent format was released; pre-v1 artifacts are rejected.
+
+  - id: STORE-FUTURE-REQUIRED
+    writer: "future-required-version"
+    reader: "0.1.x"
+    status: intentionally_rejected
+    evidence:
+      - tests/unit/store_backup_tests.cpp
+    notes: Newer required format versions fail closed; no automatic downgrade rewrite.
+      Synthetic checksum-valid Manifest v2 and future pinned Record version refuse
+      verify/restore/open (HAZ-022).
+
+  - id: STORE-DOWNGRADE-REWRITE
+    writer: "0.1.x"
+    reader: "older-than-writer-required"
+    status: not_promised
+    notes: Downgrade export / salvage are separate operator workflows, not silent reopen.
+
+# Wire server ↔ client (native protocol)
+wire:
+  - id: WIRE-V2-SAME
+    server: "0.1.x"
+    client: "0.1.x"
+    status: supported
+    conditions:
+      - wire_protocol_v2
+    evidence:
+      - tests/fixtures/wire_requests_v2.hex
+      - tests/fixtures/wire_responses_v2.hex
+      - workflow: ci.yml
+    notes: Exact wire v2 only; unknown flags/reserved rejected. Every candidate packages a sealed
+      compiled v2 client; the release producer exercises new/new and both N-1 client/server directions.
+
+  - id: WIRE-V1-OR-UNKNOWN
+    server: "0.1.x"
+    client: "non-v2"
+    status: intentionally_rejected
+    notes: Non-v2 frames are rejected before service.
+
+  - id: WIRE-CROSS-MAJOR-FUTURE
+    server: "future-major"
+    client: "0.1.x"
+    status: not_promised
+    notes: Cross-major wire compatibility is not promised until an explicit matrix row and fixtures exist.
+
+# Stable C ABI and separately unstable installed C++ package
+abi:
+  - id: ABI-C1-CURRENT
+    producer: "C ABI 1.0"
+    consumer: "C ABI 1.0"
+    status: supported
+    conditions:
+      - same_supported_platform_architecture
+      - exact_abi_major_1
+    evidence:
+      - tests/abi/c_abi_tests.c
+      - tests/consumer/abi.c
+      - engineering/tools/check_abi_symbols.py
+    notes: Same-build proof exists; cross-release compatibility requires a retained tagged consumer.
+
+  - id: ABI-C1-N-MINUS-1
+    producer: "candidate C ABI 1.x library"
+    consumer: "prior tagged C ABI 1.x binary"
+    status: not_promised
+    notes: Policy requires compatibility. Every candidate now packages a compiled ABI-1 consumer;
+      the same-run producer requires a complete attested prior release and exercises both library directions.
+
+  - id: ABI-CPP-0X-NO-STABLE
+    status: not_promised
+    notes: The installed C++ ABI remains unstable before product 1.0; SemVer SameMinorVersion applies to the CMake package version file.
+
+released_fixture_policy:
+  artifact_schema: 2
+  in_tree_labels:
+    - self-v1
+  permanent_drop: tests/fixtures/released/<label>/
+  packaging_script: scripts/package-release-compatibility-artifacts.sh
+  ci_workflow: release-compat.yml
+  residual: >
+    Committing prior-release N-1 trees into the permanent fixture drop remains a
+    release-process step when tags exist; until then the matrix documents policy
+    and self-v1 / per-SHA CI packaging prove the harness.
+
+tagged_store_fixture_policy:
+  artifact_schema: 1
+  permanent_drop: tests/fixtures/released-stores/<semver>/
+  metadata_schema: engineering/schemas/persistent-store-fixture.schema.json
+  fixture_tool: engineering/tools/persistence_fixture.py
+  installed_harness: scripts/test-installed-persistence-compat.sh
+  release_workflow: release.yml
+  selection: newest-valid-tagged-release-strictly-older-than-candidate
+  residual: >
+    The artifact-only producer and fail-closed fixture format are implemented, but no prior tagged
+    complete Store exists yet. Codec vectors and a candidate-created self Store are never accepted
+    as N-1 persistence evidence.
+
+abi_artifact_policy:
+  fixture_schema: 1
+  metadata_schema: engineering/schemas/abi-consumer-fixture.schema.json
+  compiled_consumer_packager: scripts/package-abi-consumer.py
+  fixture_validator: engineering/tools/abi_consumer_fixture.py
+  prior_release_validator: engineering/tools/prior_release.py
+  installed_harness: scripts/test-installed-abi-compat.sh
+  release_workflow: release.yml
+  selection: newest-annotated-release-strictly-older-with-same-abi-major-then-require-complete-attested-assets
+  residual: >
+    The producer and future compiled-consumer asset are implemented, but no prior complete official
+    release exists. Same-build ABI tests (including the ci.yml install-consumer same-SHA scaffold)
+    do not satisfy either cross-release binary direction.
+
+wire_artifact_policy:
+  fixture_schema: 1
+  metadata_schema: engineering/schemas/wire-client-fixture.schema.json
+  compiled_client_packager: scripts/package-wire-client.py
+  fixture_validator: engineering/tools/wire_client_fixture.py
+  prior_release_validator: engineering/tools/prior_release.py
+  installed_harness: scripts/test-installed-wire-compat.sh
+  release_workflow: release.yml
+  selection: newest-annotated-release-strictly-older-with-same-abi-major-then-require-complete-attested-assets
+  directions:
+    - new-client-new-server
+    - old-client-new-server
+    - new-client-old-server
+  residual: >
+    The producer and future compiled-client asset are implemented, but no prior complete official
+    release exists. Local same-build execution validates the harness, not either N-1 direction.
+
+sdk_artifact_policy:
+  contract: engineering/compatibility/sdk-release-contract.json
+  generated_index: sdk-release-index.json
+  index_writer: engineering/tools/write_sdk_release_index.py
+  compatibility_evidence: not-inferred-from-index
+  residual: >
+    The index makes a prior release machine-selectable but does not prove old-client/new-server
+    behavior until at least one prior official SDK release exists and the cross-version matrix runs.

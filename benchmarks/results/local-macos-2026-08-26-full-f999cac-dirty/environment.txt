@@ -1,0 +1,54 @@
+generated_at=2026-08-26T15:47:41Z
+git_sha=f999cac7c526eb4e5b4a0283ec8c1d1db3e6ba86
+git_describe=f999cac-dirty
+branch=main
+tree_state=dirty-precommit
+status_porcelain_sha256=7fb502e2545815ba949dff27b1f83e6bb8729e727ef1a9994728eac30325c90b
+tracked_diff_sha256=752c4ea90e3b445a82ae8be4392b9460b2b5f7a732638e4b5e327ca1e3e971a1
+runner_os=macOS
+runner_arch=arm64
+kernel_release=25.6.0
+cpu_model=Apple M4
+physical_cpu_count=10
+logical_cpu_count=10
+memory_bytes=17179869184
+compiler_identity=Apple clang version 21.0.0 (clang-2100.1.1.101)
+cmake_version=cmake version 4.4.0
+ninja_version=1.13.0.git.kitware.jobserver-pipe-1
+build_preset=macos-release
+build_type=Release
+native_cpu=OFF
+lto=OFF
+affinity=macOS-advisory-none
+client_server_placement=same-process-shared-host
+thermal_note=no hardware thermal telemetry available; campaign serialized
+storage_note=durable temporary Stores on current APFS volume
+sampling=warmup-1-repeats-7 unless file metadata states otherwise
+Darwin iMacdiGIACOMO63.fritz.box 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64
+Now drawing from 'AC Power'
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                     4864.
+Pages active:                                 257615.
+Pages inactive:                               250650.
+Pages speculative:                              6255.
+Pages throttled:                                   0.
+Pages wired down:                             130824.
+Pages purgeable:                               16976.
+"Translation faults":                     1738742064.
+Pages copy-on-write:                        80802418.
+Pages zero filled:                        1110308697.
+Pages reactivated:                          69568189.
+Pages purged:                               14101754.
+File-backed pages:                            181008.
+Anonymous pages:                              333512.
+Pages stored in compressor:                   926523.
+Pages occupied by compressor:                 352318.
+Decompressions:                             47182191.
+Compressions:                               64341814.
+Pageins:                                    50889252.
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   460Gi   398Gi    39Gi    92%    3.1M  408M    1%   /System/Volumes/Data
+   File System Personality:   APFS
+   Protocol:                  Apple Fabric
+   Device Location:           Internal
+   Solid State:               Yes

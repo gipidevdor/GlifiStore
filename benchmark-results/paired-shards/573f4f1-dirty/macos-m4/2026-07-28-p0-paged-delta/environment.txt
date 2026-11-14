@@ -1,0 +1,15 @@
+run_date=2026-07-28
+timezone=Europe/Rome
+git_base_commit=573f4f1
+worktree=dirty-p0-paged-delta
+os=macOS 26.5.2 build 25F84
+hardware=Mac16,3 Apple M4
+physical_cpu=10
+logical_cpu=10
+memory_bytes=17179869184
+compiler=Apple clang 21.0.0 (clang-2100.1.1.101)
+build=Release -O3 -DNDEBUG -mcpu=native IPO
+cpu_affinity=not available; macOS scheduling advisory
+latency_sampling=one every 64 GET operations
+baseline=current Store::get_copy owning result
+candidate=paired StableRecord + paged persistent delta, span result

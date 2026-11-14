@@ -1,0 +1,86 @@
+# Rendered by engineering/tools/render_macos_packaging.py from
+# packaging/homebrew/glifistore.rb.in. VERSION is the single source of truth and
+# the release context supplies the source identity, so version, url and sha256
+# are never written here by hand.
+{{PROVENANCE}}
+class Glifistore < Formula
+  desc "Paired reader/writer key-value storage prototype"
+  homepage "https://github.com/gpicchiarelli/GlifiStore"
+  url "{{URL}}"
+  version "{{VERSION}}"
+  sha256 "{{SHA256}}"
+  license "BSD-3-Clause"
+{{REVISION_BLOCK}}
+  depends_on "cmake" => :build
+  depends_on "ninja" => :build
+  depends_on "pkgconf" => :build
+  depends_on "openssl@3"
+
+  def install
+    # A Homebrew build must resolve its dependencies inside the Homebrew prefix.
+    # Reaching into a MacPorts prefix is a packaging defect, so /opt/local is
+    # refused at configure time instead of being noticed after installation.
+    args = %W[
+      -DGLIFISTORE_ENABLE_TLS=ON
+      -DGLIFISTORE_BUILD_BENCHMARKS=OFF
+      -DGLIFISTORE_BUILD_FUZZERS=OFF
+      -DGLIFISTORE_FAULT_INJECTION=OFF
+      -DGLIFISTORE_NATIVE_CPU=OFF
+      -DGLIFISTORE_WARNINGS_AS_ERRORS=ON
+      -DOPENSSL_ROOT_DIR=#{Formula["openssl@3"].opt_prefix}
+      -DCMAKE_IGNORE_PATH=/opt/local;/opt/local/bin;/opt/local/lib
+      -DCMAKE_IGNORE_PREFIX_PATH=/opt/local
+    ]
+
+    system "cmake", "-S", ".", "-B", "build", "-G", "Ninja", *args, *std_cmake_args
+    system "cmake", "--build", "build"
+    system "cmake", "--install", "build"
+
+    # The CMake sample points inside the versioned keg; the packaged daemon must
+    # keep durable data outside the cellar so an upgrade never moves the Store.
+    pkgetc.install "build/glifistored.conf.sample"
+    inreplace pkgetc/"glifistored.conf.sample",
+              %r{^data-dir=.*$},
+              "data-dir=#{var}/glifistore"
+  end
+
+  def post_install
+    (var/"glifistore").mkpath
+    (var/"log").mkpath
+  end
+
+  service do
+    run [opt_bin/"glifistored", "--config", etc/"glifistore/glifistored.conf"]
+    working_dir var
+    log_path var/"log/glifistored.log"
+    error_log_path var/"log/glifistored.log"
+  end
+
+  def caveats
+    <<~EOS
+      GlifiStore is an architectural prototype, not production storage software.
+
+      Copy the sample configuration before the first start:
+        cp #{etc}/glifistore/glifistored.conf.sample #{etc}/glifistore/glifistored.conf
+
+      The daemon binds 127.0.0.1:7379 and keeps durable data in
+        #{var}/glifistore
+      which `brew uninstall` never removes.
+
+      Native packaging CI (`GLIFISTORE_PACKAGE_CI_NATIVE=1`) starts, health-checks
+      and stops this formula through `brew services`. Without that retained run,
+      service-lifecycle stays an open gate.
+    EOS
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/glifistored --version")
+
+    (testpath/"abi.c").write <<~C
+      #include <glifistore/abi/glifistore.h>
+      int main(void) { return 0; }
+    C
+    system ENV.cc, "abi.c", "-I#{include}", "-L#{lib}", "-lglifistore", "-o", "abi"
+    system "./abi"
+  end
+end

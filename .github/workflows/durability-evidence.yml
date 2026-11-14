@@ -1,0 +1,450 @@
+name: Durability evidence
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      e2_suite:
+        description: E2 collector suite (metadata or process-kill)
+        required: false
+        default: "metadata"
+        type: choice
+        options:
+          - metadata
+          - process-kill
+      e3_profile:
+        description: E3 block-reset harness profile
+        required: false
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - campaign
+      e3_repeat:
+        description: E3 per-checkpoint repetitions, 1..100 (harness / orchestrator)
+        required: false
+        default: "1"
+      e3_dm_fault_mode:
+        description: Linux dm-flakey down-interval behavior
+        required: false
+        default: "drop-writes"
+        type: choice
+        options:
+          - drop-writes
+          - error-writes
+          - all-io-error
+      run_campaign_orchestrator:
+        description: Also run E0→E3 campaign orchestrator rehearsal
+        required: false
+        default: false
+        type: boolean
+      random_campaign_iterations:
+        description: Hosted E2 random crash/reopen cases (1..512; local harness supports 10000)
+        required: false
+        default: "64"
+      random_campaign_seed:
+        description: Decimal uint64 seed (empty uses the GitHub run id)
+        required: false
+        default: ""
+  schedule:
+    # Weekly rehearsal; still not E3/E4 certification.
+    - cron: "41 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: durability-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  e2-collector:
+    name: E2 durability collector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y clang
+      - name: Configure and build crash harnesses
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug --target \
+            glifistore_crash_persistence \
+            glifistore_crash_daemon \
+            glifistored
+      - name: Resolve E2 suite
+        id: e2
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "suite=process-kill" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "suite=${{ inputs.e2_suite }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "suite=metadata" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Collect E2 evidence artifact
+        run: |
+          out="durability-evidence/e2-${{ github.run_id }}"
+          if [[ "${{ steps.e2.outputs.suite }}" == "process-kill" ]]; then
+            ./scripts/collect-durability-evidence.sh \
+              --output "$out" \
+              --build-dir build/unix-debug \
+              --probe-path "$PWD" \
+              --run process-kill \
+              --repeat 1
+          else
+            ./scripts/collect-durability-evidence.sh \
+              --output "$out" \
+              --probe-path "$PWD" \
+              --metadata-only
+          fi
+          # Hosted runners are not a pinned storage row; keep the summary honest.
+          # shellcheck disable=SC2016 # intentional literal backticks in expected summary text
+          grep -Fq 'Physical power loss exercised: `no`' "$out/summary.md"
+          # shellcheck disable=SC2016
+          grep -Fq 'Release-certification eligible: `no`' "$out/summary.md"
+      - name: Upload E2 artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: durability-e2-${{ github.run_id }}
+          path: durability-evidence/e2-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+
+  e3-linux-ext4-smoke:
+    name: E3 harness (linux-ext4 loopback)
+    runs-on: ubuntu-latest
+    needs: e2-collector
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build and block-device tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y clang e2fsprogs lvm2
+      - name: Configure and build crash persistence
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug --target glifistore_crash_persistence
+      - name: Resolve bounded E3 profile
+        id: e3
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_PROFILE: ${{ inputs.e3_profile }}
+          REQUESTED_REPEAT: ${{ inputs.e3_repeat }}
+          REQUESTED_FAULT_MODE: ${{ inputs.e3_dm_fault_mode }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$REQUESTED_REPEAT" =~ ^[1-9][0-9]*$ && "$REQUESTED_REPEAT" -le 100 ]] || {
+              echo "E3 repeat must be in 1..100 on hosted CI" >&2
+              exit 2
+            }
+            {
+              echo "profile=$REQUESTED_PROFILE"
+              echo "repeat=$REQUESTED_REPEAT"
+              echo "fault_modes=$REQUESTED_FAULT_MODE"
+            } >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT_NAME" == "schedule" ]]; then
+            # Weekly: equal total case budget across three bounded block-fault modes.
+            {
+              echo "profile=campaign"
+              echo "repeat=1"
+              echo "fault_modes=drop-writes error-writes all-io-error"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "profile=smoke"
+              echo "repeat=1"
+              echo "fault_modes=drop-writes"
+            } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run linux-ext4 block-reset harness
+        env:
+          E3_PROFILE: ${{ steps.e3.outputs.profile }}
+          E3_REPEAT: ${{ steps.e3.outputs.repeat }}
+          FAULT_MODES: ${{ steps.e3.outputs.fault_modes }}
+        run: |
+          for mode in $FAULT_MODES; do
+            [[ "$mode" == "drop-writes" || "$mode" == "error-writes" || "$mode" == "all-io-error" ]] || {
+              echo "unexpected dm-flakey mode: $mode" >&2
+              exit 2
+            }
+            out="durability-evidence/e3-linux-ext4-${mode}-${{ github.run_id }}"
+            ./scripts/run-e3-block-reset.sh \
+              --output "$out" \
+              --build-dir build/unix-debug \
+              --platform linux-ext4 \
+              --profile "$E3_PROFILE" \
+              --reset-mechanism dm-flakey \
+              --dm-fault-mode "$mode" \
+              --repeat "$E3_REPEAT"
+            ./scripts/assert-e3-rehearsal-honesty.sh --dir "$out" --kind harness
+          done
+      - name: Upload E3 harness artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: durability-e3-linux-ext4-${{ github.run_id }}
+          path: durability-evidence/e3-linux-ext4-*-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+
+  e2-random-crash-campaign:
+    name: E2 randomized crash/reopen campaign
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: e2-collector
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y clang
+      - name: Configure and build crash campaign
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug --target glifistore_crash_persistence
+      - name: Resolve bounded campaign parameters
+        id: campaign
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_ITERATIONS: ${{ inputs.random_campaign_iterations }}
+          REQUESTED_SEED: ${{ inputs.random_campaign_seed }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            iterations=256
+            seed="$RUN_ID"
+          else
+            iterations="$REQUESTED_ITERATIONS"
+            seed="$REQUESTED_SEED"
+            if [[ -z "$seed" ]]; then seed="$RUN_ID"; fi
+          fi
+          [[ "$iterations" =~ ^[1-9][0-9]*$ && "$iterations" -le 512 ]] || {
+            echo "iterations must be in 1..512 on hosted CI" >&2
+            exit 2
+          }
+          [[ "$seed" =~ ^[0-9]+$ ]] || {
+            echo "seed must be a decimal uint64" >&2
+            exit 2
+          }
+          if ! python -c 'import sys; raise SystemExit(int(sys.argv[1]) > (1 << 64) - 1)' "$seed"; then
+            echo "seed exceeds uint64" >&2
+            exit 2
+          fi
+          {
+            echo "iterations=$iterations"
+            echo "seed=$seed"
+          } >> "$GITHUB_OUTPUT"
+      - name: Run reproducible randomized campaign
+        run: |
+          out="durability-evidence/e2-random-${{ github.run_id }}"
+          ./scripts/collect-durability-evidence.sh \
+            --output "$out" \
+            --build-dir build/unix-debug \
+            --probe-path "$PWD" \
+            --run random-campaign \
+            --campaign-seed "${{ steps.campaign.outputs.seed }}" \
+            --iterations "${{ steps.campaign.outputs.iterations }}"
+          # shellcheck disable=SC2016 # intentional literal backticks in expected summary text
+          grep -Fq 'Attained evidence level: `E2`' "$out/summary.md"
+          # shellcheck disable=SC2016
+          grep -Fq 'Physical power loss exercised: `no`' "$out/summary.md"
+          # shellcheck disable=SC2016
+          grep -Fq 'Release-certification eligible: `no`' "$out/summary.md"
+      - name: Upload randomized E2 artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: durability-e2-random-${{ github.run_id }}
+          path: durability-evidence/e2-random-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+
+  e3-macos-apfs-smoke:
+    name: E3 harness (macos-apfs diskimage)
+    runs-on: macos-latest
+    # Keep macOS smoke on schedule/dispatch so PR CI stays lean; Linux loopback covers PR rehearsal.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build tools
+        run: python -m pip install --disable-pip-version-check cmake ninja
+      - name: Configure and build crash persistence
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug --target glifistore_crash_persistence
+      - name: Resolve macOS E3 profile
+        id: e3
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_PROFILE: ${{ inputs.e3_profile }}
+          REQUESTED_REPEAT: ${{ inputs.e3_repeat }}
+        run: |
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            {
+              echo "profile=campaign"
+              echo "repeat=2"
+            } >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$REQUESTED_REPEAT" =~ ^[1-9][0-9]*$ && "$REQUESTED_REPEAT" -le 100 ]] || {
+              echo "E3 repeat must be in 1..100 on hosted CI" >&2
+              exit 2
+            }
+            {
+              echo "profile=$REQUESTED_PROFILE"
+              echo "repeat=$REQUESTED_REPEAT"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "profile=smoke"
+              echo "repeat=1"
+            } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run macos-apfs block-reset harness
+        env:
+          E3_PROFILE: ${{ steps.e3.outputs.profile }}
+          E3_REPEAT: ${{ steps.e3.outputs.repeat }}
+        run: |
+          out="durability-evidence/e3-macos-apfs-${{ github.run_id }}"
+          ./scripts/run-e3-block-reset.sh \
+            --output "$out" \
+            --build-dir build/unix-debug \
+            --platform macos-apfs \
+            --profile "$E3_PROFILE" \
+            --reset-mechanism abrupt-detach \
+            --repeat "$E3_REPEAT"
+          ./scripts/assert-e3-rehearsal-honesty.sh --dir "$out" --kind harness
+      - name: Upload E3 macOS harness artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: durability-e3-macos-apfs-${{ github.run_id }}
+          path: durability-evidence/e3-macos-apfs-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 30
+
+  e3-campaign-orchestrator-rehearsal:
+    name: E3 campaign orchestrator rehearsal (hosted-ci)
+    runs-on: ubuntu-latest
+    # Full E0→E3 path is heavier; keep off PR smoke. Weekly + optional dispatch.
+    if: >
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_campaign_orchestrator)
+    needs: e2-collector
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build and block-device tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y clang e2fsprogs lvm2
+      - name: Configure and build campaign targets
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug --target \
+            glifistore_tests \
+            glifistore_allocation_fault_tests \
+            glifistore_crash_persistence \
+            glifistore_crash_daemon \
+            glifistored
+      - name: Resolve orchestrator rehearsal knobs
+        id: orch
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_PROFILE: ${{ inputs.e3_profile }}
+          REQUESTED_REPEAT: ${{ inputs.e3_repeat }}
+          REQUESTED_FAULT_MODE: ${{ inputs.e3_dm_fault_mode }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$REQUESTED_REPEAT" =~ ^[1-9][0-9]*$ && "$REQUESTED_REPEAT" -le 100 ]] || {
+              echo "E3 repeat must be in 1..100 on hosted CI" >&2
+              exit 2
+            }
+            {
+              echo "e3_profile=$REQUESTED_PROFILE"
+              echo "e3_repeat=$REQUESTED_REPEAT"
+              echo "dm_fault_mode=$REQUESTED_FAULT_MODE"
+            } >> "$GITHUB_OUTPUT"
+          else
+            # Weekly: smoke checkpoints through the orchestrator path (not promotion).
+            {
+              echo "e3_profile=smoke"
+              echo "e3_repeat=1"
+              echo "dm_fault_mode=drop-writes"
+            } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run E0→E3 campaign orchestrator (rehearsal pin)
+        env:
+          DM_FAULT_MODE: ${{ steps.orch.outputs.dm_fault_mode }}
+          E3_PROFILE: ${{ steps.orch.outputs.e3_profile }}
+          E3_REPEAT: ${{ steps.orch.outputs.e3_repeat }}
+        run: |
+          out="durability-evidence/e3-campaign-${{ github.run_id }}"
+          ./scripts/run-e3-campaign.sh \
+            --output "$out" \
+            --build-dir build/unix-debug \
+            --pin-label "gha-ubuntu-linux-ext4-${{ github.run_id }}" \
+            --hardware-class hosted-ci \
+            --fs-pin ext4 \
+            --guest-host-boundary loopback-image-on-hosted-ci \
+            --platform linux-ext4 \
+            --reset-mechanism auto \
+            --dm-fault-mode "$DM_FAULT_MODE" \
+            --e3-profile "$E3_PROFILE" \
+            --repeat "$E3_REPEAT" \
+            --e2-repeat 1 \
+            --probe-path "$PWD"
+          ./scripts/assert-e3-rehearsal-honesty.sh --dir "$out" --kind campaign
+          grep -q 'hardware_class=hosted-ci' "$out/campaign-provenance.txt"
+          grep -q 'promotion_candidate=no' "$out/campaign-provenance.txt"
+      - name: Upload campaign orchestrator artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: durability-e3-campaign-${{ github.run_id }}
+          path: |
+            durability-evidence/e3-campaign-${{ github.run_id }}
+            durability-evidence/e3-campaign-${{ github.run_id }}.tar.gz
+            durability-evidence/e3-campaign-${{ github.run_id }}.tar.gz.sha256
+          if-no-files-found: ignore
+          retention-days: 30

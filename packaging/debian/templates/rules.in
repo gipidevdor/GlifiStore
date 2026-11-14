@@ -1,0 +1,52 @@
+#!/usr/bin/make -f
+# GlifiStore Debian rules.
+#
+# Rendered from packaging/debian/templates/rules.in by
+# engineering/tools/render_package_metadata.py. No version appears here: the
+# generated debian/changelog is the only place the package version is written,
+# and it comes from the release context.
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CFLAGS_MAINT_APPEND = -fno-plt
+export DEB_CXXFLAGS_MAINT_APPEND = -fno-plt
+
+%:
+	dh $@ --buildsystem=cmake --builddirectory=obj-glifistore
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+		-DCMAKE_INSTALL_LIBDIR=lib \
+		-DBUILD_TESTING=OFF \
+		-DBUILD_SHARED_LIBS=OFF \
+		-DGLIFISTORE_ENABLE_TLS=ON \
+		-DGLIFISTORE_BUILD_BENCHMARKS=OFF \
+		-DGLIFISTORE_BUILD_FUZZERS=OFF \
+		-DGLIFISTORE_FAULT_INJECTION=OFF \
+		-DGLIFISTORE_NATIVE_CPU=OFF
+
+# Do not pass a Ninja generator here: dh_auto_configure already selects
+# "Unix Makefiles", and a second generator makes configure emit build.ninja
+# while dh_auto_build still runs make.
+
+# CMAKE_INSTALL_LIBDIR is forced to a non-multiarch lib on purpose: the installed
+# glifistore-abi.pc computes its prefix as $${pcfiledir}/../.., which a
+# multiarch libdir would resolve to /usr/lib instead of /usr. Making the
+# pkg-config prefix multiarch-aware is an upstream change, not a packaging one.
+
+# The upstream test suite covers the build tree. The packaging lifecycle proves
+# the installed artifacts instead, so building tests here would only slow the
+# package build down without adding packaging evidence.
+override_dh_auto_test:
+
+override_dh_auto_install:
+	dh_auto_install
+	install -d 'debian/tmp@SYSCONFDIR@/glifistore'
+	install -m 0644 'debian/tmp@DATADIR@/GlifiStore/examples/glifistored.conf.sample' \
+		'debian/tmp@CONFIG_FILE@'
+
+# The daemon is installed disabled. Enabling a storage daemon that binds a port
+# and owns durable data is an operator decision, and the packaging lifecycle
+# check enables it explicitly.
+override_dh_installsystemd:
+	dh_installsystemd --name=glifistored --no-enable --no-start

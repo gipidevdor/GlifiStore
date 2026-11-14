@@ -1,0 +1,3 @@
+case=maintenance-mixed-background-reclaim-value-65536
+result=stable-useful-compaction-validation-rejected
+replacement=canonical-reclaim-value-262144

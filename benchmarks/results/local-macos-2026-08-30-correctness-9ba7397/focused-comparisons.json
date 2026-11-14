@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "current_commit": "9ba73973dc67b92dd9b33ca7f0eb726469c161b9",
+  "baseline_commit": "b971a157b420f8a850730ac6137560c1614c4dc7",
+  "method": "three interleaved A/B rounds; each result is a median of the benchmark's internal samples",
+  "canonical_candidates": [
+    {
+      "case": "store_parallel_read_after_write_copy/w2/owner-bound",
+      "current_median_of_medians_ops_per_second": 1314400.0,
+      "baseline_median_of_medians_ops_per_second": 1355110.0,
+      "delta_percent": -3.0041841621713417,
+      "per_round_delta_percent": [-3.0041841621713417, 10.318928455200993, -5.28738553646948],
+      "reproduced": false
+    },
+    {
+      "case": "server_tcp_get_only_durable-periodic/w4/c4/p32",
+      "current_median_of_medians_ops_per_second": 94825.7,
+      "baseline_median_of_medians_ops_per_second": 99463.7,
+      "delta_percent": -4.663007710350609,
+      "per_round_delta_percent": [-0.3072948268775355, -4.663007710350609, 0.6804266424357941],
+      "current_median_of_medians_p99_ns": 2133080.0,
+      "baseline_median_of_medians_p99_ns": 3800170.0,
+      "reproduced": false
+    },
+    {
+      "case": "store_durable_periodic_read_after_write_copy",
+      "current_median_of_medians_ops_per_second": 14459.8,
+      "baseline_median_of_medians_ops_per_second": 15084.2,
+      "delta_percent": -4.139430662547571,
+      "per_round_delta_percent": [-4.139430662547571, -2.318744860363775, 4.9311228669741025],
+      "reproduced": false
+    }
+  ],
+  "specialized_diagnostics": [
+    {
+      "case": "compaction/high-reclaim",
+      "current_median_of_medians_compact_ms": 187.085917,
+      "baseline_median_of_medians_compact_ms": 128.943208,
+      "elapsed_delta_percent": 45.09171898375601,
+      "per_round_elapsed_delta_percent": [-0.9153724676666086, 59.02139800957953, 9.487323737596887],
+      "assessment": "unresolved host-I/O signal: the slowdown tracks the independent seed phase and round one is equal"
+    }
+  ]
+}

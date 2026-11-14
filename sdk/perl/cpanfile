@@ -1,0 +1,18 @@
+requires 'perl', '5.032';
+requires 'Errno';
+requires 'Exporter';
+requires 'IO::Select';
+requires 'IO::Socket::INET';
+requires 'Socket';
+requires 'Time::HiRes';
+
+on test => sub {
+    requires 'Test::More', '0.98';
+    requires 'FindBin';
+    requires 'POSIX';
+};
+
+on develop => sub {
+    requires 'Perl::Critic', '1.140';
+    requires 'Perl::Tidy';
+};

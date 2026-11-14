@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/artifact-manifest-v1.json",
+  "title": "GlifiStore packaging artifact graph",
+  "description": "Identity graph for artifacts produced by packaging CI: every artifact is bound to the sealed parent source archive it was derived from. This manifest accompanies release-manifest.schema.json (the release bundle authority) and does not replace it. Produced by engineering/tools/generate_artifact_manifest.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "product_version", "package_revision", "git_sha", "profile", "parent_source", "artifacts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "product_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"},
+    "package_revision": {"type": "integer", "minimum": 0},
+    "git_sha": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "profile": {"enum": ["pr", "main", "nightly", "release"]},
+    "parent_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "backend", "platform", "arch", "name", "sha256", "size", "parent_source_sha256", "lifecycle_state"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+          "kind": {"enum": ["deb", "evidence", "freebsd_pkg", "homebrew_formula", "macports_port", "openbsd_tgz", "rpm", "sbom", "signature", "source", "tarball"]},
+          "backend": {"type": ["string", "null"], "enum": ["deb", "freebsd", "homebrew", "macports", "openbsd", "rpm", null]},
+          "platform": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+          "arch": {"enum": ["amd64", "arm64", "noarch"]},
+          "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size": {"type": "integer", "minimum": 0},
+          "parent_source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "lifecycle_state": {"enum": ["NONE", "STRUCTURAL", "BUILT", "INSTALLED", "FUNCTIONALLY_VERIFIED", "LIFECYCLE_VERIFIED", "UPGRADE_VERIFIED", "RELEASE_ADMITTED"]}
+        }
+      }
+    }
+  }
+}

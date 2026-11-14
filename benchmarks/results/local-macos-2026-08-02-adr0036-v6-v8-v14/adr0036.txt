@@ -1,0 +1,8 @@
+[PASS] ADR 0036 V1 prototype: adopt publishes one immutable generation atomically
+[PASS] ADR 0036 V3 prototype: pinned generation bytes survive publish and retire races
+[PASS] ADR 0036 V9 prototype: slot-pool starvation increments publication backpressure
+[PASS] ADR 0036 V6 prototype: rejected publication never makes mutations visible
+[PASS] ADR 0036 V2 prototype: reclaim never frees a pinned or pre-quiescent generation
+[PASS] ADR 0036 V7 prototype: delta merge under pin slot pressure keeps committed keys
+[PASS] ADR 0036 V13 prototype: pin adopt merge reclaim stress
+7 tests, 0 failures

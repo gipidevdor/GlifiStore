@@ -1,0 +1,8 @@
+@SOURCE_PACKAGE@ (@DEB_PACKAGE_VERSION@) unstable; urgency=medium
+
+  * GlifiStore @PRODUCT_VERSION@ packaged from commit @GIT_COMMIT_SHORT@.
+    Version and Debian revision are derived from the VERSION authority and the
+    packaging-only package_revision in the release context; this entry is
+    generated, never hand-edited.
+
+ -- @MAINTAINER@  @DEB_CHANGELOG_DATE@

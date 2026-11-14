@@ -1,0 +1,4 @@
+# crash storage=group scenario=put boundary=write_record
+# crash storage=group scenario=put boundary=sync_record
+# crash storage=group scenario=put boundary=write_commit_slot
+# crash storage=group scenario=put boundary=sync_commit_slot

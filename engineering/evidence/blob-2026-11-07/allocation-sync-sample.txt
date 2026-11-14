@@ -1,0 +1,56 @@
+Analysis of sampling glifistore_allocation_fault_tests (pid 98419) every 1 millisecond
+Process:         glifistore_allocation_fault_tests [98419]
+Path:            /Users/USER/Documents/*/glifistore_allocation_fault_tests
+Load Address:    0x1021ac000
+Identifier:      glifistore_allocation_fault_tests
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  ctest [98410]
+Target Type:     live task
+
+Date/Time:       2026-11-07 18:05:57.658 +0100
+Launch Time:     2026-11-07 18:05:06.766 +0100
+OS Version:      macOS 27.2 (26B123)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         2432K
+Physical footprint (peak):  9440K
+Idle exit:                  untracked
+----
+
+Call graph:
+    92 Thread_8052254   DispatchQueue_1: com.apple.main-thread  (serial)
+      92 start  (in dyld) + 6652  [0x18dd94d7c]
+        92 main  (in glifistore_allocation_fault_tests) + 36  [0x1021eb238]  allocation_fault_main.cpp:73
+          92 allocation_fault_test::run_all_tests()  (in glifistore_allocation_fault_tests) + 952  [0x1021eafc8]  allocation_fault_main.cpp:39
+            92 allocation_fault_test::run_exhaustive_compaction_allocation_failures()  (in glifistore_allocation_fault_tests) + 104  [0x1021b3704]  allocation_fault_core_tests.cpp:234
+              91 allocation_fault_test::initialize_compaction_store(std::__fs::filesystem::path const&)  (in glifistore_allocation_fault_tests) + 60  [0x1021b3c4c]  allocation_fault_test_support.hpp:172
+              + 91 allocation_fault_test::initialize_store(std::__fs::filesystem::path const&, bool)  (in glifistore_allocation_fault_tests) + 632  [0x1021afadc]  allocation_fault_test_support.hpp:142
+              +   90 glifistore::Store::open(glifistore::StoreConfig const&)  (in glifistore_allocation_fault_tests) + 7020  [0x10246f4e4]  store.cpp:174
+              +   ! 90 glifistore::prepare_durable_store(glifistore::DataDirectory&, glifistore::DurableOpenMode, unsigned long, std::optional<unsigned long>, glifistore::DurableResourceLimits const&, glifistore::WorkerRoutingConfig const&, bool)  (in glifistore_allocation_fault_tests) + 3668  [0x102304a00]  bootstrap.cpp:284
+              +   !   90 glifistore::(anonymous namespace)::complete_bootstrap(glifistore::DataDirectory&, glifistore::Manifest const&, std::optional<unsigned long>, glifistore::DurableResourceLimits const&, glifistore::WorkerRoutingConfig const&)  (in glifistore_allocation_fault_tests) + 3716  [0x1023059ac]  bootstrap.cpp:202
+              +   !     90 glifistore::DataDirectory::finish_bootstrap()  (in glifistore_allocation_fault_tests) + 832  [0x102331788]  filesystem_directory.cpp:389
+              +   !       90 glifistore::DataDirectory::sync_directory() const  (in glifistore_allocation_fault_tests) + 36  [0x10232e1dc]  filesystem_directory.cpp:157
+              +   !         90 glifistore::FileDescriptor::sync(glifistore::FileSyncMode) const  (in glifistore_allocation_fault_tests) + 164  [0x10232c538]  filesystem.cpp:138
+              +   !           90 fcntl  (in libsystem_kernel.dylib) + 88  [0x18de24758]
+              +   !             90 __fcntl  (in libsystem_kernel.dylib) + 8  [0x18de248b8]
+              +   1 glifistore::Store::open(glifistore::StoreConfig const&)  (in glifistore_allocation_fault_tests) + 8860  [0x10246fc14]  store.cpp:214
+              +     1 glifistore::DurableRuntimeCatalog::open_locked(glifistore::DataDirectory, unsigned long long, glifistore::DurableRuntimeOptions)  (in glifistore_allocation_fault_tests) + 1388  [0x1023666b4]  runtime_catalog.cpp:348
+              +       1 glifistore::recover_durable_state(glifistore::DataDirectory&, unsigned long long, glifistore::DurableResourceLimits const&, glifistore::DurableCompactionIntent const*)  (in glifistore_allocation_fault_tests) + 100  [0x10234d2bc]  recovery.cpp:66
+              +         1 glifistore::recovery::load_recovery_catalog(glifistore::DataDirectory&, glifistore::DurableResourceLimits const&, glifistore::DurableCompactionIntent const*, glifistore::recovery::RecoveryMemoryBudget&)  (in glifistore_allocation_fault_tests) + 1956  [0x1023577a8]  recovery_catalog.cpp:35
+              +           1 glifistore::audit_data_directory(glifistore::DataDirectory&, glifistore::Manifest const&)  (in glifistore_allocation_fault_tests) + 768  [0x10233cf94]  namespace_audit.cpp:180
+              1 allocation_fault_test::initialize_compaction_store(std::__fs::filesystem::path const&)  (in glifistore_allocation_fault_tests) + 616  [0x1021b3e78]  allocation_fault_test_support.hpp:189
+                1 allocation_fault_test::append_compaction_record(glifistore::DurableSegmentFile&, unsigned long long, std::basic_string_view<char>, std::basic_string_view<char>)  (in glifistore_allocation_fault_tests) + 340  [0x1021c0d00]  allocation_fault_test_support.hpp:168
+                  1 glifistore::DurableSegmentFile::append(std::span<std::byte const, 18446744073709551615ul>, glifistore::SegmentCommitSync)  (in glifistore_allocation_fault_tests) + 164  [0x1023c1814]  segment_file_io.cpp:215
+                    1 glifistore::DurableSegmentFile::flush_pending_commit(glifistore::SegmentCommitSync)  (in glifistore_allocation_fault_tests) + 340  [0x1023c160c]  segment_file_io.cpp:198
+                      1 glifistore::FileDescriptor::sync(glifistore::FileSyncMode) const  (in glifistore_allocation_fault_tests) + 164  [0x10232c538]  filesystem.cpp:138
+                        1 fcntl  (in libsystem_kernel.dylib) + 88  [0x18de24758]
+                          1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x18de248b8]
+
+Total number in stack (recursive counted multiple, when >=5):
+
+Sort by top of stack, same collapsed (when >= 5):
+        __fcntl  (in libsystem_kernel.dylib)        91
+

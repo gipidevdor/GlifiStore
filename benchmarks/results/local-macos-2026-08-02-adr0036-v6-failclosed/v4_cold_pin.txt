@@ -1,0 +1,2 @@
+[PASS] durable cold read pin survives concurrent source retirement and relinearizes
+1 tests, 0 failures

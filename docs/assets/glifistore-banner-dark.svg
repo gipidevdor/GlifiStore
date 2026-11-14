@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-labelledby="title desc">
+  <title id="title">GlifiStore</title>
+  <desc id="desc">The GlifiStore mark beside the wordmark and a strip of three immutable Segments holding one copper Record.</desc>
+  <defs>
+    <linearGradient id="mark-bg" x1="0" y1="1024" x2="1024" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#050B1B"/>
+      <stop offset="0.58" stop-color="#091A3A"/>
+      <stop offset="1" stop-color="#123367"/>
+    </linearGradient>
+    <clipPath id="mark-clip"><rect width="1024" height="1024" rx="230"/></clipPath>
+  </defs>
+  <g transform="translate(64 46) scale(0.203125)" clip-path="url(#mark-clip)">
+    <rect width="1024" height="1024" fill="url(#mark-bg)"/>
+    <g fill="none" stroke="#6EA5D8" stroke-width="132">
+      <path d="M338 305 A270 270 0 0 1 703 321"/>
+      <path d="M604 766 A270 270 0 0 1 278 377"/>
+      <path d="M620 512 H782 A270 270 0 0 1 667 733"/>
+    </g>
+    <rect x="460" y="460" width="104" height="104" rx="10" fill="#D9922E"/>
+  </g>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif">
+    <text x="324" y="128" font-size="76" font-weight="650" letter-spacing="-1.5" fill="#E8EEF7">GlifiStore</text>
+    <text x="326" y="178" font-size="25" font-weight="400" fill="#9FB3CF">Segmented · log-indexed · memory-first key-value engine in C++23</text>
+  </g>
+  <g>
+    <rect x="324" y="214" width="186" height="32" rx="6" fill="#16294A"/>
+    <rect x="332" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.35"/>
+    <rect x="354" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.59"/>
+    <rect x="376" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.83"/>
+    <rect x="398" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.43"/>
+    <rect x="420" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.67"/>
+    <rect x="442" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.91"/>
+    <rect x="464" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.51"/>
+    <rect x="486" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.75"/>
+    <rect x="530" y="214" width="186" height="32" rx="6" fill="#16294A"/>
+    <rect x="538" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.75"/>
+    <rect x="560" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.35"/>
+    <rect x="582" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.59"/>
+    <rect x="604" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.83"/>
+    <rect x="626" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.43"/>
+    <rect x="648" y="222" width="16" height="16" rx="3" fill="#D9922E" fill-opacity="1"/>
+    <rect x="670" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.91"/>
+    <rect x="692" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.51"/>
+    <rect x="736" y="214" width="186" height="32" rx="6" fill="#16294A"/>
+    <rect x="744" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.51"/>
+    <rect x="766" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.75"/>
+    <rect x="788" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.35"/>
+    <rect x="810" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.59"/>
+    <rect x="832" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.83"/>
+    <rect x="854" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.43"/>
+    <rect x="876" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.67"/>
+    <rect x="898" y="222" width="16" height="16" rx="3" fill="#6EA5D8" fill-opacity="0.91"/>
+  </g>
+</svg>

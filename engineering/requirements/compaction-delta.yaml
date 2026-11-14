@@ -1,0 +1,55 @@
+requirements:
+- id: GS-PERSIST-DELTA-001
+  titolo: Concurrent Index reconciliation for durable sealed-prefix compaction
+  categoria: persistence
+  criticita: critica
+  stato: implementato
+  descrizione: >-
+    Compaction replaces the oldest sealed prefix of one Worker (ADR 0044). After the next Manifest
+    is durable, a quiesced, allocation-free conditional remap retargets each Index entry that still
+    names its source Record and leaves entries superseded during the build untouched, so no
+    foreground rate can abort the transaction. Unrelated rotations rebase the exact intent instead
+    of aborting it. Latest values, erases and exact live counters are preserved; changed source
+    identities or pending groups abort safely. Persistence v1 authority, acknowledgement, Reader pin
+    lifetime and recovery ordering remain unchanged.
+  autorita:
+  - docs/adr/0044-bounded-prefix-compaction-remap.md
+  - docs/architecture/durable-compaction.md
+  - docs/architecture/durable-compaction-model.md
+  implementazione:
+  - src/persistence/compaction/planner.cpp
+  - src/persistence/compaction/manifest_transition.cpp
+  - src/persistence/compaction_builder.cpp
+  - src/persistence/runtime_catalog_compact.cpp
+  - src/index/swiss_table.cpp
+  - src/store/maintenance_evaluate.cpp
+  - benchmarks/maintenance_benchmark.cpp
+  prove:
+  - tests/integration/persistence_compaction_remap_tests.cpp
+  - tests/integration/persistence_compaction_prefix_tests.cpp
+  - tests/integration/compaction_recovery_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/unit/compaction_tests.cpp
+  - tests/unit/compaction_prefix_tests.cpp
+  - tests/unit/compaction_model_tests.cpp
+  - tests/integration/persistence_compaction_model_tests.cpp
+  - tests/unit/compaction_intent_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/persistence_recovery_compaction_writer_hot_path_tests.cpp
+  - tests/unit/resource_limits_tests.cpp
+  - tests/quality/allocation_fault_compaction_remap_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/compaction-delta-local-2026-11-07.md
+    note: Isolated persistence-v1 macOS prototype campaign; native, sanitizers, allocation and process-kill controls
+  rischio_residuo:
+  - Initial full Index enumeration is O(N) under synchronization
+  - Cold live data at the head of the history is re-copied before newer dead space (prefix head-of-line)
+  - Records superseded during the build are written once more as dead output bytes
+  - Global intent through cleanup lease and platform filesystem latency remain
+  - No transactional snapshot API, range compaction or E3/E4 certification
+  hazards: [HAZ-040]
+  gates: [GATE-COMPACTION-DELTA]

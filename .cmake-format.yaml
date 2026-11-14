@@ -1,0 +1,6 @@
+line_width: 110
+tab_size: 4
+separate_ctrl_name_with_space: false
+separate_fn_name_with_space: false
+enable_sort: true
+dangle_parens: true

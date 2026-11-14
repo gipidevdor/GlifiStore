@@ -1,0 +1,24 @@
+# paired Reactor TCP A/B
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=1
+# benchmark_repeats=5
+# note=use plugged-in power; thermal throttling affects spread
+# ops=100000 keys=4096 value_bytes=64 pipeline=128 clients=1 put_percent=1 batch_wait_us=2
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,1.32844e+06,85.541,208.625,269.334,6336000
+sample,current,0,1.16201e+06,100.208,200.083,249.667,6336000
+sample,current,1,1.19235e+06,99.334,219.958,293.666,6336000
+sample,paired,1,1.32807e+06,85.291,202.625,321.375,6336000
+sample,paired,2,1.34317e+06,85.084,200.334,266.291,6336000
+sample,current,2,1.18181e+06,99.875,209.125,289,6336000
+sample,current,3,1.26228e+06,92.042,217.917,271,6336000
+sample,paired,3,1.18777e+06,89,236.208,309.959,6336000
+sample,paired,4,1.24497e+06,86.208,254.792,302.625,6336000
+sample,current,4,1.18056e+06,97.5,212.167,259.417,6336000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,1.18181e+06,212.167,271
+summary,paired,1.32807e+06,208.625,302.625
+telemetry,writev_calls,20598,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,6000,measured_publication_records,6000,average_publication_batch,1,maximum_writer_batch,1,generation_output_pin_high_watermark,0,publication_backpressure,0

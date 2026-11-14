@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/persistent-store-fixture.schema.json",
+  "title": "GlifiStore tagged durable Store fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "baseline_kind",
+    "label",
+    "product_version",
+    "tag",
+    "git_sha",
+    "producer_artifact_sha256",
+    "persistence_format",
+    "worker_count",
+    "key_hex",
+    "value_hex",
+    "store_directory",
+    "packaged_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "baseline_kind": { "const": "tagged-release" },
+    "label": { "type": "string", "pattern": "^[0-9][0-9A-Za-z._+-]*$" },
+    "product_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "tag": { "type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "producer_artifact_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "persistence_format": { "const": 1 },
+    "worker_count": { "type": "integer", "minimum": 1, "maximum": 256 },
+    "key_hex": { "type": "string", "pattern": "^(?:[0-9a-f]{2})+$", "maxLength": 4194304 },
+    "value_hex": { "type": "string", "pattern": "^(?:[0-9a-f]{2})+$", "maxLength": 8388608 },
+    "store_directory": { "const": "store" },
+    "packaged_at": { "type": "string", "format": "date-time" }
+  }
+}

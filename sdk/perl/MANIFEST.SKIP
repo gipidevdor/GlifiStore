@@ -1,0 +1,40 @@
+# Avoid version control files.
+\bRCS\b
+\bCVS\b
+\bSCCS\b
+,v$
+\B\.svn\b
+\B\.git\b
+\B\.gitignore\b
+\b_darcs\b
+\B\.cvsignore$
+
+# Avoid Makemaker generated and utility files.
+^Makefile$
+^Makefile\.old$
+^blib/
+^MakeMaker-\d
+^pm_to_blib
+^blibdirs
+MYMETA\..*$
+
+# Avoid Module::Build generated and utility files.
+^Build$
+^_build/
+^Build.bat$
+
+# Avoid Devel::Cover related files
+^cover_db/
+
+# Avoid temp and OS junk.
+~$
+\.bak$
+\.old$
+\.orig$
+\.tmp$
+\.sw[a-z]$
+\.DS_Store$
+
+# Local packaging output.
+^GlifiStore-[\d\._]+
+\.tar\.gz$

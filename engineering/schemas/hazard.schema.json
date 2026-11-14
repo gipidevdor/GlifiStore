@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.local/schemas/hazard.schema.json",
+  "title": "GlifiStore hazard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "evento_pericoloso",
+    "cause",
+    "conseguenze",
+    "severita",
+    "probabilita",
+    "rilevabilita",
+    "prevenzione",
+    "contenimento",
+    "prove",
+    "rischio_residuo",
+    "stato",
+    "accettazione_rischio",
+    "requisiti"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^HAZ-[0-9]{3}$"
+    },
+    "evento_pericoloso": { "type": "string", "minLength": 1 },
+    "cause": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "conseguenze": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "severita": {
+      "type": "string",
+      "enum": ["catastrofica", "alta", "media", "bassa"]
+    },
+    "probabilita": {
+      "type": "string",
+      "enum": ["alta", "media", "bassa", "remota"]
+    },
+    "rilevabilita": {
+      "type": "string",
+      "enum": ["alta", "media", "bassa"]
+    },
+    "prevenzione": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "contenimento": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "prove": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "rischio_residuo": { "type": "string", "minLength": 1 },
+    "stato": {
+      "type": "string",
+      "enum": ["aperto", "mitigato", "accettato", "chiuso"]
+    },
+    "accettazione_rischio": { "type": "string", "minLength": 1 },
+    "requisiti": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GS-[A-Z]+-[A-Z0-9]+-[0-9]{3}$" },
+      "minItems": 1
+    }
+  }
+}

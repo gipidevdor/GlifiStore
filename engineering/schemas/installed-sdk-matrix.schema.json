@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/installed-sdk-matrix-v1.json",
+  "title": "GlifiStore cross-SDK post-install matrix report",
+  "description": "Result of scripts/test-package-installed-sdk-matrix.sh. The report may only claim PASS when the daemon under test was owned by an installed package: a daemon taken from the build tree is reported NOT_RUN or BLOCKED, never PASS.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "result", "package_installed", "daemon", "prefix", "file_list", "languages", "reason"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "result": {"enum": ["PASS", "FAIL", "NOT_RUN", "BLOCKED"]},
+    "package_installed": {
+      "description": "True only when the daemon path was proven to belong to the file inventory the package manager owns.",
+      "type": "boolean"
+    },
+    "daemon": {"type": ["string", "null"], "minLength": 1},
+    "prefix": {"type": ["string", "null"], "minLength": 1},
+    "file_list": {"type": ["string", "null"], "minLength": 1},
+    "languages": {
+      "type": "array",
+      "items": {"enum": ["cpp", "python", "go", "perl", "ruby", "erlang"]},
+      "uniqueItems": true
+    },
+    "reason": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "PASS"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "package_installed": {"const": true},
+          "daemon": {"type": "string"},
+          "file_list": {"type": "string"},
+          "languages": {"minItems": 6}
+        }
+      }
+    }
+  ]
+}

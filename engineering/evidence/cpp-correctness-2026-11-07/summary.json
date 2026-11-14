@@ -1,0 +1,60 @@
+{
+  "evidence_class": "local",
+  "base_revision": "62d87cda086f06b4a11bfaf197cad13bae9ad2ae",
+  "date": "2026-11-07",
+  "host": "macOS-27.2-arm64-arm-64bit",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "debug_tests": {
+    "passed": 746,
+    "failed": 0
+  },
+  "asan_ubsan_tests": {
+    "passed": 746,
+    "failed": 0,
+    "ctest_targets_passed": 5
+  },
+  "clang_tidy": {
+    "version": "22.1.8",
+    "production_sources": 111,
+    "failed": 0
+  },
+  "source_sha256": {
+    "include/glifistore/store/value.hpp": "f1c10b9cbc23243c40ba1c3f7fc2569ecdc1e99c3c1a43f85b3bd197d4255f1f",
+    "src/client/client.cpp": "0a3cab2e9e054976e66d50a65b5d840bc6ff2e2b492044a8b8b7c8afcceff7c4",
+    "src/client/client_detail.hpp": "10e9d7b33727f3a783e00bec823decf9a456e363a2c8ea61c296fab065279ce0",
+    "src/store/paired/lane_publication.cpp": "41ed4a4d0340db2ca7c33cbcaea01217f7b135b6ae8b13befa85a7e7b7f5166d",
+    "src/store/paired/shard_pair_runtime_impl.hpp": "13ee4d3b7d6d077ff60b592296d5f3dd8370535581c68c708558a5fca7e2d851",
+    "src/store/prepared_cold_read.cpp": "71810847b1206a61fc9a63b4aff59884318a69171a48b7a4ee138ec8978e4814",
+    "tests/CMakeLists.txt": "b43897abd5e7916579d1e66b8606d02056a2192c062be352957e684ed140c041",
+    "tests/unit/value_tests.cpp": "349d43b6b077b2d6f29e17c3c745e33b21167c014d33837ac08bdf9bb4bf73ac",
+    "tests/unit/client_transport_tests.cpp": "faf512d5f7335938ef7109c354908fb159d9451722d36f98dc9e72bc6f7917b7",
+    "tests/unit/prepared_read_tests.cpp": "cd07c15ff7fd685196ff622de3576ffb0024e5d117505773caae555d872681fc",
+    "tests/quality/allocation_fault_client_tests.cpp": "d37217bce29402897e39832cf8b071b7dda071988a21044ccbf150174a2a719b",
+    "tests/quality/allocation_fault_harness.cpp": "f71d2a7d28a4f09a5e6f118c95383221732da15481b9a9d29032b4af28d5b9db",
+    "tests/quality/allocation_fault_harness.hpp": "cdc633dcfd58b5b405d491cd7b954ca53f9df03b0027c10566776bb88b04e490",
+    "tests/quality/allocation_fault_tests_decl.hpp": "cf5ed1f0b34a42baac4935f7a9d6e5982e5c5a9994d211b253380b60387e5725",
+    "tests/quality/allocation_fault_main.cpp": "93db2bb3732bf0facc395869ed6bb70dda60ba583516750b59282ef15e73547c"
+  },
+  "logs_sha256": {
+    "debug-tests.log": "b19dad490c4ef30f47c663de9f3ed59555453ad39213a59cd15be6e01a8e36b5",
+    "debug-allocation.log": "122bf063597131a6d077a56c6b439f8d49d0300f95a468d1484fadf7aabd666e",
+    "asan-ctest.log": "c83d0a85b76b495fb21d0dc6a85d12e20ee60e7214f3293038eb209f4422d6e0",
+    "asan-tests.log": "5dbc510234d9087ba37f5334e535f7e42b80ac2c2e3c27a2ff16fe661edaa00b",
+    "clang-tidy.log": "6a53e2249f95faba1b58bba6c934d335481ca77f0c360200e1c1f437e18648e5",
+    "validators.log": "ddf35bcc5dcedef3e2bbc2e037725141a9b3f0de96fbc8624832db94a9c99d2d"
+  },
+  "limitations": [
+    "macOS ARM64 only",
+    "TSan not run",
+    "LeakSanitizer unsupported on host",
+    "No CI, release or durability certification"
+  ],
+  "validation": {
+    "assurance": "passed",
+    "structure": "passed",
+    "documentation": "passed",
+    "new_campaign_document_links": "passed",
+    "formatting": "passed",
+    "diff_whitespace": "passed"
+  }
+}

@@ -1,0 +1,50 @@
+name: Actionlint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/actionlint*"
+      - ".github/actionlint.yaml"
+      - ".github/dependabot.yml"
+      - "engineering/tools/validate_actions_pins.py"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actionlint*"
+      - ".github/actionlint.yaml"
+      - ".github/dependabot.yml"
+      - "engineering/tools/validate_actions_pins.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: Lint workflow YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          sudo install -m 0755 actionlint /usr/local/bin/actionlint
+          actionlint -version
+      - name: Run actionlint
+        run: actionlint -color
+      - name: Validate Actions SHA pins
+        run: python3 engineering/tools/validate_actions_pins.py

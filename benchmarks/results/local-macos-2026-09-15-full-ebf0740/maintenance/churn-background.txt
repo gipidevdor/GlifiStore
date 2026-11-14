@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=0
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=churn
+# threads=4;operations=8192;keys=128;value_bytes=32768;reclaim_value_bytes=262144;put_percent=100;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,generation_backpressure_retries,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_no_gain_scans_suppressed,maintenance_no_gain_retry_after_ns,maintenance_pacing_delay_ms,maintenance_pacing_sleep_count,maintenance_pacing_burst_bytes,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after
+background,1,8192,0,8192,0,2.328916,3517.516932,173.541000,2167.834000,4388.750000,1941986.541000,0.000000,0.000000,0.000000,0.000000,173.541000,2167.834000,4388.750000,1941986.541000,78,2,2,76,33797128,189,191,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,4,4,0,4,4,0.002375,213.594834,391.382042,52.935917,1.668833,659.581626,0.994835,184.582750,4
+background,2,8192,0,8192,0,1.838423,4455.993596,180.708000,988.125000,4138.875000,1398245.625000,0.000000,0.000000,0.000000,0.000000,180.708000,988.125000,4138.875000,1398245.625000,59,2,2,56,33895712,152,154,0,0,0.000000,0,0,reclaim-threshold,1,1379936,1379936,0,0,4,4,0,4,4,0.001376,240.084125,468.535458,34.903708,1.401917,744.925208,0.782876,219.421000,4
+background,3,8192,0,8192,0,2.401110,3411.754746,183.583000,1928.250000,4404.750000,2026433.084000,0.000000,0.000000,0.000000,0.000000,183.583000,1928.250000,4404.750000,2026433.084000,80,2,2,76,33665728,186,188,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,4,4,0,4,4,0.002000,216.515250,393.920458,50.274249,1.246335,661.956292,0.916709,197.363667,4
+background,4,8192,0,8192,0,1.800158,4550.711976,181.209000,1745.833000,3319.166000,1403495.209000,0.000000,0.000000,0.000000,0.000000,181.209000,1745.833000,3319.166000,1403495.209000,45,2,2,42,33665728,113,115,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,4,4,0,4,4,0.001208,223.315415,372.564792,37.368500,1.487334,634.736041,1.027417,170.454000,4
+background,5,8192,0,8192,0,1.344003,6095.222980,177.375000,1025.333000,4398.375000,1097464.458000,0.000000,0.000000,0.000000,0.000000,177.375000,1025.333000,4398.375000,1097464.458000,29,2,2,27,33665728,71,73,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,4,4,0,4,4,0.001208,95.333042,122.940375,30.433207,1.378002,250.084626,0.890833,88.390500,4
+background,6,8192,0,8192,0,1.746951,4689.312309,177.041000,1690.500000,3997.041000,1335061.500000,0.000000,0.000000,0.000000,0.000000,177.041000,1690.500000,3997.041000,1335061.500000,46,2,2,43,33665728,121,123,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,4,4,0,4,4,0.001667,196.217458,392.459041,33.518500,1.345752,623.540751,0.928250,177.429084,4
+background,7,8192,0,8192,0,8.531761,960.176929,194.334000,1081.375000,4040.834000,3884334.084000,0.000000,0.000000,0.000000,0.000000,194.334000,1081.375000,4040.834000,3884334.084000,332,2,2,329,33665728,693,695,0,0,0.000000,0,0,reclaim-threshold,0,32515776,32515776,0,0,4,4,0,4,4,0.001876,1679.741667,4806.712166,38.242625,1.604000,6526.300458,1.239332,3883.822958,4

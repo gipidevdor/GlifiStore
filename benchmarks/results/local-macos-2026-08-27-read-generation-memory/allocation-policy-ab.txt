@@ -1,0 +1,13 @@
+# Local dirty-source diagnostic A/B; macos-native-release, Apple M4, no CPU pinning.
+# Both workloads: 200000 operations, key=16, value=64, workers=1, warmup=1, repeats=7.
+# Baseline differs only in using the general allocator for immutable record arrays.
+workload=store_put_batch policy=general_allocator median_ops_per_second=633447 median_ns_per_op=1578.66 median_rss_bytes=233439000 peak_rss_bytes=233472000
+workload=store_put_batch policy=bounded_geometric_mapping_pool median_ops_per_second=631507 median_ns_per_op=1583.51 median_rss_bytes=115524000 peak_rss_bytes=115556000
+workload=store_put_batch throughput_delta_percent=-0.306 rss_delta_percent=-50.51 judgement=within_local_noise
+
+workload=store_get_copy policy=general_allocator median_ops_per_second=4327140 median_ns_per_op=231.099 median_rss_bytes=232407000 peak_rss_bytes=232423000
+workload=store_get_copy policy=bounded_geometric_mapping_pool median_ops_per_second=4351980 median_ns_per_op=229.780 median_rss_bytes=117604000 peak_rss_bytes=117637000
+workload=store_get_copy throughput_delta_percent=0.574 rss_delta_percent=-49.40 judgement=within_local_noise
+
+# Rejected diagnostic: immediate unmap at every retirement produced only 550203--564418 batch
+# PUT ops/s in two five-repeat cells. The bounded one-spare design preserves same-class reuse.

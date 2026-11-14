@@ -1,0 +1,317 @@
+requirements:
+- id: GS-CONCUR-PAIR-001
+  titolo: Paired Reader-Writer shard model
+  categoria: concurrency
+  criticita: critica
+  stato: implementato
+  descrizione: Official daemon and paired Store runtime use one ShardPair (Reader + sole mutation
+    executor via execution token + bounded lanes) per owner id with immutable ReadGeneration
+    adoption. Embedded sync may omit a dedicated Writer thread (ADR 0037); daemon retains a
+    dedicated executor. Reactor never Store-mutates. Every Writer path shares a pre-Store
+    generation-admission decision; current plus at most 64 retired generations, with explicit
+    known-not-committed backpressure at retire, incremental-merge capacity, or paired lane
+    slot/byte exhaustion. The immutable base uses an exact 64-byte record plus 5 bytes of lookup
+    payload per bucket; a sequence-coherent per-lane census exposes the current generation's
+    allocation-payload lower bound without presenting it as total RSS. Large immutable-record
+    arrays use guarded geometric mappings with at most one spare per base lineage; the spare-pool
+    lock is absent from GET and ordinary Delta publication and process-wide spare bytes are
+    observable. Incremental merge debt is advanced proportionally to the bounded post-cut capacity
+    consumed by the next publication, with a bounded coalesced-batch floor and explicit debt,
+    capacity, and maximum-quantum telemetry; fixed terminal retry bursts are not the normal
+    admission mechanism.
+  autorita:
+  - docs/spec/concurrency-memory-model.md
+  - docs/spec/mutation-lifecycle.md
+  - docs/adr/paired-reader-writer-shards.md
+  - docs/adr/0032-paired-concurrency-embedded-store.md
+  - docs/adr/0037-shard-execution-token-flat-combining.md
+  implementazione:
+  - src/store/paired
+  - src/server
+  - src/worker
+  prove:
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
+  - tests/integration/paired_store_batch_order_tests.cpp
+  - tests/unit/owner_partition_tests.cpp
+  - tests/quality/allocation_fault_batch_tests.cpp
+  - tests/integration/concurrency_tests.cpp
+  - tests/concurrency/linearizability_tests.cpp
+  - tests/unit/shard_combining_executor_tests.cpp
+  - tests/unit/pair_read_generation_tests.cpp
+  - tests/unit/generation_slot_pool_production_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+  - path: engineering/evidence/paired-generation-admission-local-2026-08-27.md
+  - path: benchmarks/results/local-macos-2026-08-27-read-generation-memory/README.md
+  - path: engineering/evidence/adr0036-production-slot-local-2026-08-27.md
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Allocation-free slot-pool observer/mirror regression; local only
+  rischio_residuo:
+  - legacy_mutex remains temporary until 0.2 (GS-CONCUR-LEGACY-001); multi-shard composition relies on
+    routing independence; embedded catalog refresh may defer until a combiner turn; ADR 0036
+    generation_slot_pool remains opt-in (default Alternative A) — durable-group Writer sites,
+    V8 production-flag durability soaks, V11/V12 affine performance, and multi-OS sanitizer soaks
+    under the flag remain open
+  hazards:
+  - HAZ-003
+  - HAZ-008
+  - HAZ-009
+  - HAZ-027
+  - HAZ-028
+  - HAZ-031
+  - HAZ-032
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-COMBINE-001
+  titolo: Shard execution token and flat combining
+  categoria: concurrency
+  criticita: critica
+  stato: implementato
+  descrizione: Per-shard IDLE/EXECUTING token grants sole mutate+publish rights. Embedded sync
+    callers that win the token combine already-queued work (≤32) with no wait-to-fill; lost-wakeup-safe
+    release. Daemon keeps a dedicated executor and opportunistically combines already-queued work
+    under explicit record/byte bounds. Durable-group collection is capped by the oldest configured
+    pre-Store admission deadline, and sync work is limited to 32 records per dedicated turn with an
+    older FIFO continuation, so neither repeated admissions nor one large batch can indefinitely
+    postpone already-admitted async work. Close reasons, turn splits, and wait time are observable.
+    Incremental merge work is charged against bounded post-cut capacity before Store entry;
+    coalesced batches amortize a bounded extra quantum and dedicated idle work runs only after
+    completion delivery with token release between quanta.
+    ADR 0037 Phase C landed. Daemon mutation windows (≤32 contiguous PUT/ERASE) raise a GET
+    visibility barrier on published writer_epoch; GET must not adopt an older generation.
+    ACK/RAW and fail-closed polarity unchanged.
+  autorita:
+  - docs/adr/0037-shard-execution-token-flat-combining.md
+  - docs/spec/concurrency-memory-model.md
+  - docs/spec/mutation-lifecycle.md
+  implementazione:
+  - include/glifistore/store/paired/shard_combining_executor.hpp
+  - include/glifistore/server/mutation_window.hpp
+  - src/store/paired/shard_pair_runtime.cpp
+  - src/server/reactor_dispatch.cpp
+  - src/server/reactor_execute.cpp
+  - src/server/reactor_io.cpp
+  prove:
+  - tests/unit/shard_combining_executor_tests.cpp
+  - tests/unit/mutation_window_tests.cpp
+  - tests/integration/server_reactor_mutation_window_tests.cpp
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
+  - tests/integration/server_reactor_paired_tests.cpp
+  - tests/integration/server_reactor_server_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+  - path: benchmarks/results/local-macos-2026-08-26-shard-combining/README.md
+  - path: benchmarks/results/local-macos-2026-08-27-writer-deadline-fairness/README.md
+  - path: benchmarks/results/local-macos-2026-08-27-merge-debt-scheduler/README.md
+  - path: engineering/evidence/wave2-hotpath-local-2026-08-27.md
+  rischio_residuo:
+  - durable_group/periodic flusher token sharing deferred; daemon windows still one TCP port;
+    adversarial multi-hour and cross-platform combiner fairness evidence open; durable_sync
+    still publishes one generation per committed mutation under the combiner (multi-op publish
+    coalesce deferred; RAW / no wait-to-fill polarity unchanged — Wave 2 litmus covers FIFO ×
+    token and put_batch RAW)
+  hazards:
+  - HAZ-003
+  - HAZ-027
+  - HAZ-028
+  - HAZ-032
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-LIN-001
+  titolo: Linearizability history checker for paired Store API
+  categoria: concurrency
+  criticita: critica
+  stato: provato
+  descrizione: Concurrent histories of GET/PUT/ERASE/TTL/RAW/close/compaction on the paired Store are
+    recorded with reproducible seeds and checked for linearizability against a sequential map model;
+    failures emit a minimized trace.
+  autorita:
+  - docs/spec/concurrency-memory-model.md
+  - docs/adr/0032-paired-concurrency-embedded-store.md
+  implementazione:
+  - tests/concurrency/linearizability.hpp
+  - tests/concurrency/linearizability_tests.cpp
+  prove:
+  - tests/concurrency/linearizability_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+  rischio_residuo:
+  - Checker state budget bounds history size; durable I/O schedules and multi-key atomicity are out of
+    scope
+  hazards:
+  - HAZ-003
+  - HAZ-028
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-FAULT-001
+  titolo: Debug-only adverse scheduling fault injection
+  categoria: concurrency
+  criticita: alta
+  stato: implementato
+  descrizione: Adverse yield/sleep hooks at enqueue/mutate/publish/adopt/rotate/compact/close are compiled
+    only when GLIFISTORE_FAULT_INJECTION is enabled; production builds keep hooks as no-ops.
+  autorita:
+  - docs/spec/concurrency-memory-model.md
+  implementazione:
+  - include/glifistore/core/fault_injection.hpp
+  - src/core/fault_injection.cpp
+  - src/store/paired/shard_pair_runtime.cpp
+  - src/store/store.cpp
+  - src/persistence/runtime_catalog.cpp
+  prove:
+  - tests/concurrency/linearizability_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+    note: unix-debug/macos-debug presets enable fault injection
+  rischio_residuo:
+  - Hooks perturb schedules but do not enumerate all interleavings
+  hazards:
+  - HAZ-003
+  - HAZ-008
+  - HAZ-027
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-MEM-001
+  titolo: Atomics memory-order inventory
+  categoria: concurrency
+  criticita: alta
+  stato: implementato
+  descrizione: Shared atomics with correctness roles are inventoried with writer/reader, memory order,
+    happens-before intent, and proof pointers.
+  autorita:
+  - docs/spec/concurrency-memory-model.md
+  - docs/assurance/memory-order-inventory.md
+  implementazione:
+  - src/store/paired
+  - src/store/store.cpp
+  - include/glifistore/server/bounded_mpsc_queue.hpp
+  prove:
+  - docs/assurance/memory-order-inventory.md
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: docs/assurance/memory-order-inventory.md
+  rischio_residuo:
+  - Telemetry-only relaxed uses rely on review; no machine-checked classification
+  hazards:
+  - HAZ-028
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-TLA-001
+  titolo: Reduced TLA+ ShardPair model
+  categoria: concurrency
+  criticita: media
+  stato: implementato
+  descrizione: A bounded TLA+ model of one shard pair covers publish/adopt safety and fair shutdown
+    drain; TLC is a required fail-closed CI matrix row with a wall-clock bound.
+  autorita:
+  - docs/adr/0032-paired-concurrency-embedded-store.md
+  - engineering/formal/shard_pair/README.md
+  implementazione:
+  - engineering/formal/shard_pair/ShardPair.tla
+  - engineering/formal/shard_pair/ShardPair.cfg
+  prove:
+  - engineering/formal/shard_pair/run-tlc.sh
+  piattaforme:
+  - linux-x86_64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: formal-models.yml
+  rischio_residuo:
+  - Model omits durable I/O, compaction leases, multi-shard composition, and scheduler behavior beyond declared fairness
+  hazards:
+  - HAZ-003
+  - HAZ-027
+  - HAZ-028
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-LIVE-001
+  titolo: Progress and liveness bounds on drain close and compact admission
+  categoria: concurrency
+  criticita: alta
+  stato: implementato
+  descrizione: Writer drain and admission drain honor an optional close_drain_deadline_ms; compact
+    admission uses try_lock and fails with sequence_conflict instead of waiting unbounded.
+  autorita:
+  - docs/spec/concurrency-memory-model.md
+  implementazione:
+  - include/glifistore/store/config.hpp
+  - src/store/store.cpp
+  - src/store/paired/shard_pair_runtime.cpp
+  prove:
+  - tests/concurrency/linearizability_tests.cpp
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+  rischio_residuo:
+  - Default close remains unbounded; deadline path is opt-in; no dedicated deadlock detector
+  hazards:
+  - HAZ-027
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CONCUR-LEGACY-001
+  titolo: legacy_mutex temporary policy feature freeze and equivalence
+  categoria: concurrency
+  criticita: media
+  stato: implementato
+  descrizione: legacy_mutex remains a deprecated 0.1.x embedded escape hatch removed in 0.2, with
+    feature freeze, daemon paired-only, and public-outcome equivalence to the default paired runtime.
+  autorita:
+  - docs/architecture/legacy-mutex-policy.md
+  - docs/adr/0032-paired-concurrency-embedded-store.md
+  - docs/spec/concurrency-memory-model.md
+  implementazione:
+  - include/glifistore/store/config.hpp
+  - src/store/store.cpp
+  prove:
+  - tests/integration/runtime_equivalence_tests.cpp
+  - tests/integration/concurrency_tests.cpp
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+  rischio_residuo:
+  - Dual-path maintenance until 0.2 removal; equivalence covers public outcomes not full linearizability
+  hazards:
+  - HAZ-003
+  - HAZ-027
+  gates:
+  - GATE-CONCURRENCY-SPEC

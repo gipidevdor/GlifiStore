@@ -1,0 +1,7 @@
+candidate	variant	operations	repeats	median_ops_s	p50_ns	p95_ns	p99_ns	p999_ns	generation_build_mean_ns	directory_spine_mean_ns	chunk_clone_mean_ns	block_clone_mean_ns	page_clone_mean_ns	record_store_mean_ns	generation_shell_mean_ns	completion_notify_mean_ns	decision
+cow-root	vector-baseline	10000	1	894925	108500	146750	164750	198875	1076.15	113.61	112.35	90.50	61.62	49.63	43.90	702.53	keep
+cow-root	inline-16-candidate	10000	1	851550	99750	162959	212166	292084	1681.96	168.37	220.03	182.57	112.49	64.92	87.73	789.73	reject
+kqueue-wakeup	pipe-baseline-forward	5000	7	1110160	79750	121709	151125	185750									keep
+kqueue-wakeup	kqueue-user-forward	5000	7	1137440	74750	119625	156167	195333									reject-tail
+kqueue-wakeup	kqueue-user-reverse	5000	7	1124880	76750	115750	154000	210292							575.19	reject-tail
+kqueue-wakeup	pipe-baseline-reverse	5000	7	1113640	80958	117958	148500	200625							702.53		keep

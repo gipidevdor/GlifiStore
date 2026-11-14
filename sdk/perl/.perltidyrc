@@ -1,0 +1,23 @@
+# Perltidy profile for GlifiStore Perl SDK (paired with .perlcriticrc).
+-l=100
+-i=4
+-ci=4
+-se
+-nbbc
+-nasc
+-nola
+-noll
+-naws
+-vt=0
+-vtc=0
+-pt=0
+-bt=0
+-sbt=0
+-bbt=0
+-nsfs
+-nolq
+-baao
+-bbao
+-isbc
+-wn
+-wbb="% + - * / x != == >= <= =~ !~ < > | & = **= += *= &= <<= >>= ||= //= .= %= ^= x="

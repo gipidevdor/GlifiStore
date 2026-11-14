@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.local/schemas/claim.schema.json",
+  "title": "GlifiStore release claim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "tag",
+    "commit",
+    "claim_massimo",
+    "gates",
+    "evidence",
+    "created"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CLAIM-[0-9A-Za-z._-]+$"
+    },
+    "tag": { "type": "string", "minLength": 1 },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "claim_massimo": {
+      "type": "string",
+      "enum": [
+        "architectural-prototype",
+        "alpha",
+        "beta",
+        "rc",
+        "stable"
+      ]
+    },
+    "gates": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GATE-[A-Z0-9-]+$" },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "workflow": { "type": "string" },
+          "path": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "created": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "notes": { "type": "string" }
+  }
+}

@@ -1,0 +1,86 @@
+name: C++ documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "include/**"
+      - "src/**"
+      - "docs/**"
+      - "engineering/**"
+      - "artwork/apple/raster/glifistore-app-icon-128.png"
+      - "scripts/build_docs.py"
+      - "scripts/tests/test_build_docs.py"
+      - "CMakeLists.txt"
+      - "VERSION"
+      - ".github/workflows/docs-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and validate Doxygen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install documentation tools
+        env:
+          DOXYGEN_VERSION: "1.18.0"
+          DOXYGEN_SHA256: "14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90"
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y cmake
+          archive="$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          curl --fail --silent --show-error --location \
+            "https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" \
+            --output "$archive"
+          echo "${DOXYGEN_SHA256}  ${archive}" | sha256sum --check -
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}/bin/doxygen" --version
+      - name: Check documentation tooling
+        run: python3 -m unittest scripts.tests.test_build_docs
+      - name: Configure documentation only
+        env:
+          DOCS_SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+          DOCS_REVISION: ${{ github.sha }}
+        run: >-
+          cmake -S docs/doxygen -B build/docs
+          -DGLIFISTORE_DOCS_SOURCE_URL="$DOCS_SOURCE_URL"
+          -DGLIFISTORE_DOCS_REVISION="$DOCS_REVISION"
+      - name: Generate reference and check local site links
+        run: cmake --build build/docs --target glifistore-docs
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: build/docs/html
+
+  deploy:
+    name: Publish GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

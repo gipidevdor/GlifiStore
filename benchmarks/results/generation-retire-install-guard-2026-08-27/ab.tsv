@@ -1,0 +1,6 @@
+variant	order	repeats	operations	ops_per_second	p99_ns	p999_ns	writer_service_ns
+bounded_guard	forward	5	200000	693045	144083	357500	1088.34
+unsafe_control	forward	5	200000	707756	136458	383458	1074.37
+unsafe_control	reverse	5	200000	701935	139750	376083	1078.25
+bounded_guard	reverse	5	200000	693972	141083	379791	1121.89
+bounded_guard_unlikely	confirmation	7	200000	697110	144209	372083	1140.92

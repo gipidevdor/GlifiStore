@@ -1,0 +1,71 @@
+name: FreeBSD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: freebsd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freebsd:
+    name: FreeBSD / native build+test
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and test on FreeBSD
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1.6.0
+        with:
+          release: "14.3"
+          arch: x86_64
+          usesh: true
+          copyback: true
+          sync: rsync
+          mem: 8192
+          cache-after-prepare: true
+          prepare: |
+            pkg install -y cmake ninja git bash openssl pkgconf
+          run: |
+            set -e
+            mkdir -p engineering/evidence/native-ci
+            chmod +x scripts/ci-freebsd.sh
+            native_status=0
+            bash -o pipefail -c \
+              'bash scripts/ci-freebsd.sh 2>&1 | tee engineering/evidence/native-ci/freebsd.log' \
+              || native_status=$?
+            printf '%s\n' "$native_status" > engineering/evidence/native-ci/freebsd.status
+            rm -rf build
+      - name: Retain native FreeBSD log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: freebsd-native-${{ github.sha }}
+          path: engineering/evidence/native-ci/freebsd.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce native FreeBSD result
+        if: always()
+        shell: bash
+        run: |
+          status_file="engineering/evidence/native-ci/freebsd.status"
+          if [[ ! -f "$status_file" ]]; then
+            echo "error: native FreeBSD status was not copied back" >&2
+            exit 1
+          fi
+          native_status="$(<"$status_file")"
+          if [[ ! "$native_status" =~ ^[0-9]+$ ]]; then
+            echo "error: invalid native FreeBSD status '$native_status'" >&2
+            exit 1
+          fi
+          if (( native_status != 0 )); then
+            echo "error: native FreeBSD gate failed with status $native_status" >&2
+            exit "$native_status"
+          fi

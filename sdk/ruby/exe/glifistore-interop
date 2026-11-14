@@ -1,0 +1,165 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "glifi_store"
+
+if ENV["GLIFISTORE_INTEROP_USE_INSTALLED"] == "1"
+  source_root = File.expand_path(ENV.fetch("GLIFISTORE_SOURCE_ROOT"))
+  loaded_from = $LOADED_FEATURES.find { |path| path.end_with?("/glifi_store.rb") }
+  abort("installed-artifact mode cannot identify the loaded Ruby SDK") if loaded_from.nil?
+  if File.expand_path(loaded_from).start_with?("#{source_root}/")
+    abort("installed-artifact mode loaded Ruby SDK from source: #{loaded_from}")
+  end
+end
+
+options = {
+  host: "127.0.0.1",
+  key_hex: "",
+  value_hex: "",
+  expire_at_ns: 0,
+  tls: false,
+  tls_ca: nil,
+  tls_cert: nil,
+  tls_key: nil,
+  server_name: nil,
+  insecure_skip_verify: false,
+  burst: 32
+}
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: glifistore-interop --port N <put|get|erase|pipeline-put-get|worker-pipelines-put-get|expect-not-found|expect-permission-denied|burst-expect-overloaded|expect-frame-limit> [tls flags...]"
+  opts.on("--host HOST", String) { |v| options[:host] = v }
+  opts.on("--port PORT", Integer) { |v| options[:port] = v }
+  opts.on("--key-hex HEX", String) { |v| options[:key_hex] = v }
+  opts.on("--value-hex HEX", String) { |v| options[:value_hex] = v }
+  opts.on("--expire-at-ns N", Integer) { |v| options[:expire_at_ns] = v }
+  opts.on("--tls", "opt-in TLS 1.3") { options[:tls] = true }
+  opts.on("--tls-ca PATH", String) { |v| options[:tls_ca] = v }
+  opts.on("--tls-cert PATH", String) { |v| options[:tls_cert] = v }
+  opts.on("--tls-key PATH", String) { |v| options[:tls_key] = v }
+  opts.on("--server-name NAME", String) { |v| options[:server_name] = v }
+  opts.on("--insecure-skip-verify", "lab escape: skip cert/hostname verify") { options[:insecure_skip_verify] = true }
+  opts.on("--burst N", Integer) { |v| options[:burst] = v }
+  opts.on("-h", "--help", "show this help") do
+    puts opts
+    exit 0
+  end
+end
+parser.parse!
+command = ARGV.shift
+abort(parser.help) if options[:port].nil? || command.nil? || !options[:burst].between?(1, 10_000)
+
+def parse_hex(text)
+  cleaned = text.to_s.gsub(/\s+/, "")
+  return "".b if cleaned.empty?
+  raise "odd hex length" if cleaned.length.odd?
+
+  [cleaned].pack("H*")
+end
+
+def to_hex(payload)
+  payload.to_s.b.unpack1("H*")
+end
+
+key = parse_hex(options[:key_hex])
+value = parse_hex(options[:value_hex])
+config = GlifiStore::ClientConfig.defaults
+config.host = options[:host]
+config.port = options[:port]
+config.tls = options[:tls]
+config.tls_ca = options[:tls_ca]
+config.cert_file = options[:tls_cert]
+config.key_file = options[:tls_key]
+config.server_name = options[:server_name]
+config.insecure_skip_verify = options[:insecure_skip_verify]
+client = GlifiStore::Client.connect(config)
+begin
+  case command
+  when "put"
+    result = client.put(key, value, expire_at_ns: options[:expire_at_ns])
+    abort("put not committed: #{result}") unless result.committed?
+  when "get"
+    puts to_hex(client.get(key))
+  when "erase"
+    result = client.erase(key)
+    abort("erase not committed: #{result}") unless result.committed?
+  when "pipeline-put-get"
+    responses = client.execute_pipeline(
+      [
+        GlifiStore::PipelineRequest.new(opcode: GlifiStore::PipelineOpcode::PUT, key: key, value: value),
+        GlifiStore::PipelineRequest.new(opcode: GlifiStore::PipelineOpcode::GET, key: key)
+      ]
+    )
+    abort("pipeline outcomes failed") unless responses.length == 2 && responses[0].succeeded? && responses[1].succeeded?
+    abort("pipeline value mismatch") unless responses[1].value == value
+    puts to_hex(responses[1].value)
+  when "worker-pipelines-put-get"
+    worker_count = client.worker_count
+    keys = Array.new(worker_count)
+    candidate = 0
+    while keys.any?(&:nil?)
+      probe = "#{key}-#{candidate}".b
+      owner = client.worker_for(probe)
+      keys[owner] ||= probe
+      candidate += 1
+      abort("failed to discover a key for every Worker") if candidate > 1_000_000
+    end
+    values = []
+    wave = keys.each_with_index.map do |owned, worker|
+      payload = value.empty? ? "v#{worker % 10}".b : value
+      values << payload
+      [
+        GlifiStore::PipelineRequest.new(opcode: GlifiStore::PipelineOpcode::PUT, key: owned, value: payload),
+        GlifiStore::PipelineRequest.new(opcode: GlifiStore::PipelineOpcode::GET, key: owned)
+      ]
+    end
+    results = client.execute_worker_pipelines(wave)
+    abort("worker pipelines returned unexpected slot count") unless results.length == worker_count
+    results.each_with_index do |slot, worker|
+      unless slot.length == 2 && slot[0].succeeded? && slot[1].succeeded? && slot[1].value == values[worker]
+        abort("worker #{worker} pipeline outcomes failed")
+      end
+    end
+    puts "ok"
+  when "expect-not-found"
+    begin
+      client.get(key)
+    rescue GlifiStore::Error => e
+      unless e.category == GlifiStore::Category::NOT_FOUND &&
+             e.retryability == GlifiStore::Retryability::NEW_ATTEMPT
+        abort("GET produced unexpected error: #{e.category}")
+      end
+    else
+      abort("GET unexpectedly found the key")
+    end
+  when "expect-permission-denied"
+    result = client.put(key, value, expire_at_ns: options[:expire_at_ns])
+    unless result.rejected? &&
+           result.error&.category == GlifiStore::Category::PERMISSION_DENIED &&
+           result.error.retryability == GlifiStore::Retryability::NEVER
+      abort("PUT did not produce structured permission_denied")
+    end
+  when "burst-expect-overloaded"
+    observed = options[:burst].times.any? do
+      result = client.put(key, value, expire_at_ns: options[:expire_at_ns])
+      overloaded = result.rejected? &&
+                   result.error&.category == GlifiStore::Category::OVERLOADED &&
+                   result.error.retryability == GlifiStore::Retryability::NEVER
+      abort("PUT produced an unexpected result before OVERLOADED") unless overloaded || result.committed?
+      overloaded
+    end
+    abort("PUT burst did not produce structured OVERLOADED") unless observed
+  when "expect-frame-limit"
+    result = client.put("limit".b, "\xA5".b * config.maximum_frame_bytes)
+    unless result.rejected? &&
+           result.error&.category == GlifiStore::Category::INVALID_ARGUMENT &&
+           result.error.bytes_sent.zero? &&
+           result.error.retryability == GlifiStore::Retryability::NEVER
+      abort("oversized PUT did not produce the expected local rejection")
+    end
+  else
+    abort("unknown command: #{command}")
+  end
+ensure
+  client.close
+end

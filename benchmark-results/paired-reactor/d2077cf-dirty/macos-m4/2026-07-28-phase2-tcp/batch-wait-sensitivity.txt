@@ -1,0 +1,60 @@
+# paired Reactor TCP A/B git=d2077cf-dirty ops=120000 keys=4096 value_bytes=64 pipeline=32 clients=4 put_percent=5 batch_wait_us=0
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,823582,135.334,338.291,493.833,7296000
+sample,current,0,1.71123e+06,69.75,140.666,174,7296000
+sample,current,1,1.60627e+06,72.166,149.5,208.875,7296000
+sample,paired,1,906738,125.5,304.625,521.333,7296000
+sample,paired,2,979602,117.5,252.208,365.875,7296000
+sample,current,2,2.13492e+06,58.417,86.708,111.875,7296000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,1.71123e+06,140.666,174
+summary,paired,906738,304.625,493.833
+telemetry,writev_calls,65288,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,19978,measured_publication_records,24000,average_publication_batch,1.20132,maximum_writer_batch,4,generation_output_pin_high_watermark,0,publication_backpressure,0
+# paired Reactor TCP A/B git=d2077cf-dirty ops=120000 keys=4096 value_bytes=64 pipeline=32 clients=4 put_percent=5 batch_wait_us=2
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,883621,123.583,414.792,672.75,7296000
+sample,current,0,1.89863e+06,59.458,150.458,198.542,7296000
+sample,current,1,2.05043e+06,58.625,111,1466.71,7296000
+sample,paired,1,1.02092e+06,113.333,219.5,246.75,7296000
+sample,paired,2,963669,120.959,236.208,288.75,7296000
+sample,current,2,2.11424e+06,58.917,86.625,115.917,7296000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,2.05043e+06,111,198.542
+summary,paired,963669,236.208,288.75
+telemetry,writev_calls,65288,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,20761,measured_publication_records,24000,average_publication_batch,1.15601,maximum_writer_batch,4,generation_output_pin_high_watermark,0,publication_backpressure,0
+# paired Reactor TCP A/B git=d2077cf-dirty ops=120000 keys=4096 value_bytes=64 pipeline=32 clients=4 put_percent=5 batch_wait_us=8
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,922750,126.625,232.833,276.25,7296000
+sample,current,0,2.08932e+06,59.167,94.958,114.667,7296000
+sample,current,1,2.10741e+06,58.666,99.083,120.166,7296000
+sample,paired,1,906668,127.041,253.5,316.208,7296000
+sample,paired,2,959091,120.542,230.208,513.583,7296000
+sample,current,2,1.95969e+06,59.916,137.792,175.625,7296000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,2.08932e+06,99.083,120.166
+summary,paired,922750,232.833,316.208
+telemetry,writev_calls,65288,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,18093,measured_publication_records,24000,average_publication_batch,1.32648,maximum_writer_batch,4,generation_output_pin_high_watermark,0,publication_backpressure,0
+# paired Reactor TCP A/B git=d2077cf-dirty ops=120000 keys=4096 value_bytes=64 pipeline=32 clients=4 put_percent=5 batch_wait_us=16
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,907397,127.5,236.292,280.458,7296000
+sample,current,0,2.0609e+06,58.625,99.625,121.625,7296000
+sample,current,1,1.95513e+06,61.125,105.333,139.625,7296000
+sample,paired,1,916657,125.958,231.875,269.708,7296000
+sample,paired,2,942896,121.833,231.542,315,7296000
+sample,current,2,2.09371e+06,58.708,93.708,114.625,7296000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,2.0609e+06,99.625,121.625
+summary,paired,916657,231.875,280.458
+telemetry,writev_calls,65288,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,14093,measured_publication_records,24000,average_publication_batch,1.70297,maximum_writer_batch,4,generation_output_pin_high_watermark,0,publication_backpressure,0
+# paired Reactor TCP A/B git=d2077cf-dirty ops=120000 keys=4096 value_bytes=64 pipeline=32 clients=4 put_percent=5 batch_wait_us=32
+kind,implementation,repeat,ops_per_second,p50_batch_us,p99_batch_us,p999_batch_us,checksum
+sample,paired,0,860558,128.542,266.708,300.792,7296000
+sample,current,0,2.06133e+06,59.042,98.708,122.667,7296000
+sample,current,1,2.09078e+06,58.584,92.958,111.958,7296000
+sample,paired,1,819245,136.291,272.75,339.292,7296000
+sample,paired,2,794323,139.625,306.583,521.875,7296000
+sample,current,2,1.859e+06,65.542,115.667,168.542,7296000
+kind,implementation,median_ops_per_second,median_p99_batch_us,median_p999_batch_us
+summary,current,2.06133e+06,98.708,122.667
+summary,paired,819245,272.75,339.292
+telemetry,writev_calls,65288,partial_writes,0,slow_output_pins,0,mutation_backpressure,0,measured_publications,9519,measured_publication_records,24000,average_publication_batch,2.52127,maximum_writer_batch,4,generation_output_pin_high_watermark,0,publication_backpressure,0

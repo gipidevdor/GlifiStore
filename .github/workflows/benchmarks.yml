@@ -1,0 +1,200 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/benchmarks.yml"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "VERSION"
+      - "cmake/**"
+      - "include/**"
+      - "src/**"
+      - "benchmarks/**"
+      - "engineering/performance/hosted-benchmark-contract.json"
+      - "engineering/tools/benchmark_subject_digest.py"
+      - "scripts/benchmark_report.py"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-benchmarks:
+    name: Release benchmark suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RESULTS_DIR: benchmark-results
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install build tools
+        run: python -m pip install --disable-pip-version-check cmake ninja
+
+      - name: Record runner environment
+        run: |
+          mkdir -p "$RESULTS_DIR"
+          {
+            echo "github_sha=${GITHUB_SHA}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            echo "runner_image=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+            echo "kernel_release=$(uname -r)"
+            echo "cpu_model=$(lscpu -B | awk -F: '/^Model name:/ {sub(/^[[:space:]]+/, "", $2); print $2; exit}')"
+            echo "logical_cpu_count=$(nproc)"
+            echo "physical_cpu_count=$(lscpu -p=CORE,SOCKET | awk -F, '!/^#/ {seen[$1 FS $2] = 1} END {print length(seen)}')"
+            echo "compiler_identity=$(clang++ --version | head -1)"
+            echo "cmake_identity=$(cmake --version | head -1)"
+            echo "ninja_identity=$(ninja --version)"
+            echo "build_preset=unix-release"
+            echo "benchmark_contract_sha256=$(sha256sum engineering/performance/hosted-benchmark-contract.json | awk '{print $1}')"
+            echo "benchmark_subject_sha256=$(python engineering/tools/benchmark_subject_digest.py)"
+            echo "kernel=$(uname -srmo)"
+            echo "cpu_count=$(nproc)"
+            lscpu
+            clang++ --version
+          } > "$RESULTS_DIR/environment.txt"
+
+      - name: Configure Release build
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset unix-release
+
+      - name: Build benchmark targets
+        run: >-
+          cmake --build --preset unix-release --target
+          glifistore_benchmarks glifistore_server_benchmarks
+
+      - name: Run core benchmarks
+        run: |
+          set -o pipefail
+          ./build/unix-release/glifistore_benchmarks \
+            --filter all --ops 200000 --warmup 1 --repeats 7 --pin-cpu \
+            | tee "$RESULTS_DIR/core.txt"
+
+      - name: Run parallel Store benchmarks
+        run: |
+          set -o pipefail
+          for distribution in uniform worker-affine single-worker zipf; do
+            ops=200000
+            # single-worker concentrates 2 threads on one paired lane; keep the
+            # working set inside incremental delta capacity so merge can keep up
+            # under the CI hit-count contract (hits == ops).
+            if [[ "$distribution" == "single-worker" ]]; then
+              ops=50000
+            fi
+            ./build/unix-release/glifistore_benchmarks \
+              --filter store-parallel-all \
+              --ops "$ops" --workers 2 --threads 2 \
+              --distribution "$distribution" --warmup 1 --repeats 7 \
+              | tee "$RESULTS_DIR/parallel-${distribution}.txt"
+          done
+
+      - name: Run durable Store benchmarks
+        run: |
+          set -o pipefail
+          ./build/unix-release/glifistore_benchmarks \
+            --filter store-durable-put --ops 256 --workers 1 --warmup 1 --repeats 3 \
+            | tee "$RESULTS_DIR/durable-sync.txt"
+          ./build/unix-release/glifistore_benchmarks \
+            --filter store-durable-periodic-read-after-write \
+            --ops 20000 --workers 1 --warmup 1 --repeats 5 \
+            | tee "$RESULTS_DIR/durable-periodic.txt"
+          ./build/unix-release/glifistore_benchmarks \
+            --filter store-durable-group-parallel-put \
+            --ops 1024 --workers 1 --threads 32 --distribution single-worker \
+            --latency --warmup 1 --repeats 3 \
+            | tee "$RESULTS_DIR/durable-group.txt"
+
+      - name: Run TCP scalability matrix
+        run: |
+          set -o pipefail
+          for workers in 1 2 4; do
+            for pipeline in 1 8 32 128; do
+              ./build/unix-release/glifistore_server_benchmarks \
+                --ops 100000 --workers "$workers" --clients "$workers" --pipeline "$pipeline" \
+                --executor-affinity --warmup 1 --repeats 7 \
+                | tee "$RESULTS_DIR/server-tcp-w${workers}-p${pipeline}.txt"
+            done
+          done
+
+      - name: Measure pipelined TCP latency
+        run: |
+          set -o pipefail
+          ./build/unix-release/glifistore_server_benchmarks \
+            --ops 100000 --workers 2 --clients 2 --pipeline 32 \
+            --executor-affinity --latency --warmup 1 --repeats 7 \
+            | tee "$RESULTS_DIR/server-latency-w2-p32.txt"
+
+      - name: Download previous successful baseline
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          previous_run_id="$(
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/benchmarks.yml/runs" \
+              --method GET \
+              -f branch=main -f status=success -f per_page=1 \
+              --jq '.workflow_runs[0].id // empty'
+          )"
+          if [[ -z "$previous_run_id" ]]; then
+            echo "No previous successful benchmark run found."
+            exit 0
+          fi
+
+          artifact_id="$(
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${previous_run_id}/artifacts" \
+              --jq '[.artifacts[] | select(.expired == false and (.name | startswith("glifistore-benchmarks-")))][0].id // empty'
+          )"
+          if [[ -z "$artifact_id" ]]; then
+            echo "The previous run has no retained benchmark artifact."
+            exit 0
+          fi
+
+          mkdir -p benchmark-baseline
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > benchmark-baseline.zip
+          unzip -q benchmark-baseline.zip -d benchmark-baseline
+          find benchmark-baseline -name results.json -print -quit
+
+      - name: Build benchmark report
+        if: always()
+        run: |
+          baseline=()
+          baseline_path="$(find benchmark-baseline -name results.json -print -quit 2>/dev/null || true)"
+          if [[ -n "$baseline_path" ]]; then
+            baseline=(--baseline "$baseline_path")
+          fi
+          python scripts/benchmark_report.py "$RESULTS_DIR"/*.txt \
+            --strict \
+            --source-contract engineering/performance/hosted-benchmark-contract.json \
+            --json "$RESULTS_DIR/results.json" \
+            --markdown "$RESULTS_DIR/summary.md" \
+            --environment "$RESULTS_DIR/environment.txt" \
+            "${baseline[@]}"
+          # Hosted runners are too noisy for a hard regression fail gate (docs
+          # already warn absolute claims are out of scope). Emit Δ only when
+          # the retained baseline has an identical environment identity.
+          cat "$RESULTS_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: glifistore-benchmarks-${{ github.sha }}
+          path: benchmark-results/
+          if-no-files-found: error
+          retention-days: 90

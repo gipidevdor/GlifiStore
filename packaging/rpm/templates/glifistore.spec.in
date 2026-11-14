@@ -1,0 +1,162 @@
+# GlifiStore RPM spec.
+#
+# Rendered from packaging/rpm/templates/glifistore.spec.in by
+# engineering/tools/render_package_metadata.py. Version, Release and the ABI
+# suffix of the library subpackage come from the release context, which derives
+# them from the VERSION and ABI_VERSION authorities plus the packaging-only
+# package_revision. Never edit a rendered spec in place.
+
+%global service_user    @SERVICE_USER@
+%global service_group   @SERVICE_GROUP@
+%global state_dir       @STATEDIR@
+%global config_file     @CONFIG_FILE@
+
+Name:           @RUNTIME_PACKAGE@
+Version:        @RPM_VERSION@
+Release:        @RPM_RELEASE@%{?dist}
+Summary:        Paired reader/writer key-value storage daemon
+
+License:        @LICENSE_ID@
+URL:            @HOMEPAGE@
+Source0:        @SOURCE_ARCHIVE@
+# Rendered from packaging/common/service/glifistored.service.in alongside this
+# spec, so the Debian and RPM backends install the same unit.
+Source1:        glifistored.service
+
+BuildRequires:  cmake >= 3.25
+BuildRequires:  gcc-c++
+BuildRequires:  ninja-build
+BuildRequires:  openssl-devel >= 3.0.0
+BuildRequires:  pkgconfig
+BuildRequires:  systemd-rpm-macros
+Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
+Requires(pre):  shadow-utils
+%{?systemd_requires}
+
+%description
+GlifiStore is an architectural prototype of a key-value store built on paired
+Reader-Writer shards, partition ownership, immutable read generations and
+fail-closed recovery. It speaks wire protocol v2 and writes persistence
+format v1.
+
+This package installs the glifistored daemon, the operator tools, the manuals
+and a systemd unit. The unit is installed but neither enabled nor started: the
+shipped configuration binds the loopback interface and every limit has to be
+reviewed before non-loopback use. The project publishes no production-readiness,
+durability-certification or hostile-deployment claim.
+
+%package libs
+Summary:        GlifiStore C ABI shared library
+
+%description libs
+Runtime shared library exposing the stable GlifiStore C ABI, versioned by the
+ABI_VERSION authority of the source tree rather than by the product version.
+
+%package devel
+Summary:        GlifiStore development files
+Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
+Requires:       pkgconfig
+
+%description devel
+Headers, static libraries, the pkg-config file and the CMake package
+configuration needed to build an external consumer against an installed
+GlifiStore.
+
+%prep
+%autosetup -n @SOURCE_DIRECTORY@
+
+# Fedora %%cmake defaults to BUILD_SHARED_LIBS=ON. GlifiStore's core library uses
+# hidden C++ visibility and is linked statically into the daemon in the official
+# presets; forcing shared core here leaves unresolved Store symbols at link time.
+# Keep this note outside %%build and spell the macro as %%cmake so rpm does not
+# expand it into the shell script (an expanded comment with unmatched quotes
+# previously aborted %%build after a successful link).
+%build
+%cmake \
+    -GNinja \
+    -DBUILD_TESTING=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DGLIFISTORE_ENABLE_TLS=ON \
+    -DGLIFISTORE_BUILD_BENCHMARKS=OFF \
+    -DGLIFISTORE_BUILD_FUZZERS=OFF \
+    -DGLIFISTORE_FAULT_INJECTION=OFF \
+    -DGLIFISTORE_NATIVE_CPU=OFF
+%cmake_build
+
+%install
+%cmake_install
+
+install -D -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/glifistored.service
+install -D -m 0644 %{buildroot}%{_datadir}/GlifiStore/examples/glifistored.conf.sample \
+    %{buildroot}%{config_file}
+install -d -m 0750 %{buildroot}%{state_dir}
+
+%check
+# The upstream test suite covers the build tree. The packaging lifecycle proves
+# the installed artifacts instead, so no build-tree test runs here.
+
+%pre
+@SERVICE_ACCOUNT_SNIPPET@
+
+%post
+%systemd_post glifistored.service
+
+%preun
+%systemd_preun glifistored.service
+
+%postun
+%systemd_postun_with_restart glifistored.service
+
+%ldconfig_scriptlets libs
+
+%files
+%license LICENSE
+%doc NOTICE THIRD_PARTY_NOTICES.md
+%{_bindir}/glifistored
+%{_bindir}/glifistore_backup_store
+%{_bindir}/glifistore_demo
+%{_bindir}/glifistore_inspect_segment
+%{_bindir}/glifistore_migrate_store
+%{_bindir}/glifistore_rebuild_index
+%{_bindir}/glifistore_repair_store
+%{_bindir}/glifistore_verify_store
+%{_unitdir}/glifistored.service
+%dir %{_sysconfdir}/glifistore
+%config(noreplace) %{config_file}
+%dir %{_datadir}/GlifiStore
+%dir %{_datadir}/GlifiStore/examples
+%{_datadir}/GlifiStore/VERSION
+%{_datadir}/GlifiStore/ABI_VERSION
+%{_datadir}/GlifiStore/LICENSE
+%{_datadir}/GlifiStore/NOTICE
+%{_datadir}/GlifiStore/THIRD_PARTY_NOTICES.md
+%{_datadir}/GlifiStore/examples/glifistored.conf.sample
+%{_mandir}/man1/glifistore_*.1*
+%{_mandir}/man7/glifistore.7*
+%{_mandir}/man8/glifistored.8*
+# Durable Store data. %%dir keeps the directory owned by the package without
+# letting an erase take the contents with it: RPM refuses to remove a
+# non-empty directory, and nothing in this spec removes it explicitly.
+%attr(0750,%{service_user},%{service_group}) %dir %{state_dir}
+
+%files libs
+%license LICENSE
+%{_libdir}/libglifistore.so.@ABI_MAJOR@
+%{_libdir}/libglifistore.so.@ABI_VERSION@
+
+%files devel
+%license LICENSE
+%{_includedir}/glifistore/
+%{_libdir}/libglifistore.so
+%{_libdir}/libglifistore_client.a
+%{_libdir}/libglifistore_core.a
+%{_libdir}/libglifistore_tls_layer.a
+%{_libdir}/libglifistore_wire.a
+%{_libdir}/pkgconfig/glifistore-abi.pc
+%{_libdir}/cmake/GlifiStore/
+
+%changelog
+* @RPM_CHANGELOG_DATE@ @MAINTAINER@ - @RPM_VERSION@-@RPM_RELEASE@
+- GlifiStore @PRODUCT_VERSION@ packaged from commit @GIT_COMMIT_SHORT@.
+- Version and release are derived from the VERSION authority and the
+  packaging-only package_revision; this entry is generated, never hand-edited.

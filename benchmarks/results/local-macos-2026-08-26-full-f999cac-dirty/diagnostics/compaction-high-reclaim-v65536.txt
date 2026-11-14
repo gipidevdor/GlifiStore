@@ -1,0 +1,3 @@
+case=compaction-high-reclaim-value-65536
+result=scenario-usefulness-validation-rejected
+replacement=canonical-value-262144

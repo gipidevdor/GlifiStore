@@ -1,0 +1,14 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=f999cac-dirty
+# scenario=idle
+# warmups=0;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;foreground=none;duration_ms=1000
+# background_policy=product_defaults;min_eval_interval_ms=1000;max_eval_interval_ms=60000
+mode,repeat,wall_s,process_cpu_ms,process_cpu_duty_pct,evaluation_cycles,maintenance_skips,last_eval_us
+background,1,1.009101,0.043000,0.004261,1,1,19.083000
+background,2,1.010064,0.045000,0.004455,1,1,11.917000
+background,3,1.010035,0.055000,0.005445,1,1,22.875000
+background,4,1.010034,0.051000,0.005049,1,1,15.834000
+background,5,1.010027,0.048000,0.004752,1,1,20.709000
+background,6,1.010041,0.054000,0.005346,1,1,19.500000
+background,7,1.010038,0.050000,0.004950,1,1,19.333000

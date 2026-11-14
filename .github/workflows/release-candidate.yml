@@ -1,0 +1,170 @@
+name: Release candidate builder
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Exact annotated vX.Y.Z tag to build
+        required: true
+        type: string
+    outputs:
+      artifact-name:
+        description: Immutable candidate artifact name
+        value: ${{ jobs.build-once.outputs.artifact-name }}
+      candidate-seal-sha256:
+        description: External anchor for the immutable candidate seal
+        value: ${{ jobs.build-once.outputs.candidate-seal-sha256 }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-once:
+    name: Build candidate once
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CC: clang
+      CXX: clang++
+      LD: ld
+    permissions:
+      contents: read
+    outputs:
+      artifact-name: ${{ steps.identity.outputs.artifact-name }}
+      candidate-seal-sha256: ${{ steps.seal.outputs.candidate-seal-sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Validate immutable source identity
+        id: identity
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          python engineering/tools/release_identity.py \
+            --tag "$RELEASE_TAG" --git-sha "$(git rev-parse HEAD)" \
+            --output build/release-identity.json
+          echo "artifact-name=release-candidate-$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD)" >>"$GITHUB_ENV"
+          echo "TZ=UTC" >>"$GITHUB_ENV"
+      - name: Build and test release tree
+        run: |
+          set -euo pipefail
+          cmake -S . -B build/release-candidate -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/build/release-prefix" \
+            -DBUILD_TESTING=ON \
+            -DGLIFISTORE_BUILD_BENCHMARKS=OFF \
+            -DGLIFISTORE_BUILD_FUZZERS=OFF \
+            -DGLIFISTORE_ENABLE_TLS=OFF \
+            -DGLIFISTORE_FAULT_INJECTION=OFF \
+            -DGLIFISTORE_NATIVE_CPU=OFF \
+            -DGLIFISTORE_WARNINGS_AS_ERRORS=ON
+          cmake --build build/release-candidate --parallel 2
+          ctest --test-dir build/release-candidate --output-on-failure
+          cmake --install build/release-candidate
+      - name: Prove installed external consumers
+        run: |
+          set -euo pipefail
+          cmake -S tests/consumer -B build/release-consumer -G Ninja \
+            -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/build/release-prefix"
+          cmake --build build/release-consumer
+          ctest --test-dir build/release-consumer --output-on-failure
+          read -r -a pkg_config_flags <<< "$(
+            PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/build/release-prefix/lib/pkgconfig" \
+              pkg-config --cflags --libs glifistore-abi
+          )"
+          cc -std=c11 tests/consumer/abi.c \
+            "${pkg_config_flags[@]}" \
+            -o build/release-consumer/pkgconfig-abi-consumer
+          LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/build/release-prefix/lib" \
+            build/release-consumer/pkgconfig-abi-consumer
+      - name: Package deterministic source and Linux install prefix
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release-candidate
+          python scripts/package-source-release.py \
+            --tag "$RELEASE_TAG" --output-directory dist/release-candidate
+          python scripts/package-install-prefix.py \
+            --tag "$RELEASE_TAG" \
+            --prefix build/release-prefix \
+            --target-os linux \
+            --architecture "$(uname -m)" \
+            --output-directory dist/release-candidate
+          python scripts/package-abi-consumer.py \
+            --tag "$RELEASE_TAG" \
+            --consumer build/release-consumer/glifistore_abi_consumer_smoke \
+            --target-os linux \
+            --architecture "$(uname -m)" \
+            --output-directory dist/release-candidate
+          python scripts/package-wire-client.py \
+            --tag "$RELEASE_TAG" \
+            --client build/release-candidate/glifistore_interop_client \
+            --target-os linux \
+            --architecture "$(uname -m)" \
+            --output-directory dist/release-candidate
+      - name: Record release toolchain authority
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          python engineering/tools/release_bundle.py build-metadata \
+            --tag "$RELEASE_TAG" \
+            --output dist/release-candidate/build-metadata.json \
+            --cmake-cache build/release-candidate/CMakeCache.txt \
+            --target-os linux \
+            --target-os-version "$(. /etc/os-release && printf '%s' "$VERSION_ID")" \
+            --architecture "$(uname -m)" \
+            --tls-backend none \
+            --build-option BUILD_TESTING=ON \
+            --build-option CMAKE_BUILD_TYPE=Release \
+            --build-option GLIFISTORE_BUILD_BENCHMARKS=OFF \
+            --build-option GLIFISTORE_BUILD_FUZZERS=OFF \
+            --build-option GLIFISTORE_ENABLE_TLS=OFF \
+            --build-option GLIFISTORE_FAULT_INJECTION=OFF \
+            --build-option GLIFISTORE_NATIVE_CPU=OFF \
+            --build-option GLIFISTORE_WARNINGS_AS_ERRORS=ON
+          python engineering/tools/release_bundle.py validate-metadata \
+            dist/release-candidate/build-metadata.json
+      - name: Install checksum-pinned Syft
+        run: sudo ./scripts/install-syft.sh
+      - name: Generate, bind, and validate SPDX SBOMs
+        run: |
+          set -euo pipefail
+          mkdir -p build/sbom-input
+          for artifact in dist/release-candidate/*.tar.xz; do
+            input="build/sbom-input/$(basename "$artifact").spdx.json"
+            syft "$artifact" -o "spdx-json=$input"
+            python engineering/tools/release_bundle.py bind-sbom \
+              --artifact "$artifact" \
+              --input "$input" \
+              --metadata dist/release-candidate/build-metadata.json \
+              --output "${artifact}.spdx.json"
+          done
+          python engineering/tools/release_bundle.py validate-sbom \
+            dist/release-candidate/*.spdx.json
+      - name: Seal candidate
+        id: seal
+        run: |
+          set -euo pipefail
+          python engineering/tools/release_bundle.py seal \
+            --directory dist/release-candidate \
+            --seal candidate-seal.json \
+            --kind candidate
+          echo "candidate-seal-sha256=$(sha256sum dist/release-candidate/candidate-seal.json | cut -d' ' -f1)" \
+            >>"$GITHUB_OUTPUT"
+      - name: Upload immutable candidate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.identity.outputs.artifact-name }}
+          path: dist/release-candidate/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

@@ -1,0 +1,38 @@
+{
+  "schema_version": 5,
+  "suite": "hosted-release-benchmarks",
+  "tcp_near_peak_fraction": 0.95,
+  "required_tcp_result_fields": [
+    "median_reactor_input_buffer_compactions",
+    "maximum_reactor_input_buffer_compactions",
+    "median_reactor_input_buffer_bytes_moved",
+    "maximum_reactor_input_buffer_bytes_moved",
+    "median_reactor_output_buffer_compactions",
+    "maximum_reactor_output_buffer_compactions",
+    "median_reactor_output_buffer_bytes_moved",
+    "maximum_reactor_output_buffer_bytes_moved"
+  ],
+  "expected_sources": [
+    {"source": "core.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "parallel-uniform.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "parallel-worker-affine.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "parallel-single-worker.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "parallel-zipf.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "durable-sync.txt", "benchmark_warmup": 1, "benchmark_repeats": 3},
+    {"source": "durable-periodic.txt", "benchmark_warmup": 1, "benchmark_repeats": 5},
+    {"source": "durable-group.txt", "benchmark_warmup": 1, "benchmark_repeats": 3},
+    {"source": "server-tcp-w1-p1.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w1-p8.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w1-p32.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w1-p128.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w2-p1.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w2-p8.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w2-p32.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w2-p128.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w4-p1.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w4-p8.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w4-p32.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-tcp-w4-p128.txt", "benchmark_warmup": 1, "benchmark_repeats": 7},
+    {"source": "server-latency-w2-p32.txt", "benchmark_warmup": 1, "benchmark_repeats": 7}
+  ]
+}

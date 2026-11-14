@@ -1,0 +1,139 @@
+Start testing: Nov 07 18:05 CET
+----------------------------------------------------------
+1/54 Testing: glifistore_blob_tests
+1/54 Test: glifistore_blob_tests
+Command: "/Users/gpicchiarelli/Documents/GlifiStore/build/blob-asan/glifistore_blob_tests"
+Directory: /Users/gpicchiarelli/Documents/GlifiStore/build/blob-asan/tests
+"glifistore_blob_tests" start time: Nov 07 18:05 CET
+Output:
+----------------------------------------------------------
+[RUN] blob SHA256 matches independent empty abc and million-a vectors
+[PASS] blob SHA256 matches independent empty abc and million-a vectors
+[RUN] blob codec bounds and metadata corruption reject before payload allocation
+[PASS] blob codec bounds and metadata corruption reject before payload allocation
+[RUN] blob and v2 codecs match independent Python golden fixtures
+[PASS] blob and v2 codecs match independent Python golden fixtures
+[RUN] blob logical boundary sizes use typed placement and survive reopen
+[PASS] blob logical boundary sizes use typed placement and survive reopen
+[RUN] blob streaming stores and reads exactly 64 MiB with bounded chunks
+[PASS] blob streaming stores and reads exactly 64 MiB with bounded chunks
+[RUN] blob stream pins old version through overwrite erase and collection
+[PASS] blob stream pins old version through overwrite erase and collection
+[RUN] blob transfer quotas abort and terminal commit return credits
+[PASS] blob transfer quotas abort and terminal commit return credits
+[RUN] blob install failure before descriptor commit leaves reclaimable orphan
+[PASS] blob install failure before descriptor commit leaves reclaimable orphan
+[RUN] blob corruption in overwritten committed history fails closed on recovery
+[PASS] blob corruption in overwritten committed history fails closed on recovery
+[RUN] blob fenced backup retains historical descriptor closure and restores values
+[PASS] blob fenced backup retains historical descriptor closure and restores values
+[RUN] blob v2 descriptor compaction reclaims without a Segment-count gain
+[PASS] blob v2 descriptor compaction reclaims without a Segment-count gain
+[RUN] blob strict group and periodic commits retain typed values after flush
+[PASS] blob strict group and periodic commits retain typed values after flush
+[RUN] blob recovery budget rejects insufficient metadata capacity before creation
+[PASS] blob recovery budget rejects insufficient metadata capacity before creation
+[RUN] blob streaming read keeps its selected value after TTL expiration
+[PASS] blob streaming read keeps its selected value after TTL expiration
+[RUN] blob read-only verification does not create a missing namespace
+[PASS] blob read-only verification does not create a missing namespace
+[RUN] blob staged abort and destruction remove files and return quota without GC
+[PASS] blob staged abort and destruction remove files and return quota without GC
+[RUN] blob failed chunk dispatch is terminal cleans staging and returns credits
+[PASS] blob failed chunk dispatch is terminal cleans staging and returns credits
+[RUN] blob quota reserves the peak staging extent before creating a file
+[PASS] blob quota reserves the peak staging extent before creating a file
+[RUN] blob parent directory sync retains configured syscall fault hooks
+[PASS] blob parent directory sync retains configured syscall fault hooks
+[RUN] blob exact peak staging quota permits commit and survives reopen
+[PASS] blob exact peak staging quota permits commit and survives reopen
+[RUN] blob close aborts active staging before revoking retained handles
+[PASS] blob close aborts active staging before revoking retained handles
+[RUN] blob concurrent commit cannot publish an upload after its chunk throws
+[PASS] blob concurrent commit cannot publish an upload after its chunk throws
+22 tests, 0 failures
+<end of output>
+Test time = 148.87 sec
+----------------------------------------------------------
+Test Passed.
+"glifistore_blob_tests" end time: Nov 07 18:07 CET
+"glifistore_blob_tests" time elapsed: 00:02:28
+----------------------------------------------------------
+
+2/54 Testing: glifistore_crash_blob
+2/54 Test: glifistore_crash_blob
+Command: "/Users/gpicchiarelli/Documents/GlifiStore/build/blob-asan/glifistore_crash_blob"
+Directory: /Users/gpicchiarelli/Documents/GlifiStore/build/blob-asan/tests
+"glifistore_crash_blob" start time: Nov 07 18:07 CET
+Output:
+----------------------------------------------------------
+PASS blob crash sync write_manifest -> previous
+PASS blob crash sync sync_manifest -> previous
+PASS blob crash sync rename_manifest -> previous
+PASS blob crash sync sync_directory -> previous
+PASS blob crash sync write_blob_chunk#1 -> previous
+PASS blob crash sync write_blob_chunk#2 -> previous
+PASS blob crash sync write_blob_chunk#3 -> previous
+PASS blob crash sync sync_blob_file -> previous
+PASS blob crash sync link_blob_file -> previous
+PASS blob crash sync install_blob_file -> previous
+PASS blob crash sync sync_blob_directory -> previous
+PASS blob crash sync write_record -> previous
+PASS blob crash sync sync_record -> previous
+PASS blob crash sync write_commit_slot -> complete
+PASS blob crash sync sync_commit_slot -> complete
+PASS blob crash sync ack -> complete
+PASS blob crash sync flush -> complete
+PASS blob crash group write_manifest -> previous
+PASS blob crash group sync_manifest -> previous
+PASS blob crash group rename_manifest -> previous
+PASS blob crash group sync_directory -> previous
+PASS blob crash group write_blob_chunk#1 -> previous
+PASS blob crash group write_blob_chunk#2 -> previous
+PASS blob crash group write_blob_chunk#3 -> previous
+PASS blob crash group sync_blob_file -> previous
+PASS blob crash group link_blob_file -> previous
+PASS blob crash group install_blob_file -> previous
+PASS blob crash group sync_blob_directory -> previous
+PASS blob crash group write_record -> previous
+PASS blob crash group sync_record -> previous
+PASS blob crash group write_commit_slot -> complete
+PASS blob crash group sync_commit_slot -> complete
+PASS blob crash group ack -> complete
+PASS blob crash group flush -> complete
+PASS blob crash periodic write_manifest -> previous
+PASS blob crash periodic sync_manifest -> previous
+PASS blob crash periodic rename_manifest -> previous
+PASS blob crash periodic sync_directory -> previous
+PASS blob crash periodic write_blob_chunk#1 -> previous
+PASS blob crash periodic write_blob_chunk#2 -> previous
+PASS blob crash periodic write_blob_chunk#3 -> previous
+PASS blob crash periodic sync_blob_file -> previous
+PASS blob crash periodic link_blob_file -> previous
+PASS blob crash periodic install_blob_file -> previous
+PASS blob crash periodic sync_blob_directory -> previous
+PASS blob crash periodic write_record -> previous
+PASS blob crash periodic sync_record -> previous
+PASS blob crash periodic write_commit_slot -> complete
+PASS blob crash periodic sync_commit_slot -> complete
+PASS blob crash periodic ack -> previous
+PASS blob crash periodic flush -> complete
+51 blob crash cases passed; E2 process termination only
+<end of output>
+Test time = 132.14 sec
+----------------------------------------------------------
+Test Passed.
+"glifistore_crash_blob" end time: Nov 07 18:09 CET
+"glifistore_crash_blob" time elapsed: 00:02:12
+----------------------------------------------------------
+
+End testing: Nov 07 18:09 CET
+
+blob = 281.01 sec*proc
+
+crash = 132.14 sec*proc
+
+durability = 281.01 sec*proc
+
+integration = 148.87 sec*proc
+

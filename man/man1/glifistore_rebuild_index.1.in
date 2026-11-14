@@ -1,0 +1,54 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE_REBUILD_INDEX 1
+.Os
+.Sh NAME
+.Nm glifistore_rebuild_index
+.Nd durable v1 Index rebuild is not supported offline
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Ar segment-file ...
+.Sh DESCRIPTION
+Durable persistence v1 does not persist a separate Index artifact.
+Indexes rebuild from committed Segments during Store recovery.
+.Pp
+.Nm
+(GlifiStore
+.Sy @PROJECT_VERSION@ )
+permanently refuses Segment-only offline Index rebuild and documents the
+operator path:
+.Bl -enum -compact
+.It
+Reopen or restart the Store on the data directory (ordinary recovery).
+.It
+For offline catalog repair, use
+.Xr glifistore_repair_store 1
+with an explicit empty workspace.
+.El
+.Pp
+Help and version remain available.
+Do not use this tool for durable v1 operations.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Help or version only.
+.It 1
+Refused operation / failure.
+.It 2
+Usage error.
+.El
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_repair_store 1 ,
+.Xr glifistore_verify_store 1
+.Sh AUTHORS
+GlifiStore contributors.

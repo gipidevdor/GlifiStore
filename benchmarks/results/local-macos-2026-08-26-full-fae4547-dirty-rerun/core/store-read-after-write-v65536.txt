@@ -1,0 +1,12 @@
+# glifistore benchmark
+# git_sha=fae4547-dirty
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# cpu_pin_requested=0
+# cpu_pin_applied=0
+# note=use plugged-in power; thermal throttling affects spread
+# latency_measurement=disabled
+name=store_read_after_write_copy key_size=16 value_size=65536 workers=1 threads=1 distribution=uniform random=0 operations=8000 hits=8000 samples=7 warmup=1 median_seconds=0.131049 min_seconds=0.128431 max_seconds=0.136111 median_ops_per_second=61046.1 min_ops_per_second=58775.4 max_ops_per_second=62290.4 median_ns_per_op=16381.1 min_ns_per_op=16053.8 max_ns_per_op=17013.9 median_rss_bytes=5.36543e+08 min_rss_bytes=5.36445e+08 max_rss_bytes=5.36609e+08 median_rss_delta_bytes=16384 peak_rss_bytes=5.36609e+08 ingress_bytes=0 egress_bytes=0 median_ingress_bytes_per_second=0 min_ingress_bytes_per_second=0 max_ingress_bytes_per_second=0 median_egress_bytes_per_second=0 min_egress_bytes_per_second=0 max_egress_bytes_per_second=0 median_duplex_bytes_per_second=0 min_duplex_bytes_per_second=0 max_duplex_bytes_per_second=0 latency_samples=0 p50_latency_ns=0 p95_latency_ns=0 p99_latency_ns=0 p999_latency_ns=0 median_durable_queue_wait_ns=0 maximum_durable_queue_wait_ns=0 median_durable_service_ns=0 maximum_durable_service_ns=0 median_durable_commit_ns=0 maximum_durable_commit_ns=0 median_durable_batch_records=0 maximum_durable_batch_records=0 durable_completed=0 durable_rejected=0 durable_expired=0 durable_committed_batches=0 durable_committed_records=0 durable_committed_bytes=0 durable_failed_batches=0 durable_maximum_queue_depth=0 durable_maximum_queued_bytes=0 durable_pending_records=0 durable_pending_bytes=0 durable_record_limit_closes=0 durable_byte_limit_closes=0 durable_adaptive_target_closes=0 durable_deadline_closes=0 median_reactor_input_buffer_compactions=0 maximum_reactor_input_buffer_compactions=0 median_reactor_input_buffer_bytes_moved=0 maximum_reactor_input_buffer_bytes_moved=0 median_reactor_output_buffer_compactions=0 maximum_reactor_output_buffer_compactions=0 median_reactor_output_buffer_bytes_moved=0 maximum_reactor_output_buffer_bytes_moved=0

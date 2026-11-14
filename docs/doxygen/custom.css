@@ -1,0 +1,39 @@
+html {
+    /* GlifiStore palette: artwork/README.md#palette */
+    --primary-color: #3a78bc;
+    --primary-dark-color: #091a3a;
+    --primary-light-color: #6ea5d8;
+    --glifi-record-color: #d9922e;
+    --side-nav-fixed-width: 300px;
+    --border-radius-small: 5px;
+    --border-radius-large: 9px;
+    --border-radius-medium: 7px;
+}
+
+html.dark-mode {
+    --primary-color: #6ea5d8;
+    --primary-dark-color: #e8eef7;
+    --primary-light-color: #3a78bc;
+}
+
+#projectlogo img {
+    max-height: 54px;
+    padding: 8px;
+}
+
+.glifi-intro {
+    color: var(--page-secondary-foreground-color);
+    font-size: 1.15em;
+    line-height: 1.7;
+}
+
+.glifi-intro::before {
+    content: "";
+    display: inline-block;
+    width: 0.6em;
+    height: 0.6em;
+    margin-right: 0.55em;
+    border-radius: 2px;
+    background: var(--glifi-record-color);
+    vertical-align: 0.05em;
+}

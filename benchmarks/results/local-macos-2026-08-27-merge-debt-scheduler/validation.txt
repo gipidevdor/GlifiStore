@@ -1,0 +1,10 @@
+release_functional_tests=632 passed=632 failed=0
+allocation_fault_injection=passed
+asan_ubsan_targeted_tests=4 passed=4 failed=0
+tsan_targeted_tests=4 passed=4 failed=0
+crash_smoke_tests=3 passed=3 failed=0 tests=sync,group,daemon_group
+volatile_parallel_put_latency_smoke=passed latency_samples=256
+assurance_requirements=30 hazards=32 gates=26 waivers=2 warnings=0 status=passed
+clang_format_version=21.1.8 changed_cpp_hpp=passed
+git_diff_check=passed
+status=passed_local

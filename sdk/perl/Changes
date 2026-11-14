@@ -1,0 +1,23 @@
+Revision history for Perl distribution GlifiStore
+
+        - Assemble pipelines from validated request fragments, avoiding one
+          complete temporary frame and payload copy per request.
+        - Add installed-tarball secure-profile interop with a fail-closed check
+          that GlifiStore::Client resolves from the isolated install prefix.
+
+0.1.0 2026-07-19
+        - Initial CPAN-ready release of the native wire-protocol v2 client.
+        - GlifiStore::Client with INIT/BIND bootstrap, pipelines, and
+          indeterminate mutation outcomes.
+        - GlifiStore::Protocol bidirectional codec and FNV-1a Worker routing.
+        - Hot-path performance: native pack 'Q<', zero-copy octet keys,
+          integer FNV-1a, buffered sysread, reused IO::Select, and
+          execute_worker_pipelines for multi-Worker overlap. Pipeline results
+          avoid eager placeholder hashes and materialize each slot once;
+          execute_batch reuses its initial routing decision during encoding;
+          connected clients reuse the routing identity validated during INIT.
+        - Brutal Perl::Critic (severity 1) enforced via .perlcriticrc,
+          scripts/test-perl-client.sh, and CI.
+        - Packaging installs the normalized tarball into an isolated prefix and
+          reruns conformance without access to the distribution source lib/.
+        - Request deadlines use CLOCK_MONOTONIC; thread/fork contract documented.

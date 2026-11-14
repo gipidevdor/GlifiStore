@@ -1,0 +1,37 @@
+# glifistore TCP server benchmark
+# git_sha=fae4547-dirty
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
+# benchmark_warmup=1
+# benchmark_repeats=5
+# cpu_pin_requested=0
+# cpu_pin_applied=0
+# note=use plugged-in power; thermal throttling affects spread
+# client_mode=raw-wire
+# pipeline=32
+# routing=owner-bound-connections
+# traffic_scope=timed-protocol-frames-excluding-init-bind
+# memory_scope=whole-benchmark-process-rss
+# storage_mode=durable-group
+# workload=read_after_write
+# durable_profile_scope=median-per-sample-averages-and-cross-sample-maxima
+# durable_commit_metric=batch-commit-boundary;unbatched-sync-reports-zero
+# group_max_records=1
+# group_max_bytes=1048576
+# group_max_wait_ms=10
+# periodic_sync_ms=1000
+# maintenance_suspend_on_p99_latency_ms=0
+# maintenance_suspend_on_p99_min_samples=32
+# maintenance_max_latency_deferral_ms=30000
+# maintenance_overlap_seed_operations=0
+# maintenance_overlap_seed_keys=128
+# maintenance_overlap_seed_value_bytes=262144
+# maintenance_overlap_seed_worker=0
+# maintenance_overlap_eval_ms=250
+# maintenance_overlap_release_ms=500
+# durable_mutation_queue_wait_ms=0
+# executor_affinity_requested=1
+# latency_measurement=pipelined-response
+# executor_affinity_semantics=mach-advisory
+name=server_tcp_read_after_write_durable-group key_size=16 value_size=64 workers=1 threads=4 distribution=owner-bound random=0 operations=1600 hits=1600 samples=5 warmup=1 median_seconds=0.253275 min_seconds=0.211538 max_seconds=0.568915 median_ops_per_second=6317.25 min_ops_per_second=2812.37 max_ops_per_second=7563.65 median_ns_per_op=158297 min_ns_per_op=132211 max_ns_per_op=355572 median_rss_bytes=6.88128e+06 min_rss_bytes=5.68525e+06 max_rss_bytes=7.01235e+06 median_rss_delta_bytes=65536 peak_rss_bytes=7.15981e+06 ingress_bytes=140800 egress_bytes=115200 median_ingress_bytes_per_second=555918 min_ingress_bytes_per_second=247489 max_ingress_bytes_per_second=665601 median_egress_bytes_per_second=454842 min_egress_bytes_per_second=202491 max_egress_bytes_per_second=544583 median_duplex_bytes_per_second=1.01076e+06 min_duplex_bytes_per_second=449980 max_duplex_bytes_per_second=1.21018e+06 latency_samples=8000 p50_latency_ns=2.30941e+07 p95_latency_ns=9.42831e+07 p99_latency_ns=1.54397e+08 p999_latency_ns=1.66567e+08 median_durable_queue_wait_ns=856212 maximum_durable_queue_wait_ns=1.35922e+07 median_durable_service_ns=312107 maximum_durable_service_ns=1.03626e+07 median_durable_commit_ns=298677 maximum_durable_commit_ns=1.03548e+07 median_durable_batch_records=1 maximum_durable_batch_records=1 durable_completed=800 durable_rejected=0 durable_expired=0 durable_committed_batches=800 durable_committed_records=800 durable_committed_bytes=108800 durable_failed_batches=0 durable_maximum_queue_depth=4 durable_maximum_queued_bytes=832 durable_pending_records=0 durable_pending_bytes=0 durable_record_limit_closes=800 durable_byte_limit_closes=0 durable_adaptive_target_closes=0 durable_deadline_closes=0 median_reactor_input_buffer_compactions=4 maximum_reactor_input_buffer_compactions=4 median_reactor_input_buffer_bytes_moved=0 maximum_reactor_input_buffer_bytes_moved=0 median_reactor_output_buffer_compactions=0 maximum_reactor_output_buffer_compactions=0 median_reactor_output_buffer_bytes_moved=0 maximum_reactor_output_buffer_bytes_moved=0

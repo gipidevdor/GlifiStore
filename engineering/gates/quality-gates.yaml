@@ -1,0 +1,935 @@
+gates:
+- id: GATE-PUBLIC-API-OWNERSHIP
+  titolo: Supported API separated with ownership/lifetime model
+  sezione: public_contract
+  livello_rilascio: alpha
+  requisiti:
+  - GS-CORE-API-001
+  prove:
+  - tests/consumer
+  - tests/integration/store_tests.cpp
+  - tests/unit/value_tests.cpp
+  - tests/unit/prepared_read_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Additional aliasing/lifetime regressions verified locally; no CI promotion
+  stato: PROVATA_IN_CI
+  rischio_residuo: No ABI stability before 1.0
+  riapertura:
+  - Public header layout change without ADR
+  - Owning-get contract change
+  narrative: The installed API uses owning reads; internal access remains build-tree-only.
+- id: GATE-API-ABI-POLICY
+  titolo: API and ABI compatibility policies for patch/minor/major
+  sezione: public_contract
+  livello_rilascio: alpha
+  requisiti:
+  - GS-COMPAT-FIXTURE-001
+  - GS-COMPAT-NN1-001
+  - GS-COMPAT-CABI-001
+  prove:
+  - docs/reference/cpp-api.md
+  - docs/architecture/version-lifecycle.md
+  - docs/architecture/n-n1-compatibility.md
+  - engineering/compatibility/n-n1-matrix.yaml
+  - docs/spec/c-abi-v1.md
+  - docs/adr/0038-stable-c-abi-artifact-delivery.md
+  - abi/symbols-v1.txt
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: assurance.yml
+  - path: engineering/compatibility/n-n1-matrix.yaml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Permanent tagged N−1 fixtures and the first old-binary/new-library C ABI row remain release-process steps
+  riapertura:
+  - Policy change without evidence update
+  - Matrix row removed without ADR
+  narrative: C++ ABI remains not promised; C ABI v1 has an independent contract and CI-linked gate, while tagged cross-release proof remains residual.
+- id: GATE-DISK-WIRE-VERSIONS
+  titolo: Disk and wire formats versioned with fixtures and matrices
+  sezione: public_contract
+  livello_rilascio: alpha
+  requisiti:
+  - GS-COMPAT-FIXTURE-001
+  - GS-COMPAT-NN1-001
+  - GS-PROTO-WIRE-001
+  prove:
+  - tests/fixtures
+  - scripts/package-release-compatibility-artifacts.sh
+  - engineering/compatibility/n-n1-matrix.yaml
+  - engineering/tools/validate_compat_matrix.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: release-compat.yml
+  - workflow: ci.yml
+  - workflow: assurance.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Publishing trees into permanent fixture drop remains a release-process step
+  riapertura:
+  - Format change without version bump
+  - Fixture drift
+  narrative: Golden fixtures and released-artifact harness exist; permanent drop process open.
+- id: GATE-CONCURRENCY-SPEC
+  titolo: Error behavior, limits, time, and concurrency guarantees specified
+  sezione: public_contract
+  livello_rilascio: alpha
+  requisiti:
+  - GS-CONCUR-PAIR-001
+  - GS-CONCUR-COMBINE-001
+  - GS-CONCUR-LIN-001
+  - GS-CONCUR-FAULT-001
+  - GS-CONCUR-MEM-001
+  - GS-CONCUR-TLA-001
+  - GS-CONCUR-LIVE-001
+  - GS-CONCUR-LEGACY-001
+  - GS-PROTO-WIRE-001
+  - GS-PROTO-ERROR-001
+  - GS-CORE-CLOSE-001
+  prove:
+  - docs/spec/client-semantics-v1.md
+  - docs/spec/error-taxonomy-v1.md
+  - docs/spec/concurrency-memory-model.md
+  - docs/adr/0037-shard-execution-token-flat-combining.md
+  - docs/assurance/memory-order-inventory.md
+  - docs/architecture/legacy-mutex-policy.md
+  - tests/integration/concurrency_tests.cpp
+  - tests/concurrency/linearizability_tests.cpp
+  - tests/integration/runtime_equivalence_tests.cpp
+  - tests/unit/shard_combining_executor_tests.cpp
+  - tests/unit/mutation_window_tests.cpp
+  - tests/integration/server_reactor_mutation_window_tests.cpp
+  - tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
+  - tests/integration/paired_store_batch_order_tests.cpp
+  - tests/unit/owner_partition_tests.cpp
+  - tests/quality/allocation_fault_batch_tests.cpp
+  - tests/fixtures/error_taxonomy_v1.json
+  - tests/unit/client_transport_tests.cpp
+  - tests/quality/allocation_fault_client_tests.cpp
+  - tests/integration/server_reactor_security_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  - engineering/formal/shard_pair/ShardPair.tla
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  - workflow: formal-models.yml
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: C++ client outcome/deadline and slot observer fixes; local evidence only
+  stato: PROVATA_IN_CI
+  rischio_residuo: Formal model bounds and declared fairness do not prove real scheduler fairness;
+    checker history size bounded; admitted Store mutations remain non-cancellable by disconnect/timeout
+    (by design); durable_group/periodic flusher token sharing deferred; adversarial multi-hour combiner
+    fairness evidence open
+  riapertura:
+  - Execution-token or combining semantics change without ADR 0037 amendment
+  - ACK boundary / mutation visibility change without ADR + GATE-DURABLE-ACK evidence
+  - Visibility or borrow lifetime change without ADR
+  - legacy_mutex feature creep without policy update
+  - Daemon request-timeout policy change without client-semantics / wire update
+  narrative: Client semantics, error taxonomy, concurrency model (including ADR 0037 token combining
+    Phases A–C), B1 checker/hooks/TLA+, legacy_mutex policy, and daemon request/idle timeout (no
+    cancel of admitted Store work) are normative. Phase C daemon mutation windows (≤32) and GET
+    visibility barrier are proven by mutation_window_tests plus server_reactor_mutation_window_tests
+    (contiguous PUT window/resume, PUT→ERASE→GET, durable_sync GET/PING barriers).
+- id: GATE-DURABLE-ACK
+  titolo: Acknowledgement semantics for durable mutations
+  sezione: durability_recovery
+  livello_rilascio: beta
+  requisiti:
+  - GS-PERSIST-ACK-001
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/integration/paired_store_erase_batch_durable_litmus_tests.cpp
+  - tests/integration/durable_group_rejected_sibling_tests.cpp
+  - docs/architecture/platform-durability-evidence.md
+  - docs/adr/0037-shard-execution-token-flat-combining.md
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: durability-evidence.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: No native filesystem row has E3/E4 certification; ADR 0037 durable_sync
+    combiner shares ACK-after-visibility with the dedicated Writer path
+  riapertura:
+  - ACK boundary change
+  - e3_certified=yes without pinned campaign
+  narrative: E2 evidence present; physical E3 honesty enforced by rehearsal scripts.
+    Embedded durable_sync may combine under the execution token (ADR 0037 Phase B) without
+    changing ACK-after-visibility polarity. Durable erase_batch tombstones across reopen are
+    covered by paired_store_erase_batch_durable_litmus_tests for embedded and Writer-path
+    durable_sync / durable_periodic, and Writer-path durable_group (no claim-ceiling change).
+    A durable_group Writer sibling rejected before the append attempt keeps its earlier siblings
+    (ADR 0047; durable_group_rejected_sibling_tests); append-time failures still abandon them.
+- id: GATE-WRITE-ORDER
+  titolo: Write ordering synchronization and manifest publication
+  sezione: durability_recovery
+  livello_rilascio: beta
+  requisiti:
+  - GS-PERSIST-ORDER-001
+  - GS-PERSIST-AMP-001
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - engineering/formal/persistence/PersistenceRecovery.tla
+  - engineering/formal/persistence/PersistenceRecovery.cfg
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: durability-evidence.yml
+  - workflow: formal-models.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: The formal proof is an abstract bounded model; filesystem/power-loss certification
+    matrices remain open and E3/E4 are not certified
+  riapertura:
+  - Sync ordering change without ADR
+  narrative: Platform-aware publication with fault and process-kill tests plus a required bounded
+    write/sync/slot/Manifest/recovery model; write-amp and temporary-space budgets reject before
+    compaction intent (GS-PERSIST-AMP-001).
+- id: GATE-RECOVERY-DETERMINISTIC
+  titolo: Deterministic recovery after process termination
+  sezione: durability_recovery
+  livello_rilascio: beta
+  requisiti:
+  - GS-RECOVERY-DET-001
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  - tests/crash/crash_daemon.cpp
+  - docs/spec/recovery-state-matrix-v1.md
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  - workflow: durability-evidence.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Randomized coverage samples bounded compaction checkpoint classes; native exhaustive
+    filesystem and arbitrary timing matrices remain open
+  riapertura:
+  - Recovery authority change
+  narrative: Deterministic crash suites and a retained reproducible randomized campaign provide E2
+    signals; neither is physical power-loss proof.
+- id: GATE-FAIL-CLOSED-IO
+  titolo: Fail-closed on truncation corruption and I/O failures
+  sezione: durability_recovery
+  livello_rilascio: beta
+  requisiti:
+  - GS-RECOVERY-FAILCLOSED-001
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: System-level disk-full/quota/writeback matrices open
+  riapertura:
+  - Fail-open recovery path introduced
+  narrative: Deterministic fault seams exist and run in ci.yml; system-level matrices open.
+- id: GATE-BACKUP-RESTORE
+  titolo: Backup restore verification and version migration
+  sezione: durability_recovery
+  livello_rilascio: beta
+  requisiti:
+  - GS-OPS-BACKUP-001
+  - GS-OPS-MIGRATE-001
+  prove:
+  - scripts/exercise_ops_runbooks.sh
+  - src/persistence/store_migrate.cpp
+  - tests/unit/store_migrate_tests.cpp
+  - tests/unit/store_backup_tests.cpp
+  - tests/crash/crash_backup.cpp
+  - tests/crash/crash_backup_daemon.cpp
+  - tests/crash/crash_backup_wire.cpp
+  - docs/spec/backup-restore-v1.md
+  - docs/operations/backup-restore.md
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ops-runbooks.yml
+  - workflow: ci.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Released-tag artifact consumption remains open; zero-fence hot backup out of scope; E3/E4 open; glifistored mid-BACKUP kill covered by glifistore_crash_backup_daemon
+  riapertura:
+  - Backup format change without fixtures
+  narrative: Offline tools and online fenced backup with ENOSPC and concurrent fence proofs in CI;
+    normative snapshot boundary published. Not E3/E4 certified.
+- id: GATE-TEST-SUITES
+  titolo: Distinct unit integration property concurrency crash recovery suites
+  sezione: verification
+  livello_rilascio: alpha
+  requisiti:
+  - GS-RECOVERY-DET-001
+  - GS-COMPAT-FIXTURE-001
+  prove:
+  - tests/unit
+  - tests/integration
+  - tests/property
+  - tests/crash
+  - tests/quality
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Regular tagged artifact drops remain open
+  riapertura:
+  - Merging suite boundaries without documentation
+  narrative: Suites are distinct in tree; permanent tagged drops open.
+- id: GATE-DOCUMENTATION-INTEGRITY
+  titolo: Tracked documentation has valid repository-local references
+  sezione: verification
+  livello_rilascio: prototype
+  requisiti:
+  - GS-CORE-DOCS-001
+  prove:
+  - engineering/tools/validate_documentation.py
+  - scripts/tests/test_documentation_validation.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: assurance.yml
+  - workflow: docs-links.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: External URL availability and fragment validity remain scheduled Lychee checks;
+    the deterministic gate covers repository-local targets on every assurance run
+  riapertura:
+  - Removing all-Markdown local-link validation without replacement
+  - Excluding an authoritative documentation tree from validation
+  narrative: The repository-local validator covers every tracked Markdown file, while Lychee retains
+    the network-dependent user-documentation check.
+- id: GATE-STATIC-ANALYSIS-HIGH-SIGNAL
+  titolo: Production sources pass fail-closed high-signal static analysis
+  sezione: verification
+  livello_rilascio: prototype
+  requisiti:
+  - GS-CORE-BUILD-001
+  prove:
+  - engineering/tools/run_clang_tidy_gate.py
+  - engineering/tools/format_code.py
+  - scripts/tests/test_code_format.py
+  - scripts/tests/test_clang_tidy_gate.py
+  - scripts/tests/test_ci_workflow.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: static-analysis.yml
+  - path: engineering/evidence/quality-hardening-local-2026-08-30.md
+  - path: engineering/evidence/code-style-local-2026-11-07.md
+    note: Additional style checks are locally verified; the modified workflow has not run in CI
+  stato: PROVATA_IN_CI
+  rischio_residuo: The all-target profile intentionally remains diagnostic for lower-confidence,
+    test-macro-sensitive, and toolchain-sensitive findings; production fail-closed tidy runs on
+    every static-analysis.yml push/PR for main
+  riapertura:
+  - Removing any documented high-signal check without an accepted replacement
+  - Running the fail-closed pass over fewer production sources than the compile database contains
+  narrative: The gate derives production translation units from compile_commands.json and rejects
+    unchecked optional access, use-after-move, analyzer dead stores, and declaration/definition
+    parameter-name drift, unbraced control flow, duplicate includes, obsolete null constants and
+    missing override. The shared formatter checker also covers native tools, probes and C consumers.
+    The wider diagnostic profile is not claimed warning-free.
+- id: GATE-FAULT-INJECTION
+  titolo: Fault injection for allocation filesystem clock socket thread failures
+  sezione: verification
+  livello_rilascio: beta
+  requisiti:
+  - GS-RECOVERY-FAILCLOSED-001
+  - GS-PERSIST-FAULT-001
+  - GS-PERSIST-AMP-001
+  prove:
+  - tests/quality/allocation_fault_client_tests.cpp
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/persistence_compaction_prefix_tests.cpp
+  - tests/integration/persistence_recovery_compaction_fileio_tests.cpp
+  - tests/unit/persistence_filesystem_tests.cpp
+  - tests/unit/store_backup_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  - scripts/run-e3-block-reset.sh
+  - engineering/tools/validate_durability_claims.py
+  - engineering/evidence/platform-durability/
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  - workflow: assurance.yml
+  - path: engineering/evidence/platform-durability/
+  stato: PROVATA_IN_CI
+  rischio_residuo: Exhaustive socket/thread/clock/hardware power-cut and per-request block tracing
+    remain open; E3 requires a retained pinned campaign
+  riapertura:
+  - Removing deterministic seams without replacement
+  - e3_certified=yes without pinned campaign
+  narrative: Allocation and FS publication seams exist with EINTR/short-I/O/ENOSPC/EIO/EROFS
+    FileIoHooks coverage across mutation, compaction staging+intent+promotion, and backup. The E3
+    rehearsal confirms a paused worker before reset and distinguishes bounded dm-flakey
+    drop-write/write-error/all-I/O-error modes; platform-durability evidence paths remain
+    placeholders and E3 honesty is enforced in CI.
+- id: GATE-FUZZ-CI
+  titolo: Fuzz targets run in CI with retained corpora
+  sezione: verification
+  livello_rilascio: alpha
+  requisiti:
+  - GS-RECOVERY-FAILCLOSED-001
+  prove:
+  - fuzz/corpus
+  - .github/workflows/sanitizers.yml
+  piattaforme:
+  - linux-x86_64
+  evidenze:
+  - workflow: sanitizers.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Bounded smoke only; multi-hour continuous fuzz open
+  riapertura:
+  - Corpora removed
+  - Targets compile-only
+  narrative: Bounded libFuzzer smoke in sanitizers workflow.
+- id: GATE-SOAK
+  titolo: Long-running stress and soak coverage
+  sezione: verification
+  livello_rilascio: beta
+  requisiti:
+  - GS-OPS-CONFIG-001
+  - GS-OPS-SOAK-001
+  - GS-OPS-DEBT-001
+  prove:
+  - scripts/soak_daemon.sh
+  - docs/operations/soak.md
+  - engineering/performance/budgets.yaml
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ops-runbooks.yml
+  - workflow: soak-extended.yml
+  - workflow: assurance.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: >
+    Controlled multi-hour hardware soak with mandatory rotation evidence open;
+    adversarial soak profiles (hot-key / connection-churn / queue-saturation /
+    adversarial-reclaim) are software stubs only
+  riapertura:
+  - Removing smoke soak from PR path without alternative
+  narrative: >
+    Smoke/long soaks exist and are budget-linked; Wave 4 adversarial profile stubs
+    exercise shape + SIGTERM drain; hardware soak remains release residual.
+- id: GATE-PERFORMANCE
+  titolo: Performance tests track latency throughput memory regressions
+  sezione: verification
+  livello_rilascio: beta
+  requisiti:
+  - GS-PERF-REGRESSION-001
+  - GS-PERF-BUDGET-001
+  prove:
+  - benchmarks
+  - docs/spec/benchmark-standard.md
+  - docs/assurance/performance-budgets.md
+  - engineering/performance/budgets.yaml
+  - engineering/tools/validate_perf_budgets.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: benchmarks.yml
+  - workflow: assurance.yml
+  - workflow: paired-linux-performance.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Absolute hardware budgets wait for glifistore-linux-perf pass-candidate
+  riapertura:
+  - Quietly raising regression thresholds
+  - Treating advisory snapshots as release gates
+  narrative: Environment-compatible hosted median signals + budget catalog landed; hard regression
+    and absolute claims remain hardware-gated.
+- id: GATE-CONFIG
+  titolo: Configuration precedence validation safe defaults limits
+  sezione: operations_security
+  livello_rilascio: alpha
+  requisiti:
+  - GS-OPS-CONFIG-001
+  prove:
+  - docs/cli.md
+  - scripts/exercise_ops_runbooks.sh
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ops-runbooks.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: >
+    Operator misuse of unsupported filesystems; multi-hour adversarial reclaim
+    fairness soak open (Wave 4 adversarial-reclaim profile is a software stub only);
+    intentional Prometheus/OpenMetrics non-support remains documented residual
+  riapertura:
+  - Precedence change without docs/tests
+  - Reclaim cursor pinned on reclaim_threshold without peer advance
+  narrative: Validated durable defaults and daemon profiles; HAZ-026 reclaim cursor-advance proofs in CI.
+- id: GATE-TELEMETRY
+  titolo: Structured logs metrics health readiness diagnostics
+  sezione: operations_security
+  livello_rilascio: alpha
+  requisiti:
+  - GS-OPS-CONFIG-001
+  prove:
+  - docs/operations/durable-tcp-daemon.md
+  - docs/operations/observability.md
+  - scripts/exercise_ops_runbooks.sh
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ops-runbooks.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: >
+    Histogram approximations are not SLOs; OpenMetrics/Prometheus exporter is
+    intentional non-support (docs/operations/observability.md)
+  riapertura:
+  - Removing HEALTH/READY/STATS fields without versioning
+  narrative: >
+    Wire HEALTH/READY/STATS, JSON lifecycle logging, and operator observability
+    catalog exist; no first-party Prometheus scrape endpoint.
+- id: GATE-OPS-RUNBOOKS
+  titolo: Graceful drain overload backup restore corruption runbooks
+  sezione: operations_security
+  livello_rilascio: alpha
+  requisiti:
+  - GS-OPS-BACKUP-001
+  - GS-OPS-CONFIG-001
+  - GS-OPS-SOAK-001
+  - GS-OPS-DEBT-001
+  prove:
+  - docs/operations/README.md
+  - docs/operations/graceful-drain-and-overload.md
+  - scripts/exercise_ops_runbooks.sh
+  - engineering/performance/budgets.yaml
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ops-runbooks.yml
+  - workflow: assurance.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Staging/production rehearsal still operator-owned
+  riapertura:
+  - Runbook drift from scripts
+  narrative: Operator procedures exercised by ops-runbooks CI and linked via perf/ops budgets.
+- id: GATE-AUTH-TRANSPORT
+  titolo: Authentication authorization transport security rate limits audit
+  sezione: operations_security
+  livello_rilascio: beta
+  requisiti:
+  - GS-SEC-PROFILE-001
+  - GS-SEC-BOUNDS-001
+  prove:
+  - docs/security/secure-profile.md
+  - scripts/test-secure-profile-interop.sh
+  - scripts/test-secure-profile-installed-artifacts.sh
+  - engineering/evidence/sdk-installed-secure-profile.md
+  - tests/integration/server_security_bounds_tests.cpp
+  - tests/security_audit_sink_tests.cpp
+  - engineering/evidence/security-bounds-local-2026-11-01.md
+  - engineering/evidence/security-bounds-ci-2026-11-01.md
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  evidenze:
+  - path: engineering/evidence/security-bounds-local-2026-11-01.md
+    note: macOS local full suite, TLS-off, sanitizer and mutation controls
+  - path: engineering/evidence/security-bounds-ci-2026-11-01.md
+    note: Source bc0b41e; CI 11/11 jobs, FreeBSD and both OpenBSD LibreSSL shards passed
+  - workflow: ci.yml
+  - workflow: freebsd.yml
+  - workflow: openbsd-libressl.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: >
+    Multi-tenant Phase 8 remainder unsupported/deferred (ADR 0028, at-rest crypto);
+    hostile-public CRL ops residual; restart-only TLS cert material; best-effort bounded audit
+    may suppress events or lose pending output at process exit; no durable-audit or public-readiness claim
+  riapertura:
+  - Weakening default-deny secure profile
+  - Network lifecycle or admission-bound changes without fresh platform evidence
+  narrative: >
+    Secure profile Phases 2–6 landed; Phase 8 remainder documented as
+    unsupported/deferred (Wave 4 honesty). ADR 0041 TLS/output/admission/audit lifecycles
+    proved on bc0b41e with retained Linux/macOS/FreeBSD/OpenBSD CI evidence. No release acceptance.
+- id: GATE-THREAT-SUPPLY
+  titolo: Threat model and security release process including supply chain
+  sezione: operations_security
+  livello_rilascio: beta
+  requisiti:
+  - GS-SEC-PROFILE-001
+  - GS-SUPPLY-ACTIONS-001
+  prove:
+  - docs/security/threat-model.md
+  - docs/security/actions-pinning.md
+  - docs/assurance/github-branch-protection.md
+  - SECURITY.md
+  - .github/workflows/supply-chain.yml
+  - .github/workflows/supply-chain-scan.yml
+  - .github/workflows/scorecard.yml
+  - .github/workflows/dependency-review.yml
+  - .github/workflows/actionlint.yml
+  - .github/workflows/release.yml
+  - engineering/tools/validate_actions_pins.py
+  - scripts/tests/test_actions_pins.py
+  - scripts/verify_hardening.py
+  piattaforme:
+  - linux-x86_64
+  evidenze:
+  - workflow: supply-chain.yml
+  - workflow: supply-chain-scan.yml
+  - workflow: scorecard.yml
+  - workflow: dependency-review.yml
+  - workflow: actionlint.yml
+  - workflow: assurance.yml
+  - workflow: release.yml
+  - path: engineering/evidence/dependabot-local-2026-11-07.md
+    note: Local workflow repairs and bounded TLC checks; gate status unchanged
+  stato: IMPLEMENTATA
+  rischio_residuo: Project GPG / full SLSA L3 optional; Dependabot must update SHAs; no tagged security-matrix evidence has been retained yet
+  riapertura:
+  - Removing SBOM/checksum gates
+  - Reintroducing mutable Action tags
+  narrative: Threat model, SBOM/checksum/Cosign/SLSA path, SHA-pinned Actions and Scorecard/dependency-review are implemented; the tag graph now closes the Linux sanitizer, CodeQL, static, supply-chain, SBOM and distributed-ELF matrix, but retained tagged evidence remains absent.
+- id: GATE-CMAKE-INSTALL
+  titolo: CMake installs versioned package metadata and GlifiStore::core
+  sezione: distribution_lifecycle
+  livello_rilascio: alpha
+  requisiti:
+  - GS-CORE-API-001
+  - GS-CORE-BUILD-001
+  prove:
+  - CMakeLists.txt
+  - src/CMakeLists.txt
+  - engineering/build/dependency-matrix.yaml
+  - engineering/tools/validate_cmake_deps.py
+  - engineering/tools/validate_structure_debt.py
+  - tests/consumer
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  - workflow: assurance.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: None beyond prototype claim ceiling; WAV-001 size debt closed
+  riapertura:
+  - Breaking exported targets without alias
+  - Removing add_subdirectory layout without matrix update
+  - Reintroducing sources above structure line budget without waiver
+  narrative: Installed targets exist; Phase C subdirectory split and size-debt splits landed.
+- id: GATE-INSTALL-CONSUMER
+  titolo: CI builds external consumer from installed prefix
+  sezione: distribution_lifecycle
+  livello_rilascio: alpha
+  requisiti:
+  - GS-CORE-API-001
+  - GS-COMPAT-CABI-001
+  prove:
+  - tests/consumer
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: ci.yml
+  stato: PROVATA_IN_CI
+  rischio_residuo: Same-SHA install-consumer scaffold (symbols + layout probe) is in ci.yml; cross-release old-binary × new-library remains open
+  riapertura:
+  - Consumer job removed
+  narrative: Install-consumer job builds supported C++ targets and the pure-C ABI target, then runs check_abi_symbols and c_abi_layout_probe against the installed prefix; cross-release proof remains open (wave5-l7-residuals.md).
+- id: GATE-C-ABI-V1
+  titolo: C ABI v1 layout symbols lifecycle and installed consumption
+  sezione: public_contract
+  livello_rilascio: alpha
+  requisiti:
+  - GS-COMPAT-CABI-001
+  prove:
+  - tests/abi/c_abi_tests.c
+  - tests/abi/c_abi_durable_tests.cpp
+  - tests/consumer/abi.c
+  - engineering/tools/check_abi_symbols.py
+  - tests/abi/unexpected-symbols.txt
+  - abi/symbols-v1.txt
+  piattaforme:
+  - linux-x86_64
+  - linux-arm64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  evidenze:
+  - workflow: ci.yml
+    note: install-consumer runs same-SHA symbol allowlist + layout probe; cross-release ABI-1 fixture still absent
+  stato: PROVATA_IN_CI
+  rischio_residuo: No tagged ABI-1 old consumer fixture and no retained native BSD package evidence yet
+  riapertura:
+  - ABI symbol or layout change without ABI_VERSION and ADR review
+  - Mutation outcome or close lifetime semantic change
+  - Shared facade begins exporting C++ or server symbols
+  narrative: Pure C runtime, negative symbol gate, layout assertions, SONAME authority, CMake target and installed consumer are proven in ci.yml install-consumer; cross-release proof remains open.
+- id: GATE-RELEASE-MATRIX
+  titolo: Release CI covers supported compilers OS arch optimized builds
+  sezione: distribution_lifecycle
+  livello_rilascio: rc
+  requisiti:
+  - GS-COMPAT-FIXTURE-001
+  - GS-RELEASE-ARTIFACT-001
+  prove:
+  - .github/workflows/ci.yml
+  - .github/workflows/freebsd.yml
+  - .github/workflows/openbsd-libressl.yml
+  - .github/workflows/release.yml
+  piattaforme:
+  - linux-x86_64
+  - linux-arm64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  evidenze:
+  - workflow: ci.yml
+  - workflow: freebsd.yml
+  - workflow: openbsd-libressl.yml
+  - workflow: release.yml
+  stato: IMPLEMENTATA
+  rischio_residuo: No immutable tag or native BSD package evidence exists; Windows is out of scope
+  riapertura:
+  - Dropping a supported OS without lifecycle update
+  narrative: Platform build/test workflows exist; FreeBSD and OpenBSD package evidence producers are wired fail-closed in release.yml; tag publication is blocked until exact native packages and same-commit evidence enter the sealed manifest.
+- id: GATE-REPRO-SBOM
+  titolo: Artifacts reproducible signed checksummed with provenance and SBOM
+  sezione: distribution_lifecycle
+  livello_rilascio: rc
+  requisiti:
+  - GS-COMPAT-FIXTURE-001
+  - GS-RELEASE-ARTIFACT-001
+  prove:
+  - .github/workflows/supply-chain.yml
+  - .github/workflows/release-candidate.yml
+  - .github/workflows/release.yml
+  - scripts/install-syft.sh
+  - engineering/tools/release_bundle.py
+  - engineering/tools/release_evidence.py
+  - engineering/tools/compare_release_rebuild.py
+  - scripts/verify_hardening.py
+  - engineering/schemas/release-evidence.schema.json
+  - engineering/schemas/candidate-admission.schema.json
+  - engineering/schemas/evidence-import.schema.json
+  - scripts/tests/test_release_artifacts.py
+  piattaforme:
+  - linux-x86_64
+  evidenze:
+  - workflow: supply-chain.yml
+  - workflow: release.yml
+  stato: IMPLEMENTATA
+  rischio_residuo: First successful tagged independent comparison, full native BSD artifacts, and cross-image/compiler reproducibility evidence remain absent
+  riapertura:
+  - Disabling digest checks on tags
+  narrative: Deterministic source/install/ABI/wire archives, an isolated second-runner byte comparison, SPDX validation, transitive seals and OIDC attestation are implemented; rebuilt bytes cannot enter promotion and release policy remains intentionally red until retained tag and platform evidence exist.
+- id: GATE-ARTIFACT-DELIVERY
+  titolo: Candidate Verify Publish preserves exact artifact identity
+  sezione: distribution_lifecycle
+  livello_rilascio: rc
+  requisiti:
+  - GS-RELEASE-ARTIFACT-001
+  prove:
+  - .github/workflows/release-candidate.yml
+  - .github/workflows/release.yml
+  - engineering/tools/release_identity.py
+  - engineering/tools/release_bundle.py
+  - engineering/tools/release_evidence.py
+  - engineering/schemas/release-evidence.schema.json
+  - engineering/schemas/candidate-admission.schema.json
+  - engineering/schemas/evidence-import.schema.json
+  - engineering/tools/validate_bsd_packaging.py
+  - scripts/verify_hardening.py
+  - scripts/test-freebsd-package-lifecycle.sh
+  - scripts/test-openbsd-package-lifecycle.sh
+  - scripts/tests/test_release_artifacts.py
+  - scripts/tests/test_bsd_packaging.py
+  - scripts/tests/test_artifact_release_workflow.py
+  piattaforme:
+  - linux-x86_64
+  - freebsd
+  - openbsd
+  evidenze:
+  - workflow: release.yml
+    note: Implementation and local negative proofs exist; no complete tag run exists
+  stato: IMPLEMENTATA
+  rischio_residuo: Native BSD package bytes, registered service accounts, a prior tagged Store, a complete attested prior ABI/wire release, and retained tagged evidence are still missing
+  riapertura:
+  - Any engine build or package rebuild in Verify or Publish
+  - Asset clobber or publication without verified-seal attestation
+  - Weakening tag identity, native package, SBOM or compatibility gates
+  narrative: Exact candidate admission and a closed same-run evidence import remove the candidate-seal/evidence cycle; SDK, persistence, bidirectional C-ABI, bidirectional wire, the complete Linux security matrix, native FreeBSD and OpenBSD package lifecycles and independent reproducibility evidence have same-run producers; both BSD producers generate non-circular distinfo from the sealed source and verify account-registration markers; persistence rejects self/current fixtures; ABI/wire require an attested complete prior release and retained compiled consumers; rebuilt comparison bytes cannot enter promotion; publish cannot rebuild or clobber; and policy deliberately prevents release until the remaining proofs exist.
+- id: GATE-VERSION-LIFECYCLE
+  titolo: Upgrade downgrade deprecation support EOL policies published
+  sezione: distribution_lifecycle
+  livello_rilascio: alpha
+  requisiti:
+  - GS-COMPAT-FIXTURE-001
+  - GS-COMPAT-NN1-001
+  prove:
+  - docs/architecture/version-lifecycle.md
+  - docs/architecture/n-n1-compatibility.md
+  - docs/operations/compatibility-and-migration.md
+  - docs/assurance/release-checklist.md
+  - docs/adr/0024-offline-worker-migration.md
+  - engineering/compatibility/n-n1-matrix.yaml
+  - engineering/claims
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  evidenze:
+  - workflow: assurance.yml
+  - workflow: release-compat.yml
+    note: Lifecycle docs + N↔N-1 matrix; formal support windows remain P3
+  stato: PROVATA_IN_CI
+  rischio_residuo: Formal support windows for beta/RC/stable remain P3; tagged N−1 fixture drops residual
+  riapertura:
+  - Lifecycle policy change without ADR
+  narrative: 0.x / persistence v1 policies + N↔N-1 matrix published; formal windows later.
+- id: GATE-PACKAGE-LIFECYCLE
+  titolo: Package backends declare and prove their lifecycle through honest evidence
+  sezione: distribution_lifecycle
+  livello_rilascio: rc
+  requisiti:
+  - GS-RELEASE-PACKAGE-001
+  - GS-RELEASE-ARTIFACT-001
+  prove:
+  - engineering/distribution/package-matrix.yaml
+  - engineering/schemas/package-evidence.schema.json
+  - engineering/tools/generate_package_matrix.py
+  - engineering/tools/generate_package_status.py
+  - engineering/tools/validate_package_evidence.py
+  - engineering/tools/package_ci_plan.py
+  - scripts/package-ci.sh
+  - scripts/tests/test_package_matrix.py
+  - scripts/tests/test_package_ci.py
+  - scripts/tests/test_package_ci_plan.py
+  - scripts/tests/test_package_evidence.py
+  - scripts/tests/test_package_status_docs.py
+  - scripts/tests/test_linux_packaging.py
+  - scripts/tests/test_macos_packaging.py
+  - scripts/tests/test_bsd_package_ci.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  evidenze:
+  - workflow: package-ci.yml
+    note: Plan, per-row package evidence and closure are retained per profile. Retained nightly
+      container runs reach LIFECYCLE_VERIFIED with service-lifecycle PASS under systemd as PID 1
+      (run 34662210614 on tip 58167e8); no annotated release has retained packaging evidence yet
+  - workflow: assurance.yml
+    note: Framework negative suites plus the generated package-status freshness check
+  stato: IMPLEMENTATA
+  rischio_residuo: Retained nightly Package CI run 34662210614 (tip 58167e8) proved deb and
+    rpm LIFECYCLE_VERIFIED with service-lifecycle PASS under systemd PID 1; overall result
+    remains NOT_RUN without a sealed candidate, and required_for_release stays false. No
+    retained MacPorts/Homebrew native lifecycle; both declare init integrations
+    (unprivileged launchd startupitem.user/group; brew services) exercised when native
+    runs, otherwise OPEN_GATE; every upstream acceptance stays OPEN_GATE; BSD external
+    consumer is implemented but unretained on a tagged release; Linux, FreeBSD/OpenBSD, and
+    MacPorts/Homebrew implement install→seed→upgrade→verify when GLIFISTORE_N1_PACKAGE_DIR
+    supplies sealed N-1 packages (or macOS source archives), but no prior annotated release
+    exists yet so package-upgrade stays NOT_APPLICABLE_INITIAL_BASELINE; deb, rpm, macports
+    and homebrew remain required_for_release false
+  riapertura:
+  - Promoting a backend to required_for_release without retained LIFECYCLE_VERIFIED evidence and an ADR
+  - Reporting a structural row as a package, service or upstream-acceptance proof
+  - Adding a backend, target or out-of-scope exception outside the package matrix
+  - Restating a version, backend, runner, retention or timeout inside a workflow
+  narrative: One matrix owns backends, targets, profiles and the check vocabulary; scripts/package-ci.sh
+    and its backend modules own every status; evidence is schema-bound to commit, version and artifact
+    digest and may report NOT_RUN, BLOCKED or OPEN_GATE but never a result better than its checks;
+    docs/distribution/package-status.md is generated from the matrix so no hand table can diverge.
+    Retained nightly deb/rpm evidence reaches LIFECYCLE_VERIFIED; package-upgrade against sealed
+    N-1 bytes, sealed-candidate admission, MacPorts/Homebrew native retention and every upstream
+    acceptance remain open. required_for_release stays false.
+- id: GATE-PACKAGE-ADMISSION
+  titolo: Package upgrade baselines and package artifacts are admitted by exact sealed bytes
+  sezione: distribution_lifecycle
+  livello_rilascio: rc
+  requisiti:
+  - GS-RELEASE-UPGRADE-001
+  - GS-RELEASE-ARTIFACT-001
+  prove:
+  - engineering/tools/semver_policy.py
+  - engineering/tools/upgrade_baseline.py
+  - engineering/tools/n1_package_artifacts.py
+  - engineering/tools/generate_artifact_manifest.py
+  - engineering/tools/validate_package_admission.py
+  - engineering/tools/run_package_admission.py
+  - engineering/schemas/upgrade-baseline.schema.json
+  - engineering/schemas/package-admission.schema.json
+  - engineering/schemas/artifact-manifest.schema.json
+  - engineering/schemas/installed-sdk-matrix.schema.json
+  - scripts/tests/test_package_upgrade_baseline.py
+  - scripts/tests/test_n1_package_artifacts.py
+  - scripts/tests/test_package_admission.py
+  - scripts/tests/test_package_admission_orchestrator.py
+  - scripts/tests/test_artifact_manifest.py
+  - scripts/tests/test_package_installed_sdk_matrix.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  evidenze:
+  - workflow: package-ci.yml
+    note: Closure runs run_package_admission.py whenever a sealed candidate is supplied
+      (release-profile workflow_call); retains package-admission.json, upgrade-baseline.json,
+      artifact-manifest.json and installed-sdk-matrix.json
+  - workflow: release.yml
+    note: package-admission job binds FreeBSD/OpenBSD release_evidence to the sealed candidate;
+      deliberately outside verify needs so residual blockers stay visible without inventing PASS
+  stato: IMPLEMENTATA
+  rischio_residuo: Admission is wired fail-closed for tool execution and retains blockers;
+    Linux nightly 34666166603 retained package-installed cross-SDK PASS for deb and rpm, but
+    admitted stays false until package-upgrade is exercised against a sealed SemVer N-1
+    predecessor on required backends; Linux, FreeBSD/OpenBSD, and MacPorts/Homebrew implement
+    install→seed→upgrade→verify when GLIFISTORE_N1_PACKAGE_DIR supplies those bytes (never
+    rebuilt from HEAD), but no prior annotated release exists yet so the check stays
+    NOT_APPLICABLE_INITIAL_BASELINE; no annotated release has retained a positive admission yet
+  riapertura:
+  - Selecting an N-1 baseline by arithmetic instead of SemVer precedence over sealed releases
+  - Rebuilding an N-1 package from HEAD or admitting a draft/incomplete predecessor
+  - Claiming an initial baseline while a published predecessor exists
+  - Admitting package bytes that the artifact manifest does not record with the same digest
+  - Rounding a BLOCKED admission report up to a publishable PASS without residual closure
+  narrative: The baseline resolver orders annotated published releases by SemVer precedence, keeps only
+    complete sealed ABI-compatible candidates, and separates NOT_APPLICABLE_INITIAL_BASELINE, BLOCKED
+    and NOT_RUN; admission binds the artifact manifest to the sealed source digest and every evidence
+    subject to the exact bytes, reporting blockers instead of promoting anything. package-ci.yml and
+    release.yml invoke run_package_admission.py and retain the report. Cross-SDK package-installed
+    PASS is retained for deb/rpm nightly; positive admission remains open until a sealed N-1
+    package-upgrade PASS exists on required backends. Linux, FreeBSD/OpenBSD, and
+    MacPorts/Homebrew implement that walk when sealed predecessor packages (or macOS
+    source archives) are supplied; a retained PASS still requires published N-1 bytes.

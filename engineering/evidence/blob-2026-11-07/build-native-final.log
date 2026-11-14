@@ -1,0 +1,92 @@
+ninja: warning: premature end of file; recovering
+[0/1] Re-running CMake...
+-- GlifiStore TLS: enabled (OpenSSL)
+-- GlifiStore fault injection: ENABLED (debug-only adverse scheduling hooks)
+-- GlifiStore hot-path phases: disabled (default)
+-- Configuring done (1.4s)
+-- Generating done (1.7s)
+-- Build files have been written to: /Users/gpicchiarelli/Documents/GlifiStore/build/macos-debug
+ninja: warning: premature end of file; recovering
+[1/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/blob_codec.cpp.o
+[2/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/blob_recovery.cpp.o
+[3/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/store_blob.cpp.o
+[4/84] Building CXX object src/CMakeFiles/glifistore_core.dir/core/hot_path_phases.cpp.o
+[5/84] Building CXX object src/CMakeFiles/glifistore_core.dir/core/fault_injection.cpp.o
+[6/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/blob_storage.cpp.o
+[7/84] Building CXX object src/CMakeFiles/glifistore_core.dir/index/index_hash_seed.cpp.o
+[8/84] Building CXX object src/CMakeFiles/glifistore_core.dir/core/worker_routing.cpp.o
+[9/84] Building CXX object src/CMakeFiles/glifistore_core.dir/index/index.cpp.o
+[10/84] Building CXX object src/CMakeFiles/glifistore_core.dir/index/key_arena.cpp.o
+[11/84] Building CXX object src/CMakeFiles/glifistore_core.dir/index/swiss_table.cpp.o
+[12/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/bootstrap.cpp.o
+[13/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/compaction/layout.cpp.o
+[14/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/compaction/manifest_transition.cpp.o
+[15/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/compaction/resource_estimator.cpp.o
+[16/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/compaction/planner.cpp.o
+[17/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/compaction_intent.cpp.o
+[18/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/filesystem.cpp.o
+[19/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/compaction_builder.cpp.o
+[20/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/manifest.cpp.o
+[21/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/filesystem_directory.cpp.o
+[22/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/recovery/recovery_budget.cpp.o
+[23/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/durable_flush_coordinator.cpp.o
+[24/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/namespace_audit.cpp.o
+[25/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/recovery/recovery.cpp.o
+[26/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/recovery/recovery_catalog.cpp.o
+[27/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/recovery/recovery_index_builder.cpp.o
+[28/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/resource_limits.cpp.o
+[29/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/recovery/recovery_scanner.cpp.o
+[30/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_blobs.cpp.o
+[31/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog.cpp.o
+[32/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_batch.cpp.o
+[33/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_detail.cpp.o
+[34/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_read_ops.cpp.o
+[35/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_rotate_ops.cpp.o
+[36/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_mutate_ops.cpp.o
+[37/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_maintenance.cpp.o
+[38/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/segment_file_io.cpp.o
+[39/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/segment_file.cpp.o
+[40/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/runtime_catalog_compact.cpp.o
+[41/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/store_verify.cpp.o
+[42/84] Building CXX object src/CMakeFiles/glifistore_core.dir/segment/crc32c.cpp.o
+[43/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/store_backup.cpp.o
+[44/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/store_repair.cpp.o
+[45/84] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/store_migrate.cpp.o
+[46/84] Building CXX object src/CMakeFiles/glifistore_core.dir/segment/global_manager.cpp.o
+[47/84] Building CXX object src/CMakeFiles/glifistore_core.dir/segment/record.cpp.o
+[48/84] Building CXX object src/CMakeFiles/glifistore_core.dir/segment/segment.cpp.o
+[49/84] Building CXX object src/CMakeFiles/glifistore_core.dir/segment/segment_header.cpp.o
+[50/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/maintenance.cpp.o
+[51/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/mutation_slot_pool.cpp.o
+[52/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/mutation_recovery.cpp.o
+[53/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/maintenance_evaluate.cpp.o
+[54/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/mutation_state.cpp.o
+[55/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/completion_policy.cpp.o
+[56/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/mutation_execution.cpp.o
+[57/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/fail_closed_state.cpp.o
+[58/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/read_generation.cpp.o
+[59/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/generation_slot_pool.cpp.o
+[60/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/read_generation_merge.cpp.o
+[61/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/read_generation_direct.cpp.o
+[62/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/read_generation_publish.cpp.o
+[63/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/lane_publication.cpp.o
+[64/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/volatile_sync_chunk.cpp.o
+[65/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/shard_pair_runtime_writer_loop.cpp.o
+[66/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/shard_pair_runtime.cpp.o
+[67/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/shard_pair_runtime_writer_async.cpp.o
+[68/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/shard_pair_runtime_writer_sync.cpp.o
+[69/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/paired/shard_pair_runtime_sync_lane.cpp.o
+[70/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/prepared_cold_read.cpp.o
+[71/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/store.cpp.o
+[72/84] Building CXX object src/CMakeFiles/glifistore_core.dir/store/store_access.cpp.o
+[73/84] Building CXX object src/CMakeFiles/glifistore_core.dir/vacuum/vacuum.cpp.o
+[74/84] Building CXX object src/CMakeFiles/glifistore_core.dir/worker/pool.cpp.o
+[75/84] Building CXX object src/CMakeFiles/glifistore_core.dir/worker/topology.cpp.o
+[76/84] Building CXX object tests/CMakeFiles/glifistore_blob_tests.dir/test_main.cpp.o
+[77/84] Building CXX object src/CMakeFiles/glifistore_core.dir/worker/worker.cpp.o
+[78/84] Building CXX object tests/CMakeFiles/glifistore_crash_blob.dir/crash/crash_blob.cpp.o
+[79/84] Building CXX object tests/CMakeFiles/glifistore_blob_tests.dir/unit/blob_lifecycle_tests.cpp.o
+[80/84] Building CXX object tests/CMakeFiles/glifistore_blob_tests.dir/unit/blob_storage_tests.cpp.o
+[81/84] Linking CXX static library libglifistore_core.a
+[82/84] Linking CXX executable glifistore_blob_tests
+[83/84] Linking CXX executable glifistore_crash_blob

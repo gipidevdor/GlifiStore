@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/abi-consumer-fixture.schema.json",
+  "title": "GlifiStore compiled C ABI consumer fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "product_version",
+    "abi_version",
+    "git_sha",
+    "tag",
+    "target_os",
+    "architecture",
+    "consumer_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "product_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "abi_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "tag": { "type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "target_os": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "architecture": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "consumer_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

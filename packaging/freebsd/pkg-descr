@@ -1,0 +1,6 @@
+GlifiStore is an architectural prototype of a C++23 in-memory key-value
+storage engine with paired Reader/Writer shards, a binary TCP protocol, and
+segmented persistent format v1. This reference port installs the daemon,
+offline administration tools, public development interfaces, and stable C ABI
+library. It does not by itself assert production readiness or device-level
+power-loss certification.

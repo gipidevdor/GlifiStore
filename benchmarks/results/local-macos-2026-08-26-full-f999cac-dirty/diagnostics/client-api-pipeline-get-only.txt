@@ -1,0 +1,4 @@
+case=client-api-pipeline-get-only
+result=harness-combination-invalid
+reason=client-pipeline path is defined as PUT+GET batches and cannot represent get-only
+replacement=get-only without client-pipeline plus read-after-write with client-pipeline-32

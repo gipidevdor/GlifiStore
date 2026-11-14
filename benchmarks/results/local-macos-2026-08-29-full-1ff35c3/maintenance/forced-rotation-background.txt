@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=1ff35c3
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+background,1,0.176925,176.924750,35.221125,3.884542,109.983542,26.970833,0.189791,141.028708,176.249833,0.334250,0.340667,1,1,1,1,1,2,2,2,0,32515776,3
+background,2,0.174669,174.668500,30.088209,3.777500,114.057250,25.902916,0.189750,143.927416,174.015625,0.338500,0.314375,1,1,1,1,1,2,2,2,0,32515776,3
+background,3,0.178825,178.825292,33.356334,4.772333,111.031542,28.845541,0.265875,144.915291,178.271625,0.299916,0.253751,1,1,1,1,1,2,2,2,0,32515776,3
+background,4,0.326677,326.676541,42.288833,5.857625,238.641792,36.989666,0.218584,281.707667,323.996500,2.376500,0.303541,1,1,1,1,1,2,2,2,0,32515776,3
+background,5,0.135879,135.878875,32.402958,2.852708,80.092875,19.788209,0.186500,102.920292,135.323250,0.259541,0.296084,1,1,1,1,1,2,2,2,0,32515776,3
+background,6,0.100660,100.659542,31.173542,3.864750,44.896667,19.958625,0.165625,68.885667,100.059209,0.295958,0.304375,1,1,1,1,1,2,2,2,0,32515776,3
+background,7,0.103631,103.630625,30.444875,4.809292,45.048666,21.904792,0.232625,71.995375,102.440250,0.281667,0.908708,1,1,1,1,1,3,2,2,1,32515776,3

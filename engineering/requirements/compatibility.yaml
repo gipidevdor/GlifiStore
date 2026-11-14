@@ -1,0 +1,370 @@
+requirements:
+- id: GS-COMPAT-FIXTURE-001
+  titolo: Disk and wire golden fixtures and released-artifact harness
+  categoria: compatibility
+  criticita: alta
+  stato: provato
+  descrizione: Manifest/Segment/commit/Record layouts and wire v2 fixtures are golden-tested; released-artifact
+    harness packages per-SHA self artifacts. Complete tagged Store fixtures have a separate closed
+    format and an artifact-only candidate harness; the first prior-release Store drop remains a release step.
+  autorita:
+  - docs/spec/persistence-v1.md
+  - docs/spec/wire-protocol-v2.md
+  - docs/architecture/version-lifecycle.md
+  implementazione:
+  - scripts/generate_format_fixtures.py
+  - scripts/package-release-compatibility-artifacts.sh
+  - engineering/tools/persistence_fixture.py
+  - scripts/test-installed-persistence-compat.sh
+  - tests/fixtures
+  prove:
+  - tests/fixtures
+  - scripts/generate_format_fixtures.py
+  - scripts/tests/test_persistence_fixture.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: release-compat.yml
+  - workflow: ci.yml
+  rischio_residuo:
+  - No complete Store from a prior tagged release exists yet, so cross-release persistence remains open
+  hazards:
+  - HAZ-022
+  gates:
+  - GATE-DISK-WIRE-VERSIONS
+  - GATE-API-ABI-POLICY
+- id: GS-COMPAT-NN1-001
+  titolo: Machine-readable N↔N-1 compatibility matrix
+  categoria: compatibility
+  criticita: alta
+  stato: implementato
+  descrizione: Store-open, wire, and ABI N↔N-1 combinations are recorded as supported,
+    supported_offline_only, intentionally_rejected, unsupported, or not_promised with a CI
+    validator. A same-run artifact-only persistence producer selects only a complete, checksummed,
+    strictly older tagged Store. The wire producer retains a compiled client per candidate and
+    exercises new/new plus both N-1 directions against a complete attested prior release.
+  autorita:
+  - docs/architecture/n-n1-compatibility.md
+  - docs/architecture/version-lifecycle.md
+  - engineering/compatibility/n-n1-matrix.yaml
+  implementazione:
+  - engineering/compatibility/n-n1-matrix.yaml
+  - engineering/compatibility/sdk-release-contract.json
+  - engineering/tools/validate_compat_matrix.py
+  - engineering/tools/write_sdk_release_index.py
+  - engineering/tools/persistence_fixture.py
+  - scripts/test-installed-persistence-compat.sh
+  - scripts/package-wire-client.py
+  - engineering/schemas/wire-client-fixture.schema.json
+  - engineering/tools/wire_client_fixture.py
+  - scripts/test-installed-wire-compat.sh
+  - .github/workflows/release.yml
+  - scripts/package-release-claim.sh
+  prove:
+  - engineering/compatibility/n-n1-matrix.yaml
+  - engineering/compatibility/sdk-release-contract.json
+  - engineering/tools/validate_compat_matrix.py
+  - engineering/claims
+  - scripts/tests/test_persistence_fixture.py
+  - scripts/tests/test_release_artifacts.py
+  - scripts/tests/test_artifact_release_workflow.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: assurance.yml
+  - workflow: release-compat.yml
+  rischio_residuo:
+  - Prior tagged codec trees, a complete Store, and a complete attested prior wire release are not yet retained; cross-release producers therefore block honestly
+  hazards:
+  - HAZ-022
+  gates:
+  - GATE-DISK-WIRE-VERSIONS
+  - GATE-VERSION-LIFECYCLE
+  - GATE-API-ABI-POLICY
+- id: GS-COMPAT-CABI-001
+  titolo: Stable C ABI v1 isolated from the C++ engine
+  categoria: compatibility
+  criticita: alta
+  stato: provato
+  descrizione: C ABI major 1 exposes only opaque synchronous Store operations, caller-owned buffers,
+    stable status and mutation-outcome values, extensible options, and an exact symbol allowlist. The
+    daemon remains linked directly to the static core and persistence v1 / wire v2 semantics are unchanged.
+  autorita:
+  - docs/spec/c-abi-v1.md
+  - docs/adr/0038-stable-c-abi-artifact-delivery.md
+  - docs/abi/README.md
+  implementazione:
+  - ABI_VERSION
+  - include/glifistore/abi/glifistore.h
+  - src/abi/glifistore.cpp
+  - abi/symbols-v1.txt
+  - src/CMakeLists.txt
+  - scripts/package-abi-consumer.py
+  - engineering/schemas/abi-consumer-fixture.schema.json
+  - engineering/tools/abi_consumer_fixture.py
+  - engineering/tools/prior_release.py
+  - scripts/test-installed-abi-compat.sh
+  - .github/workflows/release.yml
+  prove:
+  - tests/abi/c_abi_tests.c
+  - tests/abi/c_abi_durable_tests.cpp
+  - tests/consumer/abi.c
+  - engineering/tools/check_abi_symbols.py
+  - tests/abi/unexpected-symbols.txt
+  - tests/abi/c_abi_layout_probe.c
+  - scripts/tests/test_release_artifacts.py
+  - scripts/tests/test_artifact_release_workflow.py
+  piattaforme:
+  - linux-x86_64
+  - linux-arm64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+    note: C consumer and symbol tests are part of the default CTest graph; CI evidence awaits merge
+  - workflow: release.yml
+    note: Bidirectional same-run producer exists but no complete prior official release can feed it yet
+  rischio_residuo:
+  - No complete prior official release with a sealed ABI-1 consumer exists yet
+  - Native FreeBSD/OpenBSD package installation evidence is not yet retained
+  hazards:
+  - HAZ-029
+  gates:
+  - GATE-C-ABI-V1
+  - GATE-API-ABI-POLICY
+  - GATE-INSTALL-CONSUMER
+- id: GS-RELEASE-ARTIFACT-001
+  titolo: Build-once artifact identity verification and immutable promotion
+  categoria: compatibility
+  criticita: alta
+  stato: implementato
+  descrizione: Le release partono esclusivamente da un tag annotato coerente con VERSION, costruiscono
+    il candidate una sola volta, ammettono l'insieme esatto mediante seal SHA-256, importano package
+    ed evidence in un inventario chiuso, verificano package consumer, SBOM, compatibility evidence e
+    provenance, quindi pubblicano senza rebuild o sostituzione asset.
+  autorita:
+  - docs/adr/0038-stable-c-abi-artifact-delivery.md
+  - docs/distribution/artifact-delivery.md
+  - docs/distribution/bsd-packaging.md
+  implementazione:
+  - .github/workflows/release-candidate.yml
+  - .github/workflows/release.yml
+  - engineering/tools/release_identity.py
+  - engineering/tools/release_bundle.py
+  - engineering/tools/release_evidence.py
+  - engineering/tools/validate_bsd_packaging.py
+  - engineering/schemas/release-evidence.schema.json
+  - engineering/schemas/candidate-admission.schema.json
+  - engineering/schemas/evidence-import.schema.json
+  - scripts/package-source-release.py
+  - scripts/package-install-prefix.py
+  - scripts/package-abi-consumer.py
+  - scripts/package-wire-client.py
+  - engineering/tools/abi_consumer_fixture.py
+  - engineering/tools/wire_client_fixture.py
+  - engineering/tools/compare_release_rebuild.py
+  - scripts/verify_hardening.py
+  - scripts/test-freebsd-package-lifecycle.sh
+  - packaging/freebsd
+  - packaging/openbsd
+  prove:
+  - scripts/tests/test_release_artifacts.py
+  - scripts/tests/test_bsd_packaging.py
+  - scripts/tests/test_artifact_release_workflow.py
+  piattaforme:
+  - linux-x86_64
+  - freebsd
+  - openbsd
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: release.yml
+    note: I producer same-run SDK, persistenza, ABI, wire, security matrix, package FreeBSD/OpenBSD e riproducibilita esistono con gate negativi; nessuna release completa e stata ancora promossa
+  rischio_residuo:
+  - Nessun tag annotato e nessun package BSD nativo esistono ancora
+  - Il vecchio consumer ABI e le otto evidenze release-wide potranno nascere solo dalla prima release
+  - Il reusable workflow e locale al repository e non costituisce oggi prova SLSA Build Level 3
+  - Persistenza, SDK, ABI, wire, security matrix, package FreeBSD/OpenBSD e riproducibilita hanno producer same-run (release.yml); i producer package BSD restano bloccati da account ports non registrato e dall'assenza di retention nativa taggata
+  - Il producer FreeBSD resta bloccato finche l'account glifistore non e registrato nel ports tree nativo
+  - Il producer persistente resta bloccato finche non esiste un vero Store di una release taggata precedente
+  - Il producer ABI resta bloccato finche non esiste una release completa attestata precedente
+  - Il producer wire resta bloccato finche non esiste una release completa attestata precedente con client v2 sigillato
+  hazards:
+  - HAZ-030
+  gates:
+  - GATE-ARTIFACT-DELIVERY
+  - GATE-RELEASE-MATRIX
+  - GATE-REPRO-SBOM
+- id: GS-RELEASE-PACKAGE-001
+  titolo: Version-agnostic multi-backend package lifecycle with fail-closed evidence
+  categoria: compatibility
+  criticita: alta
+  stato: implementato
+  descrizione: >
+    Ogni backend di packaging (deb, rpm, MacPorts, Homebrew, FreeBSD, OpenBSD) e dichiarato in
+    un'unica matrice machine-readable che possiede target, profili CI, vocabolario dei check e
+    limitazioni. Nessuna versione compare nella matrice o nei workflow: deriva da VERSION tramite
+    il release context, con package revision separata. Ogni check riporta esattamente uno stato fra
+    PASS, FAIL, NOT_RUN, NOT_APPLICABLE, NOT_APPLICABLE_INITIAL_BASELINE, BLOCKED e OPEN_GATE, il
+    risultato del backend non puo essere migliore dei suoi check, e la categoria del check impedisce
+    che una riga structural venga letta come prova package, service o upstream. I backend non gia
+    richiesti da validate_release_policy restano required_for_release false. Windows e Apple .pkg
+    sono rifiutati dal validatore della matrice, non semplicemente non implementati.
+  autorita:
+  - docs/distribution/package-ci.md
+  - docs/distribution/package-status.md
+  - docs/distribution/bsd-packaging.md
+  - engineering/distribution/package-matrix.yaml
+  implementazione:
+  - engineering/distribution/package-matrix.yaml
+  - engineering/schemas/package-evidence.schema.json
+  - engineering/schemas/release-context.schema.json
+  - engineering/tools/package_framework.py
+  - engineering/tools/generate_release_context.py
+  - engineering/tools/generate_package_matrix.py
+  - engineering/tools/generate_package_status.py
+  - engineering/tools/validate_package_evidence.py
+  - engineering/tools/package_ci_plan.py
+  - engineering/tools/render_package_metadata.py
+  - engineering/tools/render_macos_packaging.py
+  - engineering/tools/run_linux_package_backend.py
+  - engineering/tools/run_macos_package_backend.py
+  - engineering/tools/bsd_package_lifecycle.py
+  - engineering/tools/verify_package_payload.py
+  - scripts/package-ci.sh
+  - scripts/lib/package-backend-linux.sh
+  - scripts/lib/package-backend-macos.sh
+  - scripts/lib/package-backend-bsd.sh
+  - packaging/common
+  - packaging/debian
+  - packaging/rpm
+  - packaging/macports
+  - packaging/homebrew
+  - packaging/freebsd
+  - packaging/openbsd
+  - .github/workflows/package-ci.yml
+  prove:
+  - scripts/tests/test_package_matrix.py
+  - scripts/tests/test_package_ci.py
+  - scripts/tests/test_package_ci_plan.py
+  - scripts/tests/test_package_evidence.py
+  - scripts/tests/test_package_status_docs.py
+  - scripts/tests/test_package_workflows.py
+  - scripts/tests/test_linux_packaging.py
+  - scripts/tests/test_macos_packaging.py
+  - scripts/tests/test_bsd_package_ci.py
+  - scripts/tests/test_release_context.py
+  - scripts/tests/test_semver_policy.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: package-ci.yml
+    note: Il workflow trattiene plan, evidence e closure per profilo; il nightly ha trattenuto
+      lifecycle deb/rpm a LIFECYCLE_VERIFIED con service-lifecycle PASS sotto systemd come PID 1
+      (run 34662210614); overall resta NOT_RUN senza candidate sigillato
+  - workflow: assurance.yml
+    note: Le suite negative del framework e la freschezza di docs/distribution/package-status.md
+      girano in unittest discover -s scripts/tests
+  rischio_residuo:
+  - Il lifecycle deb/rpm container ha LIFECYCLE_VERIFIED trattenuto; required_for_release resta
+    false e overall NOT_RUN senza candidate sigillato
+  - Il lifecycle nativo MacPorts/Homebrew non e mai stato eseguito in un run CI trattenuto
+  - MacPorts dichiara startupitem unprivileged (user/group glifistore) e Homebrew dichiara
+    brew services; senza run nativo trattenuto service-lifecycle resta OPEN_GATE per entrambi
+  - upstream-ports-acceptance resta OPEN_GATE per FreeBSD, OpenBSD, MacPorts e Homebrew; il
+    packaging in-repo e la pipeline del progetto, non un'accettazione upstream
+  - external-consumer contro il prefix installato e costruito dai native scripts BSD
+    (`package-external-consumer.sh`); senza un run tag trattenuto il residual resta la retention
+  - package-upgrade resta NOT_APPLICABLE_INITIAL_BASELINE finche non esiste un predecessore
+    SemVer annotato; Linux, BSD e macOS eseguono install→seed→upgrade→verify quando
+    GLIFISTORE_N1_PACKAGE_DIR fornisce pacchetti/archivi sigillati (mai ricostruiti da HEAD);
+    manca ancora un PASS trattenuto su N-1 pubblicato
+  - deb, rpm, macports e homebrew restano required_for_release false finche un gate non li promuove
+  hazards:
+  - HAZ-030
+  - HAZ-034
+  gates:
+  - GATE-PACKAGE-LIFECYCLE
+- id: GS-RELEASE-UPGRADE-001
+  titolo: SemVer-aware sealed N-1 package baseline and exact-artifact package admission
+  categoria: compatibility
+  criticita: alta
+  stato: implementato
+  descrizione: >
+    La baseline di upgrade e la release precedente scelta per precedenza SemVer fra i tag annotati
+    pubblicati, completi, sigillati e ABI-compatibili, mai "versione corrente meno uno": una release
+    draft, prerelease o priva di manifest non puo diventare baseline. I tre stati pre-upgrade restano
+    distinti (NOT_APPLICABLE_INITIAL_BASELINE quando nulla precede, BLOCKED quando qualcosa precede ma
+    nessuna release e ammissibile, NOT_RUN quando la baseline esiste e il run non l'ha esercitata).
+    Quando GLIFISTORE_N1_PACKAGE_DIR fornisce i pacchetti sigillati del predecessore, Linux deb/rpm,
+    FreeBSD/OpenBSD e MacPorts/Homebrew eseguono la camminata install→seed→upgrade→verify nel
+    lifecycle nativo/container (macOS seleziona l'archivio sorgente sigillato
+    GlifiStore-<version>.tar.xz). L'ammissione lega il manifest degli artifact
+    al digest dell'archivio sorgente sigillato e ogni evidence al SHA-256 dei byte esatti, cosi un
+    pacchetto ricostruito fra verify e publish emerge come byte drift; N-1 non viene mai ricostruito
+    da HEAD. Il report di ammissione registra i blocchi e non promuove alcun gate.
+  autorita:
+  - docs/distribution/package-ci.md
+  - docs/distribution/artifact-delivery.md
+  - docs/architecture/n-n1-compatibility.md
+  implementazione:
+  - engineering/tools/semver_policy.py
+  - engineering/tools/prior_release.py
+  - engineering/tools/upgrade_baseline.py
+  - engineering/tools/n1_package_artifacts.py
+  - engineering/tools/generate_artifact_manifest.py
+  - engineering/tools/validate_package_admission.py
+  - engineering/tools/run_package_admission.py
+  - engineering/schemas/upgrade-baseline.schema.json
+  - engineering/schemas/upgrade-baseline-admission.schema.json
+  - engineering/schemas/package-admission.schema.json
+  - engineering/schemas/artifact-manifest.schema.json
+  - engineering/schemas/installed-sdk-matrix.schema.json
+  prove:
+  - scripts/tests/test_package_upgrade_baseline.py
+  - scripts/tests/test_n1_package_artifacts.py
+  - scripts/tests/test_package_admission.py
+  - scripts/tests/test_package_admission_orchestrator.py
+  - scripts/tests/test_artifact_manifest.py
+  - scripts/tests/test_package_installed_sdk_matrix.py
+  - scripts/tests/test_semver_policy.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  - freebsd
+  - openbsd
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: package-ci.yml
+    note: Closure invoca run_package_admission.py quando e presente un candidate sigillato
+  - workflow: release.yml
+    note: Job package-admission lega release_evidence FreeBSD/OpenBSD al candidate sigillato
+  rischio_residuo:
+  - >-
+    L'ammissione e collegata fail-closed per l'esecuzione dei tool e trattiene i blocker; la
+    matrice cross-SDK package-installed ha PASS nightly trattenuti per deb/rpm
+    (run 34666166603), ma admitted resta false finche package-upgrade non esercita un
+    predecessore SemVer N-1 sigillato
+  - FreeBSD/OpenBSD dichiarano package-upgrade nella matrice e corrono
+    install→seed→upgrade→verify quando GLIFISTORE_N1_PACKAGE_DIR fornisce `.pkg`/`.tgz`
+    sigillati; senza quei byte restano NOT_RUN / NOT_APPLICABLE_INITIAL_BASELINE
+  - Nessun tag annotato ha ancora trattenuto un'ammissione positiva
+  - I backend selezionano il predecessore SemVer e restano NOT_RUN (o
+    NOT_APPLICABLE_INITIAL_BASELINE) finche GLIFISTORE_N1_PACKAGE_DIR non fornisce i
+    pacchetti sigillati; Linux, BSD e macOS eseguono install→seed→upgrade→verify quando quei
+    byte sono disponibili nel lifecycle nativo/container, ma senza un predecessore pubblicato
+    non esiste ancora un PASS trattenuto
+  hazards:
+  - HAZ-030
+  - HAZ-034
+  gates:
+  - GATE-PACKAGE-ADMISSION

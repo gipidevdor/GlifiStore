@@ -1,0 +1,58 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE_REPAIR_STORE 1
+.Os
+.Sh NAME
+.Nm glifistore_repair_store
+.Nd offline repair of a GlifiStore data directory into a workspace
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Op Fl Fl json
+.Op Fl Fl no-scan
+.Ar source-data-dir workspace-dir
+.Sh DESCRIPTION
+.Nm
+performs offline fail-closed repair that never mutates the source (GlifiStore
+.Sy @PROJECT_VERSION@ ) .
+It requires an empty explicit workspace and creates:
+.Bl -tag -width "workspace/quarantine" -compact
+.It Pa workspace/store
+Clean Manifest and catalog Segments (verified after copy).
+.It Pa workspace/quarantine
+Non-catalog namespace anomalies plus
+.Pa audit.txt .
+.El
+.Pp
+Unlisted Segments, crash temporaries, compaction intents, and unknown regular
+files are quarantined.
+Missing catalog entries and unsafe entries (symlinks, hard links, non-regular
+objects) fail closed without writing a usable store.
+Live/hot repair is not supported.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.It Fl Fl json
+Emit a stable JSON report on stdout.
+.It Fl Fl no-scan
+Skip committed Record scans during catalog verification.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Success.
+.It 1
+Repair or I/O failure.
+.It 2
+Usage error.
+.El
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_verify_store 1 ,
+.Xr glifistore_rebuild_index 1
+.Sh AUTHORS
+GlifiStore contributors.

@@ -1,0 +1,180 @@
+{
+  "timestamp_utc": "2026-11-07T16:49:32.321970+00:00",
+  "source_commit": "8ff89d3fefa6119a273d8f8ba7fe7d345bcee042",
+  "system": "Darwin",
+  "system_release": "27.2.0",
+  "machine": "arm64",
+  "cpu": "Apple M4",
+  "physical_cpus": 10,
+  "logical_cpus": 10,
+  "memory_bytes": 17179869184,
+  "load_average_before": [
+    4.9921875,
+    10.15185546875,
+    20.69091796875
+  ],
+  "power_source": "Now drawing from 'AC Power'",
+  "configuration": "unix-release; GLIFISTORE_BUILD_LAB=ON; CMAKE_BUILD_TYPE=Release",
+  "production": "official paired embedded Store; volatile; worker-affine callers; 64 keys/worker; 64-byte values; no CPU pinning",
+  "commands": [
+    {
+      "output": "generation-shell.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_shell_benchmark",
+        "--ops",
+        "20000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7"
+      ]
+    },
+    {
+      "output": "publication-adopt.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_publication_benchmark",
+        "--ops",
+        "20000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--reader-work",
+        "adopt"
+      ]
+    },
+    {
+      "output": "publication-get.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_publication_benchmark",
+        "--ops",
+        "20000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--reader-work",
+        "get"
+      ]
+    },
+    {
+      "output": "production-put-1t.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_runtime_benchmark",
+        "--ops",
+        "200000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--threads",
+        "1",
+        "--workload",
+        "put",
+        "--generation-slot-pool",
+        "both"
+      ]
+    },
+    {
+      "output": "production-get-1t.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_runtime_benchmark",
+        "--ops",
+        "200000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--threads",
+        "1",
+        "--workload",
+        "get",
+        "--generation-slot-pool",
+        "both"
+      ]
+    },
+    {
+      "output": "production-put-get-1t.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_runtime_benchmark",
+        "--ops",
+        "200000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--threads",
+        "1",
+        "--workload",
+        "put-get",
+        "--generation-slot-pool",
+        "both"
+      ]
+    },
+    {
+      "output": "production-put-2t.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_runtime_benchmark",
+        "--ops",
+        "200000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--threads",
+        "2",
+        "--workload",
+        "put",
+        "--generation-slot-pool",
+        "both"
+      ]
+    },
+    {
+      "output": "production-get-2t.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_runtime_benchmark",
+        "--ops",
+        "200000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--threads",
+        "2",
+        "--workload",
+        "get",
+        "--generation-slot-pool",
+        "both"
+      ]
+    },
+    {
+      "output": "production-put-get-2t.tsv",
+      "argv": [
+        "build/unix-release/glifistore_generation_runtime_benchmark",
+        "--ops",
+        "200000",
+        "--warmup",
+        "1",
+        "--repeats",
+        "7",
+        "--threads",
+        "2",
+        "--workload",
+        "put-get",
+        "--generation-slot-pool",
+        "both"
+      ]
+    }
+  ],
+  "binaries_sha256": {
+    "glifistore_generation_shell_benchmark": "50259691733ee81202bee39c2c7233024fa0e9c8e29eb70dc22f68d4cf374c39",
+    "glifistore_generation_publication_benchmark": "df032710754d3cde8ce339724fba897b04855add91d37d4ccd0c5904161ca014",
+    "glifistore_generation_runtime_benchmark": "12ca78e81a582080b2bd8641e500a063dd9855c6cabdf889c1be1bb97dafbbbc"
+  },
+  "load_average_after": [
+    6.66357421875,
+    9.94140625,
+    20.1845703125
+  ],
+  "finished_utc": "2026-11-07T16:50:04.003149+00:00"
+}

@@ -1,0 +1,57 @@
+[Unit]
+Description=GlifiStore paired reader/writer key-value daemon
+Documentation=man:glifistored(8)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+ExecStart=@BINDIR@/glifistored --config @CONFIG_FILE@
+Restart=on-failure
+RestartSec=5s
+
+# Durable shutdown: glifistored drains admissions on SIGTERM for at most
+# shutdown-drain-ms (30s in the shipped configuration). systemd must outwait the
+# drain, otherwise SIGKILL would cut the writer before its ordered shutdown.
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=90s
+
+# Durable Store data. systemd creates and owns the directory; neither start nor
+# stop removes it, which is what packaging/common/config-data-policy.md requires.
+StateDirectory=glifistore
+StateDirectoryMode=0750
+RuntimeDirectory=glifistored
+RuntimeDirectoryMode=0750
+WorkingDirectory=@STATEDIR@
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectProc=invisible
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectClock=yes
+ReadWritePaths=@STATEDIR@
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

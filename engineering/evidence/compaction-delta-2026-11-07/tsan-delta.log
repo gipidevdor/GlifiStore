@@ -1,0 +1,9 @@
+[RUN] compaction delta preserves overwrite erase restore active and TTL across durable modes
+[PASS] compaction delta preserves overwrite erase restore active and TTL across durable modes
+1 tests, 0 failures
+[RUN] compaction delta publishes concurrent acknowledged writes through paired Store generations
+[PASS] compaction delta publishes concurrent acknowledged writes through paired Store generations
+1 tests, 0 failures
+[RUN] compaction delta budgets abort maintenance while foreground commits and retry succeeds
+[PASS] compaction delta budgets abort maintenance while foreground commits and retry succeeds
+1 tests, 0 failures

@@ -1,0 +1,11 @@
+# Local-only reference service. Review capacity, durability, authentication,
+# certificates and resource ceilings before any non-loopback deployment.
+profile=production
+bind=127.0.0.1
+port=7379
+shard-pairs=1
+storage-mode=durable-periodic
+data-dir=/var/db/glifistore
+open-mode=open-or-create
+log-format=json
+shutdown-drain-ms=30000

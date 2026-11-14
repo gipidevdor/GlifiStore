@@ -1,0 +1,56 @@
+hazards:
+- id: HAZ-042
+  evento_pericoloso: A durable GET returns bytes that no longer match the persisted Record, or reads a released image
+  cause:
+  - Image unmapped while a Reader still holds a generation that references it
+  - Publication of a Record reference before its image bytes are written
+  - Media corruption after load is not observed because resident reads skip the file
+  conseguenze:
+  - Use-after-free or wrong value returned to the client
+  - Silent divergence between served value and on-disk Record until eviction, compaction or restart
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - An image is owned by the generations that share it and unmapped only when the last one is reclaimed
+  - The Writer mirrors bytes before the append, so publication of the reference follows them
+  - Resident reads verify CRC32C, identity, key/hash and expiry exactly as cold reads
+  contenimento:
+  - Cold path keeps full validation and fails closed
+  - Recovery, compaction and backup verification re-validate persisted Records
+  - resident_reads_enabled=false restores file reads for every Segment
+  prove:
+  - tests/integration/resident_reads_tests.cpp
+  - tests/integration/persistence_recovery_crash_tests.cpp
+  rischio_residuo: >-
+    Implemented locally (ADR 0046). The resident-read test demonstrates that post-load media damage
+    is served from the image; the cold-path test with images disabled proves detection. Eviction
+    concurrent with Readers has not yet run under TSan.
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; no release acceptance
+  requisiti: [GS-PERF-DREAD-001]
+- id: HAZ-043
+  evento_pericoloso: An Index spill-file page fault terminates the process
+  cause:
+  - The spill directory's filesystem is full when a page is first written
+  - Copy-on-write filesystems need new blocks on every page write
+  - Platforms without preallocation (macOS, OpenBSD) cannot reserve blocks in advance
+  conseguenze:
+  - SIGBUS during an Index update; the process stops and restart recovers from the log
+  severita: media
+  probabilita: bassa
+  rilevabilita: alta
+  prevenzione:
+  - Spill is opt-in through index_spill_directory; the default pages anonymously to swap
+  - Linux and FreeBSD preallocate the spill file and fall back to anonymous memory on failure
+  - The spill file is unlinked at creation and never synchronized, so nothing survives a crash
+  contenimento:
+  - The Index is derived state; restart rebuilds it from the log (ADR 0004)
+  - Operators can place the spill directory on a dedicated filesystem
+  prove:
+  - tests/unit/memory_reserve_tests.cpp
+  rischio_residuo: >-
+    No fault-injection proof of ENOSPC on a mapped page; macOS and OpenBSD keep the SIGBUS exposure.
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; no release acceptance
+  requisiti: [GS-OPS-MEMRES-001]

@@ -1,0 +1,11 @@
+protocol	implementation	workload	samples	median_ops_per_second	median_p99_get_ns	median_p999_get_ns	publication_count	generation_slot_reuses
+pointer-descriptor	paired-span	get100	7	13048631.336	125	167	30620	NA
+pointer-descriptor	current-store-control	get100	7	5957591.836	250	292	NA	NA
+pointer-descriptor	paired-span-async	get95-put5	7	11067847.306	167	208	30620	NA
+pointer-descriptor	current-store-control	get95-put5	7	4292295.847	250	292	NA	NA
+epoch-slot-token	paired-span	get100	7	12857969.073	125	167	30636	NA
+epoch-slot-token	current-store-control	get100	7	5860729.492	292	625	NA	NA
+epoch-slot-token	paired-span-async	get95-put5	7	10871649.344	167	208	30636	NA
+epoch-slot-token	current-store-control	get95-put5	7	4264816.684	291	333	NA	NA
+epoch-slot-token-reuse-observation	paired-span	get100	7	12832371.797	166	209	30620	30617
+epoch-slot-token-reuse-observation	paired-span-async	get95-put5	7	10687074.895	167	209	30620	30617

@@ -1,0 +1,18 @@
+#!/bin/sh
+# GlifiStore runtime postrm. Generated; see packaging/debian/templates/.
+set -e
+
+if [ "$1" = "purge" ]; then
+    # dpkg removes the conffile itself on purge. Only the now-empty directory is
+    # cleaned up here, and only when it is empty.
+    rmdir '@SYSCONFDIR@/glifistore' 2>/dev/null || true
+
+    # The durable Store directory under @STATEDIR@ is never removed, not even on
+    # purge: destroying committed data is an explicit operator action
+    # (packaging/common/config-data-policy.md). The service account is left in
+    # place for the same reason, so the surviving data keeps a valid owner.
+fi
+
+#DEBHELPER#
+
+exit 0

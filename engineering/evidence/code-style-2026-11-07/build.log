@@ -1,0 +1,35 @@
+[0/1] Re-running CMake...
+-- GlifiStore TLS: enabled (OpenSSL)
+-- GlifiStore fault injection: ENABLED (debug-only adverse scheduling hooks)
+-- GlifiStore hot-path phases: disabled (default)
+-- Configuring done (0.7s)
+-- Generating done (0.3s)
+-- Build files have been written to: /Users/gpicchiarelli/Documents/GlifiStore/build/macos-debug
+[1/254] Building CXX object src/CMakeFiles/glifistore_core.dir/core/hot_path_phases.cpp.o
+[2/254] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/blob_codec.cpp.o
+[3/254] Building CXX object src/CMakeFiles/glifistore_core.dir/core/fault_injection.cpp.o
+[4/254] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/blob_recovery.cpp.o
+FAILED: [code=1] src/CMakeFiles/glifistore_core.dir/persistence/blob_recovery.cpp.o 
+/usr/bin/c++ -DGLIFISTORE_FAULT_INJECTION=1 -I/Users/gpicchiarelli/Documents/GlifiStore/include -I/Users/gpicchiarelli/Documents/GlifiStore/src -g -std=c++23 -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough -Wmissing-field-initializers -Wmissing-designated-field-initializers -fstack-protector-strong -MD -MT src/CMakeFiles/glifistore_core.dir/persistence/blob_recovery.cpp.o -MF src/CMakeFiles/glifistore_core.dir/persistence/blob_recovery.cpp.o.d -o src/CMakeFiles/glifistore_core.dir/persistence/blob_recovery.cpp.o -c /Users/gpicchiarelli/Documents/GlifiStore/src/persistence/blob_recovery.cpp
+/Users/gpicchiarelli/Documents/GlifiStore/src/persistence/blob_recovery.cpp:94:33: error: 'sync_directory' is a private member of 'glifistore::DataDirectory'
+   94 |     if (auto synced=destination.sync_directory();!synced) return synced;
+      |                                 ^
+/Users/gpicchiarelli/Documents/GlifiStore/include/glifistore/persistence/filesystem.hpp:297:24: note: declared private here
+  297 |     [[nodiscard]] auto sync_directory() const -> Status;
+      |                        ^
+1 error generated.
+[5/254] Building CXX object src/CMakeFiles/glifistore_core.dir/core/worker_routing.cpp.o
+[6/254] Building CXX object src/CMakeFiles/glifistore_core.dir/persistence/blob_storage.cpp.o
+FAILED: [code=1] src/CMakeFiles/glifistore_core.dir/persistence/blob_storage.cpp.o 
+/usr/bin/c++ -DGLIFISTORE_FAULT_INJECTION=1 -I/Users/gpicchiarelli/Documents/GlifiStore/include -I/Users/gpicchiarelli/Documents/GlifiStore/src -g -std=c++23 -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough -Wmissing-field-initializers -Wmissing-designated-field-initializers -fstack-protector-strong -MD -MT src/CMakeFiles/glifistore_core.dir/persistence/blob_storage.cpp.o -MF src/CMakeFiles/glifistore_core.dir/persistence/blob_storage.cpp.o.d -o src/CMakeFiles/glifistore_core.dir/persistence/blob_storage.cpp.o -c /Users/gpicchiarelli/Documents/GlifiStore/src/persistence/blob_storage.cpp
+/Users/gpicchiarelli/Documents/GlifiStore/src/persistence/blob_storage.cpp:508:35: error: 'sync_directory' is a private member of 'glifistore::DataDirectory'
+  508 |         if (auto sync = directory.sync_directory(); !sync)
+      |                                   ^
+/Users/gpicchiarelli/Documents/GlifiStore/include/glifistore/persistence/filesystem.hpp:297:24: note: declared private here
+  297 |     [[nodiscard]] auto sync_directory() const -> Status;
+      |                        ^
+1 error generated.
+[7/254] Building CXX object src/CMakeFiles/glifistore_core.dir/index/key_arena.cpp.o
+[8/254] Building CXX object src/CMakeFiles/glifistore_core.dir/store/store_blob.cpp.o
+[9/254] Building CXX object src/CMakeFiles/glifistore_core.dir/index/index.cpp.o
+ninja: build stopped: subcommand failed.

@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=0
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=churn
+# threads=4;operations=8192;keys=128;value_bytes=32768;reclaim_value_bytes=262144;put_percent=100;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,generation_backpressure_retries,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_no_gain_scans_suppressed,maintenance_no_gain_retry_after_ns,maintenance_pacing_delay_ms,maintenance_pacing_sleep_count,maintenance_pacing_burst_bytes,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after
+disabled,1,8192,0,8192,0,1.034206,7921.049285,167.834000,547.000000,1120.584000,736549.041000,0.000000,0.000000,0.000000,0.000000,167.834000,547.000000,1120.584000,736549.041000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.000875,74.681959,156.740750,35.369875,1.270041,268.062625,0.792709,103.147417,10
+disabled,2,8192,0,8192,0,1.090091,7514.968644,175.750000,639.875000,1204.250000,836346.084000,0.000000,0.000000,0.000000,0.000000,175.750000,639.875000,1204.250000,836346.084000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001126,84.039834,137.953376,33.472542,1.790288,257.256040,0.809708,71.775625,10
+disabled,3,8192,0,8192,0,1.142262,7171.734153,178.042000,609.792000,1185.875000,862731.000000,0.000000,0.000000,0.000000,0.000000,178.042000,609.792000,1185.875000,862731.000000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001000,100.316291,180.518749,35.628916,1.612461,318.076417,0.851002,128.893000,10
+disabled,4,8192,0,8192,0,1.042933,7854.769545,170.916000,575.666000,1085.084000,630382.000000,0.000000,0.000000,0.000000,0.000000,170.916000,575.666000,1085.084000,630382.000000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.000999,75.548958,151.054625,34.790875,1.657001,263.051459,1.012373,100.528625,10
+disabled,5,8192,0,8192,0,1.505432,5441.627987,173.750000,593.833000,3129.500000,1129072.375000,0.000000,0.000000,0.000000,0.000000,173.750000,593.833000,3129.500000,1129072.375000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.003249,184.676166,361.688541,28.873166,1.961252,577.199125,0.808709,150.438375,10
+disabled,6,8192,0,8192,0,1.737222,4715.573507,174.750000,961.583000,4333.292000,1098748.375000,0.000000,0.000000,0.000000,0.000000,174.750000,961.583000,4333.292000,1098748.375000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.000916,198.352126,378.485666,39.521499,1.522001,617.881292,0.940917,158.436208,10
+disabled,7,8192,0,8192,0,2.053304,3989.668356,192.000000,1225.000000,4433.584000,812796.209000,0.000000,0.000000,0.000000,0.000000,192.000000,1225.000000,4433.584000,812796.209000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.002750,201.289751,467.388959,47.664917,1.746748,718.090375,1.234626,211.018083,10

@@ -1,0 +1,196 @@
+requirements:
+- id: GS-PERSIST-ACK-001
+  titolo: Synchronous durable mutation acknowledgement
+  categoria: persistence
+  criticita: critica
+  stato: provato
+  descrizione: A durable_sync mutation, and every member of a strict durable_group Writer batch,
+    may be acknowledged only after the persistent sequence defined by persistence v1 completes.
+    A paired Writer threshold observation cannot replace the final commit-slot synchronization.
+    A sibling rejected before it touches the pending group does not abandon the earlier siblings of
+    its Writer batch; a failure during or after the append attempt still does (ADR 0047).
+  autorita:
+  - docs/spec/persistence-v1.md
+  - docs/architecture/durability-recovery.md
+  - docs/adr/0047-durable-group-rejected-siblings.md
+  implementazione:
+  - src/persistence/durable_flush_coordinator.cpp
+  - src/persistence/segment_file.cpp
+  - src/persistence/segment_file_io.cpp
+  - src/persistence/runtime_catalog_read_ops.cpp
+  - src/persistence/runtime_catalog_rotate_ops.cpp
+  - src/persistence/runtime_catalog_mutate_ops.cpp
+  - src/store/store_access.cpp
+  - include/glifistore/store/paired/lane_publication.hpp
+  - src/store/paired/shard_pair_runtime_writer_sync.cpp
+  - src/store/paired/shard_pair_runtime_writer_async.cpp
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  - tests/integration/paired_store_erase_batch_durable_litmus_tests.cpp
+  - tests/integration/durable_group_rejected_sibling_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: E2
+  evidenze:
+  - workflow: durability-evidence.yml
+    note: E2 process-kill; e3_certified must remain no without pinned campaign
+  rischio_residuo:
+  - Sudden power loss on physical hardware is not certified (E3/E4 open)
+  hazards:
+  - HAZ-001
+  - HAZ-007
+  - HAZ-044
+  gates:
+  - GATE-DURABLE-ACK
+- id: GS-PERSIST-ORDER-001
+  titolo: Write ordering and manifest publication
+  categoria: persistence
+  criticita: critica
+  stato: provato
+  descrizione: Write ordering, synchronization, Manifest publication, and directory synchronization follow
+    the persistence v1 and durability-recovery contracts.
+  autorita:
+  - docs/spec/persistence-v1.md
+  - docs/spec/recovery-state-matrix-v1.md
+  - docs/architecture/durability-recovery.md
+  - docs/architecture/durable-compaction.md
+  - docs/adr/0039-pre-intent-staged-compaction-output.md
+  implementazione:
+  - src/persistence/manifest.cpp
+  - src/persistence/filesystem.cpp
+  - src/persistence/filesystem_directory.cpp
+  - src/persistence/segment_file.cpp
+  - src/persistence/segment_file_io.cpp
+  - src/persistence/compaction_builder.cpp
+  - src/persistence/runtime_catalog_maintenance.cpp
+  - src/persistence/runtime_catalog_compact.cpp
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  - engineering/formal/persistence/PersistenceRecovery.tla
+  - engineering/formal/persistence/PersistenceRecovery.cfg
+  - engineering/formal/persistence/run-tlc.sh
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: E2
+  evidenze:
+  - workflow: durability-evidence.yml
+  - workflow: formal-models.yml
+    note: Bounded abstract write/sync/slot/Manifest/recovery model; required and fail-closed
+  rischio_residuo:
+  - Filesystem/power-loss certification matrices remain open
+  - The post-staging v1 publication/retirement transaction remains a whole-Worker lease
+  - The formal model abstracts byte codecs, real filesystem/device behavior, and multi-transaction composition
+  hazards:
+  - HAZ-014
+  - HAZ-015
+  - HAZ-019
+  gates:
+  - GATE-WRITE-ORDER
+- id: GS-PERSIST-FAULT-001
+  titolo: Deterministic persistence fault matrix with honest E0-E2 labeling
+  categoria: persistence
+  criticita: alta
+  stato: implementato
+  descrizione: Where filesystem fault-injection seams exist, cover EINTR, short I/O, ENOSPC,
+    EDQUOT (when available), and EIO on write/sync paths, including compaction staging/intent/
+    promotion and online backup copy/sync seams. CI and evidence must hard-fail any
+    e3_certified=yes claim without a retained pinned campaign. Maximum hosted claim remains E2.
+  autorita:
+  - docs/architecture/platform-durability-evidence.md
+  - docs/architecture/durability-recovery.md
+  - docs/spec/persistence-v1.md
+  implementazione:
+  - include/glifistore/persistence/filesystem_hooks.hpp
+  - src/persistence/filesystem.cpp
+  - src/persistence/store_backup.cpp
+  - src/persistence/compaction_builder.cpp
+  - engineering/tools/validate_durability_claims.py
+  prove:
+  - tests/unit/persistence_filesystem_tests.cpp
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/persistence_compaction_prefix_tests.cpp
+  - tests/integration/persistence_recovery_compaction_fileio_tests.cpp
+  - tests/unit/store_backup_tests.cpp
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  - scripts/run-e3-block-reset.sh
+  - scripts/assert-e3-rehearsal-honesty.sh
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: E2-fault-injection
+  evidenze:
+  - workflow: assurance.yml
+    note: validate_durability_claims.py rejects unpinned e3_certified=yes
+  - workflow: durability-evidence.yml
+    note: E0 metadata / E2 process-kill; paused-worker E3 rehearsal classifies three bounded
+      dm-flakey fault modes and keeps e3_certified=no
+  - path: engineering/evidence/platform-durability/
+    note: Per-row placeholders only; not E3/E4 certified
+  rischio_residuo:
+  - Native disk-full, quota, and delayed-writeback campaigns remain open
+  - dm-flakey rehearsal confirms worker stop, fault arming, and mapper removal, but does not yet
+    retain a per-request block trace proving that a particular dirty write crossed the mapper
+  - No platform row is E3/E4 certified
+  - Compaction FileIoHooks EINTR/short write + sync EINTR + ENOSPC/EDQUOT/EIO/EROFS write + sync EIO staging proofs, plus intent write/sync and post-intent Manifest write/sync FileIoHooks faults, are local/CI only (not device campaigns)
+  - Backup FileIoHooks EINTR/short write + sync EINTR + ENOSPC/EDQUOT/EIO/EROFS write + sync EIO copy proofs are local/CI only (not device campaigns)
+  hazards:
+  - HAZ-001
+  - HAZ-016
+  - HAZ-017
+  - HAZ-018
+  gates:
+  - GATE-FAULT-INJECTION
+  - GATE-DURABLE-ACK
+- id: GS-PERSIST-AMP-001
+  titolo: Compaction write-amplification and temporary-space budgets before intent
+  categoria: persistence
+  criticita: alta
+  stato: provato
+  descrizione: Durable compaction must reject plans that exceed configured write-amplification
+    or temporary-space budgets before publishing a compaction intent. On rejection the Mold
+    Manifest remains sole authority, the runtime stays healthy, and no compaction-intent
+    residue remains on disk.
+  autorita:
+  - docs/architecture/durable-compaction.md
+  - docs/adr/0039-pre-intent-staged-compaction-output.md
+  - docs/spec/persistence-v1.md
+  implementazione:
+  - src/persistence/compaction/resource_estimator.cpp
+  - src/persistence/compaction_builder.cpp
+  - src/persistence/runtime_catalog_maintenance.cpp
+  prove:
+  - tests/unit/compaction_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/unit/compaction_prefix_tests.cpp
+  - tests/unit/compaction_model_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: E1-fault-injection
+  evidenze:
+  - workflow: ci.yml
+    note: Amp/temporary budget rejection before intent; E3/E4 remain open
+  - path: engineering/evidence/platform-durability/
+    note: Placeholder only; not platform certification
+  rischio_residuo:
+  - Device-level write-amp and temporary peak under real filesystem caching remain open
+  - E3/E4 platform rows are not certified
+  - Runtime amp rejection is covered by compact_worker integration (local/CI); not a device campaign
+  hazards:
+  - HAZ-016
+  - HAZ-033
+  gates:
+  - GATE-WRITE-ORDER
+  - GATE-FAULT-INJECTION

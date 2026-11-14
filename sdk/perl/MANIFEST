@@ -1,0 +1,22 @@
+benchmarks/client_benchmark.pl
+Changes
+cpanfile
+.perlcriticrc
+.perltidyrc
+lib/GlifiStore.pm
+lib/GlifiStore/Client.pm
+lib/GlifiStore/Error.pm
+lib/GlifiStore/Protocol.pm
+lib/GlifiStore/SendFailure.pm
+LICENSE
+NOTICE
+THIRD_PARTY_NOTICES.md
+Makefile.PL
+MANIFEST			This list of files
+MANIFEST.SKIP
+PACKAGING.md
+README.md
+t/01-protocol.t
+t/02-client.t
+t/fixtures/wire_requests_v2.hex
+t/fixtures/wire_responses_v2.hex

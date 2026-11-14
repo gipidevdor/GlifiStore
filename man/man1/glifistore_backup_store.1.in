@@ -1,0 +1,62 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE_BACKUP_STORE 1
+.Os
+.Sh NAME
+.Nm glifistore_backup_store
+.Nd offline backup or restore of a GlifiStore data directory
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Op Fl Fl json
+.Op Fl Fl no-scan
+.Ar source-data-dir destination-data-dir
+.Sh DESCRIPTION
+.Nm
+performs an offline verified copy of a durable data directory (GlifiStore
+.Sy @PROJECT_VERSION@ ) .
+.Sy Stop writers first.
+The tool takes exclusive locks, verifies the source, creates an empty
+destination, copies catalog Segments then
+.Pa manifest.glifi ,
+syncs, and verifies the destination.
+.Pp
+Restore uses the same command with the backup as source and a new empty
+destination.
+.Pp
+This offline tool cannot run against a live locked data directory.
+For online fenced backup see wire
+.Cm BACKUP
+/
+.Nm Store::backup_to
+(still not zero-fence hot I/O).
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.It Fl Fl json
+Emit a stable JSON report on stdout.
+.It Fl Fl no-scan
+Skip committed Record scans during source/destination verify.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Success.
+.It 1
+Validation, copy, or I/O failure.
+.It 2
+Usage error.
+.El
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_verify_store 1 ,
+.Xr glifistored 8
+.Pp
+Source docs:
+.Pa docs/spec/backup-restore-v1.md .
+.Sh AUTHORS
+GlifiStore contributors.

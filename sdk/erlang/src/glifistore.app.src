@@ -1,0 +1,11 @@
+{application, glifistore, [
+    {description, "GlifiStore wire protocol v2 TCP client"},
+    {vsn, "0.1.0"},
+    {modules, []},
+    {registered, []},
+    {applications, [kernel, stdlib, crypto]},
+    {env, []},
+    {licenses, ["BSD-3-Clause"]},
+    {maintainers, ["Giacomo Picchiarelli"]},
+    {links, [{"GitHub", "https://github.com/gpicchiarelli/GlifiStore"}]}
+]}.

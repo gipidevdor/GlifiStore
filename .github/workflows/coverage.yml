@@ -1,0 +1,43 @@
+name: Coverage
+
+# Diagnostic only — line coverage is not an acceptance metric
+# (docs/development/test-strategy.md, "Coverage policy").
+on:
+  schedule:
+    - cron: "11 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  llvm-cov-report:
+    name: Clang coverage report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y lcov clang llvm
+      - name: Generate coverage (diagnostic)
+        env:
+          CC: clang
+          CXX: clang++
+        run: ./scripts/ci-coverage.sh
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-lcov-${{ github.sha }}
+          path: build/coverage/
+          if-no-files-found: error
+          retention-days: 14

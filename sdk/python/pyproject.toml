@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glifistore"
+dynamic = ["version"]
+description = "Native Python client for GlifiStore wire protocol v2"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "BSD-3-Clause"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "Giacomo Picchiarelli" }]
+maintainers = [{ name = "Giacomo Picchiarelli" }]
+keywords = [
+  "glifistore",
+  "cache",
+  "key-value",
+  "tcp",
+  "client",
+  "asyncio",
+  "wire-protocol",
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Database",
+  "Topic :: Database :: Front-Ends",
+  "Topic :: Internet",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[tool.setuptools.dynamic]
+version = { attr = "glifistore.__version__" }
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "twine>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/gpicchiarelli/GlifiStore"
+Documentation = "https://github.com/gpicchiarelli/GlifiStore/blob/main/sdk/python/README.md"
+Repository = "https://github.com/gpicchiarelli/GlifiStore"
+Issues = "https://github.com/gpicchiarelli/GlifiStore/issues"
+Changelog = "https://github.com/gpicchiarelli/GlifiStore/blob/main/sdk/python/CHANGELOG.md"
+"Wire protocol" = "https://github.com/gpicchiarelli/GlifiStore/blob/main/docs/spec/wire-protocol-v2.md"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["glifistore*"]
+
+[tool.setuptools.package-data]
+glifistore = ["py.typed"]

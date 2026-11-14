@@ -1,0 +1,3 @@
+[PASS] paired Reader refreshes compacted durable pins and retires the old generation
+[PASS] paired Reader refreshes durable pins after a Writer-owned rotation
+2 tests, 0 failures

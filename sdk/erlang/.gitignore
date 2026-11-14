@@ -1,0 +1,6 @@
+_build/
+.rebar3/
+dist/
+*.beam
+*.plt
+*.dia

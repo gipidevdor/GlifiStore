@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/wire-client-fixture.schema.json",
+  "title": "GlifiStore compiled wire client fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "product_version",
+    "wire_version",
+    "git_sha",
+    "tag",
+    "target_os",
+    "architecture",
+    "client_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "product_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "wire_version": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "tag": { "type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "target_os": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "architecture": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "client_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

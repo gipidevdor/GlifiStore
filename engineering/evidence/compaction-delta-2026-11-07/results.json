@@ -1,0 +1,45 @@
+{
+  "base_commit": "62d87cda086f06b4a11bfaf197cad13bae9ad2ae",
+  "scope": "isolated persistence-v1 compaction delta",
+  "platform": "macos-arm64",
+  "native_tests": {
+    "tests": 746,
+    "failures": 0,
+    "exit_code": 0
+  },
+  "asan_ubsan_compaction": {
+    "tests": 71,
+    "failures": 0,
+    "exit_code": 0
+  },
+  "tsan": {
+    "focused_invocations": 3,
+    "failures": 0,
+    "exit_code": 0
+  },
+  "allocation_faults": {
+    "exit_code": 0,
+    "forbidden_allocation_replay_events": 200
+  },
+  "legacy_process_kill_matrix": {
+    "checkpoints": 89,
+    "exit_code": 0
+  },
+  "delta_process_kill_matrix": {
+    "transition_classes": 8,
+    "failures": 0
+  },
+  "delta_io_faults": {
+    "operation_classes": 7,
+    "failures": 0
+  },
+  "combined_workspace": {
+    "tests": 752,
+    "failures": 1,
+    "exit_code": 1,
+    "failure": "record v1 golden binary-key unknown-version assertion during unrelated concurrent blob-v2 work"
+  },
+  "p999_improvement_proven": false,
+  "hosted_ci_proven": false,
+  "e3_certified": false
+}

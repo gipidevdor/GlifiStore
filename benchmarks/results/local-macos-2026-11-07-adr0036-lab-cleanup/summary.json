@@ -1,0 +1,890 @@
+{
+  "generation-shell.tsv": {
+    "make_shared": {
+      "seconds": {
+        "median": 0.008,
+        "minimum": 0.008,
+        "maximum": 0.008,
+        "q25": 0.008,
+        "q75": 0.008
+      },
+      "ops_per_second": {
+        "median": 2614536.0,
+        "minimum": 2593515.0,
+        "maximum": 2639683.0,
+        "q25": 2600821.5,
+        "q75": 2621611.0
+      },
+      "ns_per_op": {
+        "median": 382.48,
+        "minimum": 378.83,
+        "maximum": 385.58,
+        "q25": 381.445,
+        "q75": 384.495
+      },
+      "shell_allocations": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "shell_reuses": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      }
+    },
+    "fixed_shell": {
+      "seconds": {
+        "median": 0.008,
+        "minimum": 0.008,
+        "maximum": 0.008,
+        "q25": 0.008,
+        "q75": 0.008
+      },
+      "ops_per_second": {
+        "median": 2596124.0,
+        "minimum": 2556196.0,
+        "maximum": 2616688.0,
+        "q25": 2582409.5,
+        "q75": 2603547.5
+      },
+      "ns_per_op": {
+        "median": 385.19,
+        "minimum": 382.16,
+        "maximum": 391.21,
+        "q25": 384.095,
+        "q75": 387.245
+      },
+      "shell_allocations": {
+        "median": 20000.0,
+        "minimum": 20000.0,
+        "maximum": 20000.0,
+        "q25": 20000.0,
+        "q75": 20000.0
+      },
+      "shell_reuses": {
+        "median": 19998.0,
+        "minimum": 19998.0,
+        "maximum": 19998.0,
+        "q25": 19998.0,
+        "q75": 19998.0
+      }
+    },
+    "owning_pool": {
+      "seconds": {
+        "median": 0.008,
+        "minimum": 0.008,
+        "maximum": 0.008,
+        "q25": 0.008,
+        "q75": 0.008
+      },
+      "ops_per_second": {
+        "median": 2426583.0,
+        "minimum": 2416164.0,
+        "maximum": 2457669.0,
+        "q25": 2423668.0,
+        "q75": 2437897.0
+      },
+      "ns_per_op": {
+        "median": 412.1,
+        "minimum": 406.89,
+        "maximum": 413.88,
+        "q25": 410.19,
+        "q75": 412.6
+      },
+      "shell_allocations": {
+        "median": 20000.0,
+        "minimum": 20000.0,
+        "maximum": 20000.0,
+        "q25": 20000.0,
+        "q75": 20000.0
+      },
+      "shell_reuses": {
+        "median": 19998.0,
+        "minimum": 19998.0,
+        "maximum": 19998.0,
+        "q25": 19998.0,
+        "q75": 19998.0
+      }
+    },
+    "inline_pool": {
+      "seconds": {
+        "median": 0.008,
+        "minimum": 0.008,
+        "maximum": 0.008,
+        "q25": 0.008,
+        "q75": 0.008
+      },
+      "ops_per_second": {
+        "median": 2569979.0,
+        "minimum": 2543167.0,
+        "maximum": 2598401.0,
+        "q25": 2549757.5,
+        "q75": 2573475.0
+      },
+      "ns_per_op": {
+        "median": 389.11,
+        "minimum": 384.85,
+        "maximum": 393.21,
+        "q25": 388.58000000000004,
+        "q75": 392.195
+      },
+      "shell_allocations": {
+        "median": 20000.0,
+        "minimum": 20000.0,
+        "maximum": 20000.0,
+        "q25": 20000.0,
+        "q75": 20000.0
+      },
+      "shell_reuses": {
+        "median": 19998.0,
+        "minimum": 19998.0,
+        "maximum": 19998.0,
+        "q25": 19998.0,
+        "q75": 19998.0
+      }
+    },
+    "direct_ring": {
+      "seconds": {
+        "median": 0.008,
+        "minimum": 0.008,
+        "maximum": 0.008,
+        "q25": 0.008,
+        "q75": 0.008
+      },
+      "ops_per_second": {
+        "median": 2577140.0,
+        "minimum": 2512234.0,
+        "maximum": 2618315.0,
+        "q25": 2539888.5,
+        "q75": 2594052.5
+      },
+      "ns_per_op": {
+        "median": 388.03,
+        "minimum": 381.93,
+        "maximum": 398.05,
+        "q25": 385.5,
+        "q75": 393.745
+      },
+      "shell_allocations": {
+        "median": 20000.0,
+        "minimum": 20000.0,
+        "maximum": 20000.0,
+        "q25": 20000.0,
+        "q75": 20000.0
+      },
+      "shell_reuses": {
+        "median": 19998.0,
+        "minimum": 19998.0,
+        "maximum": 19998.0,
+        "q25": 19998.0,
+        "q75": 19998.0
+      }
+    },
+    "direct_slot_pool": {
+      "seconds": {
+        "median": 0.008,
+        "minimum": 0.008,
+        "maximum": 0.009,
+        "q25": 0.008,
+        "q75": 0.008
+      },
+      "ops_per_second": {
+        "median": 2483033.0,
+        "minimum": 2344013.0,
+        "maximum": 2504592.0,
+        "q25": 2443942.0,
+        "q75": 2498261.0
+      },
+      "ns_per_op": {
+        "median": 402.73,
+        "minimum": 399.27,
+        "maximum": 426.62,
+        "q25": 400.28,
+        "q75": 409.17999999999995
+      },
+      "shell_allocations": {
+        "median": 20001.0,
+        "minimum": 20001.0,
+        "maximum": 20001.0,
+        "q25": 20001.0,
+        "q75": 20001.0
+      },
+      "shell_reuses": {
+        "median": 19999.0,
+        "minimum": 19999.0,
+        "maximum": 19999.0,
+        "q25": 19999.0,
+        "q75": 19999.0
+      }
+    }
+  },
+  "production-get-1t.tsv": {
+    "false": {
+      "seconds": {
+        "median": 0.027068208,
+        "minimum": 0.026663708,
+        "maximum": 0.027153542,
+        "q25": 0.0269999375,
+        "q75": 0.02708
+      },
+      "operations_per_second": {
+        "median": 7388741.8,
+        "minimum": 7365521.6,
+        "maximum": 7500832.22,
+        "q25": 7385524.470000001,
+        "q75": 7407443.505
+      },
+      "ns_per_operation": {
+        "median": 135.34,
+        "minimum": 133.32,
+        "maximum": 135.77,
+        "q25": 135.0,
+        "q75": 135.39999999999998
+      }
+    },
+    "true": {
+      "seconds": {
+        "median": 0.02723775,
+        "minimum": 0.026898083,
+        "maximum": 0.027595333,
+        "q25": 0.027044687499999998,
+        "q75": 0.027472917
+      },
+      "operations_per_second": {
+        "median": 7342750.41,
+        "minimum": 7247602.34,
+        "maximum": 7435474.12,
+        "q25": 7279943.65,
+        "q75": 7395303.140000001
+      },
+      "ns_per_operation": {
+        "median": 136.19,
+        "minimum": 134.49,
+        "maximum": 137.98,
+        "q25": 135.22,
+        "q75": 137.365
+      }
+    }
+  },
+  "production-get-2t.tsv": {
+    "false": {
+      "seconds": {
+        "median": 0.03027475,
+        "minimum": 0.028712041,
+        "maximum": 0.031812083,
+        "q25": 0.029845917,
+        "q75": 0.030767271
+      },
+      "operations_per_second": {
+        "median": 13212330.41,
+        "minimum": 12573838.69,
+        "maximum": 13931437.34,
+        "q25": 13000885.675,
+        "q75": 13404699.370000001
+      },
+      "ns_per_operation": {
+        "median": 75.69,
+        "minimum": 71.78,
+        "maximum": 79.53,
+        "q25": 74.61500000000001,
+        "q75": 76.92
+      }
+    },
+    "true": {
+      "seconds": {
+        "median": 0.029698125,
+        "minimum": 0.028315042,
+        "maximum": 0.031680583,
+        "q25": 0.029069895999999998,
+        "q75": 0.0305009995
+      },
+      "operations_per_second": {
+        "median": 13468863.78,
+        "minimum": 12626030.27,
+        "maximum": 14126766.97,
+        "q25": 13115317.465,
+        "q75": 13765751.030000001
+      },
+      "ns_per_operation": {
+        "median": 74.25,
+        "minimum": 70.79,
+        "maximum": 79.2,
+        "q25": 72.67500000000001,
+        "q75": 76.255
+      }
+    }
+  },
+  "production-put-1t.tsv": {
+    "false": {
+      "seconds": {
+        "median": 0.297997166,
+        "minimum": 0.286004166,
+        "maximum": 0.312847459,
+        "q25": 0.291024604,
+        "q75": 0.3054068125
+      },
+      "operations_per_second": {
+        "median": 671147.32,
+        "minimum": 639289.19,
+        "maximum": 699290.51,
+        "q25": 654865.28,
+        "q75": 687331.03
+      },
+      "ns_per_operation": {
+        "median": 1489.99,
+        "minimum": 1430.02,
+        "maximum": 1564.24,
+        "q25": 1455.12,
+        "q75": 1527.03
+      }
+    },
+    "true": {
+      "seconds": {
+        "median": 0.342252125,
+        "minimum": 0.335267833,
+        "maximum": 0.360696,
+        "q25": 0.3368641665,
+        "q75": 0.356664125
+      },
+      "operations_per_second": {
+        "median": 584364.52,
+        "minimum": 554483.55,
+        "maximum": 596537.99,
+        "q25": 560778.205,
+        "q75": 593713.365
+      },
+      "ns_per_operation": {
+        "median": 1711.26,
+        "minimum": 1676.34,
+        "maximum": 1803.48,
+        "q25": 1684.32,
+        "q75": 1783.32
+      }
+    }
+  },
+  "production-put-2t.tsv": {
+    "false": {
+      "seconds": {
+        "median": 0.493671875,
+        "minimum": 0.476660166,
+        "maximum": 0.506482,
+        "q25": 0.4790890415,
+        "q75": 0.5028939379999999
+      },
+      "operations_per_second": {
+        "median": 810254.79,
+        "minimum": 789761.53,
+        "maximum": 839172.28,
+        "q25": 795401.475,
+        "q75": 834919.04
+      },
+      "ns_per_operation": {
+        "median": 1234.18,
+        "minimum": 1191.65,
+        "maximum": 1266.2,
+        "q25": 1197.72,
+        "q75": 1257.2350000000001
+      }
+    },
+    "true": {
+      "seconds": {
+        "median": 0.529085458,
+        "minimum": 0.503719334,
+        "maximum": 0.549590416,
+        "q25": 0.5125018960000001,
+        "q75": 0.541001229
+      },
+      "operations_per_second": {
+        "median": 756021.53,
+        "minimum": 727814.73,
+        "maximum": 794093.01,
+        "q25": 739370.02,
+        "q75": 780485.0
+      },
+      "ns_per_operation": {
+        "median": 1322.71,
+        "minimum": 1259.3,
+        "maximum": 1373.98,
+        "q25": 1281.255,
+        "q75": 1352.5
+      }
+    }
+  },
+  "production-put-get-1t.tsv": {
+    "false": {
+      "seconds": {
+        "median": 0.333248458,
+        "minimum": 0.309022,
+        "maximum": 0.346821875,
+        "q25": 0.32209489599999996,
+        "q75": 0.339697396
+      },
+      "operations_per_second": {
+        "median": 600152.81,
+        "minimum": 576664.89,
+        "maximum": 647203.11,
+        "q25": 588780.49,
+        "q75": 620970.575
+      },
+      "ns_per_operation": {
+        "median": 1666.24,
+        "minimum": 1545.11,
+        "maximum": 1734.11,
+        "q25": 1610.475,
+        "q75": 1698.49
+      }
+    },
+    "true": {
+      "seconds": {
+        "median": 0.382871458,
+        "minimum": 0.374430042,
+        "maximum": 0.39288675,
+        "q25": 0.3801283955,
+        "q75": 0.3880516875
+      },
+      "operations_per_second": {
+        "median": 522368.53,
+        "minimum": 509052.55,
+        "maximum": 534145.17,
+        "q25": 515469.67500000005,
+        "q75": 526157.355
+      },
+      "ns_per_operation": {
+        "median": 1914.36,
+        "minimum": 1872.15,
+        "maximum": 1964.43,
+        "q25": 1900.6399999999999,
+        "q75": 1940.26
+      }
+    }
+  },
+  "production-put-get-2t.tsv": {
+    "false": {
+      "seconds": {
+        "median": 0.506554916,
+        "minimum": 0.468628542,
+        "maximum": 0.520783625,
+        "q25": 0.501409792,
+        "q75": 0.515151229
+      },
+      "operations_per_second": {
+        "median": 789647.85,
+        "minimum": 768073.3,
+        "maximum": 853554.5,
+        "q25": 776481.37,
+        "q75": 797754.76
+      },
+      "ns_per_operation": {
+        "median": 1266.39,
+        "minimum": 1171.57,
+        "maximum": 1301.96,
+        "q25": 1253.525,
+        "q75": 1287.88
+      }
+    },
+    "true": {
+      "seconds": {
+        "median": 0.543538542,
+        "minimum": 0.512274,
+        "maximum": 0.681664542,
+        "q25": 0.5305412085000001,
+        "q75": 0.5488586875
+      },
+      "operations_per_second": {
+        "median": 735918.37,
+        "minimum": 586798.89,
+        "maximum": 780832.13,
+        "q25": 728802.155,
+        "q75": 754297.335
+      },
+      "ns_per_operation": {
+        "median": 1358.85,
+        "minimum": 1280.68,
+        "maximum": 1704.16,
+        "q25": 1326.35,
+        "q75": 1372.15
+      }
+    }
+  },
+  "publication-adopt.tsv": {
+    "shared_slot_protocol": {
+      "seconds": {
+        "median": 0.01749,
+        "minimum": 0.017175,
+        "maximum": 0.018965,
+        "q25": 0.0174695,
+        "q75": 0.018432
+      },
+      "publications_per_second": {
+        "median": 1143519.0,
+        "minimum": 1054549.0,
+        "maximum": 1164449.0,
+        "q25": 1085753.0,
+        "q75": 1144884.5
+      },
+      "ns_per_publication": {
+        "median": 874.49,
+        "minimum": 858.77,
+        "maximum": 948.27,
+        "q25": 873.45,
+        "q75": 921.595
+      },
+      "sample_p50_ns": {
+        "median": 1083.0,
+        "minimum": 1042.0,
+        "maximum": 1166.0,
+        "q25": 1042.0,
+        "q75": 1124.5
+      },
+      "sample_p99_ns": {
+        "median": 1458.0,
+        "minimum": 1416.0,
+        "maximum": 1667.0,
+        "q25": 1417.0,
+        "q75": 1500.0
+      },
+      "reader_get_p50_ns": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "reader_get_p99_ns": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "reader_adoptions": {
+        "median": 3686266.0,
+        "minimum": 3522452.0,
+        "maximum": 3932758.0,
+        "q25": 3673485.5,
+        "q75": 3849852.5
+      },
+      "reader_epoch_skips": {
+        "median": 30.0,
+        "minimum": 1.0,
+        "maximum": 852.0,
+        "q25": 20.0,
+        "q75": 412.0
+      },
+      "pool_exhaustions": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "live_high_watermark": {
+        "median": 19.0,
+        "minimum": 5.0,
+        "maximum": 37.0,
+        "q25": 11.0,
+        "q75": 33.0
+      },
+      "reader_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      },
+      "writer_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      }
+    },
+    "direct_slot_protocol": {
+      "seconds": {
+        "median": 0.017026,
+        "minimum": 0.016694,
+        "maximum": 0.017984,
+        "q25": 0.016864499999999998,
+        "q75": 0.0174695
+      },
+      "publications_per_second": {
+        "median": 1174674.0,
+        "minimum": 1112071.0,
+        "maximum": 1198044.0,
+        "q25": 1144897.5,
+        "q75": 1185931.0
+      },
+      "ns_per_publication": {
+        "median": 851.3,
+        "minimum": 834.69,
+        "maximum": 899.22,
+        "q25": 843.22,
+        "q75": 873.48
+      },
+      "sample_p50_ns": {
+        "median": 1084.0,
+        "minimum": 1042.0,
+        "maximum": 1166.0,
+        "q25": 1062.5,
+        "q75": 1125.0
+      },
+      "sample_p99_ns": {
+        "median": 1542.0,
+        "minimum": 1458.0,
+        "maximum": 2042.0,
+        "q25": 1520.5,
+        "q75": 1646.0
+      },
+      "reader_get_p50_ns": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "reader_get_p99_ns": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "reader_adoptions": {
+        "median": 3712984.0,
+        "minimum": 3687497.0,
+        "maximum": 3968741.0,
+        "q25": 3706751.5,
+        "q75": 3808939.0
+      },
+      "reader_epoch_skips": {
+        "median": 13.0,
+        "minimum": 4.0,
+        "maximum": 691.0,
+        "q25": 6.5,
+        "q75": 65.5
+      },
+      "pool_exhaustions": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 2.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "live_high_watermark": {
+        "median": 14.0,
+        "minimum": 6.0,
+        "maximum": 65.0,
+        "q25": 7.5,
+        "q75": 23.5
+      },
+      "reader_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      },
+      "writer_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      }
+    }
+  },
+  "publication-get.tsv": {
+    "shared_slot_protocol": {
+      "seconds": {
+        "median": 0.023103,
+        "minimum": 0.021957,
+        "maximum": 0.024374,
+        "q25": 0.022766500000000002,
+        "q75": 0.023925500000000002
+      },
+      "publications_per_second": {
+        "median": 865692.0,
+        "minimum": 820549.0,
+        "maximum": 910883.0,
+        "q25": 836148.5,
+        "q75": 878488.0
+      },
+      "ns_per_publication": {
+        "median": 1155.15,
+        "minimum": 1097.84,
+        "maximum": 1218.7,
+        "q25": 1138.325,
+        "q75": 1196.28
+      },
+      "sample_p50_ns": {
+        "median": 1416.0,
+        "minimum": 1333.0,
+        "maximum": 1500.0,
+        "q25": 1375.0,
+        "q75": 1438.0
+      },
+      "sample_p99_ns": {
+        "median": 1750.0,
+        "minimum": 1666.0,
+        "maximum": 1916.0,
+        "q25": 1687.5,
+        "q75": 1854.0
+      },
+      "reader_get_p50_ns": {
+        "median": 83.0,
+        "minimum": 83.0,
+        "maximum": 83.0,
+        "q25": 83.0,
+        "q75": 83.0
+      },
+      "reader_get_p99_ns": {
+        "median": 292.0,
+        "minimum": 250.0,
+        "maximum": 292.0,
+        "q25": 291.0,
+        "q75": 292.0
+      },
+      "reader_adoptions": {
+        "median": 254255.0,
+        "minimum": 243697.0,
+        "maximum": 267122.0,
+        "q25": 249663.0,
+        "q75": 260337.5
+      },
+      "reader_epoch_skips": {
+        "median": 22.0,
+        "minimum": 6.0,
+        "maximum": 440.0,
+        "q25": 13.5,
+        "q75": 60.0
+      },
+      "pool_exhaustions": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "live_high_watermark": {
+        "median": 14.0,
+        "minimum": 6.0,
+        "maximum": 43.0,
+        "q25": 8.5,
+        "q75": 23.5
+      },
+      "reader_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      },
+      "writer_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      }
+    },
+    "direct_slot_protocol": {
+      "seconds": {
+        "median": 0.021459,
+        "minimum": 0.021075,
+        "maximum": 0.022232,
+        "q25": 0.021265,
+        "q75": 0.021783499999999997
+      },
+      "publications_per_second": {
+        "median": 931999.0,
+        "minimum": 899614.0,
+        "maximum": 948979.0,
+        "q25": 918267.0,
+        "q75": 940517.0
+      },
+      "ns_per_publication": {
+        "median": 1072.96,
+        "minimum": 1053.76,
+        "maximum": 1111.59,
+        "q25": 1063.245,
+        "q75": 1089.175
+      },
+      "sample_p50_ns": {
+        "median": 1333.0,
+        "minimum": 1292.0,
+        "maximum": 1334.0,
+        "q25": 1333.0,
+        "q75": 1333.0
+      },
+      "sample_p99_ns": {
+        "median": 1750.0,
+        "minimum": 1542.0,
+        "maximum": 2792.0,
+        "q25": 1625.5,
+        "q75": 1812.5
+      },
+      "reader_get_p50_ns": {
+        "median": 83.0,
+        "minimum": 83.0,
+        "maximum": 83.0,
+        "q25": 83.0,
+        "q75": 83.0
+      },
+      "reader_get_p99_ns": {
+        "median": 250.0,
+        "minimum": 250.0,
+        "maximum": 291.0,
+        "q25": 250.0,
+        "q75": 270.5
+      },
+      "reader_adoptions": {
+        "median": 244847.0,
+        "minimum": 231536.0,
+        "maximum": 262692.0,
+        "q25": 234516.0,
+        "q75": 252275.5
+      },
+      "reader_epoch_skips": {
+        "median": 70.0,
+        "minimum": 7.0,
+        "maximum": 606.0,
+        "q25": 19.5,
+        "q75": 242.0
+      },
+      "pool_exhaustions": {
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0,
+        "q25": 0.0,
+        "q75": 0.0
+      },
+      "live_high_watermark": {
+        "median": 25.0,
+        "minimum": 6.0,
+        "maximum": 44.0,
+        "q25": 12.5,
+        "q75": 36.0
+      },
+      "reader_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      },
+      "writer_cpu": {
+        "median": -1.0,
+        "minimum": -1.0,
+        "maximum": -1.0,
+        "q25": -1.0,
+        "q75": -1.0
+      }
+    }
+  }
+}

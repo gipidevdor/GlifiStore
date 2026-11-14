@@ -1,0 +1,61 @@
+generated_at=2026-08-26T20:36:35Z
+git_sha=fae45473862818b46cdc6ce7bdad11dfc61594ab
+git_describe=fae4547-dirty
+branch=codex/ci-green-sanitizer-link
+tree_state=dirty-precommit
+status_porcelain_sha256=3dbe5bd8830cae70c605da7f9b1a01ced7457828ea2b96bb61c23ffe93899f1c
+tracked_diff_sha256=0e5ef475547dca29d55a1695915bc421585a90335a8f57f622b5e73d0c1afc71
+runner_os=macOS
+runner_arch=arm64
+runner_image=local-apple-silicon
+runner_image_version=2026-08-26
+kernel_release=25.6.0
+cpu_model=Apple M4
+physical_cpu_count=10
+logical_cpu_count=10
+memory_bytes=17179869184
+compiler_identity=Apple clang version 21.0.0 (clang-2100.1.1.101)
+cmake_version=cmake version 4.4.0
+ninja_version=1.13.0.git.kitware.jobserver-pipe-1
+build_preset=macos-release
+build_type=Release
+native_cpu=OFF
+lto=OFF
+affinity=macOS-advisory-none
+client_server_placement=same-process-shared-host
+thermal_note=no hardware thermal telemetry available; campaign serialized
+storage_note=durable temporary Stores on current APFS volume
+sampling=warmup-1-repeats-7 unless file metadata states otherwise
+benchmark_command_count=219
+benchmark_contract_sha256=7c1218df64c20701d3f1db2663a86e42e49401a624242f0c679797c4982166a7
+Darwin iMacdiGIACOMO63.fritz.box 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64
+Now drawing from 'AC Power'
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                     3960.
+Pages active:                                 260576.
+Pages inactive:                               256607.
+Pages speculative:                              3334.
+Pages throttled:                                   0.
+Pages wired down:                             184110.
+Pages purgeable:                                7453.
+"Translation faults":                     1954872722.
+Pages copy-on-write:                        94204556.
+Pages zero filled:                        1208580702.
+Pages reactivated:                          82417061.
+Pages purged:                               15246445.
+File-backed pages:                            148358.
+Anonymous pages:                              372159.
+Pages stored in compressor:                   816530.
+Pages occupied by compressor:                 293832.
+Decompressions:                             54896712.
+Compressions:                               73590630.
+Pageins:                                    55870425.
+Pageouts:                                     795651.
+Swapins:                                       23647.
+Swapouts:                                     126320.
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   460Gi   402Gi    35Gi    93%    3.1M  364M    1%   /System/Volumes/Data
+   File System Personality:   APFS
+   Protocol:                  Apple Fabric
+   Device Location:           Internal
+   Solid State:               Yes

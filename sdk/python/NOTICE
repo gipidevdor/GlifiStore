@@ -1,0 +1,34 @@
+GlifiStore
+Copyright (c) 2026 Giacomo Picchiarelli
+
+This product is licensed under the BSD 3-Clause License. See the accompanying
+LICENSE file for the full text.
+
+Redistributors of binary forms must reproduce the copyright notice, the list of
+conditions, and the disclaimer from LICENSE in the documentation and/or other
+materials provided with the distribution. Official installs place LICENSE,
+NOTICE, VERSION, and THIRD_PARTY_NOTICES.md under the GlifiStore data share
+directory (see CMake install rules).
+
+---------------------------------------------------------------------------
+Third-party software and materials
+
+This product may be linked against, built with, or tested using third-party
+software. Attribution and license texts for those components are collected in:
+
+  THIRD_PARTY_NOTICES.md
+
+When TLS is enabled at build time, the resulting binary is typically linked
+against OpenSSL 3.x (Apache License 2.0) or system LibreSSL on OpenBSD. Those
+libraries are not redistributed as source from this repository; redistributors
+must comply with the license terms of the TLS library they ship or link.
+
+Algorithms and designs implemented in this repository (including SipHash-2-4,
+CRC32C Castagnoli, and SwissTable-style open addressing) are independent
+implementations. Paper citations and design acknowledgements appear in
+THIRD_PARTY_NOTICES.md and the related ADRs. No Abseil, OpenSSL, or LibreSSL
+source trees are vendored in this repository.
+
+CI workflows pin third-party GitHub Actions by commit SHA. Those Actions are
+not part of the GlifiStore runtime distribution; their licenses apply to the
+Actions themselves when GitHub executes them.

@@ -1,0 +1,15 @@
+# MacPorts-prefix example for glifistored. The port installs this file as a
+# sample; copy it to glifistored.conf and review every limit before exposing
+# the daemon beyond loopback. GlifiStore is an architectural prototype.
+#
+# @GLIFISTORE_DATA_DIR@ is replaced with ${prefix}/var/db/glifistore by the
+# Portfile at destroot time, so the path follows the MacPorts prefix in use.
+profile=production
+bind=127.0.0.1
+port=7379
+shard-pairs=1
+storage-mode=durable-periodic
+data-dir=@GLIFISTORE_DATA_DIR@
+open-mode=open-or-create
+log-format=json
+shutdown-drain-ms=30000

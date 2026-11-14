@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "experimental-paired-protocols",
+      "paths": ["src/experimental/generation_slot_pool.hpp", "src/experimental/pair_read_generation_shell.hpp", "src/experimental/pair_read_generation_shell_bridge.hpp", "src/experimental/pair_read_generation_shell_access.cpp"],
+      "classification": "diagnostic prototype concurrency",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel", "seq_cst"],
+      "writer": "prototype Reader/Writer lane owners",
+      "readers": "prototype Reader, Writer, reactor, and diagnostic snapshots",
+      "published_or_protected_data": "prototype generation tokens, queue cells, pins, shutdown state, and telemetry",
+      "required_happens_before": "release publication/ownership transfer is acquired by the consuming lane; seq_cst reader turns close prototype reclamation cycles",
+      "invariant": "prototype slots are not reused while pinned and no consumer observes a partially initialized generation or queue cell",
+      "relaxed_justification": "relaxed operations are single-owner state or observational telemetry; generation, queue, pin, and shutdown authority use the acquire/release operations in the same domain"
+    },
+    {
+      "id": "fault-injection-control",
+      "paths": ["src/core/fault_injection.cpp"],
+      "classification": "test-only synchronization protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "correctness test controller",
+      "readers": "instrumented production paths in fault-enabled builds",
+      "published_or_protected_data": "armed fault site and remaining-count state",
+      "required_happens_before": "site release publishes an initialized remaining count; consumers acquire the site before decrementing it",
+      "invariant": "a configured Nth failure fires once and a cleared slot cannot consume a stale count",
+      "relaxed_justification": "RNG state and remaining counters are atomic values with no non-atomic payload; site release/acquire carries configuration authority"
+    },
+    {
+      "id": "hot-path-telemetry",
+      "paths": ["src/core/hot_path_phases.cpp"],
+      "classification": "telemetry only",
+      "allowed_orders": ["relaxed"],
+      "writer": "instrumented request threads",
+      "readers": "diagnostic snapshot/report code",
+      "published_or_protected_data": "independent counters and enable flag only",
+      "required_happens_before": "none; snapshots may be approximate",
+      "invariant": "telemetry never publishes or gates Store authority",
+      "relaxed_justification": "every value is diagnostic and approximate; no object lifetime or correctness state depends on it"
+    },
+    {
+      "id": "worker-routing-seqlock",
+      "paths": ["src/core/worker_routing.cpp"],
+      "classification": "correctness publication protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "seq_cst"],
+      "writer": "serialized routing configuration writers",
+      "readers": "routing-state consumers and default hash helpers",
+      "published_or_protected_data": "the algorithm/seed pair",
+      "required_happens_before": "one seq_cst order places odd revision, both payload stores, and even revision; readers validate both payload loads between equal even revisions",
+      "invariant": "a reader returns one complete routing revision and never a torn algorithm/seed pair",
+      "relaxed_justification": "only the writer-lock wait path is relaxed; the coherent revision and payload values participate in the seq_cst publication order"
+    },
+    {
+      "id": "index-seed-startup",
+      "paths": ["src/index/index_hash_seed.cpp"],
+      "classification": "startup configuration scalar",
+      "allowed_orders": ["relaxed"],
+      "writer": "daemon startup or single-threaded tests",
+      "readers": "Index constructors",
+      "published_or_protected_data": "one self-contained 64-bit seed",
+      "required_happens_before": "process/thread startup sequencing; no associated non-atomic payload",
+      "invariant": "each Index captures one atomic seed value",
+      "relaxed_justification": "the atomic is the complete value and is configured before worker publication; it does not publish other memory"
+    },
+    {
+      "id": "server-bounded-queues",
+      "paths": ["include/glifistore/server/bounded_mpsc_queue.hpp", "src/server/spsc_ring.hpp"],
+      "classification": "correctness ownership protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "queue producers",
+      "readers": "the queue consumer",
+      "published_or_protected_data": "bounded queue cells and producer/consumer positions",
+      "required_happens_before": "cell/position release publishes initialized payload; acquire grants the consumer or next producer ownership",
+      "invariant": "a cell has one owner and is never overwritten before release",
+      "relaxed_justification": "position hints and same-owner cursor updates do not publish payload; per-cell release/acquire is the ownership edge"
+    },
+    {
+      "id": "server-handoff",
+      "paths": ["include/glifistore/server/connection_handoff.hpp", "src/server/connection_handoff.cpp"],
+      "classification": "correctness handoff protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "source reactor and shutdown controller",
+      "readers": "destination reactor and shutdown observers",
+      "published_or_protected_data": "connection handoff cells, pending counts, and admission state",
+      "required_happens_before": "queue release/acquire transfers socket ownership; admission acq_rel closes and drains submissions",
+      "invariant": "a socket belongs to at most one reactor/poller and accepted handoffs are drained or rejected",
+      "relaxed_justification": "counts are telemetry/admission bookkeeping after ownership is established by queue and admission edges"
+    },
+    {
+      "id": "server-reactor-lifecycle",
+      "paths": ["include/glifistore/server/reactor.hpp", "include/glifistore/server/server.hpp", "include/glifistore/store/prepared_read.hpp", "src/server/reactor.cpp", "src/server/reactor_dispatch.cpp", "src/server/reactor_execute.cpp", "src/server/reactor_io.cpp", "src/server/disk_read_executor.cpp", "src/server/server_health.cpp", "src/server/server_lifecycle.cpp"],
+      "classification": "correctness lifecycle protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "reactor, disk-reader lanes, and server shutdown controller",
+      "readers": "reactor completions, disk workers, join/drain observers, and health probes",
+      "published_or_protected_data": "connection cancellation epochs, bounded I/O tasks, admission counts, stop state, and health",
+      "required_happens_before": "release publishes cancellation/stop/task state; acquire consumers stop, cancel, drain, or adopt the corresponding payload",
+      "invariant": "no stale completion revives a closed connection and no background owner survives terminal drain",
+      "relaxed_justification": "connection/activity counters and owner-private outstanding counts are observational; cancellation, queue, admission, and stop edges use acquire/release"
+    },
+    {
+      "id": "server-audit-emitter",
+      "paths": ["src/server/security_audit.cpp"],
+      "classification": "bounded audit emitter completion and telemetry",
+      "allowed_orders": ["relaxed", "acquire", "release"],
+      "writer": "request/reactor threads and the process-lifetime audit emitter",
+      "readers": "STATS and audit-output completion observers",
+      "published_or_protected_data": "owned audit output counters; queued event payloads are protected by the sink mutex",
+      "required_happens_before": "emitter pending release publishes prior output-counter updates to an acquire observing that completion; mutex unlock/lock transfers queued events",
+      "invariant": "queued events retain counter ownership independently of Server lifetime; completion publication never grants Store authority",
+      "relaxed_justification": "independent totals and pending admissions do not publish event payloads; the sink mutex publishes payloads and pending release/acquire communicates completion"
+    },
+    {
+      "id": "server-policy-telemetry",
+      "paths": ["src/server/abuse_limits.cpp"],
+      "classification": "telemetry and independent rate-state atomics",
+      "allowed_orders": ["relaxed"],
+      "writer": "request/reactor threads",
+      "readers": "STATS and policy snapshots",
+      "published_or_protected_data": "independent counters and atomic rate-state values",
+      "required_happens_before": "none beyond atomicity; policy decisions use the value returned by their own RMW",
+      "invariant": "counters never publish object lifetime or Store authority",
+      "relaxed_justification": "the atomics are self-contained counters/token arithmetic; the returned RMW value, not ordering of other memory, decides admission"
+    },
+    {
+      "id": "client-connection-lifecycle",
+      "paths": ["src/client/client.cpp"],
+      "classification": "correctness lifecycle protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "client close/reconfiguration and in-flight operation guards",
+      "readers": "client request threads and drain waiters",
+      "published_or_protected_data": "client lifecycle, active-operation count, and routing revision",
+      "required_happens_before": "close/reconfiguration release is acquired before admission or retry; acq_rel counters delimit drain",
+      "invariant": "close waits for admitted operations and a request never uses a superseded routing state",
+      "relaxed_justification": "local attempt counters/observations do not publish payload; lifecycle and revision transitions use acquire/release"
+    },
+    {
+      "id": "persistence-file-health",
+      "paths": ["include/glifistore/persistence/filesystem.hpp", "include/glifistore/persistence/segment_file.hpp", "src/persistence/filesystem_directory.cpp", "src/persistence/segment_file.cpp", "src/persistence/store_backup.cpp"],
+      "classification": "correctness health and backup coordination",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "filesystem failure paths, appenders, and backup workers",
+      "readers": "Store admission, segment operations, and backup coordinator",
+      "published_or_protected_data": "fail-closed directory/segment health, append ownership, and bounded backup work",
+      "required_happens_before": "release health failure is acquired before later I/O; queue/worker releases publish completed backup state",
+      "invariant": "I/O never proceeds through authority known unhealthy and backup tasks retain their source authority until joined",
+      "relaxed_justification": "progress and byte counters are telemetry or mutex-owned; health/admission/worker completion use acquire/release"
+    },
+    {
+      "id": "durable-runtime-catalog",
+      "paths": ["src/persistence/runtime_catalog*.cpp", "src/persistence/runtime_catalog*.hpp"],
+      "classification": "durable authority lifecycle protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel", "seq_cst"],
+      "writer": "Worker mutation/rotation/compaction owners and shutdown",
+      "readers": "Store operations, maintenance, backup, and diagnostic snapshots",
+      "published_or_protected_data": "catalog health, operation admission/drain, maintenance state, commit and rotation progress",
+      "required_happens_before": "admission/health release is acquired before authority use; mutex/CV domains protect Manifest and Index payload",
+      "invariant": "no operation enters after close/fail-closed and Manifest authority is observed only under its mutex/catalog generation contract",
+      "relaxed_justification": "attempt/result/latency counters and mutex-owned progress do not publish durable authority; admission and health atomics carry correctness"
+    },
+    {
+      "id": "worker-lifecycle",
+      "paths": ["include/glifistore/worker/worker.hpp", "src/worker/worker.cpp"],
+      "classification": "correctness worker lifecycle protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "Worker owner and Store shutdown",
+      "readers": "Worker operations and maintenance observers",
+      "published_or_protected_data": "Worker close/health state and operation counts",
+      "required_happens_before": "close release is acquired by admission/drain observers",
+      "invariant": "no mutation runs after Worker close and admitted operations drain before destruction",
+      "relaxed_justification": "metrics and owner-private counters are observational; lifecycle/admission transitions use acquire/release"
+    },
+    {
+      "id": "store-lifecycle-maintenance",
+      "paths": ["src/store/store.cpp", "src/store/store_access.cpp", "src/store/store_impl.hpp", "src/store/maintenance.cpp", "src/store/maintenance_evaluate.cpp"],
+      "classification": "correctness Store lifecycle protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel"],
+      "writer": "Store operations, close, and maintenance scheduler",
+      "readers": "operation admission, close drain, and maintenance observers",
+      "published_or_protected_data": "Store lifecycle, active-operation counts, background-worker state, and maintenance observations",
+      "required_happens_before": "close/health release is acquired before admission and destruction; operation finish acq_rel wakes drain",
+      "invariant": "no new Store operation enters after the close LP and background maintenance is joined before resources are released",
+      "relaxed_justification": "scheduler selection and metrics are approximate/self-contained; lifecycle and drain atomics provide the required edges"
+    },
+    {
+      "id": "paired-reader-writer-runtime",
+      "paths": ["include/glifistore/store/paired/*.hpp", "src/store/paired/*.cpp", "src/store/paired/*.hpp"],
+      "classification": "critical correctness publication/reclamation protocol",
+      "allowed_orders": ["relaxed", "acquire", "release", "acq_rel", "seq_cst"],
+      "writer": "one shard Writer/execution-token owner plus Reader lease/admission participants",
+      "readers": "paired Readers, Writer reclaim, submitters, shutdown, and stats snapshots",
+      "published_or_protected_data": "immutable generations, slot tokens, mutation/completion cells, leases, merge state, fail-closed and shutdown state",
+      "required_happens_before": "release generation/queue/stop publication pairs with acquire adoption/consumption; lease fence and acq_rel drop close reclamation; execution token acq_rel serializes shard mutation",
+      "invariant": "one mutator owns a shard; Readers see complete immutable generations; pins/leases outlive borrows; reclaim precedes reuse only after a safe epoch",
+      "relaxed_justification": "relaxed fields are Writer-owned state, sequence-protected memory census, or telemetry; the token, queue, publication, lease, health, and shutdown atomics carry synchronization"
+    },
+    {
+      "id": "blob-materialization-admission",
+      "paths": [
+        "src/store/store_blob.cpp"
+      ],
+      "classification": "self-contained owning-read byte admission counter",
+      "allowed_orders": [
+        "relaxed"
+      ],
+      "writer": "concurrent owning blob reads reserving and releasing materialization bytes",
+      "readers": "owning blob reads attempting their own atomic reservation",
+      "published_or_protected_data": "only the aggregate outstanding materialization byte charge; each returned value has independent ownership",
+      "required_happens_before": "none for value payloads; the successful atomic compare/exchange reserves capacity before allocation and the scope guard releases it",
+      "invariant": "successful reservations do not exceed the materialization cap and every acquired charge is released without publishing another read payload",
+      "relaxed_justification": "the relaxed load is only the initial compare/exchange candidate; the successful RMW decides admission and no non-atomic payload is published through the counter"
+    }
+  ]
+}

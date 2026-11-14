@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=1ff35c3
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+cooperative,1,0.100260,100.260041,26.544375,3.667750,51.972375,17.239875,0.275875,73.155875,99.700250,0.298916,0.260875,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,2,0.123560,123.559750,34.219792,4.759042,61.109334,22.571542,0.306165,88.746083,122.965875,0.249125,0.344750,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,3,0.129230,129.229667,36.867459,5.001167,66.625584,20.013250,0.180165,91.820166,128.687625,0.259166,0.282876,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,4,0.231999,231.998667,38.117583,4.982167,157.758625,30.318000,0.189875,193.248667,231.366250,0.344042,0.288375,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,5,0.184907,184.906833,33.829125,4.772625,118.150083,27.394708,0.180126,150.497542,184.326667,0.310000,0.270166,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,6,0.179896,179.895833,34.074084,4.585750,108.947417,31.335292,0.228749,145.097208,179.171292,0.310958,0.413583,1,1,1,1,1,1,1,1,0,32515776,4
+cooperative,7,0.180551,180.551083,31.750750,3.867084,115.083792,28.827541,0.210041,147.988458,179.739208,0.316917,0.494958,1,1,1,1,1,1,1,1,0,32515776,4

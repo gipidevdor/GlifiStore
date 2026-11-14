@@ -1,0 +1,6 @@
+# Actionlint config: allow documented self-hosted runner labels.
+# paired-linux-performance.yml is workflow_dispatch-only and requires
+# glifistore-linux-perf; hosted ubuntu-latest cannot close that gate.
+self-hosted-runner:
+  labels:
+    - glifistore-linux-perf

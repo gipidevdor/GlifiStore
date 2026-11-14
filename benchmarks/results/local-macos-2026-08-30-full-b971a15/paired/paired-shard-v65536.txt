@@ -1,0 +1,40 @@
+# glifistore paired-shard A/B benchmark
+# git=b971a15
+# operations=20000 keys=1024 value_bytes=65536 repeats=7 warmup=1 batch_records=32 batch_wait_us=2
+# latency sampling=1/64 GET operations; current returns an owning copy; paired returns a span
+kind,implementation,workload,repeat,ops_per_second,p50_get_ns,p95_get_ns,p99_get_ns,p999_get_ns,latency_samples,checksum
+sample,paired-span,get100,0,15447987.784,83.000,125.000,167.000,708.000,313,1334799170
+sample,current-store-copy,get100,0,71887.981,13834.000,14709.000,15041.000,22167.000,313,1334799170
+sample,paired-span-async,get95-put5,0,2692953.121,83.000,125.000,333.000,583.000,313,1273624858
+sample,current-store-copy,get95-put5,0,67564.020,13917.000,18458.000,21709.000,26750.000,313,1273349119
+sample,current-store-copy,get100,1,70985.136,13958.000,14917.000,16166.000,20583.000,313,1347374170
+sample,paired-span,get100,1,14114326.041,83.000,125.000,292.000,1542.000,313,1347374170
+sample,current-store-copy,get95-put5,1,68481.786,13875.000,15959.000,22834.000,25250.000,313,1284924119
+sample,paired-span-async,get95-put5,1,3225091.210,83.000,125.000,209.000,709.000,313,1286131685
+sample,paired-span,get100,2,14170578.337,84.000,125.000,167.000,209.000,313,1359949170
+sample,current-store-copy,get100,2,69791.321,14125.000,15792.000,18000.000,25417.000,313,1359949170
+sample,paired-span-async,get95-put5,2,4656577.416,83.000,125.000,167.000,625.000,313,1298796246
+sample,current-store-copy,get95-put5,2,66999.655,14042.000,17250.000,21125.000,25959.000,313,1296499119
+sample,current-store-copy,get100,3,69345.172,14000.000,15375.000,19333.000,27334.000,313,1372524170
+sample,paired-span,get100,3,13718211.474,83.000,125.000,208.000,666.000,313,1372524170
+sample,current-store-copy,get95-put5,3,66220.323,13791.000,16417.000,22666.000,129375.000,313,1308074119
+sample,paired-span-async,get95-put5,3,4842713.508,83.000,167.000,250.000,792.000,313,1312312190
+sample,paired-span,get100,4,14071703.774,83.000,125.000,167.000,333.000,313,1385099170
+sample,current-store-copy,get100,4,68436.462,14458.000,16000.000,17125.000,18709.000,313,1385099170
+sample,paired-span-async,get95-put5,4,3267684.463,83.000,125.000,583.000,1292.000,313,1323890159
+sample,current-store-copy,get95-put5,4,66814.085,14041.000,20083.000,22125.000,25042.000,313,1319649119
+sample,current-store-copy,get100,5,69954.601,14208.000,15625.000,17334.000,26083.000,313,1397674170
+sample,paired-span,get100,5,14203284.510,83.000,125.000,166.000,1125.000,313,1397674170
+sample,current-store-copy,get95-put5,5,67462.736,14000.000,15584.000,19542.000,26500.000,313,1331224119
+sample,paired-span-async,get95-put5,5,4708836.178,83.000,125.000,292.000,667.000,313,1336591635
+sample,paired-span,get100,6,14085746.985,83.000,125.000,125.000,292.000,313,1410249170
+sample,current-store-copy,get100,6,70228.880,14000.000,15792.000,16583.000,17625.000,313,1410249170
+sample,paired-span-async,get95-put5,6,4714711.621,83.000,125.000,250.000,750.000,313,1349149831
+sample,current-store-copy,get95-put5,6,67202.231,13959.000,17750.000,21833.000,26834.000,313,1342799119
+# final_state_verification=pass
+kind,implementation,workload,samples,median_ops_per_second,median_p99_get_ns,median_p999_get_ns
+summary,paired-span,get100,7,14114326.041,167.000,666.000
+summary,current-store-copy,get100,7,69954.601,17125.000,22167.000
+summary,paired-span-async,get95-put5,7,4656577.416,250.000,709.000
+summary,current-store-copy,get95-put5,7,67202.231,21833.000,26500.000
+telemetry,publications,344,publication_records,9024,publication_latency_ns,54127661,writer_batch_wait_ns,215042,writer_batch_deadline_closes,87,publication_storage_bytes,105600,ingress_value_bytes_copied,591396864,payload_allocations,9024,payload_bytes_allocated,591522450,delta_directory_entries_copied,39440,delta_page_view_entries_copied,44032,delta_pages_copied,7749,delta_pages_allocated,8005,delta_merges,1,generation_high_watermark,4,generation_retired,344,generation_retire_delay_ns,53772457,publication_backpressure,0,generation_slot_reuses,341

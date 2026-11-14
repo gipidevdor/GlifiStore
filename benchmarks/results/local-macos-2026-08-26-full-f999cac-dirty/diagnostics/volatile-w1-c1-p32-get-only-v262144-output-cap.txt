@@ -1,0 +1,6 @@
+case=volatile-w1-c1-p32-get-only-v262144-post-seed-fix
+result=expected-bounded-output-rejection-in-timed-region
+reason=32 response frames exceed the 4MiB per-connection output ceiling
+minimum_payload_bytes=8388608
+maximum_output_bytes=4194304
+accepted_neighbor=volatile-w1-c1-p8-get-only-v262144.txt

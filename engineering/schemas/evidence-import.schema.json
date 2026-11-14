@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/evidence-import-v1.json",
+  "title": "GlifiStore post-admission evidence import receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_seal", "candidate_seal_sha256", "imported_at", "workflow", "run_id", "files"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "candidate_seal": {"const": "candidate-seal.json"},
+    "candidate_seal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "imported_at": {"type": "string", "format": "date-time"},
+    "workflow": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "sha256", "size"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+# GlifiStore Perl SDK — Perl::Critic at maximum severity (--brutal / severity 1).
+# Enforced by scripts/test-perl-client.sh and CI. Only policies that conflict with
+# the documented SDK contract or with modern/hot-path Perl are disabled below.
+
+severity = 1
+verbose = 8
+color = 0
+# Every installed policy at severity <= 1 (perlcritic --brutal).
+theme = bugs + certrec + certrule + complexity + core + cosmetic + maintenance + pbp + performance + portability + readability + security + tests + unicode
+only = 0
+
+#-----------------------------------------------------------------------------
+# Intentional SDK / modern-Perl exceptions (documented)
+#-----------------------------------------------------------------------------
+
+# `use v5.32` is the supported baseline; PBP's version-string rule targets legacy
+# v-strings like 5.6.1, not the modern version pragma.
+[-ValuesAndExpressions::ProhibitVersionStrings]
+
+# Wire opcodes/status/frame limits must be compile-time folded constants shared
+# with the C++/Python clients. Readonly would add runtime cost on every encode.
+[-ValuesAndExpressions::ProhibitConstantPragma]
+
+# Public method names match the cross-language surface (connect/close).
+[-Subroutines::ProhibitBuiltinHomonyms]
+
+# The client throws GlifiStore::Error objects via die; Carp would stringify
+# and break the documented exception contract.
+[-ErrorHandling::RequireCarping]
+
+# Leaf accessors and the encode hot path keep positional $_[n] / many-arg
+# signatures to avoid hash allocation on every frame.
+[-Subroutines::RequireArgUnpacking]
+[-Subroutines::ProhibitManyArgs]
+
+#-----------------------------------------------------------------------------
+# PBP style rules that fight dense protocol/I/O code without catching defects
+#-----------------------------------------------------------------------------
+
+# Builtin parens are kept for clarity next to method calls and complex exprs.
+[-CodeLayout::ProhibitParensWithBuiltins]
+
+# Statement-modifier guards are the local idiomatic form in this SDK.
+[-ControlStructures::ProhibitPostfixControls]
+[-ControlStructures::ProhibitNegativeExpressionsInUnlessAndUntilConditions]
+
+# Empty octet strings are written as '' for visual density in frame code.
+[-ValuesAndExpressions::ProhibitEmptyQuotes]
+
+# Simple \A...\z validators do not benefit from forced /xms.
+[-RegularExpressions::RequireExtendedFormatting]
+[-RegularExpressions::RequireDotMatchAnything]
+[-RegularExpressions::RequireLineBoundaryMatching]
+[-RegularExpressions::ProhibitEnumeratedClasses]
+[-RegularExpressions::ProhibitEscapedMetacharacters]
+
+# Socket errno / eval error / $SIG{PIPE} are the correct interfaces here.
+# English.pm aliases would obscure the syscalls readers expect.
+[-Variables::ProhibitPunctuationVars]
+
+# Double-sigil forms appear in tight select loops; @{$x} is used where clear.
+[-References::ProhibitDoubleSigils]
+
+# Ambiguous names like "close" are part of the public API (see above).
+[-NamingConventions::ProhibitAmbiguousNames]
+
+#-----------------------------------------------------------------------------
+# Policy configuration
+#-----------------------------------------------------------------------------
+
+[CodeLayout::RequireTidyCode]
+perltidyrc = .perltidyrc
+
+[Subroutines::ProhibitExcessComplexity]
+max_mccabe = 30
+
+[ValuesAndExpressions::ProhibitMagicNumbers]
+allowed_values = 0 1 2 3 4 5 6 7 8 9 10 16 20 32 40 64 128 256 512 1024 4096 65535 4294967295 1048576 2097152 65536 262144
+

@@ -1,0 +1,25 @@
+GlifiStore hot-path phase attribution (lab instrumentation)
+Claim ceiling: architectural prototype / same-machine lab evidence only.
+[GET]
+  admit          samples=1200000 total_ns=36899303 mean_ns=30.75 pct=8.3
+  hash           samples=1200000 total_ns=37546755 mean_ns=31.29 pct=8.4
+  route          samples=1200000 total_ns=36720874 mean_ns=30.60 pct=8.2
+  lease_adopt    samples=1200000 total_ns=37603713 mean_ns=31.34 pct=8.4
+  index_lookup   samples=1200000 total_ns=297642657 mean_ns=248.04 pct=66.7
+  value_copy     samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  release        samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+[PUT/ERASE]
+  admit          samples=2400000 total_ns=88024746 mean_ns=36.68 pct=2.8
+  encode_copy    samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  enqueue        samples=1200000 total_ns=122110170 mean_ns=101.76 pct=3.9
+  worker_apply   samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  publish        samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  ack            samples=1200000 total_ns=2941277460 mean_ns=2451.06 pct=93.3
+[TCP]
+  accept_read    samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  decode         samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  dispatch       samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  store_op       samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  encode         samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  write          samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  wait_inflight  samples=0 total_ns=0 mean_ns=0.00 pct=0.0

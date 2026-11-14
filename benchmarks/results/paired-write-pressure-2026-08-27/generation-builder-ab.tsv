@@ -1,0 +1,7 @@
+variant	build	operations	clients	pipeline	median_ops_s	p99_ns	writer_service_mean_ns	generation_build_mean_ns	note
+baseline	release	200000	4	32	947004	191500	1398.95	NA	least-noisy seven-repeat pair
+reused-scratch	release	200000	4	32	952542	191042	1241.43	NA	least-noisy seven-repeat pair
+baseline	phase-lab	200000	4	32	798985	NA	1588.01	897.28	sequential instrumented run
+reused-scratch	phase-lab	200000	4	32	786208	NA	1442.02	738.91	sequential instrumented run; aggregate dominated by host noise
+rejected-fixed-array	release	200000	4	32	853185	259666	2071.99	NA	removed after regression
+rejected-ack-coalescing	release	100000	4	32	457712	1795380	4105.81	NA	removed; paired baseline was 725181 ops/s and p99 509084 ns

@@ -1,0 +1,62 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE_INSPECT_SEGMENT 1
+.Os
+.Sh NAME
+.Nm glifistore_inspect_segment
+.Nd inspect a GlifiStore durable Segment file
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Op Fl Fl json
+.Op Fl Fl no-scan
+.Ar segment-file
+.Sh DESCRIPTION
+.Nm
+performs read-only validation of one durable Segment file for GlifiStore
+.Sy @PROJECT_VERSION@ .
+It does not take the Store directory lock and does not modify the file.
+.Pp
+Default work:
+.Bl -enum -compact
+.It
+Open as a private, singly linked, owner-only regular file of exactly 64 MiB.
+.It
+Decode the Segment header and select the newest valid commit slot.
+.It
+When the basename is a canonical
+.Pa segment-<id>.glifi
+name, require it to match header identity.
+.It
+Scan the committed Record extent (CRC32C, sequences, commit metadata) unless
+.Fl Fl no-scan .
+.El
+.Pp
+A concurrent writer can make a point-in-time read observe a torn commit slot;
+that is reported as validation failure (fail-closed), not success.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.It Fl Fl json
+Emit a stable single-line JSON object on stdout.
+.It Fl Fl no-scan
+Validate header and commit metadata only.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Validated.
+.It 1
+Validation or I/O failure.
+.It 2
+Usage error.
+.El
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_verify_store 1
+.Sh AUTHORS
+GlifiStore contributors.

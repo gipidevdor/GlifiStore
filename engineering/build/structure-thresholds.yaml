@@ -1,0 +1,9 @@
+# Structural debt thresholds (Phase C).
+max_lines_per_source: 1600
+todo_requires_tracker: true
+source_globs:
+  - src/**/*.cpp
+  - src/**/*.hpp
+  - include/**/*.hpp
+  - tests/**/*.cpp
+  - tests/**/*.hpp

@@ -1,0 +1,37 @@
+GlifiStore hot-path phase attribution (lab instrumentation)
+Claim ceiling: architectural prototype / same-machine lab evidence only.
+[GET]
+  admit          samples=600000 total_ns=18415521 mean_ns=30.69 pct=7.9
+  hash           samples=600000 total_ns=18570279 mean_ns=30.95 pct=7.9
+  route          samples=600000 total_ns=18478647 mean_ns=30.80 pct=7.9
+  lease_adopt    samples=600000 total_ns=18869322 mean_ns=31.45 pct=8.1
+  index_lookup   samples=600000 total_ns=158926153 mean_ns=264.88 pct=68.0
+  value_copy     samples=10176 total_ns=370373 mean_ns=36.40 pct=0.2
+  release        samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+[PUT/ERASE]
+  admit          samples=1200000 total_ns=38652677 mean_ns=32.21 pct=1.5
+  encode_copy    samples=600000 total_ns=38940686 mean_ns=64.90 pct=1.5
+  index_publish  samples=600000 total_ns=97889352 mean_ns=163.15 pct=3.9
+  enqueue        samples=600000 total_ns=60371970 mean_ns=100.62 pct=2.4
+  worker_apply   samples=600000 total_ns=330744345 mean_ns=551.24 pct=13.0
+  publish        samples=600000 total_ns=342905874 mean_ns=571.51 pct=13.5
+  ack            samples=600000 total_ns=1631826898 mean_ns=2719.71 pct=64.2
+[TCP leaf phases; additive]
+  decode         samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  route          samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  store_op       samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  encode         samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  socket_write   samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+  poller_update  samples=0 total_ns=0 mean_ns=0.00 pct=0.0
+# glifistore benchmark
+# git_sha=94f1307
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
+# benchmark_warmup=1
+# benchmark_repeats=2
+# cpu_pin_requested=0
+# cpu_pin_applied=0
+# note=use plugged-in power; thermal throttling affects spread
+# latency_measurement=disabled
+name=store_get_copy key_size=16 value_size=64 workers=1 threads=1 distribution=uniform random=0 operations=200000 hits=200000 samples=2 warmup=1 median_seconds=0.124276 min_seconds=0.118784 max_seconds=0.129769 median_ops_per_second=1.61247e+06 min_ops_per_second=1.5412e+06 max_ops_per_second=1.68373e+06 median_ns_per_op=621.382 min_ns_per_op=593.919 max_ns_per_op=648.846 median_rss_bytes=2.41066e+08 min_rss_bytes=2.41025e+08 max_rss_bytes=2.41107e+08 median_rss_delta_bytes=0 peak_rss_bytes=2.41107e+08 ingress_bytes=0 egress_bytes=0 median_ingress_bytes_per_second=0 min_ingress_bytes_per_second=0 max_ingress_bytes_per_second=0 median_egress_bytes_per_second=0 min_egress_bytes_per_second=0 max_egress_bytes_per_second=0 median_duplex_bytes_per_second=0 min_duplex_bytes_per_second=0 max_duplex_bytes_per_second=0 latency_samples=0 p50_latency_ns=0 p95_latency_ns=0 p99_latency_ns=0 p999_latency_ns=0 median_durable_queue_wait_ns=0 maximum_durable_queue_wait_ns=0 median_durable_service_ns=0 maximum_durable_service_ns=0 median_durable_commit_ns=0 maximum_durable_commit_ns=0 median_durable_batch_records=0 maximum_durable_batch_records=0 durable_completed=0 durable_rejected=0 durable_expired=0 durable_committed_batches=0 durable_committed_records=0 durable_committed_bytes=0 durable_failed_batches=0 durable_maximum_queue_depth=0 durable_maximum_queued_bytes=0 durable_pending_records=0 durable_pending_bytes=0 durable_record_limit_closes=0 durable_byte_limit_closes=0 durable_adaptive_target_closes=0 durable_deadline_closes=0 median_reactor_input_buffer_compactions=0 maximum_reactor_input_buffer_compactions=0 median_reactor_input_buffer_bytes_moved=0 maximum_reactor_input_buffer_bytes_moved=0 median_reactor_output_buffer_compactions=0 maximum_reactor_output_buffer_compactions=0 median_reactor_output_buffer_bytes_moved=0 maximum_reactor_output_buffer_bytes_moved=0

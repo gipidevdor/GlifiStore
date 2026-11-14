@@ -1,0 +1,20 @@
+host=Apple_M4 platform=macos arch=arm64 compiler=Apple_LLVM_21 build=Release_O3_native
+git_sha=5feccd3-dirty claim=local_advisory
+
+baseline_single_put operations=200000 repeats=5 warmup=1 ops_per_second=506244 ns_per_op=1975.33 rss_bytes=114573000
+candidate_single_put operations=200000 repeats=9 warmup=2 ops_per_second=519513 ns_per_op=1924.88 rss_bytes=114164000
+single_put_change_ops_percent=2.62
+
+baseline_batch32 operations=200000 repeats=5 warmup=1 ops_per_second=670405 ns_per_op=1491.64 rss_bytes=115606000
+candidate_batch32 operations=200000 repeats=9 warmup=2 ops_per_second=676662 ns_per_op=1477.84 rss_bytes=115900000
+batch32_change_ops_percent=0.93
+
+baseline_insert_growth operations=1500000 repeats=1 ops_per_second=182632 ns_per_op=5475.48 note=prior_same_host_not_steady_state
+candidate_insert_growth operations=1500000 repeats=1 ops_per_second=186112 ns_per_op=5373.11 rss_bytes=798278000
+insert_growth_change_ops_percent=1.91
+
+three_quantum_control_latency operations=200000 repeats=5 latency_samples=1000000 ops_per_second=482574 p50_ns=1334 p95_ns=2375 p99_ns=3042 p999_ns=236709
+candidate_latency operations=200000 repeats=5 latency_samples=1000000 ops_per_second=522026 p50_ns=1209 p95_ns=1792 p99_ns=2625 p999_ns=92750
+latency_change throughput_percent=8.18 p50_percent=-9.37 p95_percent=-24.55 p99_percent=-13.71 p999_percent=-60.82
+
+profile_candidate operations=1500000 sample_seconds=3 combiner_housekeeping_parent_samples=1175 store_put_parent_samples=2230 note=real_incremental_merge_remains_dominant_during_growth

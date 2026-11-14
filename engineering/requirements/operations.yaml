@@ -1,0 +1,217 @@
+requirements:
+- id: GS-OPS-CONFIG-001
+  titolo: Configuration precedence validation and safe defaults
+  categoria: operations
+  criticita: alta
+  stato: provato
+  descrizione: >
+    Daemon and embedded durable config have documented precedence, validation, safe defaults,
+    and resource limits; production profile fails closed before listen. Exact normal-mode no-gain
+    maintenance is memoized only for an unchanged physical candidate, expires within the configured
+    maximum evaluation interval, and is bypassed under pressure/emergency. Normal background
+    compaction paces bounded physical writes only under private pre-intent ownership; large candidates
+    make progress, named profile defaults are explicit and overrideable, and capacity pressure bypasses
+    pacing without changing persistence-v1 authority. OpenMetrics/Prometheus scrape exporters are
+    intentional non-support (operator STATS + JSON logs only).
+  autorita:
+  - docs/cli.md
+  - docs/operations/durable-tcp-daemon.md
+  implementazione:
+  - src/cli
+  - src/store/maintenance.cpp
+  - src/store/maintenance_evaluate.cpp
+  - src/server/server_stats.cpp
+  - src/server/daemon_config.cpp
+  - src/server/daemon_config_materialize.cpp
+  - src/persistence/compaction_builder.cpp
+  - src/persistence/segment_file.cpp
+  - src/persistence/segment_file_io.cpp
+  - src/persistence/resource_limits.cpp
+  - src/main.cpp
+  prove:
+  - tests/integration/store_tests.cpp
+  - tests/unit/maintenance_controller_tests.cpp
+  - tests/unit/maintenance_controller_pressure_tests.cpp
+  - tests/integration/server_reactor_durable_lifecycle_tests.cpp
+  - tests/integration/server_reactor_durable_wire_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/unit/byte_rate_limiter_tests.cpp
+  - tests/unit/segment_file_tests.cpp
+  - tests/unit/daemon_config_tests.cpp
+  - scripts/exercise_ops_runbooks.sh
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ops-runbooks.yml
+  - workflow: ci.yml
+  rischio_residuo:
+  - Misconfiguration on unsupported filesystems remains an operator hazard
+  - >-
+    Multi-hour adversarial reclaim fairness soak remains open (Wave 4
+    adversarial-reclaim / hot-key / queue-saturation / connection-churn profiles
+    are software stubs only)
+  - Device-wide fairness across multiple Store processes and multi-platform rate calibration remain open
+  - >-
+    OpenMetrics/Prometheus exporter intentional non-support
+    (docs/operations/observability.md)
+  hazards:
+  - HAZ-025
+  - HAZ-026
+  - HAZ-033
+  gates:
+  - GATE-CONFIG
+- id: GS-OPS-BACKUP-001
+  titolo: Backup restore verify and online fence
+  categoria: operations
+  criticita: alta
+  stato: implementato
+  descrizione: Offline backup/restore/verify/repair and online fenced Store::backup_to are implemented;
+    Wave 3 adds storage_exhausted seams at copy/sync and concurrent fence×mutation/compaction proofs.
+    Released-tag artifact consumption remains open.
+  autorita:
+  - docs/operations/backup-restore.md
+  - docs/spec/backup-restore-v1.md
+  implementazione:
+  - src/persistence/store_backup.cpp
+  - src/persistence/store_verify.cpp
+  - src/persistence/store_repair.cpp
+  - src/store/store.cpp
+  - src/store/store_impl.hpp
+  prove:
+  - scripts/exercise_ops_runbooks.sh
+  - tests/unit/store_backup_tests.cpp
+  - tests/crash/crash_backup.cpp
+  - tests/crash/crash_backup_daemon.cpp
+  - tests/crash/crash_backup_wire.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ops-runbooks.yml
+  rischio_residuo:
+  - Released-tag artifact consumption remains open; synthetic incompatible restore
+    matrices (future Manifest/Record versions, truncated Manifest, Worker mismatch) are
+    covered in store_backup_tests
+  - Zero-fence hot backup deferred (ADR 0034); online path remains admission-fenced
+  - Daemon wire BACKUP process-kill via real glifistored exec covered by
+    glifistore_crash_backup_daemon (lab-only GLIFISTORE_CRASH_TEST hooks); in-process
+    Server/wire by glifistore_crash_backup_wire; Store path by glifistore_crash_backup
+  hazards:
+  - HAZ-021
+  - HAZ-022
+  gates:
+  - GATE-BACKUP-RESTORE
+- id: GS-OPS-DEBT-001
+  titolo: Maintenance latency debt and pacing observability
+  categoria: operations
+  criticita: media
+  stato: implementato
+  descrizione: Compaction and maintenance must expose bounded reclaim/latency debt and pacing
+    observability (delay, sleep count, burst bytes) without changing persistence-v1 authority.
+    Paced private staging faults remain pre-intent; debt counters are diagnostic and do not
+    retire ADR 0036 generation-slot obligations.
+  autorita:
+  - docs/adr/0040-pre-intent-compaction-write-pacing.md
+  - docs/architecture/durable-compaction.md
+  - docs/architecture/maintenance-controller.md
+  implementazione:
+  - src/persistence/compaction_builder.cpp
+  - src/store/maintenance.cpp
+  - src/persistence/segment_file.cpp
+  prove:
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/unit/byte_rate_limiter_tests.cpp
+  - tests/unit/maintenance_controller_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+    note: Paced fault and telemetry proofs; multi-platform device fairness open
+  rischio_residuo:
+  - Multi-hour reclaim fairness soak and multi-platform rate calibration remain open
+  - Device-wide fairness across multiple Store processes remains open
+  hazards:
+  - HAZ-033
+  gates:
+  - GATE-SOAK
+  - GATE-OPS-RUNBOOKS
+- id: GS-OPS-MIGRATE-001
+  titolo: Offline Worker migrate resume and fail-closed checkpoints
+  categoria: operations
+  criticita: alta
+  stato: implementato
+  descrizione: Offline migrate_durable_store / glifistore_migrate_store copies live keys into a new
+    Store with target Worker count, checkpoints after each put, and resumes from a matching sibling
+    checkpoint. Checkpoints use a bounded strict schema; existing destination keys must be a subset
+    of the source and every still-live skipped prefix value/expiry must match before resume. Corrupt or
+    mismatched checkpoints fail closed; source is never mutated. Live/hot migrate remains
+    unsupported (ADR 0024).
+  autorita:
+  - docs/adr/0024-offline-worker-migration.md
+  - docs/architecture/store-migration.md
+  - docs/operations/compatibility-and-migration.md
+  implementazione:
+  - src/persistence/store_migrate.cpp
+  - tools/migrate_store.cpp
+  prove:
+  - tests/unit/store_migrate_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ops-runbooks.yml
+  rischio_residuo:
+  - Process-kill mid-migrate daemon/tool harness still limited relative to filesystem-hook interrupt
+  hazards:
+  - HAZ-022
+  gates:
+  - GATE-BACKUP-RESTORE
+- id: GS-OPS-SOAK-001
+  titolo: Soak and overload paths linked to quality gates
+  categoria: operations
+  criticita: media
+  stato: implementato
+  descrizione: >
+    Software soak profiles (smoke/long/1h/4h plus Wave 4 adversarial stubs hot-key,
+    connection-churn, queue-saturation, adversarial-reclaim) and graceful-drain/overload
+    runbooks are linked to GATE-SOAK and GATE-OPS-RUNBOOKS via engineering/performance/budgets.yaml.
+    Adversarial stubs exercise shape and SIGTERM drain only. Hardware multi-hour soak with
+    mandatory rotation evidence remains residual.
+  autorita:
+  - docs/operations/soak.md
+  - docs/operations/graceful-drain-and-overload.md
+  - docs/assurance/performance-budgets.md
+  - engineering/performance/budgets.yaml
+  implementazione:
+  - scripts/soak_daemon.sh
+  - scripts/exercise_ops_runbooks.sh
+  - engineering/performance/budgets.yaml
+  prove:
+  - scripts/soak_daemon.sh
+  - scripts/exercise_ops_runbooks.sh
+  - engineering/tools/validate_perf_budgets.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ops-runbooks.yml
+  - workflow: soak-extended.yml
+  - workflow: assurance.yml
+  rischio_residuo:
+  - Controlled multi-hour hardware soak with mandatory rotation evidence remains open
+  - >-
+    Adversarial soak profiles are software stubs only and do not close HAZ-026
+    multi-hour reclaim fairness
+  hazards:
+  - HAZ-025
+  gates:
+  - GATE-SOAK
+  - GATE-OPS-RUNBOOKS

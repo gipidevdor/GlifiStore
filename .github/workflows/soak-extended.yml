@@ -1,0 +1,77 @@
+name: Extended soak (multi-hour)
+
+# Optional multi-hour soak path. Not run on every PR/push — only workflow_dispatch
+# (and a rare monthly 1h schedule). Smoke (~45s) and weekly 30m live in ops-runbooks.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      soak_profile:
+        description: Soak profile (smoke|long|1h|4h)
+        required: true
+        default: "1h"
+        type: choice
+        options:
+          - smoke
+          - long
+          - 1h
+          - 4h
+      soak_seconds:
+        description: Optional duration override in seconds (empty = profile default)
+        required: false
+        default: ""
+  schedule:
+    # Monthly 1h rehearsal (not a hardware certification matrix).
+    - cron: "33 5 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soak-extended-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  soak-extended:
+    name: Multi-hour durable soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build tools
+        run: |
+          python -m pip install --disable-pip-version-check cmake ninja
+          sudo apt-get update
+          sudo apt-get install -y lsof
+      - name: Configure and build soak binaries
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake --preset unix-debug
+          cmake --build --preset unix-debug --target glifistored glifistore_interop_client
+      - name: Resolve soak profile
+        id: soak
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "profile=1h" >> "$GITHUB_OUTPUT"
+            echo "seconds=" >> "$GITHUB_OUTPUT"
+          else
+            echo "profile=${{ inputs.soak_profile }}" >> "$GITHUB_OUTPUT"
+            echo "seconds=${{ inputs.soak_seconds }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run extended soak
+        env:
+          GLIFISTORED: ${{ github.workspace }}/build/unix-debug/glifistored
+          GLIFISTORE_INTEROP_CLIENT: ${{ github.workspace }}/build/unix-debug/glifistore_interop_client
+          SOAK_PROFILE: ${{ steps.soak.outputs.profile }}
+          SOAK_SECONDS: ${{ steps.soak.outputs.seconds }}
+        run: |
+          set -euo pipefail
+          args=(--profile "$SOAK_PROFILE")
+          if [[ -n "${SOAK_SECONDS}" ]]; then
+            args+=(--seconds "$SOAK_SECONDS")
+          fi
+          ./scripts/soak_daemon.sh "${args[@]}"

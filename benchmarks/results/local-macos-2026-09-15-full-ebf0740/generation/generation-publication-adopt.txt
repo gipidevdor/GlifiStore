@@ -1,0 +1,30 @@
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=3
+# benchmark_repeats=11
+# note=use plugged-in power; thermal throttling affects spread
+implementation	repeat	seconds	publications_per_second	ns_per_publication	sample_p50_ns	sample_p99_ns	reader_get_p50_ns	reader_get_p99_ns	reader_adoptions	reader_epoch_skips	pool_exhaustions	live_high_watermark	reader_affinity	reader_cpu	writer_affinity	writer_cpu	checksum
+shared_slot_protocol	0	0.017748	1126869	887.41	1042.00	2791.00	0.00	0.00	3810236	636	1	65	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	0	0.017432	1147329	871.59	1125.00	1917.00	0.00	0.00	3852590	280	0	30	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	1	0.017197	1162965	859.87	1042.00	2375.00	0.00	0.00	3765793	663	0	36	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	1	0.017386	1150332	869.31	1084.00	2042.00	0.00	0.00	3739880	545	0	32	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	2	0.018239	1096566	911.94	1042.00	4167.00	0.00	0.00	3744056	889	0	45	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	2	0.017787	1124446	889.33	1084.00	2291.00	0.00	0.00	3962903	407	0	55	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	3	0.018867	1060040	943.36	1125.00	2333.00	0.00	0.00	4156564	298	0	39	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	3	0.018715	1068642	935.77	1125.00	4125.00	0.00	0.00	3852461	595	0	43	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	4	0.018512	1080361	925.62	1083.00	2958.00	0.00	0.00	3881896	372	0	53	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	4	0.019998	1000123	999.88	1208.00	4209.00	0.00	0.00	4129436	773	0	50	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	5	0.018671	1071178	933.55	1125.00	2209.00	0.00	0.00	4082960	663	0	45	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	5	0.018298	1092988	914.92	1125.00	2166.00	0.00	0.00	3933105	732	0	60	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	6	0.019204	1041441	960.21	1166.00	2250.00	0.00	0.00	3949497	641	0	50	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	6	0.018803	1063644	940.16	1125.00	2000.00	0.00	0.00	4134123	299	0	43	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	7	0.019215	1040831	960.77	1125.00	2250.00	0.00	0.00	4240070	327	0	65	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	7	0.018989	1053225	949.46	1125.00	2708.00	0.00	0.00	3790396	691	27	65	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	8	0.019357	1033234	967.84	1167.00	2208.00	0.00	0.00	4046746	280	0	49	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	8	0.018825	1062396	941.27	1125.00	2458.00	0.00	0.00	4093898	336	0	27	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	9	0.019570	1021972	978.50	1167.00	2750.00	0.00	0.00	4203340	623	0	49	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	9	0.018758	1066212	937.90	1125.00	3041.00	0.00	0.00	3951120	402	0	33	unavailable	-1	unavailable	-1	40000
+shared_slot_protocol	10	0.017959	1113648	897.95	1084.00	2042.00	0.00	0.00	3829710	561	0	55	unavailable	-1	unavailable	-1	40000
+direct_slot_protocol	10	0.018546	1078412	927.29	1166.00	2042.00	0.00	0.00	4232308	281	0	38	unavailable	-1	unavailable	-1	40000

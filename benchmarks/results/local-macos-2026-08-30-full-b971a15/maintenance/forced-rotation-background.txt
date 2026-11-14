@@ -1,0 +1,16 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=b971a15
+# scenario=forced-rotation
+# warmups=1;measured_repeats=7;threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# overlap=compaction intent publication releases a forced unrelated-Worker rotation
+mode,repeat,rotation_s,rotation_ms,publication_wait_ms,seal_ms,create_ms,manifest_publication_ms,other_execution_ms,execution_ms,accounted_total_ms,final_record_commit_ms,measurement_residual_ms,rotation_attempts,rotations_committed,compaction_waits,final_record_commit_attempts,final_record_commits,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,segments_after
+background,1,0.155254,155.254500,40.985708,4.830666,96.035834,12.452541,0.102751,113.421792,154.407500,0.580625,0.266375,1,1,1,1,1,2,2,2,0,32515776,3
+background,2,0.145578,145.577958,34.026416,3.872042,96.001083,10.989375,0.100375,110.962875,144.989291,0.283750,0.304917,1,1,1,1,1,2,2,2,0,32515776,3
+background,3,0.136678,136.678041,32.209250,4.896875,87.973541,10.935875,0.100501,103.906792,136.116042,0.284500,0.277499,1,1,1,1,1,2,2,2,0,32515776,3
+background,4,0.142749,142.748584,32.152834,3.838500,95.076167,11.022666,0.096667,110.034000,142.186834,0.296334,0.265416,1,1,1,1,1,2,2,2,0,32515776,3
+background,5,0.136793,136.792583,31.276917,3.831875,90.096292,10.946584,0.094249,104.969000,136.245917,0.284792,0.261874,1,1,1,1,1,2,2,2,0,32515776,3
+background,6,0.149521,149.521125,31.287000,4.883333,95.068833,17.423083,0.106667,117.481916,148.768916,0.509083,0.243126,1,1,1,1,1,2,2,2,0,32515776,3
+background,7,0.139941,139.941250,31.416250,4.876417,92.020334,11.003334,0.097081,107.997166,139.413416,0.282208,0.245626,1,1,1,1,1,2,2,2,0,32515776,3

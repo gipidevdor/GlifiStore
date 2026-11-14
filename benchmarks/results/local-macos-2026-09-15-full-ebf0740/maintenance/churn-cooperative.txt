@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=0
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=churn
+# threads=4;operations=8192;keys=128;value_bytes=32768;reclaim_value_bytes=262144;put_percent=100;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,generation_backpressure_retries,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_no_gain_scans_suppressed,maintenance_no_gain_retry_after_ns,maintenance_pacing_delay_ms,maintenance_pacing_sleep_count,maintenance_pacing_burst_bytes,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after
+cooperative,1,8192,0,8192,0,1.943943,4214.115420,215.042000,1224.208000,3765.250000,1190139.334000,0.000000,0.000000,0.000000,0.000000,215.042000,1224.208000,3765.250000,1190139.334000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001042,263.443376,426.498707,51.971042,2.301792,744.214917,1.194500,245.858125,7
+cooperative,2,8192,0,8192,0,2.014331,4066.859680,232.750000,1830.500000,4452.000000,702300.958000,0.000000,0.000000,0.000000,0.000000,232.750000,1830.500000,4452.000000,702300.958000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.000583,234.856458,405.471665,36.027167,1.533960,677.889250,0.739292,194.208583,7
+cooperative,3,8192,0,8192,0,2.073403,3950.993278,285.084000,1009.209000,4399.208000,1597969.458000,0.000000,0.000000,0.000000,0.000000,285.084000,1009.209000,4399.208000,1597969.458000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001625,240.772833,396.605875,43.751000,1.252000,682.381708,1.124333,182.409208,7
+cooperative,4,8192,0,8192,0,1.725457,4747.728622,187.000000,860.500000,3456.208000,1337482.625000,0.000000,0.000000,0.000000,0.000000,187.000000,860.500000,3456.208000,1337482.625000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001583,203.540916,408.254834,38.142042,1.436041,651.373833,1.172459,188.712125,7
+cooperative,5,8192,0,8192,0,2.095252,3909.791769,190.292000,1464.292000,4308.292000,1370435.542000,0.000000,0.000000,0.000000,0.000000,190.292000,1464.292000,4308.292000,1370435.542000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.000874,345.685292,531.238291,39.632207,1.722376,918.278166,1.022667,341.394416,7
+cooperative,6,8192,0,8192,0,1.707939,4796.423411,186.250000,843.250000,3174.084000,1287268.708000,0.000000,0.000000,0.000000,0.000000,186.250000,843.250000,3174.084000,1287268.708000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001959,188.918168,392.424168,39.463333,1.488122,622.293791,1.208166,176.973667,7
+cooperative,7,8192,0,8192,0,1.704909,4804.948063,179.958000,859.792000,3599.667000,1304372.083000,0.000000,0.000000,0.000000,0.000000,179.958000,859.792000,3599.667000,1304372.083000,1,1,1,0,32515776,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,4,4,0,4,4,0.001457,202.584791,390.198125,39.753124,1.747294,634.283334,0.950832,162.440041,7

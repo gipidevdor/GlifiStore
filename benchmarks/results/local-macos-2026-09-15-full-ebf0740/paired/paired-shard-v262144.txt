@@ -1,0 +1,46 @@
+# glifistore paired-shard A/B benchmark
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# operations=5000 keys=512 value_bytes=262144 repeats=7 warmup=1 batch_records=32 batch_wait_us=2
+# latency sampling=1/64 GET operations; current returns an owning copy; paired returns a span
+kind,implementation,workload,repeat,ops_per_second,p50_get_ns,p95_get_ns,p99_get_ns,p999_get_ns,latency_samples,checksum
+sample,paired-span,get100,0,14084507.042,84.000,125.000,459.000,459.000,79,1312832271
+sample,current-store-copy,get100,0,17419.982,56792.000,58250.000,79500.000,79500.000,79,1312832271
+sample,paired-span-async,get95-put5,0,1082739.252,83.000,166.000,667.000,667.000,79,1247404528
+sample,current-store-copy,get95-put5,0,17003.499,56750.000,58250.000,80708.000,80708.000,79,1247355183
+sample,current-store-copy,get100,1,17349.913,56833.000,74042.000,92042.000,92042.000,79,1313349771
+sample,paired-span,get100,1,14044943.820,83.000,125.000,750.000,750.000,79,1313349771
+sample,current-store-copy,get95-put5,1,16995.896,56750.000,57917.000,72375.000,72375.000,79,1247810183
+sample,paired-span-async,get95-put5,1,1543527.157,83.000,125.000,625.000,625.000,79,1247945336
+sample,paired-span,get100,2,14206240.517,83.000,125.000,375.000,375.000,79,1313867271
+sample,current-store-copy,get100,2,17415.269,56792.000,58708.000,73750.000,73750.000,79,1313867271
+sample,paired-span-async,get95-put5,2,2002102.207,83.000,125.000,417.000,417.000,79,1248527598
+sample,current-store-copy,get95-put5,2,17030.853,56708.000,57459.000,75250.000,75250.000,79,1248265183
+sample,current-store-copy,get100,3,17439.480,56792.000,57708.000,96250.000,96250.000,79,1314384771
+sample,paired-span,get100,3,13802622.498,83.000,125.000,500.000,500.000,79,1314384771
+sample,current-store-copy,get95-put5,3,17013.284,56833.000,58208.000,101959.000,101959.000,79,1248720183
+sample,paired-span-async,get95-put5,3,1979054.479,84.000,167.000,584.000,584.000,79,1249053260
+sample,paired-span,get100,4,14238239.926,84.000,125.000,209.000,209.000,79,1314902271
+sample,current-store-copy,get100,4,17410.979,56792.000,58875.000,93750.000,93750.000,79,1314902271
+sample,paired-span-async,get95-put5,4,1896004.171,83.000,125.000,458.000,458.000,79,1249558157
+sample,current-store-copy,get95-put5,4,17002.800,56792.000,77792.000,88292.000,88292.000,79,1249175183
+sample,current-store-copy,get100,5,17433.681,56875.000,58458.000,83709.000,83709.000,79,1315419771
+sample,paired-span,get100,5,14010507.881,83.000,125.000,500.000,500.000,79,1315419771
+sample,current-store-copy,get95-put5,5,16974.283,56792.000,68042.000,93459.000,93459.000,79,1249630183
+sample,paired-span-async,get95-put5,5,1974821.032,83.000,208.000,709.000,709.000,79,1250096184
+sample,paired-span,get100,6,14294249.995,83.000,125.000,417.000,417.000,79,1315937271
+sample,current-store-copy,get100,6,17421.203,56875.000,60792.000,94292.000,94292.000,79,1315937271
+sample,paired-span-async,get95-put5,6,1894657.067,84.000,167.000,500.000,500.000,79,1250612446
+sample,current-store-copy,get95-put5,6,16807.434,56791.000,79708.000,109833.000,109833.000,79,1250085183
+# final_state_verification=pass
+kind,implementation,workload,samples,median_ops_per_second,median_p99_get_ns,median_p999_get_ns
+summary,paired-span,get100,7,14084507.042,459.000,459.000
+summary,current-store-copy,get100,7,17419.982,92042.000,92042.000
+summary,paired-span-async,get95-put5,7,1896004.171,584.000,584.000
+summary,current-store-copy,get95-put5,7,17002.800,88292.000,88292.000
+telemetry,publications,145,publication_records,2512,publication_latency_ns,41901615,writer_batch_wait_ns,205361,writer_batch_deadline_closes,95,publication_storage_bytes,52400,ingress_value_bytes_copied,658505728,payload_allocations,2512,payload_bytes_allocated,658540362,delta_directory_entries_copied,8004,delta_page_view_entries_copied,9280,delta_pages_copied,1987,delta_pages_allocated,2114,delta_merges,1,generation_high_watermark,4,generation_retired,145,generation_retire_delay_ns,47048915,publication_backpressure,0,generation_slot_reuses,142

@@ -1,0 +1,20 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=0
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=idle
+# threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;foreground=none;duration_ms=1000
+# background_policy=product_defaults;min_eval_interval_ms=1000;max_eval_interval_ms=60000
+mode,repeat,wall_s,process_cpu_ms,process_cpu_duty_pct,evaluation_cycles,maintenance_skips,last_eval_us
+background,1,1.002974,0.085000,0.008475,1,1,31.250000
+background,2,1.004179,0.072000,0.007170,1,1,28.417000
+background,3,1.002272,0.069000,0.006884,1,1,33.083000
+background,4,1.005025,0.055000,0.005472,1,1,26.458000
+background,5,1.005046,0.072000,0.007164,1,1,30.542000
+background,6,1.005031,0.053000,0.005273,1,1,20.250000
+background,7,1.004090,0.054000,0.005378,1,1,26.500000

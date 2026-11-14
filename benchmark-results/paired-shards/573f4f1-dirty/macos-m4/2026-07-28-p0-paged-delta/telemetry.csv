@@ -1,0 +1,3 @@
+value_bytes,publications,publication_records,publication_latency_ns,publication_storage_bytes,ingress_value_bytes_copied,payload_allocations,payload_bytes_allocated,delta_directory_entries_copied,delta_pages_copied,delta_pages_allocated,delta_merges,generation_high_watermark,generation_retired,generation_retire_delay_ns,publication_backpressure,final_state
+64,24677,204096,338420829,417792,13062144,204096,16068394,12634624,201002,202026,1,4,24677,216527878,0,pass
+1024,24702,204096,352934791,417792,208994304,204096,212000554,12647424,200904,201928,1,5,24702,223650428,0,pass

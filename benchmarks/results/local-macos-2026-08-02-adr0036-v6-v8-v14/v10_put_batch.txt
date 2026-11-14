@@ -1,0 +1,3 @@
+[PASS] paired Store put_batch publishes once per shard and keeps RAW
+[PASS] paired Store put_batch preserves same-key FIFO within one batch
+2 tests, 0 failures

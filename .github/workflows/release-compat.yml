@@ -1,0 +1,75 @@
+name: Released artifact compatibility
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+      - "[0-9]*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  released-artifact-compat:
+    name: Released artifact compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install build tools
+        run: python -m pip install --disable-pip-version-check cmake ninja PyYAML
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake --preset unix-debug
+      - name: Build tests
+        run: cmake --build --preset unix-debug --target glifistore_tests
+      - name: Decode in-tree released labels (self-v1+)
+        run: >-
+          ctest --test-dir build/unix-debug
+          --output-on-failure
+          -R "^glifistore_released_artifact_compat$"
+      - name: Package and decode a CI self artifact
+        run: |
+          set -euo pipefail
+          label="ci-${GITHUB_SHA:0:12}"
+          ./scripts/package-release-compatibility-artifacts.sh "$label"
+          test -f "tests/fixtures/released/${label}/METADATA.txt"
+          test -f "tests/fixtures/released/${label}/SHA256SUMS"
+          ctest --test-dir build/unix-debug --output-on-failure \
+            -R "^glifistore_released_artifact_compat$"
+          rm -rf "tests/fixtures/released/${label}"
+      - name: Package tagged release label
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          raw="${GITHUB_REF_NAME}"
+          label="${raw#v}"
+          if [[ -d "tests/fixtures/released/${label}" ]]; then
+            python3 engineering/tools/validate_compat_matrix.py
+          else
+            ./scripts/package-release-compatibility-artifacts.sh "$label"
+          fi
+          ./scripts/package-release-claim.sh "$label" "$GITHUB_SHA"
+          ctest --test-dir build/unix-debug --output-on-failure \
+            -R "^glifistore_released_artifact_compat$"
+          echo "RELEASE_COMPAT_LABEL=${label}" >>"$GITHUB_ENV"
+      - name: Upload tagged compatibility artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: released-compat-${{ env.RELEASE_COMPAT_LABEL }}
+          path: |
+            tests/fixtures/released/${{ env.RELEASE_COMPAT_LABEL }}/
+            engineering/claims/${{ env.RELEASE_COMPAT_LABEL }}.yaml
+          if-no-files-found: error

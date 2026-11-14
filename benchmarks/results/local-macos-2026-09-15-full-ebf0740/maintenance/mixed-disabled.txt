@@ -1,0 +1,22 @@
+# benchmark=glifistore_concurrent_maintenance
+# git_sha=ebf0740
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.3.34.2)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# scenario=mixed
+# threads=4;operations=15360;keys=128;value_bytes=65536;reclaim_value_bytes=262144;put_percent=5;cooldown_ms=250
+# storage_mode=durable-periodic;workers=2;reclaim_worker=0;foreground_worker=1;seed_operations=1024;seed_flush=true
+# cooperative_policy=one public Store::compact at foreground start
+# background_policy=min_eval_interval_ms=max_eval_interval_ms=10;dead_byte_ratio_bp_normal=5000;max_copy_bytes_per_cycle=default;max_no_gain_attempts=default;max_copy_bytes_per_sec=0
+# latency_measurement=per-operation steady_clock;instrumented throughput
+mode,repeat,operations,get_operations,put_operations,generation_backpressure_retries,foreground_s,foreground_ops_s,p50_us,p95_us,p99_us,max_us,get_p50_us,get_p95_us,get_p99_us,get_max_us,put_p50_us,put_p95_us,put_p99_us,put_max_us,maintenance_attempts,maintenance_completed,maintenance_useful,maintenance_conflicts,maintenance_bytes_copied,maintenance_skips,maintenance_evaluations,maintenance_no_gain_scans_suppressed,maintenance_no_gain_retry_after_ns,maintenance_pacing_delay_ms,maintenance_pacing_sleep_count,maintenance_pacing_burst_bytes,maintenance_last_skip,candidate_worker,candidate_sealed_bytes,candidate_live_bytes,candidate_dead_bytes,candidate_dead_ratio_bp,rotation_attempts,rotations_committed,rotation_compaction_waits,rotation_final_record_commit_attempts,rotation_final_record_commits,rotation_total_publication_wait_ms,rotation_total_seal_ms,rotation_total_create_ms,rotation_total_manifest_publication_ms,rotation_total_other_execution_ms,rotation_total_execution_ms,rotation_total_final_record_commit_ms,rotation_maximum_total_ms,segments_after
+disabled,1,15360,14615,745,0,0.216497,70947.824365,22.042000,67.625000,712.958000,12143.334000,21.916000,33.334000,46.917000,980.833000,243.875000,2656.625000,6609.542000,12143.334000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,2,15360,14615,745,0,0.183490,83710.493341,21.875000,68.208000,559.750000,12129.834000,21.750000,32.250000,44.792000,1568.208000,218.667000,2125.875000,3550.458000,12129.834000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,3,15360,14615,745,0,0.277383,55374.756814,21.625000,70.417000,1562.041000,17640.583000,21.459000,33.125000,47.917000,1228.084000,711.458000,2993.667000,4797.000000,17640.583000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,4,15360,14615,745,0,0.187023,82129.100690,22.500000,70.375000,546.833000,9615.125000,22.375000,35.292000,49.916000,1009.750000,233.083000,1842.834000,3967.792000,9615.125000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,5,15360,14615,745,0,0.205582,74714.606256,22.292000,72.834000,736.125000,12000.167000,22.166000,31.166000,50.125000,1422.875000,245.666000,2604.959000,3905.583000,12000.167000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,6,15360,14615,745,0,0.255885,60027.072913,22.709000,106.083000,867.500000,11774.542000,22.541000,50.084000,133.291000,1083.958000,268.875000,3066.250000,6767.208000,11774.542000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6
+disabled,7,15360,14615,745,1,0.233105,65893.052487,22.750000,126.708000,687.750000,19836.667000,22.542000,54.750000,126.708000,1041.458000,321.000000,2211.417000,5361.041000,19836.667000,0,0,0,0,0,0,0,0,0,0.000000,0,0,none,none,0,0,0,none,0,0,0,0,0,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,6

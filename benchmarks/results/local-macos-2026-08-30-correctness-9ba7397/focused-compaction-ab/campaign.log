@@ -1,0 +1,13 @@
+[1/6] /Users/gpicchiarelli/Documents/GlifiStore/build/macos-native-release/glifistore_compaction_benchmark --scenario high-reclaim --value-bytes 262144 --warmup 1 --repeats 7
+OK -> /Users/gpicchiarelli/Documents/GlifiStore/benchmarks/results/local-macos-2026-08-30-correctness-9ba7397/focused-compaction-ab/round1/current-high-reclaim.txt
+[2/6] /tmp/glifistore-compaction-ab.TBBbXw/build/macos-native-release/glifistore_compaction_benchmark --scenario high-reclaim --value-bytes 262144 --warmup 1 --repeats 7
+OK -> /Users/gpicchiarelli/Documents/GlifiStore/benchmarks/results/local-macos-2026-08-30-correctness-9ba7397/focused-compaction-ab/round1/baseline-high-reclaim.txt
+[3/6] /tmp/glifistore-compaction-ab.TBBbXw/build/macos-native-release/glifistore_compaction_benchmark --scenario high-reclaim --value-bytes 262144 --warmup 1 --repeats 7
+OK -> /Users/gpicchiarelli/Documents/GlifiStore/benchmarks/results/local-macos-2026-08-30-correctness-9ba7397/focused-compaction-ab/round2/baseline-high-reclaim.txt
+[4/6] /Users/gpicchiarelli/Documents/GlifiStore/build/macos-native-release/glifistore_compaction_benchmark --scenario high-reclaim --value-bytes 262144 --warmup 1 --repeats 7
+OK -> /Users/gpicchiarelli/Documents/GlifiStore/benchmarks/results/local-macos-2026-08-30-correctness-9ba7397/focused-compaction-ab/round2/current-high-reclaim.txt
+[5/6] /Users/gpicchiarelli/Documents/GlifiStore/build/macos-native-release/glifistore_compaction_benchmark --scenario high-reclaim --value-bytes 262144 --warmup 1 --repeats 7
+OK -> /Users/gpicchiarelli/Documents/GlifiStore/benchmarks/results/local-macos-2026-08-30-correctness-9ba7397/focused-compaction-ab/round3/current-high-reclaim.txt
+[6/6] /tmp/glifistore-compaction-ab.TBBbXw/build/macos-native-release/glifistore_compaction_benchmark --scenario high-reclaim --value-bytes 262144 --warmup 1 --repeats 7
+OK -> /Users/gpicchiarelli/Documents/GlifiStore/benchmarks/results/local-macos-2026-08-30-correctness-9ba7397/focused-compaction-ab/round3/baseline-high-reclaim.txt
+DONE total=6 ok=6 fail=0 skip=0 finished_at=2026-08-30T19:06:57Z

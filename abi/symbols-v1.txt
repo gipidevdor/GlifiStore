@@ -1,0 +1,15 @@
+gs_abi_major
+gs_abi_minor
+gs_product_version_major
+gs_product_version_minor
+gs_product_version_patch
+gs_product_version_string
+gs_status_message
+gs_store_close
+gs_store_erase
+gs_store_erase_batch
+gs_store_get
+gs_store_open
+gs_store_options_init
+gs_store_put
+gs_store_put_batch

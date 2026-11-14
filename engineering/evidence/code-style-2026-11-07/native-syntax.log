@@ -1,0 +1,9 @@
+tools/inspect_segment.cpp: exit=0
+tools/verify_store.cpp: exit=0
+tools/backup_store.cpp: exit=0
+tools/migrate_store.cpp: exit=0
+tools/repair_store.cpp: exit=0
+tools/interop_client.cpp: exit=0
+tools/rebuild_index.cpp: exit=0
+tools/pgo_durable.cpp: exit=0
+tests/abi/c_abi_tests.c: exit=0

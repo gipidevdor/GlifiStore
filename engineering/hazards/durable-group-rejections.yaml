@@ -1,0 +1,32 @@
+hazards:
+- id: HAZ-044
+  evento_pericoloso: A routine rejected request fails the whole durable runtime closed in durable_group mode
+  cause:
+  - A sibling rejected before it touches the pending group (erase of an absent key, exhausted live-key budget, validation or admission limit) is treated like a failure of the append attempt
+  - Any client can send such a request behind unflushed siblings of the same Writer group
+  conseguenze:
+  - Earlier siblings that were committed in memory are reported unavailable or INTERNAL_ERROR although the rejection is unrelated to them
+  - Every later mutation is rejected until the Store or daemon restarts, so one benign request removes write availability for all clients
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - The runtime marks a rejection as rejected_before_append only at returns that precede the append attempt; the Writer batch keeps the unflushed prefix and commits it with the sub-batch (ADR 0047)
+  - A result without that mark keeps the fail-closed default
+  contenimento:
+  - A failure during or after the append attempt still abandons the unflushed prefix fail-closed
+  - Recovery after a fail-closed stop is unchanged
+  prove:
+  - tests/integration/durable_group_rejected_sibling_tests.cpp
+  - tests/integration/paired_store_batch_order_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  rischio_residuo: >-
+    Implemented locally (ADR 0047, accepted). The tests place one rejected sibling behind a successful
+    one on the batch API and on the daemon's asynchronous lane; they ran under ASan, UBSan and TSan on
+    macOS arm64 without reports. There is no mixed-workload soak. Known-not-committed results outside
+    the class (append, rotation, flush, exception paths)
+    keep abandoning the prefix, so a before-hook failure at append, or a compaction Index-gate conflict,
+    behind an unflushed sibling still fails the runtime closed.
+  stato: mitigato
+  accettazione_rischio: Architectural prototype only; no release acceptance
+  requisiti: [GS-PERSIST-ACK-001]

@@ -1,0 +1,155 @@
+requirements:
+- id: GS-CORE-API-001
+  titolo: Public API ownership and lifetime separation
+  categoria: core
+  criticita: alta
+  stato: provato
+  descrizione: The installed C++ API is separated from implementation headers and uses owning reads (ADR
+    0009). Internal access remains build-tree-only.
+  autorita:
+  - docs/reference/cpp-api.md
+  - docs/adr/0009-public-read-ownership.md
+  - docs/spec/architecture.md
+  - docs/spec/index-v1.md
+  implementazione:
+  - include/glifistore/store/store.hpp
+  - include/glifistore/store/value.hpp
+  - src/store/store.cpp
+  - src/store/prepared_cold_read.cpp
+  prove:
+  - tests/integration/store_tests.cpp
+  - tests/unit/value_tests.cpp
+  - tests/unit/prepared_read_tests.cpp
+  - tests/consumer
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+    note: install-consumer job builds against installed prefix
+  - path: engineering/evidence/cpp-correctness-local-2026-11-07.md
+    note: Local aliasing and cold-read lifetime regression campaign; not hosted CI
+  rischio_residuo:
+  - ABI not promised before 1.0
+  gates:
+  - GATE-PUBLIC-API-OWNERSHIP
+- id: GS-CORE-CLOSE-001
+  titolo: Public Store::close drains and releases resources
+  categoria: core
+  criticita: critica
+  stato: implementato
+  descrizione: Public Store::close() stops admission, drains in-flight calls, makes final flush failure
+    observable, and releases executors and the directory lock.
+  autorita:
+  - docs/spec/concurrency-memory-model.md
+  - docs/reference/cpp-api.md
+  implementazione:
+  - src/store/store.cpp
+  - src/store/store_impl.hpp
+  - src/store/paired
+  - src/server/server_lifecycle.cpp
+  prove:
+  - tests/integration/store_tests.cpp
+  - tests/integration/concurrency_tests.cpp
+  - tests/integration/paired_store_core_tests.cpp
+  - tests/integration/paired_store_litmus_tests.cpp
+  - tests/integration/paired_store_erase_batch_volatile_litmus_tests.cpp
+  - tests/integration/server_reactor_security_tests.cpp
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: ci.yml
+  rischio_residuo:
+  - Optional close_drain_deadline_ms is opt-in; default close remains unbounded wait
+  hazards:
+  - HAZ-020
+  - HAZ-027
+  gates:
+  - GATE-CONCURRENCY-SPEC
+- id: GS-CORE-BUILD-001
+  titolo: CMake component split with dependency, structure, and static-analysis gates
+  categoria: core
+  criticita: media
+  stato: provato
+  descrizione: The build uses add_subdirectory for src/tools/tests/benchmarks/fuzz, keeps installed
+    GlifiStore::core/server/client aliases, and enforces a documented dependency matrix,
+    size/TODO waiver CI, pinned formatting, and a fail-closed high-signal static-analysis pass over
+    the production sources present in the compile database. One formatter entry point covers
+    tracked and new non-ignored C/C++ sources, including tools, packaging consumers and probes,
+    with a shared exact version pin for bootstrap, local verification and CI.
+  autorita:
+  - docs/assurance/engineering-baseline.md
+  - engineering/build/dependency-matrix.yaml
+  - engineering/build/structure-thresholds.yaml
+  - docs/development/code-style.md
+  implementazione:
+  - CMakeLists.txt
+  - src/CMakeLists.txt
+  - tools/CMakeLists.txt
+  - tests/CMakeLists.txt
+  - benchmarks/CMakeLists.txt
+  - fuzz/CMakeLists.txt
+  - include/glifistore/core/little_endian.hpp
+  - engineering/tools/validate_structure_debt.py
+  - engineering/tools/validate_cmake_deps.py
+  - engineering/tools/run_clang_tidy_gate.py
+  - engineering/tools/format_code.py
+  - .clang-format
+  - .clang-format-version
+  - .github/workflows/static-analysis.yml
+  prove:
+  - engineering/tools/validate_cmake_deps.py
+  - engineering/tools/validate_structure_debt.py
+  - scripts/tests/test_clang_tidy_gate.py
+  - scripts/tests/test_code_format.py
+  - scripts/tests/test_ci_workflow.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: assurance.yml
+  - workflow: static-analysis.yml
+  - path: engineering/evidence/quality-hardening-local-2026-08-30.md
+  - path: engineering/evidence/code-style-local-2026-11-07.md
+    note: Complete native formatting inventory and eight-check tidy gate; local evidence only
+  rischio_residuo:
+  - Further per-component OBJECT library splits remain optional; the 1600-line structure gate is green
+    with empty active size waivers (WAV-001/002/003 revoked for audit trail only)
+  - The broader all-target clang-tidy profile remains diagnostic because some findings are
+    toolchain- or test-macro-sensitive; only the documented high-signal production checks are
+    fail-closed
+  gates:
+  - GATE-CMAKE-INSTALL
+  - GATE-STATIC-ANALYSIS-HIGH-SIGNAL
+- id: GS-CORE-DOCS-001
+  titolo: Tracked Markdown keeps resolvable repository-local references
+  categoria: core
+  criticita: media
+  stato: provato
+  descrizione: Every tracked Markdown document is valid UTF-8 and every repository-local inline,
+    image, or reference-style link stays inside the repository, resolves with exact path case, and
+    names an existing target.
+  autorita:
+  - docs/README.md
+  - docs/development/test-strategy.md
+  implementazione:
+  - engineering/tools/validate_documentation.py
+  - .github/workflows/assurance.yml
+  prove:
+  - scripts/tests/test_documentation_validation.py
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: architectural-prototype
+  evidenze:
+  - workflow: assurance.yml
+  - path: engineering/evidence/quality-hardening-local-2026-08-30.md
+  rischio_residuo:
+  - External URL availability and Markdown fragment semantics remain under the separate scheduled
+    Lychee workflow; historical evidence may intentionally retain expired external references
+  gates:
+  - GATE-DOCUMENTATION-INTEGRITY

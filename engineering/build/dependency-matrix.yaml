@@ -1,0 +1,77 @@
+# Allowed CMake target dependency edges (Phase C).
+# Validator: engineering/tools/validate_cmake_deps.py
+# Edges are PUBLIC/PRIVATE link_libraries relationships among GlifiStore targets.
+
+version: 1
+targets:
+  glifistore_cli_support:
+    may_link: [glifistore_project_options]
+  glifistore_core:
+    may_link: [Threads::Threads, glifistore_project_options]
+    aliases: [GlifiStore::core]
+  glifistore_abi_core:
+    may_link: [Threads::Threads, glifistore_project_options]
+  glifistore_abi:
+    may_link: [glifistore_core, glifistore_abi_core, glifistore_project_options]
+    aliases: [GlifiStore::abi]
+  glifistore_wire:
+    may_link: [glifistore_project_options]
+    aliases: [GlifiStore::wire]
+  glifistore_tls_layer:
+    may_link: [GlifiStore::core, GlifiStore::tls, glifistore_project_options]
+    aliases: [GlifiStore::tls_layer]
+  glifistore_client:
+    may_link: [GlifiStore::wire, GlifiStore::tls_layer, glifistore_project_options]
+    aliases: [GlifiStore::client]
+  glifistore_server_core:
+    may_link:
+      - GlifiStore::core
+      - GlifiStore::wire
+      - GlifiStore::tls_layer
+      - glifistore_cli_support
+      - glifistore_project_options
+    aliases: [GlifiStore::server]
+  glifistored:
+    may_link: [GlifiStore::server, glifistore_cli_support, glifistore_project_options]
+  glifistore_demo:
+    may_link: [GlifiStore::core, glifistore_project_options]
+  glifistore_lab_tests:
+    may_link: [GlifiStore::server, glifistore_project_options]
+  glifistore_tests:
+    may_link:
+      - GlifiStore::server
+      - GlifiStore::client
+      - GlifiStore::tls
+      - glifistore_cli_support
+      - glifistore_project_options
+
+# Include-path policy (enforced by path prefix checks on #include "..." in src/).
+include_rules:
+  - id: no-client-includes-server-private
+    description: Client sources must not include server implementation headers under src/server/
+    from_glob: src/client/**
+    forbid_include_prefix: glifistore/server/
+    allow_include_prefix:
+      - glifistore/server/protocol.hpp
+      - glifistore/server/tls.hpp
+  - id: no-core-includes-server
+    description: Core library sources must not depend on server headers
+    from_glob: "src/{core,index,segment,persistence,store,vacuum,worker}/**"
+    forbid_include_prefix: glifistore/server/
+  - id: no-wire-includes-store
+    description: Wire codec must stay independent of Store
+    from_glob: src/server/protocol.cpp
+    forbid_include_prefix: glifistore/store/
+  - id: no-official-includes-experimental
+    description: Official production trees must not include experimental/ lab headers
+    from_glob: "src/{store,server,persistence,client,core,segment,index,worker,vacuum}/**"
+    forbid_include_prefix: experimental/
+
+# Structural layout expected after Phase C.
+required_cmake_files:
+  - CMakeLists.txt
+  - src/CMakeLists.txt
+  - tools/CMakeLists.txt
+  - tests/CMakeLists.txt
+  - benchmarks/CMakeLists.txt
+  - fuzz/CMakeLists.txt

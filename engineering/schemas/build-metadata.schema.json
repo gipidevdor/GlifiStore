@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/build-metadata-v1.json",
+  "title": "GlifiStore build metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "product_version", "abi", "wire_version", "persistent_format_version", "source", "target", "toolchain", "build_options", "builder"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "product_version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "abi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["major", "minor"],
+      "properties": {"major": {"type": "integer", "minimum": 0}, "minor": {"type": "integer", "minimum": 0}}
+    },
+    "wire_version": {"type": "integer", "minimum": 1},
+    "persistent_format_version": {"type": "integer", "minimum": 1},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "git_sha", "source_date_epoch"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^https://"},
+        "tag": {"type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+        "git_sha": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+        "source_date_epoch": {"type": "integer", "minimum": 1}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "os_version", "architecture", "tls_backend"],
+      "properties": {
+        "os": {"type": "string", "minLength": 1},
+        "os_version": {"type": "string", "minLength": 1},
+        "architecture": {"type": "string", "minLength": 1},
+        "tls_backend": {"type": "string", "minLength": 1}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler", "linker", "cmake", "build_tool", "python"],
+      "properties": {
+        "compiler": {"type": "string", "minLength": 1},
+        "linker": {"type": "string", "minLength": 1},
+        "cmake": {"type": "string", "minLength": 1},
+        "build_tool": {"type": "string", "minLength": 1},
+        "python": {"type": "string", "minLength": 1}
+      }
+    },
+    "build_options": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Za-z0-9_]+=[^=\\r\\n]+$"},
+      "uniqueItems": true
+    },
+    "builder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflow", "run_id", "runner_environment"],
+      "properties": {
+        "workflow": {"type": "string", "minLength": 1},
+        "run_id": {"type": "string", "minLength": 1},
+        "runner_environment": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

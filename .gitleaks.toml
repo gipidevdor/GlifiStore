@@ -1,0 +1,42 @@
+# Gitleaks config for GlifiStore.
+# After a single-commit history rewrite, push scans see the whole tree as new
+# additions; allow only documented public constants / phrasing false positives.
+title = "GlifiStore"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public SipHash/SHA-256 IV material and non-secret documentation phrasing"
+regexes = [
+  # SHA-256 IV word used as SipHash key1 XOR (ADR 0030); not a credential.
+  '''0x6a09e667f3bcc909''',
+]
+commits = [
+  # Documentation-only generic-api-key false positives for the phrase at
+  # docs/architecture/durable-runtime-catalog.md:164; no credential exists.
+  '''4e96dadca50fd26f42757998c1bd218a6ae56fff''',
+  '''c2b43205f9e64c286b59ca210c72d3b16e22347d''',
+]
+paths = [
+  '''(^|/)LICENSES/''',
+  '''(^|/)THIRD_PARTY_NOTICES\.md$''',
+]
+
+# Retained evidence JSON maps repository file names to SHA-256 digests. generic-api-key reads an
+# entry such as "include/glifistore/core/key_hash.hpp": "<digest>" as a credential because the file
+# name contains "key" or "auth". A 64-digit hex value in an evidence record is such a digest, so
+# only that combination is allowed: every other value, path and rule stays scanned. The rule's
+# other attributes are inherited from the default configuration.
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "SHA-256 digests in retained evidence JSON"
+condition = "AND"
+paths = [
+  '''(^|/)engineering/evidence/.*\.json$''',
+]
+regexes = [
+  '''^[0-9a-f]{64}$''',
+]

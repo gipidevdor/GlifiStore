@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # PRs must keep 40-character commit SHAs (docs/security/actions-pinning.md).
+    # Rewrite any floating-tag bump to a SHA before merge.
+    # CodeQL init/analyze/upload-sarif must use the same Action revision.
+    groups:
+      codeql:
+        patterns:
+          - github/codeql-action/*
+      codeql-security:
+        applies-to: security-updates
+        patterns:
+          - github/codeql-action/*
+
+  - package-ecosystem: pip
+    directory: /sdk/python
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: gomod
+    directory: /sdk/go
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

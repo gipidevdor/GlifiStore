@@ -1,0 +1,8 @@
+git_sha=64e23f36e97eeddaef28b735c3c99cdef16a1a95
+git_tree=dirty-perf-program
+date_utc=2026-08-01T22:12:19Z
+host=iMac di GIACOMO (9)
+kernel=Darwin 25.6.0 arm64
+preset=macos-release
+phases_default=OFF
+claim_ceiling=architectural-prototype-lab-evidence

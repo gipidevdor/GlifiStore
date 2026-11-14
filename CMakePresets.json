@@ -1,0 +1,247 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON",
+        "GLIFISTORE_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
+      "name": "macos-debug",
+      "inherits": "base",
+      "displayName": "macOS Debug (Ninja)",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GLIFISTORE_FAULT_INJECTION": "ON"
+      }
+    },
+    {
+      "name": "macos-release",
+      "inherits": "base",
+      "displayName": "macOS Release (Ninja)",
+      "generator": "Ninja",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "macos-asan",
+      "inherits": "macos-debug",
+      "displayName": "macOS ASan + UBSan",
+      "cacheVariables": {
+        "GLIFISTORE_ENABLE_ASAN": "ON",
+        "GLIFISTORE_ENABLE_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "macos-tsan",
+      "inherits": "macos-debug",
+      "displayName": "macOS TSan",
+      "cacheVariables": { "GLIFISTORE_ENABLE_TSAN": "ON" }
+    },
+    {
+      "name": "macos-correctness",
+      "inherits": "macos-debug",
+      "displayName": "macOS diagnostic standard-library hardening",
+      "cacheVariables": {
+        "GLIFISTORE_ENABLE_STDLIB_HARDENING": "ON",
+        "GLIFISTORE_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "macos-release-lto",
+      "inherits": "macos-release",
+      "displayName": "macOS Release + LTO",
+      "cacheVariables": {
+        "GLIFISTORE_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "macos-pgo-generate",
+      "inherits": "macos-release",
+      "displayName": "macOS PGO Instrumentation",
+      "cacheVariables": {
+        "GLIFISTORE_PGO": "GENERATE"
+      }
+    },
+    {
+      "name": "macos-pgo-use",
+      "inherits": "macos-release",
+      "displayName": "macOS PGO Optimized",
+      "cacheVariables": {
+        "GLIFISTORE_PGO": "USE",
+        "GLIFISTORE_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "macos-native-release",
+      "inherits": "macos-release",
+      "displayName": "macOS Release (-mcpu=native)",
+      "cacheVariables": {
+        "GLIFISTORE_NATIVE_CPU": "ON"
+      }
+    },
+    {
+      "name": "macos-fuzz",
+      "inherits": "macos-debug",
+      "displayName": "macOS libFuzzer",
+      "cacheVariables": {
+        "BUILD_TESTING": "OFF",
+        "GLIFISTORE_BUILD_BENCHMARKS": "OFF",
+        "GLIFISTORE_BUILD_FUZZERS": "ON"
+      }
+    },
+    {
+      "name": "xcode",
+      "inherits": "base",
+      "displayName": "Xcode Project",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/xcode",
+      "cacheVariables": {
+        "CMAKE_XCODE_GENERATE_SCHEME": "OFF",
+        "CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED": "NO",
+        "CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED": "NO",
+        "CMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH": "YES"
+      }
+    },
+    {
+      "name": "unix-debug",
+      "inherits": "base",
+      "displayName": "Unix Debug",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GLIFISTORE_FAULT_INJECTION": "ON"
+      }
+    },
+    {
+      "name": "unix-release",
+      "inherits": "base",
+      "displayName": "Unix Release",
+      "generator": "Ninja",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "unix-strict",
+      "inherits": "unix-release",
+      "displayName": "Unix strict ISO C++23 + hardening",
+      "cacheVariables": {
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "GLIFISTORE_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "unix-asan",
+      "inherits": "unix-debug",
+      "displayName": "Unix ASan + UBSan",
+      "cacheVariables": {
+        "GLIFISTORE_ENABLE_ASAN": "ON",
+        "GLIFISTORE_ENABLE_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "unix-tsan",
+      "inherits": "unix-debug",
+      "displayName": "Unix TSan",
+      "cacheVariables": { "GLIFISTORE_ENABLE_TSAN": "ON" }
+    },
+    {
+      "name": "unix-correctness",
+      "inherits": "unix-debug",
+      "displayName": "Unix diagnostic standard-library hardening",
+      "cacheVariables": {
+        "GLIFISTORE_ENABLE_STDLIB_HARDENING": "ON",
+        "GLIFISTORE_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "unix-clang-tidy",
+      "inherits": "unix-debug",
+      "displayName": "Unix Clang-Tidy",
+      "cacheVariables": { "GLIFISTORE_ENABLE_CLANG_TIDY": "ON" }
+    },
+    {
+      "name": "unix-release-lto",
+      "inherits": "unix-release",
+      "displayName": "Unix Release + LTO",
+      "cacheVariables": {
+        "GLIFISTORE_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "unix-pgo-generate",
+      "inherits": "unix-release",
+      "displayName": "Unix PGO Instrumentation",
+      "cacheVariables": {
+        "GLIFISTORE_PGO": "GENERATE"
+      }
+    },
+    {
+      "name": "unix-pgo-use",
+      "inherits": "unix-release",
+      "displayName": "Unix PGO Optimized",
+      "cacheVariables": {
+        "GLIFISTORE_PGO": "USE",
+        "GLIFISTORE_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "unix-fuzz",
+      "inherits": "unix-debug",
+      "displayName": "Unix libFuzzer",
+      "cacheVariables": {
+        "BUILD_TESTING": "OFF",
+        "GLIFISTORE_BUILD_BENCHMARKS": "OFF",
+        "GLIFISTORE_BUILD_FUZZERS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "macos-debug", "configurePreset": "macos-debug" },
+    { "name": "macos-release", "configurePreset": "macos-release" },
+    { "name": "macos-asan", "configurePreset": "macos-asan" },
+    { "name": "macos-tsan", "configurePreset": "macos-tsan" },
+    { "name": "macos-correctness", "configurePreset": "macos-correctness" },
+    { "name": "macos-release-lto", "configurePreset": "macos-release-lto" },
+    { "name": "macos-pgo-generate", "configurePreset": "macos-pgo-generate" },
+    { "name": "macos-pgo-use", "configurePreset": "macos-pgo-use" },
+    { "name": "macos-native-release", "configurePreset": "macos-native-release" },
+    { "name": "macos-fuzz", "configurePreset": "macos-fuzz" },
+    { "name": "xcode-debug", "configurePreset": "xcode", "configuration": "Debug" },
+    { "name": "xcode-release", "configurePreset": "xcode", "configuration": "Release" },
+    { "name": "unix-debug", "configurePreset": "unix-debug" },
+    { "name": "unix-release", "configurePreset": "unix-release" },
+    { "name": "unix-strict", "configurePreset": "unix-strict" },
+    { "name": "unix-asan", "configurePreset": "unix-asan" },
+    { "name": "unix-tsan", "configurePreset": "unix-tsan" },
+    { "name": "unix-correctness", "configurePreset": "unix-correctness" },
+    { "name": "unix-clang-tidy", "configurePreset": "unix-clang-tidy" },
+    { "name": "unix-release-lto", "configurePreset": "unix-release-lto" },
+    { "name": "unix-pgo-generate", "configurePreset": "unix-pgo-generate" },
+    { "name": "unix-pgo-use", "configurePreset": "unix-pgo-use" },
+    { "name": "unix-fuzz", "configurePreset": "unix-fuzz" }
+  ],
+  "testPresets": [
+    { "name": "macos-debug", "configurePreset": "macos-debug", "output": { "outputOnFailure": true } },
+    { "name": "macos-asan", "configurePreset": "macos-asan", "output": { "outputOnFailure": true } },
+    { "name": "macos-tsan", "configurePreset": "macos-tsan", "output": { "outputOnFailure": true } },
+    { "name": "macos-correctness", "configurePreset": "macos-correctness", "output": { "outputOnFailure": true } },
+    { "name": "macos-release-lto", "configurePreset": "macos-release-lto", "output": { "outputOnFailure": true } },
+    { "name": "xcode-debug", "configurePreset": "xcode", "configuration": "Debug", "output": { "outputOnFailure": true } },
+    { "name": "unix-debug", "configurePreset": "unix-debug", "output": { "outputOnFailure": true } },
+    { "name": "unix-strict", "configurePreset": "unix-strict", "output": { "outputOnFailure": true } },
+    { "name": "unix-asan", "configurePreset": "unix-asan", "output": { "outputOnFailure": true } },
+    { "name": "unix-tsan", "configurePreset": "unix-tsan", "output": { "outputOnFailure": true } },
+    { "name": "unix-correctness", "configurePreset": "unix-correctness", "output": { "outputOnFailure": true } },
+    { "name": "unix-release", "configurePreset": "unix-release", "output": { "outputOnFailure": true } },
+    { "name": "unix-release-lto", "configurePreset": "unix-release-lto", "output": { "outputOnFailure": true } }
+  ]
+}

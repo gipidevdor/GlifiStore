@@ -1,0 +1,8 @@
+@INCLUDEDIR_REL@/glifistore
+@LIBDIR_REL@/cmake/GlifiStore
+@LIBDIR_REL@/libglifistore.so
+@LIBDIR_REL@/libglifistore_client.a
+@LIBDIR_REL@/libglifistore_core.a
+@LIBDIR_REL@/libglifistore_tls_layer.a
+@LIBDIR_REL@/libglifistore_wire.a
+@LIBDIR_REL@/pkgconfig/glifistore-abi.pc

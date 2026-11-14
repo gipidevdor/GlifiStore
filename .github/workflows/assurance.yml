@@ -1,0 +1,52 @@
+name: Assurance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assurance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-assurance:
+    name: Validate requirements hazards gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install validator dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
+      - name: Validate assurance catalog
+        run: python engineering/tools/validate_assurance.py
+      - name: Check independent blob format fixtures
+        run: python scripts/generate_blob_fixtures.py --check
+      - name: Validate all tracked Markdown links
+        run: python engineering/tools/validate_documentation.py
+      - name: Validate durability certification honesty
+        run: python engineering/tools/validate_durability_claims.py
+      - name: Validate CMake dependency matrix
+        run: python engineering/tools/validate_cmake_deps.py
+      - name: Validate structure debt and waivers
+        run: python engineering/tools/validate_structure_debt.py
+      - name: Validate Actions SHA pins
+        run: python engineering/tools/validate_actions_pins.py
+      - name: Validate N/N-1 compatibility matrix
+        run: python engineering/tools/validate_compat_matrix.py
+      - name: Validate the package backend matrix
+        run: python engineering/tools/generate_package_matrix.py validate
+      - name: Validate generated package status view
+        run: python engineering/tools/generate_package_status.py
+      - name: Validate release claims
+        run: python engineering/tools/validate_claims.py
+      - name: Validate performance / soak budgets
+        run: python engineering/tools/validate_perf_budgets.py
+      - name: Validate benchmark tooling contracts
+        run: python -m unittest discover -s scripts/tests

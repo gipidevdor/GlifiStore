@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/candidate-admission-v1.json",
+  "title": "GlifiStore exact candidate admission receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "result", "candidate_seal", "candidate_seal_sha256", "sealed_file_count", "admitted_at", "workflow", "run_id"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "result": {"const": "admitted"},
+    "candidate_seal": {"const": "candidate-seal.json"},
+    "candidate_seal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sealed_file_count": {"type": "integer", "minimum": 1},
+    "admitted_at": {"type": "string", "format": "date-time"},
+    "workflow": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1}
+  }
+}

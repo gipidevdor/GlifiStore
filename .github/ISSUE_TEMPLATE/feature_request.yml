@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose a scoped capability or architectural change
+title: "design: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Which concrete user or operator problem needs solving?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed design
+      description: Include fast-path cost, memory model, failure behavior, limits, and alternatives.
+    validations:
+      required: true
+  - type: textarea
+    id: measurement
+    attributes:
+      label: Measurement plan
+      description: How will correctness, tail latency, throughput, and memory overhead be verified?

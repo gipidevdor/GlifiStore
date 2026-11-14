@@ -1,0 +1,58 @@
+name: License check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "LICENSE"
+      - "NOTICE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "REUSE.toml"
+      - "LICENSES/**"
+      - "docs/legal/**"
+      - "CMakeLists.txt"
+      - "sdk/**"
+      - "scripts/ci-license-check.sh"
+      - "scripts/install-syft.sh"
+      - "scripts/package-*-client.sh"
+      - ".github/workflows/license-check.yml"
+  pull_request:
+    paths:
+      - "LICENSE"
+      - "NOTICE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "REUSE.toml"
+      - "LICENSES/**"
+      - "docs/legal/**"
+      - "CMakeLists.txt"
+      - "sdk/**"
+      - "scripts/ci-license-check.sh"
+      - "scripts/install-syft.sh"
+      - "scripts/package-*-client.sh"
+      - ".github/workflows/license-check.yml"
+  schedule:
+    - cron: "47 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: license-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdk-licenses:
+    name: SDK license hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.x"
+          cache-dependency-path: sdk/go/go.mod
+      - name: Check copyright notices and SDK licenses
+        run: ./scripts/ci-license-check.sh

@@ -1,0 +1,7 @@
+profile	value_bytes	pipeline	responses	socket_write_progress	socket_write_would_block	socket_write_partial	responses_per_progress
+get-only	64	32	200000	8189	0	0	24.423
+read-95-write-5	64	32	200000	15939	0	0	12.548
+read-90-write-10	64	32	200000	25626	0	0	7.805
+read-after-write	64	32	100000	50000	0	0	2.000
+get-only-contiguous-baseline	65536	32	1000	68	18	18	14.706
+get-only-hot-scatter	65536	32	1000	1005	2	3	0.995

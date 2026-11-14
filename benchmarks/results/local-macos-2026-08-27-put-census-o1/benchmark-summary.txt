@@ -1,0 +1,20 @@
+status=local_dirty_source_not_release_evidence
+git_sha=5feccd3-dirty
+platform=macos arch=arm64 cpu=Apple_M4 compiler=Apple_clang_21.0.0
+
+matched_ab key_size=16 value_size=64 workers=1 operations=200000 warmup=2 repeats=7
+variant=topology_scan median_ops_per_second=122694 median_ns_per_op=8150.38 median_rss_bytes=114180000
+variant=incremental_o1 median_ops_per_second=522176 median_ns_per_op=1915.06 median_rss_bytes=114082000
+throughput_delta_percent=325.59 ns_per_op_delta_percent=-76.50 rss_delta_percent=-0.086
+
+optimized_sweep operations=200000 warmup=3 repeats=11 workers=1 key_size=16
+value_size=16 median_ops_per_second=500007 median_ns_per_op=1999.97 min_ops_per_second=481312 max_ops_per_second=529752
+value_size=64 median_ops_per_second=492524 median_ns_per_op=2030.36 min_ops_per_second=478705 max_ops_per_second=521000
+value_size=256 median_ops_per_second=496329 median_ns_per_op=2014.79 min_ops_per_second=475283 max_ops_per_second=521659
+value_size=1024 median_ops_per_second=436644 median_ns_per_op=2290.20 min_ops_per_second=420855 max_ops_per_second=457513
+workload=store_put_batch batch=32 value_size=64 median_ops_per_second=672038 median_ns_per_op=1488.01 min_ops_per_second=663918 max_ops_per_second=703428
+
+cpu_sample_before total_samples=3744 delta_memory_census_samples=2445 delta_memory_census_percent=65.3
+cpu_sample_after total_samples=2256 generation_memory_stats_samples=3 generation_memory_stats_percent=0.13
+long_insert_growth operations=1500000 median_ops_per_second=182632 median_ns_per_op=5475.48 note=not_steady_state
+

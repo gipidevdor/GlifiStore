@@ -1,0 +1,25 @@
+# git_sha=8ff89d3
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.4.1.1)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# runtime=official paired embedded Store; worker-affine callers; no CPU pinning
+# storage=volatile; keys_per_worker=64; value_bytes=64; one operation is one workload cycle
+# comparison_order=alternating A/B and B/A
+workload	generation_slot_pool	threads	repeat	operations	seconds	operations_per_second	ns_per_operation	checksum
+put	false	2	0	400000	0.476660166	839172.28	1191.65	400000
+put	true	2	0	400000	0.512336292	780737.20	1280.84	400000
+put	true	2	1	400000	0.503719334	794093.01	1259.30	400000
+put	false	2	1	400000	0.479657750	833927.94	1199.14	400000
+put	false	2	2	400000	0.478520333	835910.14	1196.30	400000
+put	true	2	2	400000	0.512667500	780232.80	1281.67	400000
+put	true	2	3	400000	0.529085458	756021.53	1322.71	400000
+put	false	2	3	400000	0.504171709	793380.49	1260.43	400000
+put	false	2	4	400000	0.501616167	797422.46	1254.04	400000
+put	true	2	4	400000	0.549590416	727814.73	1373.98	400000
+put	true	2	5	400000	0.541257583	739019.67	1353.14	400000
+put	false	2	5	400000	0.506482000	789761.53	1266.20	400000
+put	false	2	6	400000	0.493671875	810254.79	1234.18	400000
+put	true	2	6	400000	0.540744875	739720.37	1351.86	400000

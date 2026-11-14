@@ -1,0 +1,2 @@
+[PASS] ADR 0036 V6 prototype: rejected publication never makes mutations visible
+1 tests, 0 failures

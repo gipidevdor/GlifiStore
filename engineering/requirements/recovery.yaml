@@ -1,0 +1,71 @@
+requirements:
+- id: GS-RECOVERY-DET-001
+  titolo: Deterministic recovery after process kill
+  categoria: recovery
+  criticita: critica
+  stato: provato
+  descrizione: Recovery is deterministic after process termination at every persistent state transition
+    mapped by the recovery state-transition matrix.
+  autorita:
+  - docs/spec/recovery-state-matrix-v1.md
+  - docs/spec/persistence-v1.md
+  implementazione:
+  - src/persistence/bootstrap.cpp
+  - src/persistence/recovery
+  - src/persistence/namespace_audit.cpp
+  prove:
+  - tests/crash/crash_persistence.cpp
+  - tests/crash/crash_persistence_prefix.cpp
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/crash/crash_daemon.cpp
+  - scripts/collect-durability-evidence.sh
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: E2
+  evidenze:
+  - workflow: ci.yml
+  - workflow: durability-evidence.yml
+    note: Deterministic matrices plus scheduled reproducible 256-case randomized crash/reopen artifact
+  rischio_residuo:
+  - Random campaign samples nine compaction checkpoint classes, not arbitrary wall-clock or scheduler timing
+  - Native-platform exhaustive matrices and disk-full coverage are open
+  hazards:
+  - HAZ-006
+  - HAZ-013
+  gates:
+  - GATE-RECOVERY-DETERMINISTIC
+- id: GS-RECOVERY-FAILCLOSED-001
+  titolo: Fail-closed on corruption and I/O faults
+  categoria: recovery
+  criticita: critica
+  stato: provato
+  descrizione: Truncation, corruption, missing files, disk-full conditions, and I/O failures fail safely;
+    committed corruption is rejected and uncommitted tails ignored.
+  autorita:
+  - docs/spec/persistence-v1.md
+  - docs/security/threat-model.md
+  implementazione:
+  - src/persistence/segment_file.cpp
+  - src/persistence/segment_file_io.cpp
+  - src/persistence/bootstrap.cpp
+  - src/persistence/filesystem.cpp
+  - src/persistence/filesystem_directory.cpp
+  prove:
+  - tests/integration/persistence_recovery_tests.cpp
+  - tests/unit
+  piattaforme:
+  - linux-x86_64
+  - macos-arm64
+  claim_massimo: E2-fault-injection
+  evidenze:
+  - workflow: ci.yml
+  rischio_residuo:
+  - System-level disk-full/quota/writeback-error and power-loss matrices are open
+  hazards:
+  - HAZ-002
+  - HAZ-016
+  - HAZ-017
+  - HAZ-018
+  gates:
+  - GATE-FAIL-CLOSED-IO

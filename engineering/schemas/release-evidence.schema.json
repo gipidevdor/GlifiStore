@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glifistore.dev/schemas/release-evidence-v1.json",
+  "title": "GlifiStore retained release evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_type", "result", "git_sha", "product_version", "generated_at", "producer", "subject", "checks", "limitations"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "evidence_type": {
+      "enum": ["abi_compatibility", "persistent_compatibility", "sdk_installed_interop", "security_matrix", "wire_compatibility", "freebsd_package", "openbsd_package", "reproducibility"]
+    },
+    "result": {"const": "passed"},
+    "git_sha": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "product_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflow", "run_id", "os", "os_version", "architecture"],
+      "properties": {
+        "workflow": {"type": "string", "minLength": 1},
+        "run_id": {"type": "string", "minLength": 1},
+        "os": {"type": "string", "minLength": 1},
+        "os_version": {"type": "string", "minLength": 1},
+        "architecture": {"type": "string", "minLength": 1}
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "command", "evidence_ref"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+          "status": {"const": "passed"},
+          "command": {"type": "string", "minLength": 1},
+          "evidence_ref": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"}
+        }
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

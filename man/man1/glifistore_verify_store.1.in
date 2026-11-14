@@ -1,0 +1,71 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright (c) 2026 Giacomo Picchiarelli and GlifiStore contributors
+.Dd @MAN_DATE@
+.Dt GLIFISTORE_VERIFY_STORE 1
+.Os
+.Sh NAME
+.Nm glifistore_verify_store
+.Nd verify a GlifiStore durable data directory
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Op Fl Fl json
+.Op Fl Fl no-scan
+.Ar data-directory
+.Sh DESCRIPTION
+.Nm
+performs read-only structural validation of a durable Store data directory
+(GlifiStore
+.Sy @PROJECT_VERSION@ ) .
+It takes the exclusive Store lock and fails closed if a daemon or Store already
+holds it.
+.Sy Stop the daemon before verifying.
+.Pp
+Default work:
+.Bl -enum -compact
+.It
+Exclusive-lock the data directory.
+.It
+Decode
+.Pa manifest.glifi
+and enforce Manifest resource bounds.
+.It
+Audit the namespace (missing/unlisted/unsafe entries fail; crash temporaries may
+be reported).
+.It
+Open each catalog Segment read-only against Manifest identity.
+.It
+Check Manifest role versus commit lifecycle.
+.It
+Scan each committed Record extent unless
+.Fl Fl no-scan .
+.El
+.Pp
+Does not rebuild Indexes, check key routing, or repair files.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl Fl help
+Show help and exit 0.
+.It Fl V , Fl Fl version
+Show version and exit 0.
+.It Fl Fl json
+Emit a stable JSON report on stdout.
+.It Fl Fl no-scan
+Validate Manifest, namespace, and Segment headers only.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds -compact
+.It 0
+Validated.
+.It 1
+Validation or I/O failure.
+.It 2
+Usage error.
+.El
+.Sh SEE ALSO
+.Xr glifistore 7 ,
+.Xr glifistore_backup_store 1 ,
+.Xr glifistore_repair_store 1 ,
+.Xr glifistored 8
+.Sh AUTHORS
+GlifiStore contributors.

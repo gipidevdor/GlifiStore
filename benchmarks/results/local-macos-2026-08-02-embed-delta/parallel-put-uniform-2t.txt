@@ -1,0 +1,12 @@
+# glifistore benchmark
+# git_sha=64e23f3-dirty
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
+# benchmark_warmup=3
+# benchmark_repeats=11
+# cpu_pin_requested=0
+# cpu_pin_applied=0
+# note=use plugged-in power; thermal throttling affects spread
+# latency_measurement=disabled
+name=store_parallel_put key_size=16 value_size=64 workers=2 threads=2 distribution=uniform random=0 operations=200000 hits=200000 samples=11 warmup=3 median_seconds=1.67587 min_seconds=1.48867 max_seconds=1.98838 median_ops_per_second=119341 min_ops_per_second=100584 max_ops_per_second=134348 median_ns_per_op=8379.35 min_ns_per_op=7443.34 max_ns_per_op=9941.92 median_rss_bytes=1.83779e+08 min_rss_bytes=1.79651e+08 max_rss_bytes=1.83828e+08 median_rss_delta_bytes=32768 peak_rss_bytes=1.83894e+08 ingress_bytes=0 egress_bytes=0 median_ingress_bytes_per_second=0 min_ingress_bytes_per_second=0 max_ingress_bytes_per_second=0 median_egress_bytes_per_second=0 min_egress_bytes_per_second=0 max_egress_bytes_per_second=0 median_duplex_bytes_per_second=0 min_duplex_bytes_per_second=0 max_duplex_bytes_per_second=0 latency_samples=0 p50_latency_ns=0 p95_latency_ns=0 p99_latency_ns=0 p999_latency_ns=0 median_durable_queue_wait_ns=0 maximum_durable_queue_wait_ns=0 median_durable_service_ns=0 maximum_durable_service_ns=0 median_durable_commit_ns=0 maximum_durable_commit_ns=0 median_durable_batch_records=0 maximum_durable_batch_records=0 durable_completed=0 durable_rejected=0 durable_expired=0 durable_committed_batches=0 durable_committed_records=0 durable_committed_bytes=0 durable_failed_batches=0 durable_maximum_queue_depth=0 durable_maximum_queued_bytes=0 durable_pending_records=0 durable_pending_bytes=0 durable_record_limit_closes=0 durable_byte_limit_closes=0 durable_adaptive_target_closes=0 durable_deadline_closes=0

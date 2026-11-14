@@ -1,0 +1,12 @@
+# Relocatable for staged packages and binary archives. pcfiledir is supplied by
+# pkg-config and resolves to <prefix>/<libdir>/pkgconfig.
+prefix=${pcfiledir}/../..
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: GlifiStore C ABI
+Description: Stable C ABI for the GlifiStore embedded engine
+Version: @GLIFISTORE_ABI_VERSION@
+Libs: -L${libdir} -lglifistore
+Cflags: -I${includedir}

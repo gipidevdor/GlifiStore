@@ -1,0 +1,87 @@
+hazards:
+- id: HAZ-040
+  evento_pericoloso: Compaction installs a stale Index or resurrects erased state after concurrent mutations
+  cause:
+  - Remap retargets an entry that a foreground mutation superseded during the build
+  - Index reference left pointing into a retired prefix Segment (pending group publication, missed
+    expired drop, hot-cache row not retargeted)
+  - Prefix closure broken (non-prefix source set, overlapping sequence ranges, rebase onto a Manifest
+    whose sources moved)
+  - Live-byte counters use physical copy bytes after concurrent overwrites
+  - Index gate lets the mutex-elided exclusive Writer publish while an Index owner snapshots or remaps
+    (two-variable arm/disarm race, acquire/release store buffering, unchecked re-entry after rotation)
+  conseguenze:
+  - Lost acknowledged updates or resurrected values
+  - Premature source reclamation or incorrect maintenance pressure
+  severita: catastrofica
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Conditional remap replace_if_current (exact source reference) under the Worker mutex after Writers
+    drain; expired drops erase only an unchanged entry; no allocation or failure after Mnext
+  - Snapshot requires no pending group publication; post-snapshot publications target the active
+    Segment only
+  - Canonical (k, m) prefix transition derived and validated from exact old/next Manifests; rebase
+    requires identical sources as the first k sealed entries
+  - Single-counter seq_cst IndexQuiesceGate; Writer rechecks the gate after rotation re-entry
+  contenimento:
+  - Exact old-authority rollback before new Manifest; fail-closed recovery on persistent ambiguity
+  prove:
+  - tests/integration/persistence_compaction_remap_tests.cpp
+  - tests/integration/persistence_compaction_prefix_tests.cpp
+  - tests/integration/compaction_recovery_tests.cpp
+  - tests/unit/compaction_prefix_tests.cpp
+  - tests/unit/compaction_model_tests.cpp
+  - tests/integration/persistence_compaction_model_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/integration/compaction_builder_tests.cpp
+  - tests/unit/index_quiesce_gate_tests.cpp
+  rischio_residuo: >-
+    ADR 0044 local Debug tests only; the 2026-11-07 campaign covered the retired journal and must be
+    repeated. Local tests do not establish native-platform durability, p99.9 improvement or E3/E4
+    certification. Periodic/group modes keep the pre-existing exposure of dropping a sealed Record
+    superseded by a not yet synchronized newer Record.
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; no release acceptance
+  requisiti: [GS-PERSIST-DELTA-001]
+- id: HAZ-041
+  evento_pericoloso: Background compaction cannot keep up and the durable Store stops accepting writes
+  cause:
+  - Cold live data at the head of the sealed history must be copied before newer dead space is
+    reachable (prefix head-of-line; range compaction deferred by ADR 0044)
+  - Foreground PUT/ERASE on the compacted Worker are rejected while the commit gate is armed
+  - O(N) Phase A Index enumeration under synchronization for very large Workers
+  - At emergency, peak-budget planning (current Segments + outputs) exceeds max_store_bytes when
+    max_store_bytes leaves less than one compaction output of headroom over max_segment_count
+  conseguenze:
+  - Reclaim lags the write rate when cold live prefixes dominate, and Segment count grows
+  - Emergency rejects mutations while compaction is refused for the peak budget (manual repair)
+  - Foreground PUT/ERASE on the compacted Worker fail with sequence_conflict while the gate is held
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - ADR 0044 commit-time remap removes the journal limit; rebase removes rotation aborts; prefix
+    selection bounds each transaction by max_copy_bytes_per_cycle instead of skipping the Worker
+  - Keep max_store_bytes >= max_segment_count Segments + max_temporary_compaction_bytes
+  contenimento:
+  - Pressure and emergency bypass pacing and the per-cycle copy cap; emergency stops new writes
+  - Remap, superseded copies, rebases, Manifest conflicts and abandoned bytes are counted
+    (remapped_records, superseded_copies, manifest_rebases, manifest_conflict_aborts, abandoned_copy_bytes)
+  prove:
+  - tests/integration/persistence_compaction_remap_tests.cpp
+  - tests/integration/persistence_recovery_compaction_tests.cpp
+  - tests/unit/maintenance_controller_tests.cpp
+  - tests/integration/store_tests.cpp
+  rischio_residuo: >-
+    Exploratory local measurement on 2026-11-14 (macOS arm64, Debug library, harness not retained):
+    1 Worker, 128 MiB live, 4 KiB random overwrites, 128 MiB/s pacing, no per-cycle cap. At about
+    6,000 op/s ADR 0044 completed 8 of 12 attempts in 25 s with zero abandoned copy bytes and 4 to 5
+    Segments (ADR 0043 baseline 2026-11-13: 0 of 39, about 1 GiB abandoned, 17 Segments); 0.19% of
+    PUTs returned sequence_conflict at the commit gate. At about 12,500 op/s it completed 10 of 16
+    with 4 to 6 Segments and 1.2% sequence_conflict. Not a retained campaign: no tail-latency,
+    multi-Worker, Linux/BSD or Release evidence. The emergency capacity wedge with max_store_bytes
+    equal to max_segment_count + 1 Segments is unchanged.
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; capacity and liveness envelope not accepted
+  requisiti: [GS-PERSIST-DELTA-001, GS-PERSIST-AMP-001, GS-OPS-DEBT-001]
