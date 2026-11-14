@@ -34,6 +34,7 @@ struct MemoryReserveStats {
     std::uint64_t image_charged_bytes{};      ///< Resident Segment image bytes.
     std::uint64_t image_budget_bytes{};       ///< reserve_bytes minus index_charged_bytes, floored at zero.
     std::uint64_t image_admission_failures{}; ///< Images that started cold for lack of budget.
+    std::uint64_t image_evictions{};          ///< Sealed images dropped at rotation to make room.
     std::uint64_t spill_mapping_failures{};   ///< Spill files that fell back to anonymous mappings.
 };
 
@@ -81,6 +82,7 @@ class MemoryReserve final {
     [[nodiscard]] auto try_charge_image(std::uint64_t bytes, std::uint64_t overdraft_bytes = 0) noexcept
         -> bool;
     void release_image(std::uint64_t bytes) noexcept;
+    void note_image_eviction() noexcept;
 
     /// Reserve left for images after the Index, floored at zero.
     [[nodiscard]] auto image_budget_bytes() const noexcept -> std::uint64_t;
@@ -95,6 +97,7 @@ class MemoryReserve final {
     std::atomic_uint64_t index_spilled_bytes_{};
     std::atomic_uint64_t image_charged_bytes_{};
     std::atomic_uint64_t image_admission_failures_{};
+    std::atomic_uint64_t image_evictions_{};
     std::atomic_uint64_t spill_mapping_failures_{};
 };
 

@@ -500,6 +500,7 @@ auto DurableRuntimeCatalog::evict_resident_images_locked(const RuntimeWorker& wo
             // still observe it is reclaimed by the Reader epoch protocol.
             resident->image->release_charge();
             generation_pins_[*victim] = std::move(cold);
+            memory_reserve_->note_image_eviction();
             ++evicted;
         }
     } catch (...) {

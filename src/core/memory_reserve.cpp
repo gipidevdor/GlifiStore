@@ -191,6 +191,10 @@ void MemoryReserve::release_image(const std::uint64_t bytes) noexcept {
     atomic_saturating_release(image_charged_bytes_, bytes);
 }
 
+void MemoryReserve::note_image_eviction() noexcept {
+    image_evictions_.fetch_add(1U, std::memory_order_relaxed);
+}
+
 auto MemoryReserve::image_budget_bytes() const noexcept -> std::uint64_t {
     return saturating_subtract(reserve_bytes_, index_charged_bytes_.load(std::memory_order_relaxed));
 }
@@ -207,6 +211,7 @@ auto MemoryReserve::stats() const noexcept -> MemoryReserveStats {
         .image_charged_bytes = image_charged_bytes_.load(std::memory_order_relaxed),
         .image_budget_bytes = image_budget_bytes(),
         .image_admission_failures = image_admission_failures_.load(std::memory_order_relaxed),
+        .image_evictions = image_evictions_.load(std::memory_order_relaxed),
         .spill_mapping_failures = spill_mapping_failures_.load(std::memory_order_relaxed),
     };
 }
