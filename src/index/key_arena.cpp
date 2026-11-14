@@ -52,9 +52,7 @@ auto KeyArena::reserve(const std::size_t bytes) -> Status {
     if (bytes > std::numeric_limits<std::uint32_t>::max()) {
         return fail(ErrorCode::arithmetic_overflow, "index key arena reserve exceeds offset limits");
     }
-    if (bytes > storage_.size()) {
-        storage_.reserve(bytes);
-    }
+    storage_.reserve(bytes);
     return {};
 }
 

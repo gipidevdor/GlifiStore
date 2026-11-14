@@ -5,18 +5,34 @@
 #pragma once
 
 #include "glifistore/core/error.hpp"
+#include "glifistore/core/memory_reserve.hpp"
+#include "glifistore/core/pageable_array.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <span>
-#include <vector>
+#include <utility>
 
 namespace glifistore {
 
 /// Bump allocator for SwissTable heap keys. Individual frees are not supported; rehash compacts live keys.
 class KeyArena final {
   public:
+    KeyArena() noexcept = default;
+
+    /// Charge arena storage to the Store memory reserve (ADR 0046); null keeps it uncharged.
+    explicit KeyArena(std::shared_ptr<MemoryReserve> reserve) noexcept : storage_(std::move(reserve)) {}
+
+    [[nodiscard]] auto memory_reserve() const noexcept -> const std::shared_ptr<MemoryReserve>& {
+        return storage_.memory_reserve();
+    }
+
+    void set_memory_reserve(std::shared_ptr<MemoryReserve> reserve) noexcept {
+        storage_.set_memory_reserve(std::move(reserve));
+    }
+
     /**
      * @brief Reserve bytes in the bump arena and return a checked 32-bit offset; growth may invalidate
      * borrowed spans.
@@ -32,7 +48,7 @@ class KeyArena final {
     [[nodiscard]] auto prepare_allocate(std::size_t size) -> Status;
 
   private:
-    std::vector<std::byte> storage_;
+    PageableArray<std::byte> storage_;
     std::size_t bump_{};
 };
 

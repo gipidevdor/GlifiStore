@@ -19,6 +19,7 @@ set(GLIFISTORE_CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/store/store_blob.cpp
     ${CMAKE_SOURCE_DIR}/src/core/fault_injection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/hot_path_phases.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/memory_reserve.cpp
     ${CMAKE_SOURCE_DIR}/src/core/worker_routing.cpp
     ${CMAKE_SOURCE_DIR}/src/index/index.cpp
     ${CMAKE_SOURCE_DIR}/src/index/index_hash_seed.cpp

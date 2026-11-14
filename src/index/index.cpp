@@ -88,6 +88,10 @@ auto Index::stats() const noexcept -> IndexStats {
     return table_.stats();
 }
 
+void Index::attach_memory_reserve(const std::shared_ptr<MemoryReserve>& reserve) {
+    table_.attach_memory_reserve(reserve);
+}
+
 auto Index::make_empty() const -> Index {
     return Index{table_.clone_empty()};
 }

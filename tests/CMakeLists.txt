@@ -154,6 +154,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/unit/compaction_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/byte_rate_limiter_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/text_encoding_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/memory_reserve_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/adaptive_batch_sizer_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/index_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/index_hash_seed_tests.cpp

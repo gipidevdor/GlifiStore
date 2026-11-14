@@ -212,7 +212,7 @@ auto SwissTableIndex::set_key(Slot& slot, const std::string_view key, const std:
 
 auto SwissTableIndex::compact_heap_keys(const std::span<Slot> slots,
                                         const std::span<const std::uint8_t> control) -> Status {
-    KeyArena compacted;
+    KeyArena compacted{heap_keys_.memory_reserve()};
     std::vector<std::uint32_t> new_offsets(slots.size());
     std::size_t heap_bytes = 0;
     for (std::size_t index = 0; index < slots.size(); ++index) {
@@ -280,7 +280,7 @@ auto SwissTableIndex::maybe_compact_heap_keys() -> Status {
     if (heap_dead_bytes_ < kHeapArenaCompactDeadThreshold || heap_dead_bytes_ < heap_live_bytes_) {
         return {};
     }
-    return compact_heap_keys(slots_, control_);
+    return compact_heap_keys(slots_.span(), control_.span());
 }
 
 void SwissTableIndex::clear_slot(const std::size_t index) {
@@ -335,6 +335,7 @@ auto SwissTableIndex::rehash(const std::size_t new_capacity, const bool force_sa
     // Build complete independent state so any vector or key-arena allocation
     // failure leaves this table byte-for-byte authoritative.
     SwissTableIndex rebuilt;
+    rebuilt.attach_memory_reserve(slots_.memory_reserve());
     rebuilt.routing_ = routing_;
     rebuilt.seed_ = seed_;
     rebuilt.capacity_ = *normalized;
@@ -553,7 +554,15 @@ auto SwissTableIndex::stats() const noexcept -> IndexStats {
 }
 
 auto SwissTableIndex::clone_empty() const -> SwissTableIndex {
-    return SwissTableIndex{routing_, seed_};
+    SwissTableIndex empty{routing_, seed_};
+    empty.attach_memory_reserve(slots_.memory_reserve());
+    return empty;
+}
+
+void SwissTableIndex::attach_memory_reserve(const std::shared_ptr<MemoryReserve>& reserve) {
+    control_.set_memory_reserve(reserve);
+    slots_.set_memory_reserve(reserve);
+    heap_keys_.set_memory_reserve(reserve);
 }
 
 } // namespace glifistore

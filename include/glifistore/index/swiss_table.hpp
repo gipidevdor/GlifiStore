@@ -6,12 +6,15 @@
 
 #include "glifistore/core/error.hpp"
 #include "glifistore/core/key_hash.hpp"
+#include "glifistore/core/memory_reserve.hpp"
+#include "glifistore/core/pageable_array.hpp"
 #include "glifistore/index/index_hash_seed.hpp"
 #include "glifistore/index/index_types.hpp"
 #include "glifistore/index/key_arena.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -89,6 +92,13 @@ class SwissTableIndex final {
     [[nodiscard]] auto entries() const -> std::vector<IndexEntry>;
     [[nodiscard]] auto stats() const noexcept -> IndexStats;
     [[nodiscard]] auto clone_empty() const -> SwissTableIndex;
+    /**
+     * @brief Charge table and heap-key storage to @p reserve (ADR 0046).
+     *
+     * Existing storage is charged with its current backing; every later rehash, arena growth and
+     * compaction allocates through the reserve, which may back it with a spill file.
+     */
+    void attach_memory_reserve(const std::shared_ptr<MemoryReserve>& reserve);
 
   private:
     struct Slot {
@@ -159,8 +169,8 @@ class SwissTableIndex final {
     std::size_t capacity_{};
     std::size_t heap_live_bytes_{};
     std::size_t heap_dead_bytes_{};
-    std::vector<std::uint8_t> control_;
-    std::vector<Slot> slots_;
+    PageableArray<std::uint8_t> control_;
+    PageableArray<Slot> slots_;
     KeyArena heap_keys_;
     mutable std::size_t maximum_probe_groups_{};
     std::uint64_t rehash_count_{};

@@ -83,6 +83,8 @@ class Index final {
     [[nodiscard]] auto entries() const -> std::vector<IndexEntry>;
     [[nodiscard]] auto stats() const noexcept -> IndexStats;
     [[nodiscard]] auto make_empty() const -> Index;
+    /// Charge Index storage to the Store memory reserve, which may page later growth (ADR 0046).
+    void attach_memory_reserve(const std::shared_ptr<MemoryReserve>& reserve);
 
   private:
     explicit Index(SwissTableIndex table);
