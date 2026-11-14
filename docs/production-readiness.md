@@ -100,6 +100,12 @@ The volatile engine under `src/experimental/` is lab-only.
   Residual risk: No native filesystem row has E3/E4 certification; ADR 0037 durable_sync combiner shares ACK-after-visibility with the dedicated Writer path
   E2 evidence present; physical E3 honesty enforced by rehearsal scripts. Embedded durable_sync may combine under the execution token (ADR 0037 Phase B) without changing ACK-after-visibility polarity. Durable erase_batch tombstones across reopen are covered by paired_store_erase_batch_durable_litmus_tests for embedded and Writer-path durable_sync / durable_periodic, and Writer-path durable_group (no claim-ceiling change).
 
+- [ ] **GATE-DURABLE-READS** — Memory-resident durable reads preserve durability contracts at volatile read cost
+  State: `SPECIFICATA` · Release target: `prototype`
+  Requirements: `GS-PERF-DREAD-001`
+  Residual risk: ADR 0045 is proposed; nothing is implemented. Durable GET still reads the Segment file on every call and glifistored serializes cold reads per connection.
+  Acceptance requires the ADR 0045 verification list: RAW litmus across residency states, eviction under ASan/TSan, recovery below budget, allocation faults and same-host A/B targets.
+
 - [x] **GATE-FAIL-CLOSED-IO** — Fail-closed on truncation corruption and I/O failures
   State: `PROVATA_IN_CI` · Release target: `beta`
   Requirements: `GS-RECOVERY-FAILCLOSED-001`

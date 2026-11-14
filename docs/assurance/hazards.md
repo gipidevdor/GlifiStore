@@ -48,3 +48,4 @@ accepted residual risks do not imply production readiness.
 | `HAZ-039` | Legacy engine or client interprets BlobRef bytes as application data | catastrofica | media | bassa | aperto | `GS-PERSIST-BLOB-001`, `GS-RECOVERY-BLOB-001`, `GS-PROTO-BLOB-001` |
 | `HAZ-040` | Compaction installs a stale Index or resurrects erased state after concurrent mutations | catastrofica | media | media | aperto | `GS-PERSIST-DELTA-001` |
 | `HAZ-041` | Background compaction cannot keep up and the durable Store stops accepting writes | alta | media | alta | aperto | `GS-PERSIST-DELTA-001`, `GS-PERSIST-AMP-001`, `GS-OPS-DEBT-001` |
+| `HAZ-042` | A durable GET returns bytes that no longer match the persisted Record, or reads a released image | alta | media | media | aperto | `GS-PERF-DREAD-001` |

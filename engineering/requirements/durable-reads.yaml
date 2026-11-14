@@ -1,0 +1,25 @@
+requirements:
+- id: GS-PERF-DREAD-001
+  titolo: Resident durable GET costs the same as volatile GET
+  categoria: performance
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Durable paired Stores serve GETs of resident Segments from bounded in-memory images (ADR 0045),
+    without syscall, lock, CRC recomputation or executor hop, and keep the pinned cold path for
+    evicted Segments. glifistored pipelines cold reads per connection with ordered responses.
+    Acknowledgement, visibility, recovery authority, persistence v1 and wire v2 are unchanged.
+  autorita:
+  - docs/adr/0045-memory-resident-durable-reads.md
+  - docs/architecture/residency-model.md
+  - docs/spec/benchmark-standard.md
+  implementazione: []
+  prove: []
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze: []
+  rischio_residuo:
+  - Proposed design only; no implementation or measurement
+  - Resident reads do not re-detect later on-disk corruption (HAZ-042)
+  hazards: [HAZ-042]
+  gates: [GATE-DURABLE-READS]

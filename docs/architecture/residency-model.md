@@ -23,6 +23,9 @@ DEAD: retired and reclaimable after safety conditions
 filesystem. Data directories are configurable. Production defaults will follow each OS convention
 without hard-coding paths in the core.
 
+Proposed [ADR 0045](../adr/0045-memory-resident-durable-reads.md) would serve durable GETs from
+bounded in-memory Segment images and keep this positional path for evicted Segments only.
+
 The current durable runtime does not use `mmap` as its value-access contract. Any future mapping or
 eviction policy must use high/low watermarks, must not invalidate active generation pins, and must
 separate page residency from durability.

@@ -1,0 +1,27 @@
+hazards:
+- id: HAZ-042
+  evento_pericoloso: A durable GET returns bytes that no longer match the persisted Record, or reads a released image
+  cause:
+  - Image unmapped while a Reader still holds a generation that references it
+  - Publication of a Record view before its image bytes are written
+  - Media corruption after recovery is not observed because resident reads skip the file and CRC
+  conseguenze:
+  - Use-after-free or wrong value returned to the client
+  - Silent divergence between served value and on-disk Record until eviction, compaction or restart
+  severita: alta
+  probabilita: media
+  rilevabilita: media
+  prevenzione:
+  - Images retired only through the existing epoch/lease generation reclamation
+  - Image bytes written before generation publication; release/acquire publication edge
+  - Images built only from Writer encoding or recovery-validated bytes; key/hash compared on every read
+  contenimento:
+  - Cold path keeps full CRC/key/hash validation and fails closed
+  - Recovery, compaction and backup verification re-validate persisted Records
+  prove: []
+  rischio_residuo: >-
+    Design stage only (ADR 0045 proposed). Detection of post-recovery media damage on resident
+    Segments is deferred to recovery, compaction, backup verification and eviction.
+  stato: aperto
+  accettazione_rischio: Architectural prototype only; no release acceptance
+  requisiti: [GS-PERF-DREAD-001]

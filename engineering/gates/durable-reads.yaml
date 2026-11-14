@@ -1,0 +1,20 @@
+gates:
+- id: GATE-DURABLE-READS
+  titolo: Memory-resident durable reads preserve durability contracts at volatile read cost
+  sezione: durability_recovery
+  livello_rilascio: prototype
+  requisiti: [GS-PERF-DREAD-001]
+  prove: []
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  evidenze: []
+  stato: SPECIFICATA
+  rischio_residuo: >-
+    ADR 0045 is proposed; nothing is implemented. Durable GET still reads the Segment file on every
+    call and glifistored serializes cold reads per connection.
+  riapertura:
+  - Any change to acknowledgement, visibility or recovery authority to obtain read speed
+  - Image unmap not governed by generation reclamation, or an unbounded residency budget
+  - Resident read path that skips key/hash comparison
+  narrative: >-
+    Acceptance requires the ADR 0045 verification list: RAW litmus across residency states, eviction
+    under ASan/TSan, recovery below budget, allocation faults and same-host A/B targets.

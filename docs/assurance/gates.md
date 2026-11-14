@@ -21,6 +21,7 @@ Generated from `engineering/gates/`. See also the derived
 | `GATE-DISK-WIRE-VERSIONS` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-FIXTURE-001`, `GS-COMPAT-NN1-001`, `GS-PROTO-WIRE-001` |
 | `GATE-DOCUMENTATION-INTEGRITY` | verification | `PROVATA_IN_CI` | `prototype` | `GS-CORE-DOCS-001` |
 | `GATE-DURABLE-ACK` | durability_recovery | `PROVATA_IN_CI` | `beta` | `GS-PERSIST-ACK-001` |
+| `GATE-DURABLE-READS` | durability_recovery | `SPECIFICATA` | `prototype` | `GS-PERF-DREAD-001` |
 | `GATE-FAIL-CLOSED-IO` | durability_recovery | `PROVATA_IN_CI` | `beta` | `GS-RECOVERY-FAILCLOSED-001` |
 | `GATE-FAULT-INJECTION` | verification | `PROVATA_IN_CI` | `beta` | `GS-RECOVERY-FAILCLOSED-001`, `GS-PERSIST-FAULT-001`, `GS-PERSIST-AMP-001` |
 | `GATE-FUZZ-CI` | verification | `PROVATA_IN_CI` | `alpha` | `GS-RECOVERY-FAILCLOSED-001` |
