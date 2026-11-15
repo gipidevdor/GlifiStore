@@ -70,3 +70,18 @@ probes. Keep descriptive names with units, explicit ownership/error contracts, b
 and direct includes. Comments explain invariants and reasons. Do not add blanket lint suppressions,
 enable every analyzer check indiscriminately, or use cosmetic work to change runtime semantics.
 Keep mechanical formatting separate from behavior changes and retain appropriate verification.
+
+## Disk hygiene — every run
+
+Builds, sanitizer trees, benchmark data and test stores are large; several agents working at once
+have filled the disk before. Leave the machine as you found it:
+
+- Reuse one build tree per preset; do not create extra copies in temporary directories.
+- Write scratch output (logs, benchmark results, probe data) to your scratch directory, never to the
+  repository or `/tmp`, and delete it before handoff.
+- Before handoff, delete build trees you created for this task only (for example a sanitizer or
+  release preset you configured), benchmark data directories and temporary Stores. Remove a git
+  worktree you created with `git worktree remove` once its branch is merged or abandoned.
+- Benchmarks that write durable data must use a bounded size and a directory you remove afterwards.
+- Check free space (`df -h`) before long sanitizer, crash or benchmark campaigns; stop and report
+  instead of filling the disk.
