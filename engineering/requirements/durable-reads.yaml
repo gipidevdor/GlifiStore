@@ -83,7 +83,7 @@ requirements:
   evidenze: []
   rischio_residuo:
   - Two paired Reader bases coexist and are both charged while a rebuild is in flight
-  - Spill files may raise SIGBUS on a full or copy-on-write filesystem (HAZ-043)
+  - Spill files reserve their blocks before mapping; a full copy-on-write filesystem can still raise SIGBUS (HAZ-043)
   - No measurement of lookup latency with a paged Index
   hazards: [HAZ-043]
   gates: [GATE-DURABLE-READS]

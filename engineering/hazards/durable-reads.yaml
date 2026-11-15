@@ -34,7 +34,7 @@ hazards:
   cause:
   - The spill directory's filesystem is full when a page is first written
   - Copy-on-write filesystems need new blocks on every page write
-  - Platforms without preallocation (macOS, OpenBSD) cannot reserve blocks in advance
+  - A snapshot or clone shares the spill file's blocks, so a page write needs new ones
   conseguenze:
   - SIGBUS during an Index update; the process stops and restart recovers from the log
   severita: media
@@ -42,7 +42,9 @@ hazards:
   rilevabilita: alta
   prevenzione:
   - Spill is opt-in through index_spill_directory; the default pages anonymously to swap
-  - Linux and FreeBSD preallocate the spill file and fall back to anonymous memory on failure
+  - Every platform reserves the spill file's blocks before mapping it (F_PREALLOCATE on macOS,
+    posix_fallocate on Linux and FreeBSD, zero writes on OpenBSD or when the filesystem refuses)
+  - A spill file whose blocks cannot be reserved is never mapped; the array stays in anonymous memory
   - The spill file is unlinked at creation and never synchronized, so nothing survives a crash
   contenimento:
   - The Index is derived state; restart rebuilds it from the log (ADR 0004)
@@ -50,7 +52,9 @@ hazards:
   prove:
   - tests/unit/memory_reserve_tests.cpp
   rischio_residuo: >-
-    No fault-injection proof of ENOSPC on a mapped page; macOS and OpenBSD keep the SIGBUS exposure.
+    Copy-on-write filesystems (and snapshots sharing the file) may still allocate on a page write and
+    raise SIGBUS when full. The fallback is proven locally on macOS with a file-size limit and a
+    fault-injected reservation failure; no platform-row CI evidence yet.
   stato: aperto
   accettazione_rischio: Architectural prototype only; no release acceptance
   requisiti: [GS-OPS-MEMRES-001]

@@ -1,7 +1,11 @@
 #include "glifistore/core/memory_reserve.hpp"
 
+#include "glifistore/core/fault_injection.hpp"
+
 #include <algorithm>
+#include <array>
 #include <cerrno>
+#include <cstddef>
 #include <fcntl.h>
 #include <limits>
 #include <new>
@@ -82,17 +86,68 @@ class ScopedDescriptor final {
     int descriptor_;
 };
 
-// Reserves file blocks where the platform can, so that a later page write cannot meet a full
-// filesystem. Filesystems without preallocation support keep the residual SIGBUS risk recorded
-// under HAZ-043.
-auto preallocate(const int descriptor, const std::size_t mapped_bytes) noexcept -> bool {
-#if defined(__linux__) || defined(__FreeBSD__)
-    const auto result = ::posix_fallocate(descriptor, 0, static_cast<off_t>(mapped_bytes));
-    return result == 0 || result == EINVAL || result == EOPNOTSUPP;
-#else
-    static_cast<void>(descriptor);
-    static_cast<void>(mapped_bytes);
+// Writes zeros over the whole file so that every block exists before a page is mapped. Used where
+// the platform has no reservation call or the filesystem refuses it.
+auto zero_fill(const int descriptor, const std::size_t file_bytes) noexcept -> bool {
+    static constexpr std::array<std::byte, 64U * 1024U> kZeros{};
+    std::size_t written_bytes{};
+    while (written_bytes < file_bytes) {
+        const auto chunk_bytes = std::min(kZeros.size(), file_bytes - written_bytes);
+        const auto result =
+            ::pwrite(descriptor, kZeros.data(), chunk_bytes, static_cast<off_t>(written_bytes));
+        if (result < 0 && errno == EINTR) {
+            continue;
+        }
+        if (result <= 0) {
+            return false;
+        }
+        written_bytes += static_cast<std::size_t>(result);
+    }
     return true;
+}
+
+// Sizes the spill file and reserves its blocks, so that a later page write cannot meet a full
+// filesystem and raise SIGBUS (HAZ-043). A file whose blocks cannot be reserved is refused, never
+// mapped sparse; the caller then keeps the region in anonymous memory. Copy-on-write filesystems
+// may still need new blocks on a page write; that residual stays under HAZ-043.
+auto size_and_reserve(const int descriptor, const std::size_t file_bytes) noexcept -> bool {
+    if (fault::consume_fail(fault::Site::spill_reserve)) {
+        return false;
+    }
+#if defined(__APPLE__)
+    // F_PREALLOCATE reserves blocks beyond the physical end of file, so it precedes the resize.
+    fstore_t store{};
+    store.fst_flags = F_ALLOCATECONTIG | F_ALLOCATEALL;
+    store.fst_posmode = F_PEOFPOSMODE;
+    store.fst_offset = 0;
+    store.fst_length = static_cast<off_t>(file_bytes);
+    bool reserved = ::fcntl(descriptor, F_PREALLOCATE, &store) != -1;
+    if (!reserved && errno != ENOSPC) {
+        store.fst_flags = F_ALLOCATEALL;
+        reserved = ::fcntl(descriptor, F_PREALLOCATE, &store) != -1;
+    }
+    if (!reserved && errno == ENOSPC) {
+        return false;
+    }
+    if (::ftruncate(descriptor, static_cast<off_t>(file_bytes)) != 0) {
+        return false;
+    }
+    return reserved || zero_fill(descriptor, file_bytes);
+#elif defined(__linux__) || defined(__FreeBSD__)
+    if (::ftruncate(descriptor, static_cast<off_t>(file_bytes)) != 0) {
+        return false;
+    }
+    const auto result = ::posix_fallocate(descriptor, 0, static_cast<off_t>(file_bytes));
+    if (result == 0) {
+        return true;
+    }
+    // EINVAL and EOPNOTSUPP mean the filesystem cannot reserve; any other error is a refusal.
+    return (result == EINVAL || result == EOPNOTSUPP) && zero_fill(descriptor, file_bytes);
+#else
+    if (::ftruncate(descriptor, static_cast<off_t>(file_bytes)) != 0) {
+        return false;
+    }
+    return zero_fill(descriptor, file_bytes);
 #endif
 }
 
@@ -113,8 +168,7 @@ auto map_spill_file(const std::filesystem::path& directory, const std::size_t ma
         }
         static_cast<void>(::unlink(name.data()));
         static_cast<void>(::fcntl(descriptor.get(), F_SETFD, FD_CLOEXEC));
-        if (::ftruncate(descriptor.get(), static_cast<off_t>(mapped_bytes)) != 0 ||
-            !preallocate(descriptor.get(), mapped_bytes)) {
+        if (!size_and_reserve(descriptor.get(), mapped_bytes)) {
             return nullptr;
         }
         auto* const payload = reserve_guarded(mapped_bytes);

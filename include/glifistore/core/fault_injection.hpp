@@ -52,6 +52,8 @@ enum class Site : std::uint8_t {
     sync_lane_snapshot = 23,
     // SSL_write path returns WANT_WRITE once (edge-triggered flush litmus).
     tls_write_want_write = 24,
+    // Index spill file block reservation fails (HAZ-043: the region must fall back to memory).
+    spill_reserve = 25,
 };
 
 #if defined(GLIFISTORE_FAULT_INJECTION)

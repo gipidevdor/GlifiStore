@@ -59,8 +59,11 @@ Large Index arrays (1 MiB or more) are anonymous mappings while the reserve stil
 the reserve:
 
 - with `index_spill_directory` set, new arrays are shared mappings of an unlinked scratch file
-  created there; the kernel pages them to that file instead of swap. The file is never synchronized
-  and never reopened: the Index is rebuilt from the log at open (ADR 0004);
+  created there; the kernel pages them to that file instead of swap. The file's blocks are reserved
+  before it is mapped (`F_PREALLOCATE` on macOS, `posix_fallocate` on Linux and FreeBSD, zero
+  writes on OpenBSD or when the filesystem refuses the call). A file whose blocks cannot be reserved
+  is not mapped: the array stays anonymous. The file is never synchronized and never reopened: the
+  Index is rebuilt from the log at open (ADR 0004);
 - otherwise they stay anonymous and the kernel may page them to swap.
 
 Smaller arrays stay on the heap and are charged too. Allocation failure keeps its existing
@@ -150,8 +153,10 @@ An `index_spill_directory` that is not an existing directory fails open with `in
 - Memory pressure produces paging, not write refusal. Paged Index lookups are slower; the
   reserve is the operator's tool to keep them resident.
 - A resident read does not re-detect on-disk damage that happens after the bytes were mirrored or
-  loaded (HAZ-042). A spill file on a full or copy-on-write filesystem can raise `SIGBUS` when a page
-  is first written; Linux and FreeBSD preallocate the file, macOS and OpenBSD do not (HAZ-043).
+  loaded (HAZ-042). Reserving spill blocks before mapping removes the full-filesystem `SIGBUS` on
+  every platform, at the cost of writing or reserving the whole file when it is created. A
+  copy-on-write filesystem, or a snapshot that shares the file's blocks, can still need new blocks on
+  a page write and raise `SIGBUS` when it is full (HAZ-043).
 - Two paired Reader bases can coexist during a rebuild, and both are charged: a rebuild near the
   reserve shrinks the image budget until the old base is retired.
 - `MemoryReserveStats::image_evictions` counts evicted images.
@@ -171,7 +176,8 @@ Local evidence (architectural prototype, not release evidence):
 
 - unit: reserve priority and overdraft, heap/anonymous/spill backing, unlinked spill files, image
   charge trimming, guard pages and full-size mappings, pageable-array growth, an Index spilled
-  beyond a zero reserve stays exact, a Reader base lineage charges and releases the reserve, a
+  beyond a zero reserve stays exact, a spill file refused by a file-size limit or by a failed block
+  reservation leaves the array in memory, a Reader base lineage charges and releases the reserve, a
   compaction credit shrinks when a source is evicted and then refuses an output it would have
   admitted;
 - integration: resident reads across open, append, rotation and compaction; a zero reserve keeps

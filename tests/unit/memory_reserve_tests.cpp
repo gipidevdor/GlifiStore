@@ -1,3 +1,4 @@
+#include "glifistore/core/fault_injection.hpp"
 #include "glifistore/core/key_hash.hpp"
 #include "glifistore/core/memory_reserve.hpp"
 #include "glifistore/core/pageable_array.hpp"
@@ -6,6 +7,7 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -13,6 +15,7 @@
 #include <span>
 #include <string>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <system_error>
 #include <unistd.h>
 #include <vector>
@@ -261,4 +264,52 @@ GLIFI_TEST("compaction image credit follows sources evicted while outputs are ad
     credit.release_evicted(*active);
     GLIFI_REQUIRE(credit.credit_bytes() == 0U);
     GLIFI_REQUIRE(reserve->stats().image_charged_bytes == kSegment);
+}
+
+GLIFI_TEST("spill regions whose file blocks cannot be reserved stay in memory") {
+    const SpillDirectory spill;
+    auto reserve = std::make_shared<glifistore::MemoryReserve>(0U, spill.path());
+    using Region = glifistore::PageableRegion;
+    const auto expected = glifistore::kPageableIndexMappingEnabled ? glifistore::PageableBacking::anonymous
+                                                                   : glifistore::PageableBacking::heap;
+    const auto require_memory_fallback = [&](Region& region, const std::uint64_t failures) {
+        GLIFI_REQUIRE(region.backing() == expected);
+        GLIFI_REQUIRE(all_zero({region.data(), region.size()}));
+        region.data()[region.size() - 1U] = std::byte{0x3c};
+        GLIFI_REQUIRE(region.data()[region.size() - 1U] == std::byte{0x3c});
+        GLIFI_REQUIRE(reserve->stats().spill_mapping_failures == failures);
+        GLIFI_REQUIRE(reserve->stats().index_spilled_bytes == 0U);
+        GLIFI_REQUIRE(spill.entry_count() == 0U);
+    };
+    if (!glifistore::kPageableIndexMappingEnabled) {
+        // Index regions stay on the heap under AddressSanitizer and never reach a spill file.
+        auto region = Region::allocate(8U * kMiB, Region::Use::index, reserve);
+        require_memory_fallback(region, 0U);
+        return;
+    }
+
+    // A file size limit makes the filesystem refuse the spill file's blocks, as a full disk would.
+    rlimit previous{};
+    GLIFI_REQUIRE(::getrlimit(RLIMIT_FSIZE, &previous) == 0);
+    auto* const previous_handler = std::signal(SIGXFSZ, SIG_IGN);
+    rlimit limited = previous;
+    limited.rlim_cur = static_cast<rlim_t>(kMiB);
+    GLIFI_REQUIRE(::setrlimit(RLIMIT_FSIZE, &limited) == 0);
+    auto limited_region = Region::allocate(8U * kMiB, Region::Use::index, reserve);
+    GLIFI_REQUIRE(::setrlimit(RLIMIT_FSIZE, &previous) == 0);
+    static_cast<void>(std::signal(SIGXFSZ, previous_handler));
+    require_memory_fallback(limited_region, 1U);
+
+#if defined(GLIFISTORE_FAULT_INJECTION)
+    // A reservation refused after the file was sized is not mapped sparse either.
+    glifistore::fault::fail_once(glifistore::fault::Site::spill_reserve);
+    auto refused_region = Region::allocate(8U * kMiB, Region::Use::index, reserve);
+    require_memory_fallback(refused_region, 2U);
+    glifistore::fault::reset();
+#endif
+
+    // With the limit lifted, the same request is a reserved spill file again.
+    auto spilled = Region::allocate(8U * kMiB, Region::Use::index, reserve);
+    GLIFI_REQUIRE(spilled.backing() == glifistore::PageableBacking::spill_file);
+    GLIFI_REQUIRE(all_zero({spilled.data(), spilled.size()}));
 }
