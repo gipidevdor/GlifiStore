@@ -158,6 +158,18 @@
       "relaxed_justification": "attempt/result/latency counters and mutex-owned progress do not publish durable authority; admission and health atomics carry correctness"
     },
     {
+      "id": "memory-reserve-accounting",
+      "paths": ["src/core/memory_reserve.cpp", "src/persistence/segment_image.cpp"],
+      "classification": "telemetry and self-contained byte-budget accounting",
+      "allowed_orders": ["relaxed"],
+      "writer": "Writer, compaction and Index growth paths charging or releasing the ADR 0046 reserve",
+      "readers": "admission decisions, eviction and STATS",
+      "published_or_protected_data": "charged byte totals, event counters and Segment image birth stamps",
+      "required_happens_before": "none beyond atomicity; image lifetime and mapping reclamation are published by the runtime catalog mutex and generation leases, not by these counters",
+      "invariant": "image admission keeps charged bytes at or below budget plus overdraft through a compare-exchange on the same counter; counters never publish object lifetime",
+      "relaxed_justification": "each decision uses the value returned by its own RMW on a single counter; no non-atomic payload is published through these atomics"
+    },
+    {
       "id": "worker-lifecycle",
       "paths": ["include/glifistore/worker/worker.hpp", "src/worker/worker.cpp"],
       "classification": "correctness worker lifecycle protocol",
