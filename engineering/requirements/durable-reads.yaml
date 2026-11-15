@@ -19,6 +19,7 @@ requirements:
   - docs/architecture/residency-model.md
   - docs/architecture/lean-memory-algorithm.md
   - docs/spec/benchmark-standard.md
+  - docs/benchmarks/resident-durable-reads-2026-11-15.md
   implementazione:
   - include/glifistore/persistence/segment_image.hpp
   - src/persistence/segment_image.cpp
@@ -41,7 +42,10 @@ requirements:
   claim_massimo: architectural-prototype
   evidenze: []
   rischio_residuo:
-  - Local proofs and one local embedded benchmark only; the ADR 0045 daemon targets are not measured
+  - >-
+    ADR 0045 targets measured locally only (2026-11-15): resident GET is 61% of volatile embedded and
+    75-78% in the daemon at pipeline 32, below the 90% and 80% targets
+  - Per-connection cold-read pipelining (ADR 0045 §3) is not implemented; cold daemon GET saturates near one read per connection
   - A paged-out image page faults on the Reader thread like a paged Index page
   - Resident reads do not re-detect later on-disk corruption (HAZ-042)
   hazards: [HAZ-042]

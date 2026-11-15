@@ -192,11 +192,15 @@ Local evidence (architectural prototype, not release evidence):
 - allocation-fault enumeration for mutation, rotation and compaction, with and without images;
 - the existing crash, fault and sanitizer suites.
 
-- benchmark: `glifistore_benchmarks --filter store-durable-get` with and without `--cold-reads`
-  (local numbers in the lean memory note; not release evidence).
+- benchmark: the ADR 0045 set, embedded and daemon, with and without `--cold-reads`
+  ([2026-11-15 record](../benchmarks/resident-durable-reads-2026-11-15.md); local, not release
+  evidence). PUT is not regressed; resident GET reaches 61% of volatile embedded and 75–78% in the
+  daemon at pipeline 32, below the 90% and 80% targets; cold GET barely grows with pipeline depth
+  because per-connection cold-read pipelining (ADR 0045 §3) is not implemented.
 
-Still required before acceptance: the full ADR 0045 benchmark set including the daemon, and the same
-concurrency proofs retained as CI evidence on every platform row.
+Still required before acceptance: the two GET targets and cold-read pipelining, the same
+measurements on the Linux runner, and the concurrency proofs retained as CI evidence on every
+platform row.
 
 ## References
 
