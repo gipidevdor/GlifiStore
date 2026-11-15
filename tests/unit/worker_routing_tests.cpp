@@ -12,7 +12,9 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -41,13 +43,33 @@ struct RoutingGuard final {
     glifistore::WorkerRoutingState previous_;
 };
 
-[[nodiscard]] auto temp_dir(const std::string_view name) -> std::filesystem::path {
-    const auto parent = std::filesystem::temp_directory_path() / "glifistore-worker-routing";
-    std::filesystem::create_directories(parent);
-    const auto path = parent / name;
-    std::filesystem::remove_all(path);
-    return path;
-}
+// Unique scratch directory removed with everything below it when the test ends, pass or fail.
+class TemporaryDirectory final {
+  public:
+    TemporaryDirectory() {
+        auto pattern = (std::filesystem::temp_directory_path() / "glifistore-worker-routing-XXXXXX").string();
+        std::vector<char> writable(pattern.begin(), pattern.end());
+        writable.push_back('\0');
+        const auto* const created = ::mkdtemp(writable.data());
+        GLIFI_REQUIRE(created != nullptr);
+        path_ = created;
+    }
+
+    TemporaryDirectory(const TemporaryDirectory&) = delete;
+    auto operator=(const TemporaryDirectory&) -> TemporaryDirectory& = delete;
+
+    ~TemporaryDirectory() {
+        std::error_code ignored;
+        std::filesystem::remove_all(path_, ignored);
+    }
+
+    [[nodiscard]] auto path() const -> const std::filesystem::path& {
+        return path_;
+    }
+
+  private:
+    std::filesystem::path path_;
+};
 
 } // namespace
 
@@ -139,7 +161,9 @@ GLIFI_TEST("INIT identity stays plain for FNV and extends for SipHash") {
 
 GLIFI_TEST("durable Store persists worker hash seed and refuses mismatch") {
     RoutingGuard guard{{}};
-    const auto dir = temp_dir("persist-seed");
+    const TemporaryDirectory temporary;
+    // create_new requires a directory that does not exist yet.
+    const auto dir = temporary.path() / "persist-seed";
     {
         auto created = glifistore::Store::open({
             .worker_config = {.explicit_count = 2},
