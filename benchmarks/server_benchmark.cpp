@@ -61,6 +61,8 @@ struct Options {
     bool latency_split{};
     std::size_t latency_sample_stride{1};
     bool client_api{};
+    // Durable modes only: keep every Segment on the cold file path (no resident images).
+    bool cold_reads{};
     Workload workload{Workload::read_after_write};
     StorageProfile storage{StorageProfile::volatile_memory};
     std::uint32_t group_max_records{32};
@@ -316,6 +318,7 @@ store_config(const Options& options, const BenchmarkDataDirectory& directory,
     }
     config.data_directory = directory.path();
     config.durable_open_mode = open_mode;
+    config.durable_limits.resident_reads_enabled = !options.cold_reads;
     config.durable_group = {.max_records = options.group_max_records,
                             .max_bytes = options.group_max_bytes,
                             .max_wait_ms = options.group_max_wait_ms,
@@ -554,6 +557,8 @@ store_config(const Options& options, const BenchmarkDataDirectory& directory,
             result.settings.measured_iterations = next_size("--repeats");
         } else if (argument == "--executor-affinity") {
             result.executor_affinity = true;
+        } else if (argument == "--cold-reads") {
+            result.cold_reads = true;
         } else if (argument == "--latency") {
             result.latency = true;
         } else if (argument == "--latency-split") {
@@ -666,6 +671,7 @@ store_config(const Options& options, const BenchmarkDataDirectory& directory,
                          " [--workload read-after-write|get-only|read-99-write-1|read-95-write-5|"
                          "read-90-write-10]"
                          " [--storage-mode volatile|durable-sync|durable-group|durable-periodic]"
+                         " [--cold-reads]"
                          " [--group-max-records N] [--group-max-bytes N] [--group-max-wait-ms N]"
                          " [--periodic-sync-ms N]"
                          " [--maintenance-suspend-on-p99-latency-ms N]"
@@ -1473,7 +1479,9 @@ struct LatencyPercentiles {
                              : options.workload == Workload::read_95_write_5  ? "server_tcp_read_95_write_5"
                              : options.workload == Workload::read_90_write_10 ? "server_tcp_read_90_write_10"
                                                                               : "server_tcp_read_after_write";
-    const auto benchmark_name = std::string{client_name} + '_' + std::string{storage_name(options.storage)};
+    const bool cold = options.cold_reads && options.storage != StorageProfile::volatile_memory;
+    const auto benchmark_name =
+        std::string{client_name} + '_' + std::string{storage_name(options.storage)} + (cold ? "_cold" : "");
     auto result = glifistore::bench::finalize_result(
         benchmark_name, options.config, options.settings,
         options.config.operations * (options.workload == Workload::read_after_write ? 2U : 1U), hits,
@@ -1668,6 +1676,11 @@ int main(int argc, char** argv) try {
     std::cout << "# traffic_scope=timed-protocol-frames-excluding-init-bind\n";
     std::cout << "# memory_scope=whole-benchmark-process-rss\n";
     std::cout << "# storage_mode=" << storage_name(parsed.storage) << '\n';
+    std::cout << "# durable_reads="
+              << (parsed.storage == StorageProfile::volatile_memory ? "none"
+                  : parsed.cold_reads                               ? "cold"
+                                                                    : "resident")
+              << '\n';
     std::cout << "# workload=" << workload_name(parsed.workload) << '\n';
     std::cout << "# durable_profile_scope=median-per-sample-averages-and-cross-sample-maxima\n";
     std::cout << "# durable_commit_metric=batch-commit-boundary;unbatched-sync-reports-zero\n";
