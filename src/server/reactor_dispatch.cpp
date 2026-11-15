@@ -16,7 +16,7 @@
 
 namespace glifistore::server {
 
-auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t new_mutation_admission_budget)
+auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t new_async_admission_budget)
     -> Status {
     auto* current = connection(token);
     if (current == nullptr) {
@@ -29,15 +29,18 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
         return {};
     }
     std::uint64_t cached_now_ns{};
-    std::uint32_t new_mutations_admitted{};
+    std::uint32_t new_async_admitted{};
     // Sample the reactor clock once per process_frames turn (not per request).
     const auto now = std::chrono::steady_clock::now();
     while (!current->output_lease && current->input_offset < current->input.size()) {
-        // Cold reads and non-mutation in-flight work still serialize the connection.
-        if (current->cold_read_in_flight) {
-            break;
-        }
-        if (current->request_in_flight && current->mutations_in_flight == 0) {
+        if (!current->cold_reads.empty()) {
+            // ADR 0045 §3: GETs queue behind in-flight cold reads up to the window cap, and only
+            // while a header-only response still fits the output watermark. Value responses
+            // that do not fit are deferred by execute_local.
+            if (current->cold_reads.full() || cold_window_headroom(*current) < kResponseHeaderBytes) {
+                break;
+            }
+        } else if (current->request_in_flight && current->mutations_in_flight == 0) {
             break;
         }
         // ADR 0037 Phase C: mutation windows are capped at the Writer publication chunk.
@@ -71,6 +74,10 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             decoded.frame.opcode != RequestOpcode::erase) {
             break;
         }
+        // An open cold-read window absorbs only GETs; anything else waits until it drains.
+        if (!current->cold_reads.empty() && decoded.frame.opcode != RequestOpcode::get) {
+            break;
+        }
         if (shutting_down_ && decoded.frame.opcode != RequestOpcode::health &&
             decoded.frame.opcode != RequestOpcode::ready && decoded.frame.opcode != RequestOpcode::stats) {
             // Connection drain refuses new work; lifecycle probes may still observe live/ready/stats.
@@ -102,7 +109,7 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             current->partial_request_since = {};
             return true;
         };
-        if (!lifecycle_probe && abuse_) {
+        if (!lifecycle_probe && abuse_ && !current->deferred_frame_charged) {
             if (!abuse_->try_admit_connection_request(current->connection_rate_window_start_ns,
                                                       current->connection_rate_used, now)) {
                 ResponseView refused{.status = ResponseStatus::overloaded,
@@ -301,11 +308,24 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             }
             immediate_response = false;
             const auto mutations_before_dispatch = current->mutations_in_flight;
+            const auto cold_reads_before_dispatch = current->cold_reads.pending_reads();
+            frame_deferred_ = false;
             if (auto dispatched = dispatch_request(token, decoded.frame, cached_now_ns); !dispatched) {
                 return dispatched;
             }
+            if (frame_deferred_) {
+                // The GET waits for a completion of this connection's cold-read window, which
+                // resumes parsing. Its abuse admission is already charged.
+                frame_deferred_ = false;
+                current->deferred_frame_charged = true;
+                cold_read_window_deferrals_.fetch_add(1U, std::memory_order_relaxed);
+                return {};
+            }
             if (current->mutations_in_flight > mutations_before_dispatch) {
-                new_mutations_admitted += current->mutations_in_flight - mutations_before_dispatch;
+                new_async_admitted += current->mutations_in_flight - mutations_before_dispatch;
+            }
+            if (current->cold_reads.pending_reads() > cold_reads_before_dispatch) {
+                new_async_admitted += 1U;
             }
             break;
         }
@@ -318,6 +338,7 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             }
         }
         current->input_offset += decoded.consumed;
+        current->deferred_frame_charged = false;
         touch_activity(*current, now);
         if (current->request_in_flight) {
             current->in_flight_since = now;
@@ -326,12 +347,17 @@ auto Reactor::process_frames(const ConnectionToken token, const std::uint32_t ne
             // the full publication-window budget. Keeping the budget local to
             // this turn prevents slow clients from reopening a 32-request
             // Writer window behind an EAGAIN-blocked response.
-            if (new_mutations_admitted >= new_mutation_admission_budget) {
+            if (new_async_admitted >= new_async_admission_budget) {
                 break;
             }
             // ADR 0037 Phase C: keep parsing PUT/ERASE into the open mutation window.
             if (current->mutations_in_flight > 0 && current->mutations_in_flight < kMaximumMutationWindow &&
                 current->input_offset < current->input.size()) {
+                continue;
+            }
+            // ADR 0045 §3: keep parsing GETs into the open cold-read window; the loop head
+            // enforces its slot and byte bounds.
+            if (!current->cold_reads.empty() && current->input_offset < current->input.size()) {
                 continue;
             }
             break;
@@ -443,7 +469,8 @@ auto Reactor::transfer_connection(const ConnectionToken token, const std::size_t
     current->write_armed = false;
     current->pipelined_store_input_observed = false;
     current->request_in_flight = false;
-    current->cold_read_in_flight = false;
+    current->cold_reads.clear();
+    current->deferred_frame_charged = false;
     current->last_activity = {};
     current->partial_request_since = {};
     current->in_flight_since = {};
@@ -494,7 +521,8 @@ auto Reactor::transfer_connection(const ConnectionToken token, const std::size_t
             current->write_armed = false;
             current->pipelined_store_input_observed = false;
             current->request_in_flight = false;
-            current->cold_read_in_flight = false;
+            current->cold_reads.clear();
+            current->deferred_frame_charged = false;
             current->close_after_flush = false;
             current->last_activity = {};
             current->partial_request_since = {};

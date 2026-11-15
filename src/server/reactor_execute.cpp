@@ -6,6 +6,7 @@
 #include "store/store_internal.hpp"
 #include "system_error.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <new>
 #include <span>
@@ -86,16 +87,42 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
         const auto value_budget = config_.maximum_output_bytes - kResponseHeaderBytes;
         auto record = detail::StoreAccess::prepare_published_durable_get(store_, executor_id_, *published,
                                                                          cached_now_ns, value_budget);
+        // ADR 0045 §3: while earlier cold reads of this connection are in flight, this GET
+        // takes an ordered slot. Whatever cannot be admitted now (window bytes, disk-read lane,
+        // lease) waits for the next completion instead of changing the outcome to OVERLOADED.
+        auto& window = current->cold_reads;
+        const bool window_open = !window.empty();
         if (!record) {
             response.status = reactor_detail::response_status(record.error());
         } else {
             auto& value = record->value;
             if (value) {
+                if (window_open) {
+                    const auto headroom = cold_window_headroom(*current);
+                    if (headroom < kResponseHeaderBytes ||
+                        value->bytes.size() > headroom - kResponseHeaderBytes) {
+                        frame_deferred_ = true;
+                        return {};
+                    }
+                }
                 owned_response = std::move(value).value();
                 response.value = owned_response.view();
                 owns_response_value = true;
             } else {
+                // Inline Records contain their value, so the Record size bounds the response.
+                const auto reserved_value_bytes =
+                    std::min<std::size_t>(value_budget, published->reference().size.value);
+                const auto reserved_bytes = kResponseHeaderBytes + reserved_value_bytes;
+                if (window_open &&
+                    (!window.can_append(reserved_bytes) || reserved_bytes > cold_window_headroom(*current))) {
+                    frame_deferred_ = true;
+                    return {};
+                }
                 if (disk_reads_outstanding_ >= config_.disk_read_queue_capacity) {
+                    if (window_open) {
+                        frame_deferred_ = true;
+                        return {};
+                    }
                     response.status = ResponseStatus::overloaded;
                     break;
                 }
@@ -104,8 +131,16 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
                     response.status = ResponseStatus::internal_error;
                     break;
                 }
+                if (!window_open && !window.prepare_storage()) {
+                    response.status = ResponseStatus::overloaded;
+                    break;
+                }
                 const auto generation_epoch = local_read_generation_->epoch();
                 if (!acquire_cold_read_lease(generation_epoch)) {
+                    if (window_open) {
+                        frame_deferred_ = true;
+                        return {};
+                    }
                     response.status = ResponseStatus::overloaded;
                     break;
                 }
@@ -120,7 +155,7 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
                                           .epoch = &cancellation_epoch,
                                           .expected = cancellation_epoch.load(std::memory_order_relaxed),
                                       },
-                                  .maximum_value_bytes = value_budget,
+                                  .maximum_value_bytes = reserved_value_bytes,
                                   .completions = &disk_read_completions_,
                                   .wakeup = &wakeup_};
                 ++disk_reads_outstanding_;
@@ -129,11 +164,20 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
                     if (!release_cold_read_lease(generation_epoch)) {
                         return fail(ErrorCode::corrupted_data, "cold-read lease accounting underflow");
                     }
+                    if (window_open) {
+                        frame_deferred_ = true;
+                        return {};
+                    }
                     response.status = ResponseStatus::overloaded;
                     break;
                 }
+                if (!window.admit_read(request.request_id, reserved_bytes)) {
+                    return fail(ErrorCode::corrupted_data, "cold-read window refused a checked admission");
+                }
+                if (window_open) {
+                    cold_reads_pipelined_.fetch_add(1U, std::memory_order_relaxed);
+                }
                 current->request_in_flight = true;
-                current->cold_read_in_flight = true;
                 return {};
             }
         }
@@ -277,33 +321,60 @@ auto Reactor::process_disk_read_completions() -> Status {
         if (current == nullptr) {
             continue;
         }
-        if (!current->request_in_flight) {
+        if (!current->request_in_flight || current->cold_reads.pending_reads() == 0) {
             return fail(ErrorCode::corrupted_data, "unexpected disk-read completion");
         }
-        current->request_in_flight = false;
-        current->in_flight_since = {};
-        current->cold_read_in_flight = false;
-        touch_activity(*current, std::chrono::steady_clock::now());
-        ResponseView response{.status = ResponseStatus::ok,
-                              .request_id = completion->request_id,
-                              .owner_worker = static_cast<std::uint32_t>(executor_id_),
-                              .worker_count = static_cast<std::uint32_t>(mesh_.size()),
-                              .routing_epoch = kRoutingEpoch};
-        Status queued;
+        HeldResponse decided{.status = ResponseStatus::ok,
+                             .request_id = completion->request_id,
+                             .owner_worker = static_cast<std::uint32_t>(executor_id_),
+                             .worker_count = static_cast<std::uint32_t>(mesh_.size()),
+                             .routing_epoch = kRoutingEpoch};
         if (completion->error) {
-            response.status = reactor_detail::response_status(*completion->error);
-            queued = queue_response(completion->connection, response);
+            decided.status = reactor_detail::response_status(*completion->error);
         } else if (completion->value) {
-            queued = queue_owned_response(completion->connection, response, std::move(*completion->value));
+            decided.value = std::move(*completion->value);
         } else {
-            response.status = ResponseStatus::internal_error;
-            queued = queue_response(completion->connection, response);
+            decided.status = ResponseStatus::internal_error;
         }
-        if (!queued) {
+        // One FIFO lane per Reactor completes a connection's reads in submission order.
+        if (!current->cold_reads.complete_read(completion->request_id, std::move(decided))) {
+            return fail(ErrorCode::corrupted_data,
+                        "disk-read completion does not match the oldest cold read");
+        }
+        const bool output_was_pending = has_pending_output(*current);
+        if (auto released = release_cold_read_responses(completion->connection); !released) {
             close_connection(completion->connection);
             continue;
         }
-        // Flush the decided response; write_ready processes pipelined input only
+        current = connection(completion->connection);
+        if (current == nullptr) {
+            continue;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (current->cold_reads.empty()) {
+            current->request_in_flight = false;
+            current->in_flight_since = {};
+        } else {
+            current->in_flight_since = now;
+        }
+        touch_activity(*current, now);
+        // As for mutation completions: resume buffered GETs only while the client keeps up,
+        // and admit at most one new cold read per completion.
+        if (!current->cold_reads.empty() && !output_was_pending && !current->output_lease &&
+            current->input_offset < current->input.size()) {
+            if (auto resumed = process_frames(completion->connection, 1U); !resumed) {
+                current = connection(completion->connection);
+                if (current == nullptr || (!has_pending_output(*current) && current->cold_reads.empty())) {
+                    close_connection(completion->connection);
+                    continue;
+                }
+                // A later malformed frame must not discard responses already decided.
+                current->close_after_flush = true;
+                current->input.clear();
+                current->input_offset = 0;
+            }
+        }
+        // Flush the decided responses; write_ready processes pipelined input only
         // after output fully drains. process_frames-on-EAGAIN discarded ACKs.
         if (auto flushed = write_ready(completion->connection); !flushed) {
             close_connection(completion->connection);
@@ -348,7 +419,7 @@ auto Reactor::process_mutation_completions() -> Status {
         if (current == nullptr) {
             continue;
         }
-        if (!current->request_in_flight || current->cold_read_in_flight ||
+        if (!current->request_in_flight || !current->cold_reads.empty() ||
             current->mutations_in_flight == 0) {
             return fail(ErrorCode::corrupted_data, "unexpected mutation completion");
         }

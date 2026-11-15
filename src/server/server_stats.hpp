@@ -26,6 +26,8 @@ struct ExecutorStats final {
     std::uint64_t input_buffer_bytes_moved{};
     std::uint64_t output_buffer_compactions{};
     std::uint64_t output_buffer_bytes_moved{};
+    std::uint64_t cold_reads_pipelined{};
+    std::uint64_t cold_read_window_deferrals{};
 };
 
 // Consistent point-in-time view used by ServerStatsReporter. Collection of

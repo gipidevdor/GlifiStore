@@ -95,6 +95,23 @@ Each admitted request reserves an ordered response slot and its maximum response
 existing connection output watermark; responses are emitted strictly in request order. Executor
 capacity, cancellation and connection lifetime rules of ADR 0016 are unchanged.
 
+Implementation rules:
+
+- The first cold read of a connection opens a window of up to 32 ordered slots. While the window is
+  open, the connection parses only GETs; any other opcode waits until the window drains, as a GET
+  waits for an open mutation window (ADR 0037).
+- Every GET in the window takes a slot. A response decided at once (resident hit, not found,
+  refusal) is held in its slot; a cold read reserves its header plus the smaller of its Record size
+  and the value budget. The Reactor's disk-read lane is FIFO, so completions arrive in slot order,
+  and the decided prefix of the window moves to the output buffer.
+- Output bytes plus slot reservations never exceed the output watermark. A GET that does not fit,
+  or finds the disk-read lane or lease table full, stays unparsed until the next completion of the
+  same connection. It is not refused: only the first cold read of a connection is answered
+  `OVERLOADED` when the lane is full, as before.
+- Closing the connection cancels every queued read of the window; late completions find a stale
+  token.
+- STATS reports `cold_reads_pipelined` and `cold_read_window_deferrals`.
+
 ### 4. Out of scope
 
 Public reads remain owning copies (ADR 0009). Per-GET admission and lease overhead, the blob-profile

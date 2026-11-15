@@ -12,6 +12,7 @@
 #include "glifistore/server/connection_token.hpp"
 #include "glifistore/server/disk_read_executor.hpp"
 #include "glifistore/server/mutation_window.hpp"
+#include "glifistore/server/ordered_response_window.hpp"
 #include "glifistore/server/pair_writer.hpp"
 #include "glifistore/server/poller.hpp"
 #include "glifistore/server/protocol.hpp"
@@ -213,6 +214,16 @@ class Reactor final {
         return output_buffer_bytes_moved_.load(std::memory_order_relaxed);
     }
 
+    /// Cold reads admitted while an earlier cold read of the same connection was in flight.
+    [[nodiscard]] auto cold_reads_pipelined() const noexcept -> std::uint64_t {
+        return cold_reads_pipelined_.load(std::memory_order_relaxed);
+    }
+
+    /// GETs that waited for a cold-read completion because the window, lane or watermark was full.
+    [[nodiscard]] auto cold_read_window_deferrals() const noexcept -> std::uint64_t {
+        return cold_read_window_deferrals_.load(std::memory_order_relaxed);
+    }
+
     [[nodiscard]] auto abuse_stats() const noexcept -> AbuseStats {
         return abuse_ ? abuse_->stats() : AbuseStats{};
     }
@@ -260,12 +271,17 @@ class Reactor final {
         /// pipelines Store requests, preserve overlap with the next cold read
         /// instead of serializing it behind a single scatter lease.
         bool pipelined_store_input_observed{};
-        /// At most one asynchronous Store request per connection preserves wire
-        /// response order unless an ADR 0037 mutation window is open (≤32 PUTs/ERASEs
-        /// before a GET barrier). GET and other barriers wait for the window to drain.
+        /// Set while asynchronous Store work is in flight: an ADR 0037 mutation window
+        /// (≤32 PUTs/ERASEs before a GET barrier) or an ADR 0045 cold-read window (≤32 GET
+        /// responses behind the oldest cold read). The two windows never overlap; any other
+        /// opcode waits for the open window to drain.
         bool request_in_flight{};
         std::uint32_t mutations_in_flight{};
-        bool cold_read_in_flight{};
+        /// Ordered GET responses while cold reads are in flight; empty otherwise.
+        OrderedResponseWindow cold_reads{};
+        /// The frame at input_offset was deferred after abuse admission charged it; the
+        /// retry must not charge it again.
+        bool deferred_frame_charged{};
         /// After BIND handoff rejection, keep the socket until OVERLOADED drains.
         bool close_after_flush{};
         std::chrono::steady_clock::time_point last_activity{};
@@ -299,7 +315,7 @@ class Reactor final {
     [[nodiscard]] auto read_ready(ConnectionToken token) -> Status;
     [[nodiscard]] auto write_ready(ConnectionToken token) -> Status;
     [[nodiscard]] auto process_frames(ConnectionToken token,
-                                      std::uint32_t new_mutation_admission_budget = kMaximumMutationWindow)
+                                      std::uint32_t new_async_admission_budget = kMaximumMutationWindow)
         -> Status;
     void prepare_input_append(Connection& current, std::size_t additional_bytes);
     void prepare_output_append(Connection& current, std::size_t additional_bytes);
@@ -322,6 +338,13 @@ class Reactor final {
     [[nodiscard]] auto queue_response(ConnectionToken token, const ResponseView& response) -> Status;
     [[nodiscard]] auto queue_owned_response(ConnectionToken token, ResponseView response, OwnedValue value,
                                             bool allow_pipelined_scatter = false) -> Status;
+    [[nodiscard]] auto append_response_output(ConnectionToken token, const ResponseView& response) -> Status;
+    [[nodiscard]] auto append_owned_response_output(ConnectionToken token, ResponseView response,
+                                                    OwnedValue value, bool allow_pipelined_scatter) -> Status;
+    [[nodiscard]] auto hold_response(Connection& current, const ResponseView& response, OwnedValue value)
+        -> Status;
+    [[nodiscard]] auto release_cold_read_responses(ConnectionToken token) -> Status;
+    [[nodiscard]] auto cold_window_headroom(const Connection& current) const noexcept -> std::size_t;
     [[nodiscard]] static auto has_pending_output(const Connection& connection) noexcept -> bool;
     [[nodiscard]] static auto pending_output_bytes(const Connection& connection) noexcept -> std::size_t;
     [[nodiscard]] auto connection(ConnectionToken token) noexcept -> Connection*;
@@ -378,6 +401,8 @@ class Reactor final {
     std::atomic_uint64_t input_buffer_bytes_moved_{};
     std::atomic_uint64_t output_buffer_compactions_{};
     std::atomic_uint64_t output_buffer_bytes_moved_{};
+    std::atomic_uint64_t cold_reads_pipelined_{};
+    std::atomic_uint64_t cold_read_window_deferrals_{};
     std::size_t disk_reads_outstanding_{};
     std::size_t mutations_outstanding_{};
     std::size_t mutation_bytes_outstanding_{};
@@ -385,6 +410,9 @@ class Reactor final {
     /// Store-entered mutation still owns the slot-pool head. Defer those releases
     /// until in-order release succeeds (still send OVERLOADED immediately).
     std::vector<std::uint32_t> deferred_mutation_payloads_;
+    /// Set by execute_local when a GET behind an open cold-read window must wait for a
+    /// completion (window bytes, disk-read lane or lease); the frame stays unconsumed.
+    bool frame_deferred_{};
     bool tcp_accept_pending_{};
     bool tls_accept_pending_{};
     bool shutting_down_{};

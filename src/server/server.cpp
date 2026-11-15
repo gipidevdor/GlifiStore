@@ -218,6 +218,8 @@ auto Server::stats_report() const -> Result<std::string> {
             .input_buffer_bytes_moved = reactor->input_buffer_bytes_moved(),
             .output_buffer_compactions = reactor->output_buffer_compactions(),
             .output_buffer_bytes_moved = reactor->output_buffer_bytes_moved(),
+            .cold_reads_pipelined = reactor->cold_reads_pipelined(),
+            .cold_read_window_deferrals = reactor->cold_read_window_deferrals(),
         });
     }
     if (!reactors_.empty()) {

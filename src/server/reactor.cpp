@@ -194,7 +194,9 @@ void Reactor::close_connection(const ConnectionToken token) noexcept {
         poller_removed = false;
     }
     static_cast<void>(poller_removed);
-    if (current->cold_read_in_flight) {
+    if (current->cold_reads.pending_reads() != 0) {
+        // Cancels every queued read of this connection; their completions still
+        // arrive in lane order and find a stale token.
         read_cancellation_epochs_[token.slot].fetch_add(1U, std::memory_order_release);
     }
     current->tls_handshake_pending = false;
@@ -218,7 +220,8 @@ void Reactor::close_connection(const ConnectionToken token) noexcept {
     current->mutations_in_flight = 0;
     current->mutation_window_count = 0;
     current->mutation_visibility.clear();
-    current->cold_read_in_flight = false;
+    current->cold_reads.clear();
+    current->deferred_frame_charged = false;
     current->close_after_flush = false;
     current->last_activity = {};
     current->partial_request_since = {};
@@ -435,7 +438,8 @@ auto Reactor::adopt_connection(ConnectionHandoff handoff) -> Status {
     current.mutations_in_flight = 0;
     current.mutation_window_count = 0;
     current.mutation_visibility.clear();
-    current.cold_read_in_flight = false;
+    current.cold_reads.clear();
+    current.deferred_frame_charged = false;
     current.close_after_flush = false;
     current.last_activity = handoff.last_activity.time_since_epoch().count() == 0
                                 ? std::chrono::steady_clock::now()
@@ -556,6 +560,21 @@ void Reactor::reject_orphaned_handoff(ConnectionHandoff handoff,
 }
 
 auto Reactor::queue_response(const ConnectionToken token, const ResponseView& response) -> Status {
+    auto* current = connection(token);
+    if (current == nullptr) {
+        return fail(ErrorCode::not_found, "response targets a stale connection");
+    }
+    if (!current->cold_reads.empty()) {
+        try {
+            return hold_response(*current, response, OwnedValue::from_bytes(response.value, 0, 0));
+        } catch (const std::bad_alloc&) {
+            return fail(ErrorCode::resource_exhausted, "held response allocation failed");
+        }
+    }
+    return append_response_output(token, response);
+}
+
+auto Reactor::append_response_output(const ConnectionToken token, const ResponseView& response) -> Status {
     GS_PHASE_TCP(encode);
     auto* current = connection(token);
     if (current == nullptr) {
@@ -607,6 +626,18 @@ auto Reactor::queue_owned_response(const ConnectionToken token, ResponseView res
     if (current == nullptr) {
         return fail(ErrorCode::not_found, "owned response targets a stale connection");
     }
+    if (!current->cold_reads.empty()) {
+        return hold_response(*current, response, std::move(value));
+    }
+    return append_owned_response_output(token, response, std::move(value), allow_pipelined_scatter);
+}
+
+auto Reactor::append_owned_response_output(const ConnectionToken token, ResponseView response,
+                                           OwnedValue value, const bool allow_pipelined_scatter) -> Status {
+    auto* current = connection(token);
+    if (current == nullptr) {
+        return fail(ErrorCode::not_found, "owned response targets a stale connection");
+    }
     response.value = value.view();
     // Hot in-memory reads can choose one bounded lease even with buffered input:
     // process_frames stops at the lease and resumes after sendmsg releases the
@@ -615,7 +646,7 @@ auto Reactor::queue_owned_response(const ConnectionToken token, ResponseView res
     const auto has_buffered_follow_up = current->input_offset < current->input.size();
     if (current->tls || value.bytes.size() < reactor_detail::kMinimumScatterValueBytes ||
         (!allow_pipelined_scatter && (has_buffered_follow_up || current->pipelined_store_input_observed))) {
-        return queue_response(token, response);
+        return append_response_output(token, response);
     }
     if (current->output_lease) {
         return fail(ErrorCode::corrupted_data, "connection already owns a scatter output lease");
@@ -653,6 +684,70 @@ auto Reactor::queue_owned_response(const ConnectionToken token, ResponseView res
     } catch (const std::bad_alloc&) {
         return fail(ErrorCode::resource_exhausted, "owned response queue allocation failed");
     }
+}
+
+auto Reactor::cold_window_headroom(const Connection& current) const noexcept -> std::size_t {
+    const auto pending = pending_output_bytes(current);
+    const auto reserved = current.cold_reads.reserved_bytes();
+    if (pending > config_.maximum_output_bytes || reserved > config_.maximum_output_bytes - pending) {
+        return 0;
+    }
+    return config_.maximum_output_bytes - pending - reserved;
+}
+
+auto Reactor::hold_response(Connection& current, const ResponseView& response, OwnedValue value) -> Status {
+    // The value view in `response` may borrow `value`; size it before the move.
+    const ResponseView sized{.status = response.status,
+                             .request_id = response.request_id,
+                             .owner_worker = response.owner_worker,
+                             .worker_count = response.worker_count,
+                             .routing_epoch = response.routing_epoch,
+                             .value = value.view()};
+    auto encoded_size = encoded_response_size(sized);
+    if (!encoded_size) {
+        return unexpected(encoded_size.error());
+    }
+    // process_frames keeps room for a header-only response and execute_local defers value
+    // responses that do not fit, so this refusal only guards the accounting.
+    if (*encoded_size > cold_window_headroom(current)) {
+        return fail(ErrorCode::record_too_large, "connection output high watermark exceeded");
+    }
+    HeldResponse held{.status = response.status,
+                      .request_id = response.request_id,
+                      .owner_worker = response.owner_worker,
+                      .worker_count = response.worker_count,
+                      .routing_epoch = response.routing_epoch,
+                      .value = std::move(value)};
+    if (!current.cold_reads.hold(std::move(held), *encoded_size)) {
+        return fail(ErrorCode::corrupted_data, "cold-read window refused a checked response");
+    }
+    return {};
+}
+
+auto Reactor::release_cold_read_responses(const ConnectionToken token) -> Status {
+    auto* current = connection(token);
+    if (current == nullptr) {
+        return {};
+    }
+    while (auto released = current->cold_reads.pop_decided()) {
+        auto view = released->response.view();
+        Status appended;
+        if (current->cold_reads.empty() && !released->response.value.bytes.empty()) {
+            // The last response of the window may take the legacy scatter lease.
+            appended = append_owned_response_output(token, view, std::move(released->response.value), false);
+        } else {
+            // A lease would block the responses still held behind this one.
+            appended = append_response_output(token, view);
+        }
+        if (!appended) {
+            return appended;
+        }
+        current = connection(token);
+        if (current == nullptr) {
+            return {};
+        }
+    }
+    return {};
 }
 
 auto Reactor::update_connection_interest(const ConnectionToken token) -> Status {

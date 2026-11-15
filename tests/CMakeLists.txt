@@ -174,6 +174,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/unit/mutation_lifecycle_property_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/shard_combining_executor_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/mutation_window_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/ordered_response_window_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/maintenance_controller_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/maintenance_controller_pressure_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/maintenance_controller_emergency_gate_tests.cpp
@@ -246,6 +247,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_mutation_window_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_durable_lifecycle_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_durable_wire_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_cold_window_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_security_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_limits_timeout_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/store_tests.cpp

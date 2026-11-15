@@ -142,6 +142,8 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
         std::uint64_t input_buffer_bytes_moved{};
         std::uint64_t output_buffer_compactions{};
         std::uint64_t output_buffer_bytes_moved{};
+        std::uint64_t cold_reads_pipelined{};
+        std::uint64_t cold_read_window_deferrals{};
         for (const auto& executor : snapshot.executors) {
             connections_active += executor.active_connections;
             connections_adopted += executor.adopted_connections;
@@ -153,6 +155,8 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
             input_buffer_bytes_moved += executor.input_buffer_bytes_moved;
             output_buffer_compactions += executor.output_buffer_compactions;
             output_buffer_bytes_moved += executor.output_buffer_bytes_moved;
+            cold_reads_pipelined += executor.cold_reads_pipelined;
+            cold_read_window_deferrals += executor.cold_read_window_deferrals;
         }
         out += "connections_active=";
         out += std::to_string(connections_active);
@@ -183,6 +187,12 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
         out += '\n';
         out += "output_buffer_bytes_moved=";
         out += std::to_string(output_buffer_bytes_moved);
+        out += '\n';
+        out += "cold_reads_pipelined=";
+        out += std::to_string(cold_reads_pipelined);
+        out += '\n';
+        out += "cold_read_window_deferrals=";
+        out += std::to_string(cold_read_window_deferrals);
         out += '\n';
         out += "abuse_accepts_rejected=";
         out += std::to_string(snapshot.abuse.accepts_rejected);
