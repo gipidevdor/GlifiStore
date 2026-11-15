@@ -16,7 +16,7 @@ and the [performance budgets](../assurance/performance-budgets.md) define the re
 
 | Date | Record | Verdict |
 | --- | --- | --- |
-| 2026-11-15 | [Resident durable reads against ADR 0045](resident-durable-reads-2026-11-15.md) | Two of five targets met |
+| 2026-11-15 | [Resident durable reads against ADR 0045](resident-durable-reads-2026-11-15.md) | Three of five targets met |
 | 2026-08-25 | [Reactor sliding input buffer](reactor-sliding-input-2026-08-25.md) | Accepted signal, not a release gate |
 | 2026-08-01 | [Paired embedded Store gates](paired-embedded-store-gates-2026-08-01.md) | ADR 0032 default verified |
 | 2026-07-31 | [Delta directory-chunk COW](paired-delta-directory-chunks-2026-07-31.md) | Accepted; magnitude mixed on macOS |

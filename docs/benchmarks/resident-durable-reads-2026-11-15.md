@@ -18,7 +18,7 @@ Segment file through the page cache.
 | --- | --- | --- |
 | Embedded resident GET ≥ 90% of volatile | 61% | Not met |
 | Daemon resident GET-only, pipeline 32, ≥ 80% of volatile | 75% (1 pair), 78% (4 pairs) | Not met |
-| Fully cold daemon GET grows with pipeline depth | +16–26% from pipeline 8 to 128 (volatile: 8–9×) | Not met in substance |
+| Fully cold daemon GET grows with pipeline depth | 3× from pipeline 8 to 32 with cold-read pipelining (1 pair) | Met, see [cold-read pipelining](#cold-read-pipelining) |
 | Durable PUT not regressed | 9.03 µs resident, 9.07 µs cold | Met |
 | RSS reported against the reserve | +11 MiB for 100,000 Records, reserve 1 GiB | Reported |
 
@@ -49,10 +49,9 @@ Up to pipeline 8 resident matches volatile. The gap opens where the Reader threa
 top of the value copy, a resident GET decodes and validates the Record (CRC32C, identity, key and
 expiry) and builds an owned response. Which part dominates is not profiled yet.
 
-The cold path saturates near one read per connection. Each connection keeps a single cold read in
-flight and stops decoding until it completes, so its rate is bounded by one read's round trip
-through the disk-read lane. ADR 0045 §3 decides up to 32 cold reads in flight per connection with
-ordered response slots; that is not implemented yet.
+In this first campaign the cold path saturated near one read per connection: each connection kept a
+single cold read in flight and stopped decoding until it completed. The cold column above predates
+the fix measured in [cold-read pipelining](#cold-read-pipelining).
 
 ## Embedded GET
 
@@ -71,10 +70,31 @@ one thread, two warmups, three runs.
 per PUT (median of run medians). Mirroring the Record into the image costs less than run-to-run
 noise. Peak RSS was 53.5 MiB resident and 42.6 MiB cold.
 
+## Cold-read pipelining
+
+Source `7524a4f` (ADR 0045 §3: up to 32 ordered response slots per connection) against the previous
+commit `8b461c0`, same shape, `--cold-reads`. The two binaries alternated cell by cell in two rounds;
+the host was loaded by other work during the first cells, so pipeline 1 is shown only as A/B.
+
+| Pairs | Pipeline | Before | After |
+| ---: | ---: | ---: | ---: |
+| 1 | 1 | 25 k | 24–26 k |
+| 1 | 32 | 47–48 k | 229–251 k |
+| 4 | 32 | 111–116 k | 299–313 k |
+
+One pass of the full cold matrix with the new binary:
+
+| Pairs | Pipeline 8 | Pipeline 32 | Pipeline 128 |
+| ---: | ---: | ---: | ---: |
+| 1 | 78 k | 234 k | 212 k |
+| 4 | 226 k | 331 k | 366 k |
+
+The cold rate now grows with pipeline depth up to the 32-slot window. Beyond it, one pair stays near
+its single disk-read lane rate. Resident GET is unchanged within noise (pipeline 32: 642–672 k
+before, 658–668 k after with one pair; 2.06 M and 2.05–2.12 M with four).
+
 ## Follow-ups
 
-1. Cold-read pipelining per connection (ADR 0045 §3), with ordered responses, cancellation and the
-   output watermark.
-2. Profile the resident GET (Record validation, owned copy, pin) against volatile, embedded and in
+1. Profile the resident GET (Record validation, owned copy, pin) against volatile, embedded and in
    the daemon, and remove what is not required by the read contract.
-3. The same cells on the labeled Linux runner, retained as evidence.
+2. The same cells on the labeled Linux runner, retained as evidence.

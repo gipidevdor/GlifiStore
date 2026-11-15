@@ -52,6 +52,9 @@ requirements:
   - >-
     ADR 0045 targets measured locally only (2026-11-15): resident GET is 61% of volatile embedded and
     75-78% in the daemon at pipeline 32, below the 90% and 80% targets
+  - >-
+    Cold daemon GET grows with pipeline depth up to the 32-slot window, then stays near one
+    disk-read lane per pair (about 230-250 k/s per pair at pipeline 32, local)
   - A paged-out image page faults on the Reader thread like a paged Index page
   - Resident reads do not re-detect later on-disk corruption (HAZ-042)
   hazards: [HAZ-042]

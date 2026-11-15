@@ -195,10 +195,11 @@ Local evidence (architectural prototype, not release evidence):
 - benchmark: the ADR 0045 set, embedded and daemon, with and without `--cold-reads`
   ([2026-11-15 record](../benchmarks/resident-durable-reads-2026-11-15.md); local, not release
   evidence). PUT is not regressed; resident GET reaches 61% of volatile embedded and 75–78% in the
-  daemon at pipeline 32, below the 90% and 80% targets; cold GET barely grows with pipeline depth
-  because per-connection cold-read pipelining (ADR 0045 §3) is not implemented.
+  daemon at pipeline 32, below the 90% and 80% targets. With per-connection cold-read pipelining
+  (ADR 0045 §3) cold GET grows with pipeline depth: 47 k to about 240 k/s at pipeline 32 with one
+  pair.
 
-Still required before acceptance: the two GET targets and cold-read pipelining, the same
+Still required before acceptance: the two resident GET targets, the same
 measurements on the Linux runner, and the concurrency proofs retained as CI evidence on every
 platform row.
 
