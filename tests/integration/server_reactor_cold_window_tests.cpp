@@ -374,13 +374,14 @@ GLIFI_TEST("resident GET responses wait behind earlier cold GETs on the same con
     GLIFI_REQUIRE(no_response_buffered(socket));
 
     blocker.release();
-    require_responses(socket,
-                      {
-                          {.request_id = 61, .status = ResponseStatus::ok, .value = expected_value(0, kLargeValueBytes)},
-                          {.request_id = 62, .status = ResponseStatus::ok, .value = "hot-value"},
-                          {.request_id = 63, .status = ResponseStatus::ok, .value = expected_value(1, kLargeValueBytes)},
-                          {.request_id = 64, .status = ResponseStatus::ok, .value = "hot-value"},
-                      });
+    require_responses(
+        socket,
+        {
+            {.request_id = 61, .status = ResponseStatus::ok, .value = expected_value(0, kLargeValueBytes)},
+            {.request_id = 62, .status = ResponseStatus::ok, .value = "hot-value"},
+            {.request_id = 63, .status = ResponseStatus::ok, .value = expected_value(1, kLargeValueBytes)},
+            {.request_id = 64, .status = ResponseStatus::ok, .value = "hot-value"},
+        });
 
     static_cast<void>(::close(socket));
     server.request_stop();
