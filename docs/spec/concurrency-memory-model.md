@@ -134,6 +134,11 @@ tearing down generations and Writer threads.
 
 No operation may retain a raw pointer into the Store after releasing its admission token.
 
+ADR 0048 permits a volatile TCP GET to borrow validated Record spans within its exact adopted
+generation's Reader lease. Small responses are copied synchronously into the connection's owning
+output buffer before `execute_local` returns. No borrowed span escapes into held responses, async
+tasks or socket output leases. Large scatter responses and public Store reads remain owning.
+
 ## 7. Linearization points
 
 | Operation | Linearization point |

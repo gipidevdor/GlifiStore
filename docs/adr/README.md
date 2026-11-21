@@ -52,6 +52,7 @@ Removed: 0018 (replaced by 0031), 0035 (rejected; see
 | ADR | Decision | Status | Notes |
 | --- | --- | --- | --- |
 | [0031](paired-reader-writer-shards.md) | Mandatory paired Reader–Writer shards | accepted | amended by 0032, 0037 |
+| [0048](0048-volatile-tcp-response-borrow.md) | Encode small volatile TCP values within a generation lease | accepted | reduces copies; HAZ-045 stays open |
 | [0032](0032-paired-concurrency-embedded-store.md) | Paired concurrency for the embedded Store | accepted | |
 | [0037](0037-shard-execution-token-flat-combining.md) | Shard execution token and flat combining | accepted | |
 | [0005](0005-worker-auto-sizing.md) | Creation-time Worker sizing | accepted | amended by 0024, 0031 |

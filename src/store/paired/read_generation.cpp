@@ -41,10 +41,21 @@ PairReadGeneration::PairReadGeneration(const WorkerRoutingState routing,
       visible_through_(visible_through) {}
 
 auto PairReadGeneration::get(const HashedKey& key, const std::uint64_t now_ns) const -> Result<OwnedValue> {
+    auto decoded = get_volatile_view(key, now_ns);
+    if (!decoded) {
+        return unexpected(std::move(decoded.error()));
+    }
+    GS_PHASE_GET(value_copy);
+    return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns,
+                                  decoded->type);
+}
+
+auto PairReadGeneration::get_volatile_view(const HashedKey& key, const std::uint64_t now_ns) const
+    -> Result<RecordView> {
     GS_PHASE_GET(index_lookup);
     const auto* delta_record = delta_->find(key);
     if (delta_record == nullptr) {
-        return base_->get(key, now_ns);
+        return base_->get_volatile_view(key, now_ns);
     }
     const auto record = delta_record_view(*delta_record, key.hash);
     if (record.opcode == Opcode::erase) {
@@ -63,9 +74,7 @@ auto PairReadGeneration::get(const HashedKey& key, const std::uint64_t now_ns) c
     if (decoded->expired(now_ns)) {
         return fail(ErrorCode::not_found, "key not found");
     }
-    GS_PHASE_GET(value_copy);
-    return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns,
-                                  decoded->type);
+    return decoded;
 }
 
 auto PairReadGeneration::prepare_durable(const HashedKey& key) const

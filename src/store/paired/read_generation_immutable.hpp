@@ -71,7 +71,8 @@ class ImmutableReadIndex final {
         return nullptr;
     }
 
-    [[nodiscard]] auto get(const HashedKey& key, const std::uint64_t now_ns) const -> Result<OwnedValue> {
+    [[nodiscard]] auto get_volatile_view(const HashedKey& key, const std::uint64_t now_ns) const
+        -> Result<RecordView> {
         const auto* record = find(key);
         if (record == nullptr || record->opcode() == Opcode::erase) {
             return fail(ErrorCode::not_found, "key not found");
@@ -103,8 +104,7 @@ class ImmutableReadIndex final {
         if (decoded->expired(now_ns)) {
             return fail(ErrorCode::not_found, "key not found");
         }
-        return OwnedValue::from_bytes(decoded->value, decoded->sequence.value, decoded->expire_at_ns,
-                                      decoded->type);
+        return decoded;
     }
 
     [[nodiscard]] auto prepare_durable(const HashedKey& key) const

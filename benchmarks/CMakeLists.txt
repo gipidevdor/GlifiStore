@@ -169,6 +169,14 @@ if(GLIFISTORE_BUILD_BENCHMARKS)
             COMMAND glifistore_tests "owner workload"
         )
         add_test(
+            NAME glifistore_benchmark_owner_generation
+            COMMAND glifistore_tests "paired read generation"
+        )
+        add_test(
+            NAME glifistore_benchmark_owner_response
+            COMMAND glifistore_tests "volatile GET output"
+        )
+        add_test(
             NAME glifistore_benchmark_owner_profiles
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/owner_capacity_report.py"
                 check-binary "$<TARGET_FILE:glifistore_server_benchmarks>"

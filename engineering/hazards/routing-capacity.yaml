@@ -12,12 +12,16 @@ hazards:
   rilevabilita: alta
   prevenzione:
   - No dynamic balancing mechanism is implemented; a solution remains to be studied
+  - ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease
   contenimento:
   - Bounded lanes constrain queued work but do not redistribute it
   prove:
   - tests/unit/benchmark_owner_workload_tests.cpp
   - scripts/tests/test_owner_capacity_report.py
+  - tests/unit/pair_read_generation_tests.cpp
+  - tests/integration/server_reactor_mutation_window_tests.cpp
   - engineering/evidence/owner-capacity-local-2026-11-21/README.md
+  - engineering/evidence/hot-reader-copy-local-2026-11-21/README.md
   rischio_residuo: >-
     Open capacity limitation. The retained local Release exploration on 2026-11-21 compares
     75 and 90 percent finite total-work allocations with balanced client bindings. It validates
@@ -26,10 +30,12 @@ hazards:
     CPUs and remain oversubscription sensitivity observations. Single-hot-key contention,
     per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending.
     A shard pair is not a single CPU core. Offline migration is not runtime balancing and does
-    not by itself resolve a single hot key. Compaction sustainability remains a separate question.
+    not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a
+    reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime
+    redistribution or a general tail-latency improvement. Compaction sustainability remains separate.
   stato: aperto
-  accettazione_rischio: Not accepted for release; problem recorded only, solution deferred
-  requisiti: [GS-CONCUR-PAIR-001, GS-PERF-OWNER-001]
+  accettazione_rischio: Not accepted for release; fixed-owner capacity limit remains unresolved
+  requisiti: [GS-CONCUR-PAIR-001, GS-PERF-OWNER-001, GS-PERF-VREAD-001]
 - id: HAZ-046
   evento_pericoloso: Client routing mismatch rejects requests without server-side forwarding
   cause:

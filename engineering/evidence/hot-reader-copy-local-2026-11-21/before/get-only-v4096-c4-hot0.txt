@@ -1,0 +1,64 @@
+# glifistore TCP server benchmark
+# git_sha=f1e07b5-dirty
+# arch=arm64
+# platform=macos
+# compiler=Apple LLVM 21.0.0 (clang-2100.4.1.1)
+# benchmark_warmup=1
+# benchmark_repeats=7
+# note=use plugged-in power; thermal throttling affects spread
+# cpu_pin_requested=0
+# cpu_pin_applied=0
+# client_mode=raw-wire
+# execution_scope=same-process-loopback
+# timed_thread_model=client-threads+one-reactor+one-writer-per-worker
+# timed_foreground_thread_floor=8
+# pipeline=32
+# routing=owner-bound-connections
+# owner_profile_version=1
+# owner_profile_scope=per-repeat-finite-closed-loop;not-fixed-offered-load
+# owner_window_scope=shared-start-to-last-client-completion
+# owner_latency_scope=get-responses
+# hot_worker=0
+# hot_worker_clients=0
+# traffic_scope=timed-protocol-frames-excluding-init-bind
+# memory_scope=whole-benchmark-process-rss
+# storage_mode=volatile
+# durable_reads=none
+# workload=get_only
+# durable_profile_scope=median-per-sample-averages-and-cross-sample-maxima
+# durable_commit_metric=batch-commit-boundary;unbatched-sync-reports-zero
+# group_max_records=32
+# group_max_bytes=65536
+# group_max_wait_ms=10
+# periodic_sync_ms=1000
+# maintenance_suspend_on_p99_latency_ms=0
+# maintenance_suspend_on_p99_min_samples=32
+# maintenance_max_latency_deferral_ms=30000
+# maintenance_overlap_seed_operations=0
+# maintenance_overlap_seed_keys=128
+# maintenance_overlap_seed_value_bytes=262144
+# maintenance_overlap_seed_worker=0
+# maintenance_overlap_eval_ms=250
+# maintenance_overlap_release_ms=500
+# durable_mutation_queue_wait_ms=0
+# executor_affinity_requested=0
+# latency_measurement=pipelined-response
+# latency_sample_stride=1
+# latency_split=0
+# executor_affinity_semantics=mach-advisory
+owner_profile repeat=0 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.154466 first_client_done_seconds=0.15401 completion_window_seconds=0.154448 owner_window_ops_per_second=323733 latency_samples=50000 p50_latency_ns=154250 p95_latency_ns=207625 p99_latency_ns=228666 p999_latency_ns=264292 max_latency_ns=353208
+owner_profile repeat=0 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.154466 first_client_done_seconds=0.154351 completion_window_seconds=0.154406 owner_window_ops_per_second=323823 latency_samples=50000 p50_latency_ns=154959 p95_latency_ns=207208 p99_latency_ns=227084 p999_latency_ns=259458 max_latency_ns=330583
+owner_profile repeat=1 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155868 first_client_done_seconds=0.155438 completion_window_seconds=0.155671 owner_window_ops_per_second=321189 latency_samples=50000 p50_latency_ns=156750 p95_latency_ns=209167 p99_latency_ns=232791 p999_latency_ns=260833 max_latency_ns=288208
+owner_profile repeat=1 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155868 first_client_done_seconds=0.154945 completion_window_seconds=0.155848 owner_window_ops_per_second=320825 latency_samples=50000 p50_latency_ns=155459 p95_latency_ns=208583 p99_latency_ns=233834 p999_latency_ns=272167 max_latency_ns=359791
+owner_profile repeat=2 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155426 first_client_done_seconds=0.155008 completion_window_seconds=0.155407 owner_window_ops_per_second=321737 latency_samples=50000 p50_latency_ns=155416 p95_latency_ns=208917 p99_latency_ns=232708 p999_latency_ns=263000 max_latency_ns=296875
+owner_profile repeat=2 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155426 first_client_done_seconds=0.154783 completion_window_seconds=0.155325 owner_window_ops_per_second=321905 latency_samples=50000 p50_latency_ns=155625 p95_latency_ns=207958 p99_latency_ns=230625 p999_latency_ns=265083 max_latency_ns=309583
+owner_profile repeat=3 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155713 first_client_done_seconds=0.154623 completion_window_seconds=0.154921 owner_window_ops_per_second=322745 latency_samples=50000 p50_latency_ns=154791 p95_latency_ns=206708 p99_latency_ns=227333 p999_latency_ns=260625 max_latency_ns=301583
+owner_profile repeat=3 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155713 first_client_done_seconds=0.155614 completion_window_seconds=0.155698 owner_window_ops_per_second=321134 latency_samples=50000 p50_latency_ns=156209 p95_latency_ns=209208 p99_latency_ns=231167 p999_latency_ns=267541 max_latency_ns=336875
+owner_profile repeat=4 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155532 first_client_done_seconds=0.154499 completion_window_seconds=0.154535 owner_window_ops_per_second=323552 latency_samples=50000 p50_latency_ns=154834 p95_latency_ns=205833 p99_latency_ns=226708 p999_latency_ns=251500 max_latency_ns=306667
+owner_profile repeat=4 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.155532 first_client_done_seconds=0.155265 completion_window_seconds=0.155516 owner_window_ops_per_second=321509 latency_samples=50000 p50_latency_ns=156375 p95_latency_ns=208250 p99_latency_ns=231000 p999_latency_ns=271625 max_latency_ns=330667
+owner_profile repeat=5 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.156082 first_client_done_seconds=0.15472 completion_window_seconds=0.156062 owner_window_ops_per_second=320386 latency_samples=50000 p50_latency_ns=155750 p95_latency_ns=207583 p99_latency_ns=230458 p999_latency_ns=259500 max_latency_ns=293125
+owner_profile repeat=5 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.156082 first_client_done_seconds=0.154818 completion_window_seconds=0.155567 owner_window_ops_per_second=321406 latency_samples=50000 p50_latency_ns=155500 p95_latency_ns=208000 p99_latency_ns=228667 p999_latency_ns=257208 max_latency_ns=305375
+owner_profile repeat=6 owner=0 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.15528 first_client_done_seconds=0.154653 completion_window_seconds=0.154673 owner_window_ops_per_second=323263 latency_samples=50000 p50_latency_ns=154792 p95_latency_ns=209167 p99_latency_ns=232500 p999_latency_ns=259333 max_latency_ns=279375
+owner_profile repeat=6 owner=1 clients=2 planned_operations=50000 planned_gets=50000 planned_puts=0 completed_operations=50000 sample_seconds=0.15528 first_client_done_seconds=0.155182 completion_window_seconds=0.155259 owner_window_ops_per_second=322043 latency_samples=50000 p50_latency_ns=155750 p95_latency_ns=209417 p99_latency_ns=230250 p999_latency_ns=259042 max_latency_ns=302333
+name=server_tcp_get_only_volatile key_size=16 value_size=4096 workers=2 threads=4 distribution=owner-bound random=0 operations=100000 hits=100000 samples=7 warmup=1 median_seconds=0.155532 min_seconds=0.154466 max_seconds=0.156082 median_ops_per_second=642955 min_ops_per_second=640687 max_ops_per_second=647390 median_ns_per_op=1555.32 min_ns_per_op=1544.66 max_ns_per_op=1560.82 median_rss_bytes=8.81803e+08 min_rss_bytes=8.78608e+08 max_rss_bytes=8.87538e+08 median_rss_delta_bytes=0 peak_rss_bytes=8.88062e+08 ingress_bytes=5600000 egress_bytes=413600000 median_ingress_bytes_per_second=3.60055e+07 min_ingress_bytes_per_second=3.58785e+07 max_ingress_bytes_per_second=3.62539e+07 median_egress_bytes_per_second=2.65926e+09 min_egress_bytes_per_second=2.64988e+09 max_egress_bytes_per_second=2.67761e+09 median_duplex_bytes_per_second=2.69527e+09 min_duplex_bytes_per_second=2.68576e+09 max_duplex_bytes_per_second=2.71386e+09 latency_samples=700000 p50_latency_ns=155458 p95_latency_ns=208125 p99_latency_ns=230292 p999_latency_ns=262792 median_durable_queue_wait_ns=0 maximum_durable_queue_wait_ns=2.12471e+06 median_durable_service_ns=0 maximum_durable_service_ns=2.121e+06 median_durable_commit_ns=0 maximum_durable_commit_ns=0 median_durable_batch_records=0 maximum_durable_batch_records=0 durable_completed=0 durable_rejected=0 durable_expired=0 durable_committed_batches=0 durable_committed_records=0 durable_committed_bytes=0 durable_failed_batches=0 durable_maximum_queue_depth=32 durable_maximum_queued_bytes=135680 durable_pending_records=0 durable_pending_bytes=0 durable_record_limit_closes=0 durable_byte_limit_closes=0 durable_adaptive_target_closes=0 durable_deadline_closes=0 median_paired_writer_batch_records=0 median_paired_writer_batch_wait_ns=0 maximum_paired_writer_batch_wait_ns=8959 paired_writer_batches=0 paired_writer_batch_records=0 paired_writer_durability_deadline_closes=0 paired_writer_queue_deadline_closes=0 paired_sync_turn_splits=0 paired_sync_async_fairness_turns=0 paired_publications=0 paired_publication_records=0 paired_completion_notifications=0 median_reactor_input_buffer_compactions=1594 maximum_reactor_input_buffer_compactions=1594 median_reactor_input_buffer_bytes_moved=2.01319e+08 maximum_reactor_input_buffer_bytes_moved=2.01319e+08 median_reactor_output_buffer_compactions=0 maximum_reactor_output_buffer_compactions=0 median_reactor_output_buffer_bytes_moved=0 maximum_reactor_output_buffer_bytes_moved=0
+latency_extras max_latency_ns=359791

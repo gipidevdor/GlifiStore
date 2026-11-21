@@ -66,13 +66,20 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
         }
         current->mutation_visibility.clear();
         if (!durable_store_) {
-            auto record = local_read_generation_->get(key, cached_now_ns);
+            auto record = local_read_generation_->get_volatile_view(key, cached_now_ns);
             if (!record) {
                 response.status = reactor_detail::response_status(record.error());
             } else {
-                owned_response = std::move(*record);
-                response.value = owned_response.view();
-                owns_response_value = true;
+                if (record->value.size() >= reactor_detail::kMinimumPipelinedScatterValueBytes) {
+                    owned_response = OwnedValue::from_bytes(record->value, record->sequence.value,
+                                                            record->expire_at_ns, record->type);
+                    response.value = owned_response.view();
+                    owns_response_value = true;
+                } else {
+                    // The Reader lease protects these bytes until queue_response copies them into
+                    // owning output below. No adoption, quiescence or asynchronous handoff intervenes.
+                    response.value = record->value;
+                }
             }
             break;
         }

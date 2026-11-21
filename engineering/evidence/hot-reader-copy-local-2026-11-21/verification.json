@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "raw_sha256": {
+    "before/get-only-v64-c4-hot0.txt": "7c241ab0abc3bafab93aec0e53baa15328cb7a1dfde06d3a854bcce6e6300083",
+    "before/get-only-v64-c4-hot3.txt": "f7bb889b2f0e23271825ff2531c8e233d097b51a64486aea02aa9e21b8c0a601",
+    "before/get-only-v1024-c4-hot0.txt": "85b8e89fc6e7be3a01c81a83fb0bee971878b6821c09dfdb7ec87082aaad77df",
+    "before/get-only-v1024-c4-hot3.txt": "7cde329bacee3984504a992b2242a77e13c83acb7219eb51bdd2dbab3d086da0",
+    "before/get-only-v4096-c4-hot0.txt": "eb35945b7b2b20c5957cc1726eb5fd819414978b8c965ccc1c099710f068d102",
+    "before/get-only-v4096-c4-hot3.txt": "912d792744b7a79c9558ce8e68298956f31b4534456349f480986e9a6bbded3b",
+    "before/get-only-v64-c10-hot9.txt": "22c410dcbcc2ed6ea96bba52a31a83bd61bb9eab13e92a20f92f3adeb27ddc14",
+    "before/read-after-write-v64-c4-hot3.txt": "ad83bf4f32b9e0b8b5e3d250f733c68a81424753e2cf0ad89066065fce3ee8e7",
+    "after/get-only-v64-c4-hot0.txt": "86f2d85476d40ced406ecffcd4a8fd4f1beda10e6e35d9525a93ebd855d4ee46",
+    "after/get-only-v64-c4-hot3.txt": "4eebd517d38b581a064a09bd9b4c1093561a746362e410ef09ed51cba80ddcfc",
+    "after/get-only-v1024-c4-hot0.txt": "3c1bc626e66e4f45a5f5ec0456fb105a1aa1044576286d0b3401ebfb2fcce09f",
+    "after/get-only-v1024-c4-hot3.txt": "355642ade2ac6ad21b8aa110945f0fdde7f2b2335f7ed593ab92b58c627e6452",
+    "after/get-only-v4096-c4-hot0.txt": "302355751ceb619982be4b2e292ee90cc947f5ef6e564a271763312dc74b2616",
+    "after/get-only-v4096-c4-hot3.txt": "6f9b8ab52c7b3bd7aceee8e6c051ee602206351f77f96d400e24a08049858fd3",
+    "after/get-only-v64-c10-hot9.txt": "ec5e71d479eae08ee70b621563f214c87edeaeac51d3aad2075ef77ae323e972",
+    "after/read-after-write-v64-c4-hot3.txt": "f7b7946810b486710451820fe6049215b346cfd96b23f5b492c9ba9df73f9b98",
+    "control/get-only-v64-c4-hot0.txt": "f452000f55b9a8d8c85c59de576e1313fea459b7e8f869d6ffb6a325ad3c685a",
+    "control/get-only-v64-c4-hot3.txt": "5cac4f6a5bc392a6cb39d56c633be4e03d3c423352ef2b393dd7f8ed86ab4d25",
+    "control/get-only-v1024-c4-hot0.txt": "0c9d385e8d0e21b65ae575456bf47bef85c871d586cb4e26473b0010f6e28873",
+    "control/get-only-v1024-c4-hot3.txt": "ff7da54c832f0dfd8ed2de019572e2f29196ec3155900f67c8366f0eff727a6e",
+    "control/get-only-v4096-c4-hot0.txt": "2945d64e47f586f999038144dddd562b0e1cae0999ba9fb550301eaf34496353",
+    "control/get-only-v4096-c4-hot3.txt": "23fb88e07614b6dc8875b58bfe58062683efdebfd687090f74145344623458e2",
+    "control/get-only-v64-c10-hot9.txt": "02318aa6d77e2a914b06201a79a50d774122fe08de74fce63d25de017394b9c3",
+    "control/read-after-write-v64-c4-hot3.txt": "4b7bd07bcea75d05fe6c3d569a706f6984d57aab692d423c05fd2d26425eeb0f"
+  },
+  "validator_sha256": {
+    "scripts/owner_capacity_report.py": "c6c278634e18216c6a9c71707cc0bffe89dd577228ac8e82ee2500860ec3b1ec",
+    "scripts/benchmark_report.py": "c10c12e7c46966f15195773b5fb92ccf56c686ca530373b2f5a907811b8700c1"
+  },
+  "status": "24 complete profiles passed strict validation; candidate measurement inputs unchanged; 788 native tests and all 8 selected CTest groups passed; allocation harness passed; 9 ASan/UBSan tests passed; 474 script and 3 metadata tests passed",
+  "human_approval": "NOT_VERIFIED",
+  "hazards": "HAZ-045/046 remain OPEN"
+}

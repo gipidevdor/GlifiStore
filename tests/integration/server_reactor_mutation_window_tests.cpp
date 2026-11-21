@@ -1,6 +1,7 @@
 #include "glifistore/server/mutation_window.hpp"
 #include "glifistore/server/protocol.hpp"
 #include "glifistore/server/server.hpp"
+#include "server/reactor_detail.hpp"
 #include "server_reactor_test_support.hpp"
 #include "test.hpp"
 
@@ -10,6 +11,7 @@
 #include <cstdint>
 #include <poll.h>
 #include <string>
+#include <string_view>
 #include <unistd.h>
 #include <vector>
 
@@ -35,13 +37,72 @@ namespace {
         response->frame.status != glifistore::server::ResponseStatus::ok) {
         return false;
     }
-    if (!expected_value.empty() && text(response->frame.value) != expected_value) {
+    if (text(response->frame.value) != expected_value) {
         return false;
     }
     return true;
 }
 
 } // namespace
+
+GLIFI_TEST("volatile GET output owns bytes across publication at the scatter boundary") {
+    auto opened = glifistore::server::Server::create({.port = 0, .maximum_connections = 1});
+    GLIFI_REQUIRE(opened.has_value());
+    auto& server = **opened;
+    GLIFI_REQUIRE(server.start().has_value());
+    const auto socket = connect_to(server.port());
+    GLIFI_REQUIRE(socket >= 0);
+    GLIFI_REQUIRE(initialize_and_bind(socket, 0, 1));
+    constexpr auto threshold = glifistore::server::reactor_detail::kMinimumPipelinedScatterValueBytes;
+    for (const auto size :
+         std::array<std::size_t, 7>{0, 64, 65, 4096, threshold - 1, threshold, threshold + 1}) {
+        const std::string old_value(size, 'a');
+        const std::string new_value(size, 'b');
+        const auto seed =
+            glifistore::server::encode_request({.opcode = glifistore::server::RequestOpcode::put,
+                                                .request_id = 1,
+                                                .key = bytes("output-owner"),
+                                                .value = bytes(old_value)});
+        GLIFI_REQUIRE(seed.has_value());
+        GLIFI_REQUIRE(send_all(socket, *seed));
+        GLIFI_REQUIRE(expect_ok(socket, 1));
+        std::vector<std::byte> pipeline;
+        for (const auto& request : std::array<glifistore::server::RequestView, 5>{
+                 {{.opcode = glifistore::server::RequestOpcode::get,
+                   .request_id = 2,
+                   .key = bytes("output-owner")},
+                  {.opcode = glifistore::server::RequestOpcode::put,
+                   .request_id = 3,
+                   .key = bytes("output-owner"),
+                   .value = bytes(new_value)},
+                  {.opcode = glifistore::server::RequestOpcode::get,
+                   .request_id = 4,
+                   .key = bytes("output-owner")},
+                  {.opcode = glifistore::server::RequestOpcode::erase,
+                   .request_id = 5,
+                   .key = bytes("output-owner")},
+                  {.opcode = glifistore::server::RequestOpcode::get,
+                   .request_id = 6,
+                   .key = bytes("output-owner")}}}) {
+            const auto encoded = glifistore::server::encode_request(request);
+            GLIFI_REQUIRE(encoded.has_value());
+            pipeline.insert(pipeline.end(), encoded->begin(), encoded->end());
+        }
+        GLIFI_REQUIRE(send_all(socket, pipeline));
+        GLIFI_REQUIRE(expect_ok(socket, 2, old_value));
+        GLIFI_REQUIRE(expect_ok(socket, 3));
+        GLIFI_REQUIRE(expect_ok(socket, 4, new_value));
+        GLIFI_REQUIRE(expect_ok(socket, 5));
+        const auto frame = receive_response(socket);
+        const auto absent = glifistore::server::decode_response(frame);
+        GLIFI_REQUIRE(absent.has_value());
+        GLIFI_REQUIRE(absent->frame.request_id == 6);
+        GLIFI_REQUIRE(absent->frame.status == glifistore::server::ResponseStatus::not_found);
+    }
+    static_cast<void>(::close(socket));
+    server.request_stop();
+    GLIFI_REQUIRE(server.join().has_value());
+}
 
 GLIFI_TEST("volatile mutation window PUT then GET sees RAW values in FIFO order") {
     auto opened = glifistore::server::Server::create({.port = 0, .maximum_connections = 1});

@@ -88,3 +88,7 @@ be compared with physical and logical CPU counts before discussing scaling.
 Single-hot-key contention, fixed offered-rate sweeps, per-owner queue/CPU
 decomposition, dedicated hardware and native Linux/BSD campaigns remain
 separate work. HAZ-045 stays open after a successful tooling check.
+
+The [ADR 0048 local copy comparison](../../engineering/evidence/hot-reader-copy-local-2026-11-21/README.md)
+retains an old/candidate/old run order for a reduction in volatile Reader copies.
+It includes the hot-owner cases and preserves the same finite-loop limitations.

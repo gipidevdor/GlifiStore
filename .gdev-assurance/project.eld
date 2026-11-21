@@ -1,7 +1,7 @@
 ;;; project.eld --- GlifiStore nel progetto formale GDev -*- lisp-data -*-
 (:version 1 :id "GLIFISTORE" :name "GlifiStore" :profile quality :criticality high
  :purpose "Sviluppare e verificare il prototipo architetturale GlifiStore conservando autorità, prove e rischi residui."
- :scope "Strumenti di sviluppo e verifica, compresi i benchmark del runtime esistente. I contratti del motore restano nei cataloghi YAML di engineering e nelle ADR."
+ :scope "Strumenti, benchmark e ottimizzazioni del motore con contratti espliciti. I contratti del motore restano nei cataloghi YAML di engineering e nelle ADR."
  :owner "Manutentori GlifiStore"
  :context "C++23, CMake, runtime paired Reader–Writer; macOS, Linux, FreeBSD e OpenBSD secondo la matrice di evidenza."
  :verification "Procedure eseguibili sui sorgenti correnti. Impronte e revisioni conservate da GDev. I gate si modificano soltanto nelle fonti autorevoli."
@@ -17,7 +17,7 @@
              :refresh (".tools/venv/bin/python3" "engineering/tools/export_gdev_catalog.py")))
  :source-roots ("include" "src" "tests" "benchmarks" "cmake" "scripts" "engineering" "docs")
  :source-files ("AGENTS.md" "CMakeLists.txt" "CMakePresets.json" ".clang-format-version" ".gdev-project.eld" ".codex/config.toml"
-                ".gdev-assurance/work/gdev-integration.eld" ".gdev-assurance/work/shard-capacity.eld")
+                ".gdev-assurance/work/gdev-integration.eld" ".gdev-assurance/work/shard-capacity.eld" ".gdev-assurance/work/hot-reader.eld")
  :requirements
  ((:id "GS-GDEV-001" :version 1 :statement "La vista GDev conserva ID, stati e riferimenti delle fonti YAML e segnala le viste superate."
    :origin "Mandato di integrazione dell'utente" :rationale "Un'autorità per ogni dato; nessuna promozione implicita dei gate."

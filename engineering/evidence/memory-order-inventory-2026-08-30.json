@@ -9698,7 +9698,7 @@
       "domain": "server-reactor-lifecycle",
       "file": "src/server/reactor_execute.cpp",
       "invariant": "no stale completion revives a closed connection and no background owner survives terminal drain",
-      "line": 156,
+      "line": 163,
       "memory_order": "relaxed",
       "object": "cancellation_epoch",
       "operation": "load",
@@ -9715,7 +9715,7 @@
       "domain": "server-reactor-lifecycle",
       "file": "src/server/reactor_execute.cpp",
       "invariant": "no stale completion revives a closed connection and no background owner survives terminal drain",
-      "line": 178,
+      "line": 185,
       "memory_order": "relaxed",
       "object": "cold_reads_pipelined_",
       "operation": "fetch_add",
@@ -19133,5 +19133,5 @@
     "include/glifistore/**/*.hpp",
     "src/**/*.{cpp,hpp}"
   ],
-  "source_sha256": "75969febd9da2427e3dfc9d5e67fd80f0bf17d364854171d25284d0a42b071cb"
+  "source_sha256": "01393b6033dbae00bf2e0b528deb933ab5e42fc3f02eab38b55c451a86d59b52"
 }

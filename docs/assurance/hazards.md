@@ -14,7 +14,7 @@ accepted residual risks do not imply production readiness.
 | `HAZ-005` | Doppia applicazione | alta | bassa | media | mitigato | `GS-PROTO-WIRE-001`, `GS-PERSIST-ACK-001` |
 | `HAZ-006` | Recupero non deterministico | catastrofica | bassa | alta | mitigato | `GS-RECOVERY-DET-001` |
 | `HAZ-007` | Perdita di una mutazione confermata | catastrofica | media | media | aperto | `GS-PERSIST-ACK-001` |
-| `HAZ-008` | Uso dopo liberazione | catastrofica | bassa | alta | mitigato | `GS-CONCUR-PAIR-001`, `GS-CORE-CLOSE-001` |
+| `HAZ-008` | Uso dopo liberazione | catastrofica | bassa | alta | mitigato | `GS-CONCUR-PAIR-001`, `GS-CORE-CLOSE-001`, `GS-PERF-VREAD-001` |
 | `HAZ-009` | Recupero prematuro di segmenti | alta | bassa | media | mitigato | `GS-CONCUR-PAIR-001` |
 | `HAZ-010` | Scrittura nella partizione errata | catastrofica | bassa | alta | mitigato | `GS-PROTO-WIRE-001`, `GS-CONCUR-PAIR-001` |
 | `HAZ-011` | Divergenza fra instradamento e manifesto | alta | bassa | media | mitigato | `GS-COMPAT-FIXTURE-001`, `GS-PROTO-WIRE-001` |
@@ -51,5 +51,5 @@ accepted residual risks do not imply production readiness.
 | `HAZ-042` | A durable GET returns bytes that no longer match the persisted Record, or reads a released image | alta | media | media | aperto | `GS-PERF-DREAD-001` |
 | `HAZ-043` | An Index spill-file page fault terminates the process | media | bassa | alta | aperto | `GS-OPS-MEMRES-001` |
 | `HAZ-044` | A routine rejected request fails the whole durable runtime closed in durable_group mode | alta | media | alta | mitigato | `GS-PERSIST-ACK-001` |
-| `HAZ-045` | A hot shard saturates while other shard pairs retain unused capacity | alta | media | alta | aperto | `GS-CONCUR-PAIR-001`, `GS-PERF-OWNER-001` |
+| `HAZ-045` | A hot shard saturates while other shard pairs retain unused capacity | alta | media | alta | aperto | `GS-CONCUR-PAIR-001`, `GS-PERF-OWNER-001`, `GS-PERF-VREAD-001` |
 | `HAZ-046` | Client routing mismatch rejects requests without server-side forwarding | media | media | alta | aperto | `GS-PROTO-WIRE-001` |

@@ -1,0 +1,29 @@
+asan-generation.log
+[RUN] paired read generation overlays delta on base with tombstones and TTL
+[PASS] paired read generation overlays delta on base with tombstones and TTL
+[RUN] paired read generation volatile views borrow exact base and delta bytes
+[PASS] paired read generation volatile views borrow exact base and delta bytes
+[RUN] paired read generation volatile views preserve corruption and tombstone rejection
+[PASS] paired read generation volatile views preserve corruption and tombstone rejection
+[RUN] paired read generation owns the exact Segment generation pin
+[PASS] paired read generation owns the exact Segment generation pin
+4 tests, 0 failures
+
+asan-output.log
+[RUN] volatile GET output owns bytes across publication at the scatter boundary
+[PASS] volatile GET output owns bytes across publication at the scatter boundary
+1 tests, 0 failures
+
+asan-mutations.log
+[RUN] volatile mutation window PUT then GET sees RAW values in FIFO order
+[PASS] volatile mutation window PUT then GET sees RAW values in FIFO order
+[RUN] volatile mutation window ERASE then GET observes tombstone after barrier
+[PASS] volatile mutation window ERASE then GET observes tombstone after barrier
+[RUN] volatile mutation window admits more than 32 contiguous PUTs across resumes
+[PASS] volatile mutation window admits more than 32 contiguous PUTs across resumes
+3 tests, 0 failures
+
+asan-scatter.log
+[RUN] volatile large GET pipeline uses bounded scatter leases in response order
+[PASS] volatile large GET pipeline uses bounded scatter leases in response order
+1 tests, 0 failures

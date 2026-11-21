@@ -77,6 +77,84 @@ GLIFI_TEST("paired read generation overlays delta on base with tombstones and TT
     GLIFI_REQUIRE((*generation)->visible_through() == 3);
 }
 
+GLIFI_TEST("paired read generation volatile views borrow exact base and delta bytes") {
+    for (const std::size_t merge_entries : {1U, 8U}) {
+        const glifistore::WorkerRoutingState routing{};
+        auto segment = std::make_shared<glifistore::Segment>(glifistore::SegmentId{19});
+        std::weak_ptr<glifistore::Segment> lifetime = segment;
+        const std::string key{"borrowed-view"};
+        const std::string value(4096, 'v');
+        const glifistore::HashedKey hashed{key, glifistore::hash_key_routing(key, routing)};
+        const auto reference = append(*segment, routing, key, value, 11, glifistore::Opcode::put, 100);
+        const auto decoded =
+            glifistore::decode_record({segment->base() + reference.offset.value, reference.size.value});
+        GLIFI_REQUIRE(decoded.has_value());
+        auto initial = glifistore::server::PairReadGeneration::empty(routing);
+        GLIFI_REQUIRE(initial.has_value());
+        glifistore::server::ReadMutation mutation{
+            .key = hashed, .record = reference, .segment = segment, .opcode = glifistore::Opcode::put};
+        auto published = glifistore::server::PairReadGeneration::publish(
+            std::move(*initial), std::span{&mutation, 1}, merge_entries);
+        GLIFI_REQUIRE(published.has_value());
+        auto generation = std::move(*published);
+        mutation.segment.reset();
+        segment.reset();
+        GLIFI_REQUIRE(!lifetime.expired());
+        const auto borrowed = generation->get_volatile_view(hashed, 99);
+        const auto owned = generation->get(hashed, 99);
+        GLIFI_REQUIRE(borrowed.has_value());
+        GLIFI_REQUIRE(owned.has_value());
+        GLIFI_REQUIRE(borrowed->value.data() == decoded->value.data());
+        GLIFI_REQUIRE(borrowed->sequence.value == owned->sequence);
+        GLIFI_REQUIRE(borrowed->expire_at_ns == owned->expire_at_ns);
+        GLIFI_REQUIRE(borrowed->type == owned->storage_type);
+        GLIFI_REQUIRE(text(*owned) == value);
+        const auto expired = generation->get_volatile_view(hashed, 100);
+        GLIFI_REQUIRE(!expired.has_value());
+        GLIFI_REQUIRE(expired.error().code == glifistore::ErrorCode::not_found);
+        generation.reset();
+        GLIFI_REQUIRE(lifetime.expired());
+        // Only the independent owning value is accessed after the generation is released.
+        GLIFI_REQUIRE(text(*owned) == value);
+    }
+}
+
+GLIFI_TEST("paired read generation volatile views preserve corruption and tombstone rejection") {
+    for (const std::size_t merge_entries : {1U, 8U}) {
+        const glifistore::WorkerRoutingState routing{};
+        auto segment = std::make_shared<glifistore::Segment>(glifistore::SegmentId{20});
+        const std::string key{"borrow-validation"};
+        const glifistore::HashedKey hashed{key, glifistore::hash_key_routing(key, routing)};
+        const auto reference = append(*segment, routing, key, "original", 1, glifistore::Opcode::put);
+        auto generation = glifistore::server::PairReadGeneration::empty(routing);
+        GLIFI_REQUIRE(generation.has_value());
+        const glifistore::server::ReadMutation mutation{
+            .key = hashed, .record = reference, .segment = segment, .opcode = glifistore::Opcode::put};
+        generation = glifistore::server::PairReadGeneration::publish(std::move(*generation),
+                                                                     std::span{&mutation, 1}, merge_entries);
+        GLIFI_REQUIRE(generation.has_value());
+        // Deliberate memory corruption must still pass through the ordinary CRC validator.
+        auto& damaged =
+            segment->mutable_base()[reference.offset.value + glifistore::kEncodedRecordHeaderSize];
+        damaged ^= std::byte{1};
+        const auto borrowed = (*generation)->get_volatile_view(hashed, 0);
+        const auto owned = (*generation)->get(hashed, 0);
+        GLIFI_REQUIRE(!borrowed.has_value());
+        GLIFI_REQUIRE(!owned.has_value());
+        GLIFI_REQUIRE(borrowed.error().code == owned.error().code);
+        damaged ^= std::byte{1};
+        const auto erased = append(*segment, routing, key, {}, 2, glifistore::Opcode::erase);
+        const glifistore::server::ReadMutation tombstone{
+            .key = hashed, .record = erased, .segment = segment, .opcode = glifistore::Opcode::erase};
+        generation = glifistore::server::PairReadGeneration::publish(std::move(*generation),
+                                                                     std::span{&tombstone, 1}, merge_entries);
+        GLIFI_REQUIRE(generation.has_value());
+        const auto absent = (*generation)->get_volatile_view(hashed, 0);
+        GLIFI_REQUIRE(!absent.has_value());
+        GLIFI_REQUIRE(absent.error().code == glifistore::ErrorCode::not_found);
+    }
+}
+
 GLIFI_TEST("paired read generation owns the exact Segment generation pin") {
     const glifistore::WorkerRoutingState routing{};
     auto segment = std::make_shared<glifistore::Segment>(glifistore::SegmentId{9}, glifistore::WorkerId{},

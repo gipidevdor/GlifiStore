@@ -1,0 +1,14 @@
+slot pool publication mirrors allocate no control blocks
+client mutation allocation failures preserve outcomes and reset connections
+client late mutation responses respect the absolute deadline
+paired put_batch: 9 allocations enumerated
+paired put_batch: 9 injected failures, 3 in the middle of a batch
+paired erase_batch: 9 allocations enumerated
+paired erase_batch: 9 injected failures, 3 in the middle of a batch
+paired single-owner put_batch: 5 allocations enumerated
+paired single-owner put_batch: 5 injected failures, 0 in the middle of a batch
+paired single-owner erase_batch: 5 allocations enumerated
+paired single-owner erase_batch: 5 injected failures, 0 in the middle of a batch
+legacy put_batch: 50 allocations enumerated
+legacy put_batch: 50 injected failures, 48 in the middle of a batch
+allocation fault injection passed

@@ -174,12 +174,19 @@ hazards:
   - tests/integration/concurrency_tests.cpp
   - tests/unit/value_tests.cpp
   - tests/unit/prepared_read_tests.cpp
-  rischio_residuo: ASan/UBSan CI smoke; not exhaustive schedules
+  - tests/unit/pair_read_generation_tests.cpp
+  - tests/integration/server_reactor_mutation_window_tests.cpp
+  - tests/quality/allocation_fault_core_tests.cpp
+  rischio_residuo: >-
+    ASan/UBSan CI smoke; not exhaustive schedules. ADR 0048's volatile Record views own no
+    pin: the caller must retain the exact generation through use. The daemon copies small
+    responses synchronously into owning output before releasing its Reader lease.
   stato: mitigato
   accettazione_rischio: Sanitizer CI + generation model; adversarial schedules Phase B
   requisiti:
   - GS-CONCUR-PAIR-001
   - GS-CORE-CLOSE-001
+  - GS-PERF-VREAD-001
 - id: HAZ-009
   evento_pericoloso: Recupero prematuro di segmenti
   cause:

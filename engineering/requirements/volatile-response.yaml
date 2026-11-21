@@ -1,0 +1,36 @@
+requirements:
+- id: GS-PERF-VREAD-001
+  titolo: Volatile TCP contiguous responses avoid intermediate value materialization
+  categoria: performance
+  criticita: alta
+  stato: implementato
+  descrizione: >-
+    The volatile paired generation exposes a validated Record view under the caller's exact
+    generation reference or Reader lease. Delta and base keep CRC, identity, pin, tombstone and
+    TTL checks. The daemon copies values below the existing pipelined-scatter threshold directly
+    into owning output before another generation can be adopted. No borrowed span crosses an
+    asynchronous boundary. Large scatter responses and public owning GET retain independent bytes.
+    This reduces Reader work without changing ownership, wire v2, persistence or client retry rules.
+  autorita:
+  - docs/adr/0048-volatile-tcp-response-borrow.md
+  - docs/spec/concurrency-memory-model.md
+  implementazione:
+  - include/glifistore/store/paired/read_generation.hpp
+  - src/store/paired/read_generation.cpp
+  - src/store/paired/read_generation_immutable.hpp
+  - src/server/reactor_execute.cpp
+  prove:
+  - tests/unit/pair_read_generation_tests.cpp
+  - tests/integration/server_reactor_mutation_window_tests.cpp
+  - tests/quality/allocation_fault_core_tests.cpp
+  - benchmarks/CMakeLists.txt
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/hot-reader-copy-local-2026-11-21/README.md
+    note: Local Release old/candidate/old comparison, native and allocation tests, ASan/UBSan; no gate closure
+  rischio_residuo:
+  - A returned Record view owns no pin; callers must retain its exact generation until the last use
+  - Fixed shard ownership and the serial Writer remain capacity limits; no redistribution is implemented
+  - Local finite-loop comparisons cannot prove sustained offered-load capacity or sibling isolation
+  hazards: [HAZ-008, HAZ-045]

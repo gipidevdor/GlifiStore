@@ -9,6 +9,8 @@
   default for embedded `Store` as well as the daemon; supersedes Worker-mutex as product default);
   [ADR 0037](0037-shard-execution-token-flat-combining.md) (Writer = per-shard execution token;
   embedded sync may omit a dedicated Writer thread; daemon keeps a dedicated executor)
+  and [ADR 0048](0048-volatile-tcp-response-borrow.md) (small volatile TCP responses borrow only
+  through synchronous encoding within the adopted Reader generation lease)
 - Supersedes: the Worker-affine / mutex-on-the-Index model as the product default (completed with
   ADR 0032); does not supersede persistence v1 or wire v2
 

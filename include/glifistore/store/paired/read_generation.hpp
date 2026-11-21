@@ -171,6 +171,15 @@ class PairReadGeneration {
      */
     [[nodiscard]] auto get(const HashedKey& key, std::uint64_t now_ns) const -> Result<OwnedValue>;
     /**
+     * @brief Validate a volatile Record and borrow its bytes without materializing an owning value.
+     * @pre Retain this exact generation's owning reference or Reader lease through every use of the
+     * returned spans. They cannot survive generation release or Reader quiescence.
+     * @note Durable generations require prepare_durable(). The daemon copies small responses into
+     * its owning output buffer synchronously, before another generation can be adopted (ADR 0048).
+     */
+    [[nodiscard]] auto get_volatile_view(const HashedKey& key, std::uint64_t now_ns) const
+        -> Result<RecordView>;
+    /**
      * @brief Borrow the durable reference/pin view; retain this generation lease through preparation or copy
      * the pin into owning cold state.
      */

@@ -4,6 +4,11 @@
 #include "glifistore/persistence/segment_file.hpp"
 #include "glifistore/segment/global_manager.hpp"
 #include "glifistore/segment/record.hpp"
+#include "glifistore/store/paired/shard_pair_runtime.hpp"
+
+#include <algorithm>
+#include <optional>
+#include <string>
 
 namespace allocation_fault_test {
 void run_exhaustive_allocation_failures(const Scenario& scenario) {
@@ -132,6 +137,29 @@ void run_paired_volatile_get_inline_zero_heap() {
     require(std::string_view(reinterpret_cast<const char*>((*got)->bytes.data()), (*got)->bytes.size()) ==
                 kValue,
             "zero-heap GET value mismatch");
+    // A 4 KiB value exceeds OwnedBytes' inline storage; the borrowed generation read must
+    // still allocate nothing, so the Reactor can encode directly into preallocated output.
+    const std::string large_value(4096, 'v');
+    require(store.put(kKey, bytes(large_value)).has_value(), "failed to seed borrowed GET value");
+    auto* runtime = glifistore::detail::StoreAccess::shard_pair_runtime(store);
+    require(runtime != nullptr, "missing paired runtime for borrowed GET");
+    const glifistore::HashedKey key{kKey, glifistore::hash_key(kKey)};
+    {
+        const glifistore::store::paired::ShardPairRuntime::ReadLease lease{*runtime, 0};
+        require(static_cast<bool>(lease), "failed to acquire borrowed GET lease");
+        allocation_fault::begin_forbid_all();
+        std::optional<glifistore::Result<glifistore::RecordView>> borrowed;
+        try {
+            borrowed = lease.generation()->get_volatile_view(key, 0);
+        } catch (...) {
+            static_cast<void>(allocation_fault::end_forbid_all());
+            throw;
+        }
+        const bool allocated_view = allocation_fault::end_forbid_all();
+        require(!allocated_view, "borrowed volatile GET allocated a temporary value");
+        require(borrowed && borrowed->has_value(), "borrowed volatile GET failed");
+        require(std::ranges::equal((*borrowed)->value, bytes(large_value)), "borrowed GET value mismatch");
+    }
     require(store.close().has_value(), "failed to close zero-heap GET Store");
 }
 

@@ -39,11 +39,11 @@
     },
     {
       "path": "engineering/hazards/register.yaml",
-      "sha256": "8b73801de70a3f03ade87d2b73fdc41657a0d899487a04062be0baccccd2396b"
+      "sha256": "1238f27794fa6665c65da46b873ccf6d657d24dfb1b32c0df39f7aa76bf099e0"
     },
     {
       "path": "engineering/hazards/routing-capacity.yaml",
-      "sha256": "aee16d1e04464908810ce69e70fe6b2216ebd37bc1e918fa66ee9f06abb6ca2b"
+      "sha256": "9d6f0168e1906e625172eb8e605d5f42354ae84eb5068200e019985ea151d848"
     },
     {
       "path": "engineering/requirements/compaction-delta.yaml",
@@ -96,6 +96,10 @@
     {
       "path": "engineering/requirements/security.yaml",
       "sha256": "c68ce9d0df07c614ed39030896226c921e97a9a8244913a106d2871943aa7147"
+    },
+    {
+      "path": "engineering/requirements/volatile-response.yaml",
+      "sha256": "a21bd4feb50209d7128bfeffae0b12c18ad82ba9825ec3475fc7fb9678936c5b"
     },
     {
       "path": "engineering/schemas/abi-consumer-fixture.schema.json",
@@ -3360,6 +3364,58 @@
     {
       "data": {
         "autorita": [
+          "docs/adr/0048-volatile-tcp-response-borrow.md",
+          "docs/spec/concurrency-memory-model.md"
+        ],
+        "categoria": "performance",
+        "claim_massimo": "architectural-prototype",
+        "criticita": "alta",
+        "descrizione": "The volatile paired generation exposes a validated Record view under the caller's exact generation reference or Reader lease. Delta and base keep CRC, identity, pin, tombstone and TTL checks. The daemon copies values below the existing pipelined-scatter threshold directly into owning output before another generation can be adopted. No borrowed span crosses an asynchronous boundary. Large scatter responses and public owning GET retain independent bytes. This reduces Reader work without changing ownership, wire v2, persistence or client retry rules.",
+        "evidenze": [
+          {
+            "note": "Local Release old/candidate/old comparison, native and allocation tests, ASan/UBSan; no gate closure",
+            "path": "engineering/evidence/hot-reader-copy-local-2026-11-21/README.md"
+          }
+        ],
+        "hazards": [
+          "HAZ-008",
+          "HAZ-045"
+        ],
+        "id": "GS-PERF-VREAD-001",
+        "implementazione": [
+          "include/glifistore/store/paired/read_generation.hpp",
+          "src/store/paired/read_generation.cpp",
+          "src/store/paired/read_generation_immutable.hpp",
+          "src/server/reactor_execute.cpp"
+        ],
+        "piattaforme": [
+          "macos-arm64",
+          "linux-x86_64",
+          "freebsd-amd64",
+          "openbsd-amd64"
+        ],
+        "prove": [
+          "tests/unit/pair_read_generation_tests.cpp",
+          "tests/integration/server_reactor_mutation_window_tests.cpp",
+          "tests/quality/allocation_fault_core_tests.cpp",
+          "benchmarks/CMakeLists.txt"
+        ],
+        "rischio_residuo": [
+          "A returned Record view owns no pin; callers must retain its exact generation until the last use",
+          "Fixed shard ownership and the serial Writer remain capacity limits; no redistribution is implemented",
+          "Local finite-loop comparisons cannot prove sustained offered-load capacity or sibling isolation"
+        ],
+        "stato": "implementato",
+        "titolo": "Volatile TCP contiguous responses avoid intermediate value materialization"
+      },
+      "id": "GS-PERF-VREAD-001",
+      "kind": "requirements",
+      "path": "engineering/requirements/volatile-response.yaml",
+      "state": "implementato"
+    },
+    {
+      "data": {
+        "autorita": [
           "docs/spec/persistence-v1.md",
           "docs/architecture/durability-recovery.md",
           "docs/adr/0047-durable-group-rejected-siblings.md"
@@ -4809,14 +4865,18 @@
         "prove": [
           "tests/integration/concurrency_tests.cpp",
           "tests/unit/value_tests.cpp",
-          "tests/unit/prepared_read_tests.cpp"
+          "tests/unit/prepared_read_tests.cpp",
+          "tests/unit/pair_read_generation_tests.cpp",
+          "tests/integration/server_reactor_mutation_window_tests.cpp",
+          "tests/quality/allocation_fault_core_tests.cpp"
         ],
         "requisiti": [
           "GS-CONCUR-PAIR-001",
-          "GS-CORE-CLOSE-001"
+          "GS-CORE-CLOSE-001",
+          "GS-PERF-VREAD-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "ASan/UBSan CI smoke; not exhaustive schedules",
+        "rischio_residuo": "ASan/UBSan CI smoke; not exhaustive schedules. ADR 0048's volatile Record views own no pin: the caller must retain the exact generation through use. The daemon copies small responses synchronously into owning output before releasing its Reader lease.",
         "severita": "catastrofica",
         "stato": "mitigato"
       },
@@ -6328,7 +6388,7 @@
     },
     {
       "data": {
-        "accettazione_rischio": "Not accepted for release; problem recorded only, solution deferred",
+        "accettazione_rischio": "Not accepted for release; fixed-owner capacity limit remains unresolved",
         "cause": [
           "Fixed key ownership and no runtime load redistribution (ADR 0033)",
           "A hot key or asymmetric request distribution concentrates work on one Reader or Writer"
@@ -6343,20 +6403,25 @@
         "evento_pericoloso": "A hot shard saturates while other shard pairs retain unused capacity",
         "id": "HAZ-045",
         "prevenzione": [
-          "No dynamic balancing mechanism is implemented; a solution remains to be studied"
+          "No dynamic balancing mechanism is implemented; a solution remains to be studied",
+          "ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease"
         ],
         "probabilita": "media",
         "prove": [
           "tests/unit/benchmark_owner_workload_tests.cpp",
           "scripts/tests/test_owner_capacity_report.py",
-          "engineering/evidence/owner-capacity-local-2026-11-21/README.md"
+          "tests/unit/pair_read_generation_tests.cpp",
+          "tests/integration/server_reactor_mutation_window_tests.cpp",
+          "engineering/evidence/owner-capacity-local-2026-11-21/README.md",
+          "engineering/evidence/hot-reader-copy-local-2026-11-21/README.md"
         ],
         "requisiti": [
           "GS-CONCUR-PAIR-001",
-          "GS-PERF-OWNER-001"
+          "GS-PERF-OWNER-001",
+          "GS-PERF-VREAD-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. Compaction sustainability remains a separate question.",
+        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. Compaction sustainability remains separate.",
         "severita": "alta",
         "stato": "aperto"
       },
