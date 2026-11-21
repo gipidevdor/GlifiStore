@@ -4,6 +4,7 @@
 #include "store/store_internal.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <fcntl.h>
@@ -302,17 +303,37 @@ GLIFI_TEST("image eviction at rotation is safe against concurrent durable reader
         }
     }};
 
+    // Compaction may temporarily reject mutations at its publication gate.
+    // Retry only a definite pre-commit conflict so each published key exists.
+    const auto put_after_conflict = [&](const std::string_view key, const std::string_view value) {
+        const auto deadline = std::chrono::steady_clock::now() + kNativeConcurrencyDeadline;
+        for (;;) {
+            const auto result = resident_put(catalog, key, value);
+            if (result.committed()) {
+                return true;
+            }
+            if (result.outcome != glifistore::DurableMutationOutcome::not_committed || !result.error ||
+                result.error->code != glifistore::ErrorCode::sequence_conflict ||
+                std::chrono::steady_clock::now() >= deadline) {
+                return false;
+            }
+            std::this_thread::yield();
+        }
+    };
     std::size_t committed{};
     std::size_t churned{};
     for (std::size_t index = 0; index < kEvictionRotations; ++index) {
         observer.force_segment_full.store(true, std::memory_order_release);
-        if (resident_put(catalog, eviction_key(index), eviction_value(index)).committed()) {
+        if (put_after_conflict(eviction_key(index), eviction_value(index))) {
             ++committed;
+        }
+        if (committed != index + 1U) {
+            break;
         }
         published.store(index + 1U, std::memory_order_release);
         // A superseded Record next to each live one makes every sealed Segment worth compacting
         // into an output that keeps the live Record.
-        if (resident_put(catalog, "churn", eviction_value(index)).committed()) {
+        if (put_after_conflict("churn", eviction_value(index))) {
             ++churned;
         }
     }
