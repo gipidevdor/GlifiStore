@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "raw_sha256": {
+    "get-only-c10-hot0.txt": "538759d34dc6d12d6a31f4c590abe61ae99f4ad44033f78659217f1c02df00bb",
+    "get-only-c10-hot9.txt": "7c113dd6a1714e76ba6710cbe1819c6f97e7d19ac8fe1ccd0fe30ef95267b145",
+    "get-only-c4-hot0.txt": "f67e3ada93d8bf32e87edb0ead12e2e84703ac69836cf7767ef3fcad4d2e0e4e",
+    "get-only-c4-hot3.txt": "ea0f8a4df12fb2a5c9b67fe02b35a2f4cba067a4895973e0c69007481647fb0c",
+    "read-after-write-c10-hot0.txt": "00019e3c8097ec63178c91f98882b59dc467ca1733c1657389302c8a12d36f8d",
+    "read-after-write-c10-hot9.txt": "ae0a5cc6a4947002f7ea358a05e620a71d10b473fc35a88646b180cd015faf40",
+    "read-after-write-c4-hot0.txt": "0a204faee92f8b4ef7ffb18325d8d38cc70b0cd8ed5d4b65c7b52ca6356b153a",
+    "read-after-write-c4-hot3.txt": "38f0778f146499cc22f9f4bc0883f57f6027679a280f1fec78dbc496a81afc4c"
+  },
+  "verification_source_sha256": {
+    "scripts/owner_capacity_report.py": "c6c278634e18216c6a9c71707cc0bffe89dd577228ac8e82ee2500860ec3b1ec",
+    "scripts/benchmark_owner_capacity.py": "4eb6d1de557ca61c338fef86bbd265d97e72089bf0066132b872833e581d6644",
+    "scripts/benchmark_report.py": "c10c12e7c46966f15195773b5fb92ccf56c686ca530373b2f5a907811b8700c1",
+    "scripts/tests/test_owner_capacity_report.py": "fc9e15d6f6bacde9268f539895d8217a2f854aa9d8cb4abc04aba15b84475314",
+    "tests/unit/benchmark_owner_workload_tests.cpp": "057200cf2b998f0807d771988145693c1484e882ee3376ed4f5a294da00c6145"
+  },
+  "result": "8 complete profiles passed current strict validation; all captured measurement inputs unchanged"
+}

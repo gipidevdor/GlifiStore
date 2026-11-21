@@ -1,0 +1,39 @@
+requirements:
+- id: GS-PERF-OWNER-001
+  titolo: TCP owner profiles preserve workload identity and finite completion windows
+  categoria: performance
+  criticita: alta
+  stato: implementato
+  descrizione: >-
+    Opt-in TCP owner profiles declare exact client bindings and key-operation quotas, retain a
+    client on every sibling, and validate responses before accepting a sample. Every measured
+    repeat reports planned and completed operations, GET/PUT counts, client completion windows
+    and the actual latency population per owner. The report rejects incomplete or inconsistent
+    matrices, ambiguous workload identities and fabricated latency samples. Finite closed-loop
+    operation skew must not be presented as a fixed offered rate, saturation or sibling isolation.
+    This is measurement tooling; ownership, wire v2, client outcomes and runtime behavior are unchanged.
+  autorita:
+  - docs/spec/benchmark-standard.md
+  - docs/benchmarks/shard-capacity.md
+  implementazione:
+  - benchmarks/owner_workload.hpp
+  - benchmarks/server_benchmark.cpp
+  - scripts/owner_capacity_report.py
+  - scripts/benchmark_owner_capacity.py
+  prove:
+  - tests/unit/benchmark_owner_workload_tests.cpp
+  - scripts/tests/test_owner_capacity_report.py
+  - scripts/tests/test_benchmark_report.py
+  - benchmarks/CMakeLists.txt
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/owner-capacity-local-2026-11-21/README.md
+    note: Local Release finite-work exploration and strict tooling checks; no hazard or gate closure
+  rischio_residuo:
+  - Cold clients may finish early; total operation ratios do not hold the arrival ratio constant
+  - Loopback client threads compete with server executors for CPU and caches
+  - Latencies are observed from pipeline-batch send, without coordinated-omission correction
+  - Many distinct keys target each owner; a single hot key needs a separate workload
+  - Queue wait, CPU duty and admission pressure are not yet decomposed per owner
+  hazards: [HAZ-045]

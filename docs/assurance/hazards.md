@@ -51,5 +51,5 @@ accepted residual risks do not imply production readiness.
 | `HAZ-042` | A durable GET returns bytes that no longer match the persisted Record, or reads a released image | alta | media | media | aperto | `GS-PERF-DREAD-001` |
 | `HAZ-043` | An Index spill-file page fault terminates the process | media | bassa | alta | aperto | `GS-OPS-MEMRES-001` |
 | `HAZ-044` | A routine rejected request fails the whole durable runtime closed in durable_group mode | alta | media | alta | mitigato | `GS-PERSIST-ACK-001` |
-| `HAZ-045` | A hot shard saturates while other shard pairs retain unused capacity | alta | media | alta | aperto | `GS-CONCUR-PAIR-001` |
+| `HAZ-045` | A hot shard saturates while other shard pairs retain unused capacity | alta | media | alta | aperto | `GS-CONCUR-PAIR-001`, `GS-PERF-OWNER-001` |
 | `HAZ-046` | Client routing mismatch rejects requests without server-side forwarding | media | media | alta | aperto | `GS-PROTO-WIRE-001` |

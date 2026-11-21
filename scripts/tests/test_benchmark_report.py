@@ -711,6 +711,12 @@ class BenchmarkEnvironmentTests(unittest.TestCase):
         }
         validate_source_contract(strict_runs(), contract)
 
+        for field in ("owner_profile_version", "owner_profile_scope", "hot_worker_clients"):
+            owner_runs = strict_runs()
+            owner_runs[0]["metadata"][field] = 1
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "outside the hosted source contract"):
+                validate_source_contract(owner_runs, contract)
+
     def test_source_contract_rejects_missing_and_extra_suites(self) -> None:
         contract = {
             "schema_version": 5,

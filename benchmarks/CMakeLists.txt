@@ -163,6 +163,17 @@ if(GLIFISTORE_BUILD_BENCHMARKS)
     glifistore_enable_ipo(glifistore_client_benchmark)
     set_target_properties(glifistore_client_benchmark PROPERTIES FOLDER "Benchmarks")
     if(BUILD_TESTING)
+        find_package(Python3 COMPONENTS Interpreter REQUIRED)
+        add_test(
+            NAME glifistore_benchmark_owner_plan
+            COMMAND glifistore_tests "owner workload"
+        )
+        add_test(
+            NAME glifistore_benchmark_owner_profiles
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/owner_capacity_report.py"
+                check-binary "$<TARGET_FILE:glifistore_server_benchmarks>"
+        )
+        set_tests_properties(glifistore_benchmark_owner_profiles PROPERTIES TIMEOUT 120)
         foreach(distribution IN ITEMS uniform worker-affine single-worker zipf)
             # single-worker concentrates all keys on one paired lane. 4×4 on a slow
             # hosted VM can trip generation-admission resource_exhausted; the harness

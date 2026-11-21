@@ -637,6 +637,8 @@ def validate_source_contract(
     for entry in expected:
         source = entry["source"]
         metadata = runs_by_source[source].get("metadata", {})
+        if any(field in metadata for field in ("owner_profile_version", "owner_profile_scope", "hot_worker_clients")):
+            raise ValueError(f"{source}: opt-in owner profiles are outside the hosted source contract")
         for field in ("benchmark_warmup", "benchmark_repeats"):
             if metadata.get(field) != entry[field]:
                 raise ValueError(

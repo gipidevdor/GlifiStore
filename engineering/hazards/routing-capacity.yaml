@@ -14,16 +14,22 @@ hazards:
   - No dynamic balancing mechanism is implemented; a solution remains to be studied
   contenimento:
   - Bounded lanes constrain queued work but do not redistribute it
-  prove: []
+  prove:
+  - tests/unit/benchmark_owner_workload_tests.cpp
+  - scripts/tests/test_owner_capacity_report.py
+  - engineering/evidence/owner-capacity-local-2026-11-21/README.md
   rischio_residuo: >-
-    Open capacity limitation. A scenario with 90 percent of requests targeting one shard
-    is illustrative, not a measured result. Reader and Writer saturation depends on the
-    operation mix; a shard pair is not a single CPU core. The impact and isolation from
-    sibling shards require a dedicated skewed-load campaign. Offline migration is not
-    runtime balancing and does not by itself resolve a single hot key.
+    Open capacity limitation. The retained local Release exploration on 2026-11-21 compares
+    75 and 90 percent finite total-work allocations with balanced client bindings. It validates
+    the measurement tooling, not sustained offered-load saturation or sibling isolation: cold
+    clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical
+    CPUs and remain oversubscription sensitivity observations. Single-hot-key contention,
+    per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending.
+    A shard pair is not a single CPU core. Offline migration is not runtime balancing and does
+    not by itself resolve a single hot key. Compaction sustainability remains a separate question.
   stato: aperto
   accettazione_rischio: Not accepted for release; problem recorded only, solution deferred
-  requisiti: [GS-CONCUR-PAIR-001]
+  requisiti: [GS-CONCUR-PAIR-001, GS-PERF-OWNER-001]
 - id: HAZ-046
   evento_pericoloso: Client routing mismatch rejects requests without server-side forwarding
   cause:

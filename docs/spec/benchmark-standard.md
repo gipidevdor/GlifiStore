@@ -200,3 +200,20 @@ Preserve raw machine-readable output as a CI artifact. Tables in prose are summa
 - **competitive claim:** requires comparable external systems, versions, durability semantics, and hardware.
 
 Never label a number “excellent” in a specification. State the workload, bottleneck, scaling efficiency, bandwidth, latency, memory, and comparison set.
+
+## 12. Opt-in per-owner TCP profiles
+
+The [shard-capacity workload](../benchmarks/shard-capacity.md) declares client bindings explicitly.
+An owner profile must preserve one client per sibling and report the exact per-owner request quotas,
+GET/PUT mix and completed counts for every measured repeat. All responses retain the ordinary TCP
+status, identity and payload checks. The global duration, first-client and last-client completion
+times distinguish the whole sample from each owner's active window. Rates and latency counts must
+agree with those windows and with the aggregate result; missing, duplicate or inconsistent rows
+invalidate the report. The latency population is explicit: both responses for read-after-write,
+GET responses for GET-only and mixed workloads, following the existing benchmark contract.
+
+The versioned owner report is a separate diagnostic, outside the canonical hosted TCP matrix.
+Its skewed benchmark identity includes owner and client allocation. Finite closed-loop ratios are
+total-work ratios, not a fixed offered arrival distribution. Early sibling completion, client/server
+CPU competition and uncorrected pipeline latencies preclude claims of saturation capacity,
+sustained sibling isolation or mitigation of HAZ-045 from these profiles alone.

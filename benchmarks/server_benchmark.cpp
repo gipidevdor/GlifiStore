@@ -5,6 +5,7 @@
 #include "glifistore/server/protocol.hpp"
 #include "glifistore/server/server.hpp"
 #include "harness.hpp"
+#include "owner_workload.hpp"
 #include "parse.hpp"
 
 #include <algorithm>
@@ -25,6 +26,7 @@
 #include <limits>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -56,6 +58,9 @@ struct Options {
     RunSettings settings{};
     std::size_t pipeline{32};
     std::size_t client_pipeline{};
+    std::optional<std::size_t> hot_worker_clients;
+    std::size_t hot_worker{};
+    bool owner_profile{};
     bool executor_affinity{};
     bool latency{};
     bool latency_split{};
@@ -136,6 +141,17 @@ struct ClientWork {
     std::size_t response_count{};
 };
 
+struct OwnerSample {
+    std::size_t clients{};
+    std::size_t planned_operations{};
+    std::size_t planned_gets{};
+    std::size_t planned_puts{};
+    std::size_t completed_operations{};
+    double first_client_done_seconds{std::numeric_limits<double>::max()};
+    double completion_window_seconds{};
+    std::vector<double> latency_ns;
+};
+
 struct Sample {
     std::size_t hits{};
     double seconds{};
@@ -143,6 +159,7 @@ struct Sample {
     std::vector<double> latency_ns;
     std::vector<double> get_latency_ns;
     std::vector<double> put_latency_ns;
+    std::vector<OwnerSample> owners;
     bool valid{};
     DurableProfileSample durable;
     ReactorProfileSample reactor;
@@ -155,6 +172,7 @@ struct ClientResult {
     std::vector<double> latency_ns;
     std::vector<double> get_latency_ns;
     std::vector<double> put_latency_ns;
+    double completion_window_seconds{};
 };
 
 [[nodiscard]] auto parse_size(const std::string_view value, const char* flag) -> std::size_t {
@@ -546,6 +564,13 @@ store_config(const Options& options, const BenchmarkDataDirectory& directory,
             result.config.workers = next_size("--workers");
         } else if (argument == "--clients") {
             result.config.threads = next_size("--clients");
+        } else if (argument == "--hot-worker-clients") {
+            result.hot_worker_clients = next_size("--hot-worker-clients");
+            result.owner_profile = true;
+        } else if (argument == "--hot-worker") {
+            result.hot_worker = next_size("--hot-worker");
+        } else if (argument == "--owner-profile") {
+            result.owner_profile = true;
         } else if (argument == "--pipeline") {
             result.pipeline = next_size("--pipeline");
         } else if (argument == "--client-pipeline") {
@@ -666,6 +691,7 @@ store_config(const Options& options, const BenchmarkDataDirectory& directory,
         } else if (argument == "--help" || argument == "-h") {
             std::cout << "usage: glifistore_server_benchmarks [--ops N] [--key-size N]"
                          " [--value-size N] [--workers N] [--clients N] [--pipeline N]"
+                         " [--owner-profile] [--hot-worker-clients N] [--hot-worker N]"
                          " [--executor-affinity] [--latency] [--latency-split]"
                          " [--latency-sample-stride N] [--client-api] [--client-pipeline N]"
                          " [--workload read-after-write|get-only|read-99-write-1|read-95-write-5|"
@@ -794,7 +820,8 @@ class BufferedResponseReader final {
     std::size_t offset_{};
 };
 
-[[nodiscard]] auto make_material(const Config& config) -> glifistore::bench::KeyMaterial {
+[[nodiscard]] auto make_material(const Config& config, const std::span<const std::size_t> client_owners)
+    -> glifistore::bench::KeyMaterial {
     glifistore::bench::KeyMaterial material;
     material.keys.reserve(config.operations);
     material.values.reserve(config.operations);
@@ -804,7 +831,7 @@ class BufferedResponseReader final {
         const auto client = operation % config.threads;
         do {
             key = glifistore::bench::make_key(candidate++, config.key_size);
-        } while (glifistore::route_worker(key, config.workers) != client % config.workers);
+        } while (glifistore::route_worker(key, config.workers) != client_owners[client]);
         material.keys.push_back(std::move(key));
         material.values.push_back(glifistore::bench::make_value(operation, config.value_size));
     }
@@ -999,7 +1026,8 @@ class BufferedResponseReader final {
 }
 
 [[nodiscard]] auto run_sample(const Options& options, const glifistore::bench::KeyMaterial& material,
-                              const std::vector<ClientWork>& work) -> Sample {
+                              const std::vector<ClientWork>& work,
+                              const glifistore::bench::OwnerWorkload& owner_plan) -> Sample {
     BenchmarkDataDirectory directory{options.storage};
     if (!seed_maintenance_overlap(options, directory)) {
         return {};
@@ -1045,7 +1073,7 @@ class BufferedResponseReader final {
         const auto bind = glifistore::server::encode_request({
             .opcode = glifistore::server::RequestOpcode::bind_worker,
             .request_id = 0xFFFF'FFFF'0000'0001ULL + client * 2U,
-            .target_worker = static_cast<std::uint32_t>(client % options.config.workers),
+            .target_worker = static_cast<std::uint32_t>(owner_plan.client_owners[client]),
         });
         if (!init || !bind || !send_all(descriptors[client], *init)) {
             cleanup();
@@ -1060,7 +1088,7 @@ class BufferedResponseReader final {
         }
         auto bound = responses.receive(descriptors[client]);
         if (!bound || bound->frame.status != glifistore::server::ResponseStatus::ok ||
-            bound->frame.owner_worker != client % options.config.workers) {
+            bound->frame.owner_worker != owner_plan.client_owners[client]) {
             cleanup();
             return {};
         }
@@ -1076,6 +1104,7 @@ class BufferedResponseReader final {
     auto resources = glifistore::bench::process_memory_snapshot();
     std::latch ready{static_cast<std::ptrdiff_t>(options.config.threads)};
     std::latch start{1};
+    std::chrono::steady_clock::time_point started;
     std::vector<ClientResult> client_results(options.config.threads);
     std::vector<std::thread> clients;
     clients.reserve(options.config.threads);
@@ -1086,6 +1115,10 @@ class BufferedResponseReader final {
             client_results[client] =
                 run_client(descriptors[client], work[client], material, options.pipeline, options.latency,
                            options.latency_split, options.latency_sample_stride, options.workload);
+            if (options.owner_profile) {
+                client_results[client].completion_window_seconds =
+                    std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+            }
         });
     }
     ready.wait();
@@ -1097,7 +1130,7 @@ class BufferedResponseReader final {
             maintenance_gate.release();
         });
     }
-    const auto started = std::chrono::steady_clock::now();
+    started = std::chrono::steady_clock::now();
     start.count_down();
     for (auto& client : clients) {
         client.join();
@@ -1109,6 +1142,38 @@ class BufferedResponseReader final {
     const auto after = glifistore::bench::process_memory_snapshot();
     resources.rss_after_bytes = after.rss_after_bytes;
     resources.peak_rss_bytes = after.peak_rss_bytes;
+    std::vector<OwnerSample> owners;
+    if (options.owner_profile) {
+        owners.resize(options.config.workers);
+        const auto response_factor = options.workload == Workload::read_after_write ? 2U : 1U;
+        for (std::size_t owner = 0; owner < owners.size(); ++owner) {
+            owners[owner].planned_operations = owner_plan.operations_by_owner[owner] * response_factor;
+        }
+        const auto write_period = mixed_write_period(options.workload);
+        for (std::size_t operation = 0; operation < options.config.operations; ++operation) {
+            auto& owner = owners[owner_plan.client_owners[operation % options.config.threads]];
+            if (options.workload == Workload::read_after_write) {
+                ++owner.planned_puts;
+                ++owner.planned_gets;
+            } else if (write_period && operation % *write_period == 0) {
+                ++owner.planned_puts;
+            } else {
+                ++owner.planned_gets;
+            }
+        }
+        for (std::size_t client = 0; client < client_results.size(); ++client) {
+            auto& owner = owners[owner_plan.client_owners[client]];
+            const auto& completed = client_results[client];
+            ++owner.clients;
+            owner.completed_operations += completed.hits;
+            owner.first_client_done_seconds =
+                std::min(owner.first_client_done_seconds, completed.completion_window_seconds);
+            owner.completion_window_seconds =
+                std::max(owner.completion_window_seconds, completed.completion_window_seconds);
+            owner.latency_ns.insert(owner.latency_ns.end(), completed.latency_ns.begin(),
+                                    completed.latency_ns.end());
+        }
+    }
     std::size_t hits{};
     for (const auto& client_result : client_results) {
         hits += client_result.hits;
@@ -1146,6 +1211,7 @@ class BufferedResponseReader final {
             .latency_ns = std::move(latency_ns),
             .get_latency_ns = std::move(get_latency_ns),
             .put_latency_ns = std::move(put_latency_ns),
+            .owners = std::move(owners),
             .valid = stopped.has_value() && hits == expected,
             .durable = profile,
             .reactor = reactor};
@@ -1375,6 +1441,7 @@ class BufferedResponseReader final {
             .latency_ns = std::move(latency_ns),
             .get_latency_ns = std::move(get_latency_ns),
             .put_latency_ns = std::move(put_latency_ns),
+            .owners = {},
             .valid = stopped.has_value() && hits == expected,
             .durable = profile,
             .reactor = reactor};
@@ -1426,8 +1493,9 @@ struct LatencyPercentiles {
             .maximum = samples.back()};
 }
 
-[[nodiscard]] auto run_benchmark(const Options& options) -> std::pair<Result, LatencyExtras> {
-    const auto material = make_material(options.config);
+[[nodiscard]] auto run_benchmark(const Options& options, const glifistore::bench::OwnerWorkload& owner_plan)
+    -> std::pair<Result, LatencyExtras> {
+    const auto material = make_material(options.config, owner_plan.client_owners);
     const auto work = options.client_api
                           ? std::vector<ClientWork>{}
                           : prepare_work(options.config, options.pipeline, material, options.workload);
@@ -1436,7 +1504,7 @@ struct LatencyPercentiles {
     }
     const auto sample = [&] {
         return options.client_api ? run_client_api_sample(options, material)
-                                  : run_sample(options, material, work);
+                                  : run_sample(options, material, work, owner_plan);
     };
     for (std::size_t iteration = 0; iteration < options.settings.warmup_iterations; ++iteration) {
         if (!sample().valid) {
@@ -1460,6 +1528,27 @@ struct LatencyPercentiles {
         if (!measured.valid) {
             return {};
         }
+        for (std::size_t owner = 0; owner < measured.owners.size(); ++owner) {
+            auto& profile = measured.owners[owner];
+            if (profile.clients == 0 || profile.completed_operations != profile.planned_operations ||
+                profile.completion_window_seconds <= 0.0) {
+                return {};
+            }
+            const auto latency = latency_percentiles(std::move(profile.latency_ns));
+            std::cout << "owner_profile repeat=" << iteration << " owner=" << owner
+                      << " clients=" << profile.clients
+                      << " planned_operations=" << profile.planned_operations
+                      << " planned_gets=" << profile.planned_gets << " planned_puts=" << profile.planned_puts
+                      << " completed_operations=" << profile.completed_operations
+                      << " sample_seconds=" << measured.seconds
+                      << " first_client_done_seconds=" << profile.first_client_done_seconds
+                      << " completion_window_seconds=" << profile.completion_window_seconds
+                      << " owner_window_ops_per_second="
+                      << static_cast<double>(profile.completed_operations) / profile.completion_window_seconds
+                      << " latency_samples=" << latency.samples << " p50_latency_ns=" << latency.p50
+                      << " p95_latency_ns=" << latency.p95 << " p99_latency_ns=" << latency.p99
+                      << " p999_latency_ns=" << latency.p999 << " max_latency_ns=" << latency.maximum << '\n';
+        }
         hits = measured.hits;
         seconds.push_back(measured.seconds);
         resources.push_back(measured.resources);
@@ -1480,8 +1569,12 @@ struct LatencyPercentiles {
                              : options.workload == Workload::read_90_write_10 ? "server_tcp_read_90_write_10"
                                                                               : "server_tcp_read_after_write";
     const bool cold = options.cold_reads && options.storage != StorageProfile::volatile_memory;
-    const auto benchmark_name =
+    auto benchmark_name =
         std::string{client_name} + '_' + std::string{storage_name(options.storage)} + (cold ? "_cold" : "");
+    if (options.hot_worker_clients) {
+        benchmark_name += "_hot_worker_" + std::to_string(options.hot_worker) + "_clients_" +
+                          std::to_string(*options.hot_worker_clients);
+    }
     auto result = glifistore::bench::finalize_result(
         benchmark_name, options.config, options.settings,
         options.config.operations * (options.workload == Workload::read_after_write ? 2U : 1U), hits,
@@ -1644,6 +1737,7 @@ struct LatencyPercentiles {
 int main(int argc, char** argv) try {
     const auto parsed = options(argc, argv);
     if (!glifistore::bench::validate_run_settings(parsed.settings, parsed.config) || parsed.pipeline == 0 ||
+        parsed.config.operations > std::numeric_limits<std::size_t>::max() / 2U ||
         (parsed.client_api && parsed.workload != Workload::read_after_write) ||
         (parsed.client_api && parsed.client_pipeline > parsed.config.operations) ||
         parsed.client_pipeline > glifistore::client::ClientConfig{}.maximum_pipeline_requests / 2U ||
@@ -1654,6 +1748,20 @@ int main(int argc, char** argv) try {
           parsed.config.threads != 1 || parsed.maintenance_overlap_seed_keys == 0 ||
           parsed.maintenance_overlap_seed_value_bytes == 0 || parsed.maintenance_overlap_eval_ms == 0 ||
           parsed.maintenance_overlap_release_ms == 0))) {
+        return 2;
+    }
+    if (parsed.owner_profile && (parsed.client_api || parsed.config.threads < parsed.config.workers ||
+                                 parsed.config.operations < parsed.config.threads ||
+                                 parsed.config.threads > 1024 || parsed.config.workers > 64)) {
+        std::cerr << "benchmark error: owner profiles need raw wire, work on every owner, at most 64 "
+                     "Workers and 1024 clients\n";
+        return 2;
+    }
+    const auto owner_plan = glifistore::bench::owner_workload(parsed.config.workers, parsed.config.threads,
+                                                              parsed.config.operations,
+                                                              parsed.hot_worker_clients, parsed.hot_worker);
+    if (!owner_plan) {
+        std::cerr << "benchmark error: " << owner_plan.error().message << '\n';
         return 2;
     }
     std::cout << "# glifistore TCP server benchmark\n";
@@ -1673,6 +1781,16 @@ int main(int argc, char** argv) try {
                                               : parsed.pipeline)
               << '\n';
     std::cout << "# routing=owner-bound-connections\n";
+    if (parsed.owner_profile) {
+        std::cout << "# owner_profile_version=1\n";
+        std::cout << "# owner_profile_scope=per-repeat-finite-closed-loop;not-fixed-offered-load\n";
+        std::cout << "# owner_window_scope=shared-start-to-last-client-completion\n";
+        std::cout << "# owner_latency_scope="
+                  << (parsed.workload == Workload::read_after_write ? "all-responses" : "get-responses")
+                  << '\n';
+        std::cout << "# hot_worker=" << parsed.hot_worker << '\n';
+        std::cout << "# hot_worker_clients=" << parsed.hot_worker_clients.value_or(0) << '\n';
+    }
     std::cout << "# traffic_scope=timed-protocol-frames-excluding-init-bind\n";
     std::cout << "# memory_scope=whole-benchmark-process-rss\n";
     std::cout << "# storage_mode=" << storage_name(parsed.storage) << '\n';
@@ -1720,7 +1838,7 @@ int main(int argc, char** argv) try {
 #else
     std::cout << "# executor_affinity_semantics=unavailable\n";
 #endif
-    const auto [result, extras] = run_benchmark(parsed);
+    const auto [result, extras] = run_benchmark(parsed, *owner_plan);
     if (result.samples != parsed.settings.measured_iterations) {
         std::cerr << "benchmark error: TCP sample validation failed\n";
         return 1;

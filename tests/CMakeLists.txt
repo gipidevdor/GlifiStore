@@ -200,6 +200,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/unit/client_transport_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/client_tls_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/benchmark_parse_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/benchmark_owner_workload_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/durable_flush_coordinator_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/latency_histogram_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/result_tests.cpp

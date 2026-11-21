@@ -43,7 +43,7 @@
     },
     {
       "path": "engineering/hazards/routing-capacity.yaml",
-      "sha256": "1a59fa24307e64541bc94ecc253c701c222d773a36c74b79a17efe8203426b45"
+      "sha256": "aee16d1e04464908810ce69e70fe6b2216ebd37bc1e918fa66ee9f06abb6ca2b"
     },
     {
       "path": "engineering/requirements/compaction-delta.yaml",
@@ -72,6 +72,10 @@
     {
       "path": "engineering/requirements/operations.yaml",
       "sha256": "a30527a39bea8532c6aab391e7c36366d23c9f34d9b5712130fc485f4b436c2f"
+    },
+    {
+      "path": "engineering/requirements/owner-capacity.yaml",
+      "sha256": "5acbcd92e11583e1a19079e71a65e3d336f3880c4e2e6b15506172ed33c0ebd2"
     },
     {
       "path": "engineering/requirements/performance.yaml",
@@ -3256,6 +3260,59 @@
       "data": {
         "autorita": [
           "docs/spec/benchmark-standard.md",
+          "docs/benchmarks/shard-capacity.md"
+        ],
+        "categoria": "performance",
+        "claim_massimo": "architectural-prototype",
+        "criticita": "alta",
+        "descrizione": "Opt-in TCP owner profiles declare exact client bindings and key-operation quotas, retain a client on every sibling, and validate responses before accepting a sample. Every measured repeat reports planned and completed operations, GET/PUT counts, client completion windows and the actual latency population per owner. The report rejects incomplete or inconsistent matrices, ambiguous workload identities and fabricated latency samples. Finite closed-loop operation skew must not be presented as a fixed offered rate, saturation or sibling isolation. This is measurement tooling; ownership, wire v2, client outcomes and runtime behavior are unchanged.",
+        "evidenze": [
+          {
+            "note": "Local Release finite-work exploration and strict tooling checks; no hazard or gate closure",
+            "path": "engineering/evidence/owner-capacity-local-2026-11-21/README.md"
+          }
+        ],
+        "hazards": [
+          "HAZ-045"
+        ],
+        "id": "GS-PERF-OWNER-001",
+        "implementazione": [
+          "benchmarks/owner_workload.hpp",
+          "benchmarks/server_benchmark.cpp",
+          "scripts/owner_capacity_report.py",
+          "scripts/benchmark_owner_capacity.py"
+        ],
+        "piattaforme": [
+          "macos-arm64",
+          "linux-x86_64",
+          "freebsd-amd64",
+          "openbsd-amd64"
+        ],
+        "prove": [
+          "tests/unit/benchmark_owner_workload_tests.cpp",
+          "scripts/tests/test_owner_capacity_report.py",
+          "scripts/tests/test_benchmark_report.py",
+          "benchmarks/CMakeLists.txt"
+        ],
+        "rischio_residuo": [
+          "Cold clients may finish early; total operation ratios do not hold the arrival ratio constant",
+          "Loopback client threads compete with server executors for CPU and caches",
+          "Latencies are observed from pipeline-batch send, without coordinated-omission correction",
+          "Many distinct keys target each owner; a single hot key needs a separate workload",
+          "Queue wait, CPU duty and admission pressure are not yet decomposed per owner"
+        ],
+        "stato": "implementato",
+        "titolo": "TCP owner profiles preserve workload identity and finite completion windows"
+      },
+      "id": "GS-PERF-OWNER-001",
+      "kind": "requirements",
+      "path": "engineering/requirements/owner-capacity.yaml",
+      "state": "implementato"
+    },
+    {
+      "data": {
+        "autorita": [
+          "docs/spec/benchmark-standard.md",
           "docs/benchmarks/paired-shards-plan.md"
         ],
         "categoria": "performance",
@@ -6289,12 +6346,17 @@
           "No dynamic balancing mechanism is implemented; a solution remains to be studied"
         ],
         "probabilita": "media",
-        "prove": [],
+        "prove": [
+          "tests/unit/benchmark_owner_workload_tests.cpp",
+          "scripts/tests/test_owner_capacity_report.py",
+          "engineering/evidence/owner-capacity-local-2026-11-21/README.md"
+        ],
         "requisiti": [
-          "GS-CONCUR-PAIR-001"
+          "GS-CONCUR-PAIR-001",
+          "GS-PERF-OWNER-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Open capacity limitation. A scenario with 90 percent of requests targeting one shard is illustrative, not a measured result. Reader and Writer saturation depends on the operation mix; a shard pair is not a single CPU core. The impact and isolation from sibling shards require a dedicated skewed-load campaign. Offline migration is not runtime balancing and does not by itself resolve a single hot key.",
+        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. Compaction sustainability remains a separate question.",
         "severita": "alta",
         "stato": "aperto"
       },
