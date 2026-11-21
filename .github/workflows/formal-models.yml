@@ -67,10 +67,10 @@ jobs:
       - name: Download and verify tla2tools.jar
         run: |
           # Pin the asset ID as well as its digest: the v1.8.0 tag is republished.
-          # Asset metadata and downloaded bytes verified on 2026-11-07.
+          # Asset metadata and downloaded bytes verified on 2026-11-21.
           curl -fsSL -H 'Accept: application/octet-stream' -o /tmp/tla2tools.jar \
-            "https://api.github.com/repos/tlaplus/tlaplus/releases/assets/718777374"
-          echo "e1f11b75c4b5bc4478ba0ac5cb6ae28e40a01b0016bc33e0aa97da22dfdbcd7f  /tmp/tla2tools.jar" \
+            "https://api.github.com/repos/tlaplus/tlaplus/releases/assets/768714348"
+          echo "fdffef247f563ef6edbfd44958d2a82db79e7564e07cb673262d896353fa6713  /tmp/tla2tools.jar" \
             | sha256sum -c -
           echo "TLA2TOOLS_JAR=/tmp/tla2tools.jar" >> "$GITHUB_ENV"
       - name: Run bounded TLC model
