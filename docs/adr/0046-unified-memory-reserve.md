@@ -66,6 +66,12 @@ the reserve:
   Index is rebuilt from the log at open (ADR 0004);
 - otherwise they stay anonymous and the kernel may page them to swap.
 
+On macOS, failure of the contiguous reservation, including `ENOSPC`, is retried with
+`F_ALLOCATEALL` without the contiguity requirement. A fragmented filesystem can refuse a contiguous
+extent while still reserving the complete file from separate extents. Only failure of this second
+reservation with `ENOSPC` selects the memory fallback. This clarifies the existing reservation
+contract; it does not alter persistent authority or acknowledgement.
+
 Smaller arrays stay on the heap and are charged too. Allocation failure keeps its existing
 `resource_exhausted` polarity. Index storage built during recovery is charged when the runtime
 attaches the reserve.

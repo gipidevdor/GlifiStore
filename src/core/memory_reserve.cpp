@@ -121,8 +121,15 @@ auto size_and_reserve(const int descriptor, const std::size_t file_bytes) noexce
     store.fst_posmode = F_PEOFPOSMODE;
     store.fst_offset = 0;
     store.fst_length = static_cast<off_t>(file_bytes);
-    bool reserved = ::fcntl(descriptor, F_PREALLOCATE, &store) != -1;
-    if (!reserved && errno != ENOSPC) {
+    bool reserved{};
+    if (fault::consume_fail(fault::Site::spill_contiguous_reserve)) {
+        errno = ENOSPC;
+    } else {
+        reserved = ::fcntl(descriptor, F_PREALLOCATE, &store) != -1;
+    }
+    if (!reserved) {
+        // ENOSPC may mean that no contiguous extent fits, not that the filesystem is full.
+        // Try fragmented blocks before deciding to keep the region in anonymous memory.
         store.fst_flags = F_ALLOCATEALL;
         reserved = ::fcntl(descriptor, F_PREALLOCATE, &store) != -1;
     }

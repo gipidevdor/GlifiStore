@@ -313,3 +313,20 @@ GLIFI_TEST("spill regions whose file blocks cannot be reserved stay in memory") 
     GLIFI_REQUIRE(spilled.backing() == glifistore::PageableBacking::spill_file);
     GLIFI_REQUIRE(all_zero({spilled.data(), spilled.size()}));
 }
+
+#if defined(__APPLE__) && defined(GLIFISTORE_FAULT_INJECTION)
+GLIFI_TEST("fragmented spill space is retried after contiguous ENOSPC") {
+    const SpillDirectory spill;
+    auto reserve = std::make_shared<glifistore::MemoryReserve>(0U, spill.path());
+    glifistore::fault::fail_once(glifistore::fault::Site::spill_contiguous_reserve);
+    auto region =
+        glifistore::PageableRegion::allocate(8U * kMiB, glifistore::PageableRegion::Use::index, reserve);
+    glifistore::fault::reset();
+    GLIFI_REQUIRE(region.backing() == (glifistore::kPageableIndexMappingEnabled
+                                           ? glifistore::PageableBacking::spill_file
+                                           : glifistore::PageableBacking::heap));
+    GLIFI_REQUIRE(all_zero({region.data(), region.size()}));
+    GLIFI_REQUIRE(reserve->stats().spill_mapping_failures == 0U);
+    GLIFI_REQUIRE(spill.entry_count() == 0U);
+}
+#endif

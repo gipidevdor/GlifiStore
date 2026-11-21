@@ -54,6 +54,8 @@ enum class Site : std::uint8_t {
     tls_write_want_write = 24,
     // Index spill file block reservation fails (HAZ-043: the region must fall back to memory).
     spill_reserve = 25,
+    // macOS cannot satisfy a contiguous reservation even though fragmented space exists.
+    spill_contiguous_reserve = 26,
 };
 
 #if defined(GLIFISTORE_FAULT_INJECTION)

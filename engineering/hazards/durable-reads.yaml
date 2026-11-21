@@ -45,6 +45,7 @@ hazards:
   - Every platform reserves the spill file's blocks before mapping it (F_PREALLOCATE on macOS,
     posix_fallocate on Linux and FreeBSD, zero writes on OpenBSD or when the filesystem refuses)
   - A spill file whose blocks cannot be reserved is never mapped; the array stays in anonymous memory
+  - macOS retries a failed contiguous reservation without contiguity, including ENOSPC due to fragmentation
   - The spill file is unlinked at creation and never synchronized, so nothing survives a crash
   contenimento:
   - The Index is derived state; restart rebuilds it from the log (ADR 0004)
