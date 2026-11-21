@@ -52,6 +52,17 @@ For each reproducible integration error, fix the responsible layer, add a reusab
 regression and repeat the affected cross-project flow; retain failed attempts and
 stop repeated retries that produce no new evidence.
 
+Before selecting a correction, read the relevant current hazards and their linked
+requirements, authority and residual risks. For shard capacity and client routing,
+start with `engineering/hazards/routing-capacity.yaml` (HAZ-045/046), ADR 0033
+and `docs/spec/client-semantics-v1.md`. Evaluate skewed load separately from
+compaction progress; aggregate throughput does not demonstrate hot-shard isolation.
+Treat intended rejections such as WRONG_OWNER according to the client contract.
+Changes to forwarding, rerouting, retry or ownership semantics require the ADR and proofs
+specified by the silent-change ban. Include HAZ-044's remaining pending-group
+failure paths when changing admission or compaction conflicts. A successful local
+check does not accept an open hazard or eliminate its residual risk.
+
 | Path | Role |
 | --- | --- |
 | [`docs/assurance/engineering-baseline.md`](docs/assurance/engineering-baseline.md) | Gap recon and Phase A baseline |

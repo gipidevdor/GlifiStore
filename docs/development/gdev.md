@@ -13,6 +13,21 @@ gli identificativi GS, gli stati originali, collegamenti, prove e rischi.
 Lo stato `CURRENT` indica la freschezza della vista. Non chiude alcun gate.
 Il requisito `GS-GDEV-001` riguarda soltanto questa integrazione degli strumenti.
 
+Prima di pianificare una correzione, consulta gli hazard pertinenti e i loro
+requisiti, contratti e rischi residui. Per capacità e routing parti da
+[HAZ-045 e HAZ-046](../../engineering/hazards/routing-capacity.yaml),
+[ADR 0033](../adr/0033-online-rebalance-deferred.md) e
+[semantica dei client](../spec/client-semantics-v1.md).
+Il carico concentrato su uno shard richiede misure dedicate di capacità,
+latenza e isolamento. Lo scenario con il 90% delle richieste sullo stesso
+shard è illustrativo. La disponibilità di CPU sugli altri shard e il
+progresso della compaction non dimostrano la sostenibilità di quel carico.
+`WRONG_OWNER` mantiene il trattamento previsto dai client ufficiali;
+nuove politiche di forwarding, rerouting e retry richiedono una decisione architetturale
+esplicita. Per admission e compaction considera anche i percorsi residui
+di [HAZ-044](../../engineering/hazards/durable-group-rejections.yaml).
+Conserva separati gli esiti delle prove e l'accettazione dei rischi.
+
 Dopo una modifica ai cataloghi esegui, dalla radice del repository
 
 ```sh
