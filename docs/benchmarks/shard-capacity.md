@@ -92,3 +92,7 @@ separate work. HAZ-045 stays open after a successful tooling check.
 The [ADR 0048 local copy comparison](../../engineering/evidence/hot-reader-copy-local-2026-11-21/README.md)
 retains an old/candidate/old run order for a reduction in volatile Reader copies.
 It includes the hot-owner cases and preserves the same finite-loop limitations.
+
+The proposed [read-management plan](../architecture/adaptive-read-management.md) defines the
+future sustained-capacity campaign and adaptive-helper qualification. Its 70 percent trigger
+cannot be calibrated from the finite profiles above; the governor is not implemented.

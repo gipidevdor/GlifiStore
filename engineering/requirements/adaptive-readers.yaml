@@ -1,0 +1,52 @@
+requirements:
+- id: GS-PERF-RCAP-001
+  titolo: Qualify sustained per-owner read capacity before using utilization thresholds
+  categoria: performance
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Planned only. Define sustainable validated GET capacity by workload, platform, CPU allocation
+    and helper count under a declared latency objective and stable backlog. Distinguish observed
+    demand, CPU service, blocked work and completed throughput. Capacity estimates have explicit
+    unknown, qualified and stale states. Finite closed-loop rates are not accepted calibration.
+  autorita:
+  - docs/adr/0049-adaptive-read-capacity.md
+  - docs/architecture/adaptive-read-management.md
+  implementazione: []
+  prove: []
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - note: Design plan only; telemetry and sustained offered-rate campaign are not implemented
+  rischio_residuo:
+  - Existing owner profiles do not measure sustained offered-rate capacity or helper scaling
+  - Workload drift, memory bandwidth and client/server contention can invalidate capacity estimates
+  hazards: [HAZ-045, HAZ-047]
+  gates: [GATE-ADAPTIVE-READERS]
+- id: GS-OPS-RCTRL-001
+  titolo: Govern a shared helper budget with qualified pressure, fairness and stable retirement
+  categoria: operations
+  criticita: alta
+  stato: bozza
+  descrizione: >-
+    Planned only. Per-shard observers request capacity from a global arbiter. The initial 70 percent
+    expansion hypothesis is separate from the process-wide CPU budget and rigid helper/memory caps.
+    Count arming and draining allocations until safe release. Retire for quiet using projected
+    capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources
+    fairly under contention. Do not force CPU utilization without useful work or add helpers for
+    network, Writer-barrier or cold-I/O waits. Expose missing capacity and all control decisions.
+  autorita:
+  - docs/adr/0049-adaptive-read-capacity.md
+  - docs/architecture/adaptive-read-management.md
+  implementazione: []
+  prove: []
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - note: Controller, shadow evaluation and threshold parameters are not implemented or qualified
+  rischio_residuo:
+  - CPU availability is estimated and does not reserve a physical core
+  - Oscillation, delayed response to bursts and starvation remain untested
+  - No overload policy can guarantee latency when useful total capacity is insufficient
+  hazards: [HAZ-045, HAZ-047]
+  gates: [GATE-ADAPTIVE-READERS]

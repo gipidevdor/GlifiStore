@@ -6,6 +6,10 @@
       "sha256": "221797af9a25e68e1601243a4ccb1f02d38fbe0cea461107c662438f9078c455"
     },
     {
+      "path": "engineering/gates/adaptive-readers.yaml",
+      "sha256": "820d7a7a9be390f940709d4ed699d1866d6ab87b1e8a6f8d5db4defd818ae7da"
+    },
+    {
       "path": "engineering/gates/compaction-delta.yaml",
       "sha256": "78bca34a07e89e588af1726cf1a8c308433d69360c4a0c3b4cb5ccc93d835950"
     },
@@ -43,7 +47,11 @@
     },
     {
       "path": "engineering/hazards/routing-capacity.yaml",
-      "sha256": "9d6f0168e1906e625172eb8e605d5f42354ae84eb5068200e019985ea151d848"
+      "sha256": "e75ec1dbc4dc3ceb7eb0111b430e62c00126c6867c6cf7cfdadd689cc16ebdd3"
+    },
+    {
+      "path": "engineering/requirements/adaptive-readers.yaml",
+      "sha256": "ec0ebbbf43b6f60e59594f4c7fd9a32f27edaea08bd2c7267a6ad2e503e31f08"
     },
     {
       "path": "engineering/requirements/compaction-delta.yaml",
@@ -223,6 +231,46 @@
       "kind": "claims",
       "path": "engineering/claims/prototype-main.yaml",
       "state": "architectural-prototype"
+    },
+    {
+      "data": {
+        "evidenze": [
+          {
+            "note": "Proposed design and implementation plan only; no runtime or campaign evidence"
+          }
+        ],
+        "id": "GATE-ADAPTIVE-READERS",
+        "livello_rilascio": "prototype",
+        "narrative": "The read-management plan orders observation, shadow control, fixed-helper safety, capacity curves, adaptive actuation and platform qualification. Metadata checks verify the plan's consistency only; they are not proofs of the proposed implementation.",
+        "piattaforme": [
+          "macos-arm64",
+          "linux-x86_64",
+          "freebsd-amd64",
+          "openbsd-amd64"
+        ],
+        "prove": [],
+        "requisiti": [
+          "GS-PERF-RCAP-001",
+          "GS-CONCUR-PAIR-001",
+          "GS-CONCUR-MEM-001",
+          "GS-OPS-RCTRL-001"
+        ],
+        "riapertura": [
+          "Claiming capacity from completed throughput alone or an incompatible workload profile",
+          "Helper activation without a global budget, safe registration or byte/completion credits",
+          "Reclamation before all borrowers quiesce, early release of draining credits or stale-owner reuse",
+          "Scale-down based solely on current utilization, starvation or unbounded control-path work",
+          "Changed routing, mutation visibility, client rejection or retry behavior without authority"
+        ],
+        "rischio_residuo": "ADR 0049 is proposed. No capacity telemetry, global governor, helper path, multi-reader reclamation or associated safety/performance proofs are implemented. Existing local finite owner profiles and ADR 0048 copy improvements do not satisfy this gate. All platform rows and acceptance decisions remain pending; HAZ-045/046/047 are not accepted for release. Conditional abstract credit and local-hysteresis arguments do not establish global queue stability, starvation freedom, latency bounds or throughput optimality.",
+        "sezione": "verification",
+        "stato": "SPECIFICATA",
+        "titolo": "Adaptive read capacity preserves ownership, bounded resources and useful progress"
+      },
+      "id": "GATE-ADAPTIVE-READERS",
+      "kind": "gates",
+      "path": "engineering/gates/adaptive-readers.yaml",
+      "state": "SPECIFICATA"
     },
     {
       "data": {
@@ -3052,6 +3100,50 @@
     {
       "data": {
         "autorita": [
+          "docs/adr/0049-adaptive-read-capacity.md",
+          "docs/architecture/adaptive-read-management.md"
+        ],
+        "categoria": "operations",
+        "claim_massimo": "architectural-prototype",
+        "criticita": "alta",
+        "descrizione": "Planned only. Per-shard observers request capacity from a global arbiter. The initial 70 percent expansion hypothesis is separate from the process-wide CPU budget and rigid helper/memory caps. Count arming and draining allocations until safe release. Retire for quiet using projected capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources fairly under contention. Do not force CPU utilization without useful work or add helpers for network, Writer-barrier or cold-I/O waits. Expose missing capacity and all control decisions.",
+        "evidenze": [
+          {
+            "note": "Controller, shadow evaluation and threshold parameters are not implemented or qualified"
+          }
+        ],
+        "gates": [
+          "GATE-ADAPTIVE-READERS"
+        ],
+        "hazards": [
+          "HAZ-045",
+          "HAZ-047"
+        ],
+        "id": "GS-OPS-RCTRL-001",
+        "implementazione": [],
+        "piattaforme": [
+          "macos-arm64",
+          "linux-x86_64",
+          "freebsd-amd64",
+          "openbsd-amd64"
+        ],
+        "prove": [],
+        "rischio_residuo": [
+          "CPU availability is estimated and does not reserve a physical core",
+          "Oscillation, delayed response to bursts and starvation remain untested",
+          "No overload policy can guarantee latency when useful total capacity is insufficient"
+        ],
+        "stato": "bozza",
+        "titolo": "Govern a shared helper budget with qualified pressure, fairness and stable retirement"
+      },
+      "id": "GS-OPS-RCTRL-001",
+      "kind": "requirements",
+      "path": "engineering/requirements/adaptive-readers.yaml",
+      "state": "bozza"
+    },
+    {
+      "data": {
+        "autorita": [
           "docs/operations/soak.md",
           "docs/operations/graceful-drain-and-overload.md",
           "docs/assurance/performance-budgets.md",
@@ -3312,6 +3404,49 @@
       "kind": "requirements",
       "path": "engineering/requirements/owner-capacity.yaml",
       "state": "implementato"
+    },
+    {
+      "data": {
+        "autorita": [
+          "docs/adr/0049-adaptive-read-capacity.md",
+          "docs/architecture/adaptive-read-management.md"
+        ],
+        "categoria": "performance",
+        "claim_massimo": "architectural-prototype",
+        "criticita": "alta",
+        "descrizione": "Planned only. Define sustainable validated GET capacity by workload, platform, CPU allocation and helper count under a declared latency objective and stable backlog. Distinguish observed demand, CPU service, blocked work and completed throughput. Capacity estimates have explicit unknown, qualified and stale states. Finite closed-loop rates are not accepted calibration.",
+        "evidenze": [
+          {
+            "note": "Design plan only; telemetry and sustained offered-rate campaign are not implemented"
+          }
+        ],
+        "gates": [
+          "GATE-ADAPTIVE-READERS"
+        ],
+        "hazards": [
+          "HAZ-045",
+          "HAZ-047"
+        ],
+        "id": "GS-PERF-RCAP-001",
+        "implementazione": [],
+        "piattaforme": [
+          "macos-arm64",
+          "linux-x86_64",
+          "freebsd-amd64",
+          "openbsd-amd64"
+        ],
+        "prove": [],
+        "rischio_residuo": [
+          "Existing owner profiles do not measure sustained offered-rate capacity or helper scaling",
+          "Workload drift, memory bandwidth and client/server contention can invalidate capacity estimates"
+        ],
+        "stato": "bozza",
+        "titolo": "Qualify sustained per-owner read capacity before using utilization thresholds"
+      },
+      "id": "GS-PERF-RCAP-001",
+      "kind": "requirements",
+      "path": "engineering/requirements/adaptive-readers.yaml",
+      "state": "bozza"
     },
     {
       "data": {
@@ -6404,7 +6539,8 @@
         "id": "HAZ-045",
         "prevenzione": [
           "No dynamic balancing mechanism is implemented; a solution remains to be studied",
-          "ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease"
+          "ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease",
+          "ADR 0049 proposes capacity measurement and bounded adaptive read helpers; no controller is implemented"
         ],
         "probabilita": "media",
         "prove": [
@@ -6418,10 +6554,12 @@
         "requisiti": [
           "GS-CONCUR-PAIR-001",
           "GS-PERF-OWNER-001",
-          "GS-PERF-VREAD-001"
+          "GS-PERF-VREAD-001",
+          "GS-PERF-RCAP-001",
+          "GS-OPS-RCTRL-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. Compaction sustainability remains separate.",
+        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are proposed only; their 70 percent hypothesis, multi-reader safety and global budget are unproven. Compaction sustainability remains separate.",
         "severita": "alta",
         "stato": "aperto"
       },
@@ -6461,6 +6599,46 @@
         "stato": "aperto"
       },
       "id": "HAZ-046",
+      "kind": "hazards",
+      "path": "engineering/hazards/routing-capacity.yaml",
+      "state": "aperto"
+    },
+    {
+      "data": {
+        "accettazione_rischio": "Not accepted for release; design-only hazard and unimplemented mitigations",
+        "cause": [
+          "Treating completed throughput or total CPU occupancy as sufficient evidence of useful read capacity",
+          "Independent per-owner pools oversubscribe the process or retain credits while parked or draining",
+          "Scale-down ignores capacity with one fewer helper, causing repeated expansion and retirement",
+          "A hot owner monopolizes helpers or controller delays exceed the workload's burst tolerance",
+          "Coupled service capacities and measurement delays are treated as independent fixed per-owner rates"
+        ],
+        "conseguenze": [
+          "Additional CPU and queues increase latency without increasing useful completed work",
+          "Writer, maintenance or sibling progress is reduced and read generations can remain retained"
+        ],
+        "contenimento": [
+          "No adaptive governor or read helpers are enabled in the current runtime",
+          "The planned disable path must drain readers before returning to the primary path"
+        ],
+        "evento_pericoloso": "A future adaptive read governor amplifies overload or starves other owners and Writers",
+        "id": "HAZ-047",
+        "prevenzione": [
+          "Proposed ADR 0049 separates calibrated capacity, local observers, a global budget and rigid credits",
+          "The design requires counterfactual scale-down, fairness and explicit unknown or stale measurements"
+        ],
+        "probabilita": "media",
+        "prove": [],
+        "requisiti": [
+          "GS-PERF-RCAP-001",
+          "GS-OPS-RCTRL-001"
+        ],
+        "rilevabilita": "alta",
+        "rischio_residuo": "Prospective design hazard, not an observed failure of an enabled feature. The controller, telemetry and helper path are not implemented. The 70 percent threshold and initial time windows are hypotheses requiring sustained-load and deterministic state-machine proofs. Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.",
+        "severita": "alta",
+        "stato": "aperto"
+      },
+      "id": "HAZ-047",
       "kind": "hazards",
       "path": "engineering/hazards/routing-capacity.yaml",
       "state": "aperto"

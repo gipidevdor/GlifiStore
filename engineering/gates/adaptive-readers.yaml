@@ -1,0 +1,28 @@
+gates:
+- id: GATE-ADAPTIVE-READERS
+  titolo: Adaptive read capacity preserves ownership, bounded resources and useful progress
+  sezione: verification
+  livello_rilascio: prototype
+  requisiti: [GS-PERF-RCAP-001, GS-CONCUR-PAIR-001, GS-CONCUR-MEM-001, GS-OPS-RCTRL-001]
+  prove: []
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  evidenze:
+  - note: Proposed design and implementation plan only; no runtime or campaign evidence
+  stato: SPECIFICATA
+  rischio_residuo: >-
+    ADR 0049 is proposed. No capacity telemetry, global governor, helper path, multi-reader
+    reclamation or associated safety/performance proofs are implemented. Existing local finite
+    owner profiles and ADR 0048 copy improvements do not satisfy this gate. All platform rows
+    and acceptance decisions remain pending; HAZ-045/046/047 are not accepted for release.
+    Conditional abstract credit and local-hysteresis arguments do not establish global queue
+    stability, starvation freedom, latency bounds or throughput optimality.
+  riapertura:
+  - Claiming capacity from completed throughput alone or an incompatible workload profile
+  - Helper activation without a global budget, safe registration or byte/completion credits
+  - Reclamation before all borrowers quiesce, early release of draining credits or stale-owner reuse
+  - Scale-down based solely on current utilization, starvation or unbounded control-path work
+  - Changed routing, mutation visibility, client rejection or retry behavior without authority
+  narrative: >-
+    The read-management plan orders observation, shadow control, fixed-helper safety, capacity
+    curves, adaptive actuation and platform qualification. Metadata checks verify the plan's
+    consistency only; they are not proofs of the proposed implementation.

@@ -13,6 +13,7 @@ hazards:
   prevenzione:
   - No dynamic balancing mechanism is implemented; a solution remains to be studied
   - ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease
+  - ADR 0049 proposes capacity measurement and bounded adaptive read helpers; no controller is implemented
   contenimento:
   - Bounded lanes constrain queued work but do not redistribute it
   prove:
@@ -32,10 +33,12 @@ hazards:
     A shard pair is not a single CPU core. Offline migration is not runtime balancing and does
     not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a
     reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime
-    redistribution or a general tail-latency improvement. Compaction sustainability remains separate.
+    redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are
+    proposed only; their 70 percent hypothesis, multi-reader safety and global budget are unproven.
+    Compaction sustainability remains separate.
   stato: aperto
   accettazione_rischio: Not accepted for release; fixed-owner capacity limit remains unresolved
-  requisiti: [GS-CONCUR-PAIR-001, GS-PERF-OWNER-001, GS-PERF-VREAD-001]
+  requisiti: [GS-CONCUR-PAIR-001, GS-PERF-OWNER-001, GS-PERF-VREAD-001, GS-PERF-RCAP-001, GS-OPS-RCTRL-001]
 - id: HAZ-046
   evento_pericoloso: Client routing mismatch rejects requests without server-side forwarding
   cause:
@@ -62,3 +65,32 @@ hazards:
   stato: aperto
   accettazione_rischio: Not accepted for release; problem recorded only, solution deferred
   requisiti: [GS-PROTO-WIRE-001]
+- id: HAZ-047
+  evento_pericoloso: A future adaptive read governor amplifies overload or starves other owners and Writers
+  cause:
+  - Treating completed throughput or total CPU occupancy as sufficient evidence of useful read capacity
+  - Independent per-owner pools oversubscribe the process or retain credits while parked or draining
+  - Scale-down ignores capacity with one fewer helper, causing repeated expansion and retirement
+  - A hot owner monopolizes helpers or controller delays exceed the workload's burst tolerance
+  - Coupled service capacities and measurement delays are treated as independent fixed per-owner rates
+  conseguenze:
+  - Additional CPU and queues increase latency without increasing useful completed work
+  - Writer, maintenance or sibling progress is reduced and read generations can remain retained
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Proposed ADR 0049 separates calibrated capacity, local observers, a global budget and rigid credits
+  - The design requires counterfactual scale-down, fairness and explicit unknown or stale measurements
+  contenimento:
+  - No adaptive governor or read helpers are enabled in the current runtime
+  - The planned disable path must drain readers before returning to the primary path
+  prove: []
+  rischio_residuo: >-
+    Prospective design hazard, not an observed failure of an enabled feature. The controller,
+    telemetry and helper path are not implemented. The 70 percent threshold and initial time
+    windows are hypotheses requiring sustained-load and deterministic state-machine proofs.
+    Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.
+  stato: aperto
+  accettazione_rischio: Not accepted for release; design-only hazard and unimplemented mitigations
+  requisiti: [GS-PERF-RCAP-001, GS-OPS-RCTRL-001]
