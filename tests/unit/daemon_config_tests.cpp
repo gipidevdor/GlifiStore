@@ -608,3 +608,17 @@ GLIFI_TEST("daemon config CRL and OCSP fail-closed flags") {
     GLIFI_REQUIRE(dump.find("tls-crl=\n") != std::string::npos);
     GLIFI_REQUIRE(dump.find("tls-ocsp-fail-closed=false\n") != std::string::npos);
 }
+
+GLIFI_TEST("daemon read helper experiments require bounded volatile owner configuration") {
+    const auto valid =
+        parse(std::array{"glifistored", "--read-helper-cap", "2", "--read-helper-fixed-owner", "0"});
+    GLIFI_REQUIRE(valid.has_value());
+    GLIFI_REQUIRE(valid->server.read_helpers.maximum_helpers == 2);
+    GLIFI_REQUIRE(valid->server.read_helpers.fixed_owner == 0);
+    GLIFI_REQUIRE(!parse(std::array{"glifistored", "--read-helper-cap", "17"}));
+    GLIFI_REQUIRE(!parse(std::array{"glifistored", "--read-helper-fixed-owner", "0"}));
+    GLIFI_REQUIRE(
+        !parse(std::array{"glifistored", "--read-helper-cap", "1", "--read-helper-fixed-owner", "1"}));
+    GLIFI_REQUIRE(!parse(std::array{"glifistored", "--read-helper-cap", "1", "--storage-mode", "durable-sync",
+                                    "--data-dir", "unused"}));
+}

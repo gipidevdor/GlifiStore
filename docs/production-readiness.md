@@ -127,10 +127,10 @@ The former volatile prototype is removed from the tree; only the separate ADR 00
 ### Verification
 
 - [ ] **GATE-ADAPTIVE-READERS** — Adaptive read capacity preserves ownership, bounded resources and useful progress
-  State: `SPECIFICATA` · Release target: `prototype`
-  Requirements: `GS-PERF-RCAP-001`, `GS-CONCUR-PAIR-001`, `GS-CONCUR-MEM-001`, `GS-OPS-RCTRL-001`
-  Residual risk: ADR 0049 is proposed. No capacity telemetry, global governor, helper path, multi-reader reclamation or associated safety/performance proofs are implemented. Existing local finite owner profiles and ADR 0048 copy improvements do not satisfy this gate. All platform rows and acceptance decisions remain pending; HAZ-045/046/047 are not accepted for release. Conditional abstract credit and local-hysteresis arguments do not establish global queue stability, starvation freedom, latency bounds or throughput optimality.
-  The read-management plan orders observation, shadow control, fixed-helper safety, capacity curves, adaptive actuation and platform qualification. Metadata checks verify the plan's consistency only; they are not proofs of the proposed implementation.
+  State: `IMPLEMENTATA` · Release target: `prototype`
+  Requirements: `GS-PERF-RCAP-001`, `GS-CONCUR-PAIR-001`, `GS-CONCUR-MEM-001`, `GS-OPS-RCTRL-001`, `GS-CONCUR-RHELP-001`
+  Residual risk: ADR 0049 accepts the opt-in prototype. Default helper cap is zero; unknown profiles never activate adaptive helpers. Local credit, replay, equal-share and epoch-handoff proofs do not qualify capacity, thresholds, CPU cost, global stability or starvation freedom under arbitrary workload changes. All native platform acceptance rows and sustained multi-owner campaigns remain pending. HAZ-045/046/047 are not accepted for release.
+  A bounded shared helper prototype extends the originating Reader epoch frontier through exact-selection continuations. Pure control decisions have deterministic replay and hard credit tests. Fixed-allocation offered-rate experiments are explicitly unqualified; metadata checks and local tests do not close the sustained performance or release obligations.
 
 - [x] **GATE-DOCUMENTATION-INTEGRITY** — Tracked documentation has valid repository-local references
   State: `PROVATA_IN_CI` · Release target: `prototype`

@@ -7,7 +7,7 @@
     },
     {
       "path": "engineering/gates/adaptive-readers.yaml",
-      "sha256": "820d7a7a9be390f940709d4ed699d1866d6ab87b1e8a6f8d5db4defd818ae7da"
+      "sha256": "9e79f08e19fe5dfff80f4b2f48d039df74354ac096691641ba235c4933064c8c"
     },
     {
       "path": "engineering/gates/compaction-delta.yaml",
@@ -43,15 +43,15 @@
     },
     {
       "path": "engineering/hazards/register.yaml",
-      "sha256": "1238f27794fa6665c65da46b873ccf6d657d24dfb1b32c0df39f7aa76bf099e0"
+      "sha256": "8e4327062531be4c3353a499c73d9aa20bca0845a8ede8896bf63d12edcc9d86"
     },
     {
       "path": "engineering/hazards/routing-capacity.yaml",
-      "sha256": "f57842684feb829cf1161bc48e68944557c539047e8755bf6cd9bc5b30ae8a5c"
+      "sha256": "46c7d02bbfa10f4b3a12201bbb1abb54aac97445a488ee664bc115caefe699a1"
     },
     {
       "path": "engineering/requirements/adaptive-readers.yaml",
-      "sha256": "822ee12c9b23f513841b1f74e36e3ed2a23bbaace1e0acfd4e3db2569ba5d6fa"
+      "sha256": "ac1bfeb3e74882cba8280fb7cf1db4a9f8c3b8efd2c9eab9c3d48e9199815f4d"
     },
     {
       "path": "engineering/requirements/compaction-delta.yaml",
@@ -236,24 +236,30 @@
       "data": {
         "evidenze": [
           {
-            "note": "Proposed design and implementation plan only; no runtime or campaign evidence"
+            "note": "Local opt-in prototype proofs; capacity and platform qualification remain open",
+            "path": "engineering/evidence/read-capacity-local-2026-11-21/README.md"
           }
         ],
         "id": "GATE-ADAPTIVE-READERS",
         "livello_rilascio": "prototype",
-        "narrative": "The read-management plan orders observation, shadow control, fixed-helper safety, capacity curves, adaptive actuation and platform qualification. Metadata checks verify the plan's consistency only; they are not proofs of the proposed implementation.",
+        "narrative": "A bounded shared helper prototype extends the originating Reader epoch frontier through exact-selection continuations. Pure control decisions have deterministic replay and hard credit tests. Fixed-allocation offered-rate experiments are explicitly unqualified; metadata checks and local tests do not close the sustained performance or release obligations.",
         "piattaforme": [
           "macos-arm64",
           "linux-x86_64",
           "freebsd-amd64",
           "openbsd-amd64"
         ],
-        "prove": [],
+        "prove": [
+          "tests/unit/read_capacity_controller_tests.cpp",
+          "tests/integration/server_read_helper_tests.cpp",
+          "scripts/tests/test_benchmark_read_capacity.py"
+        ],
         "requisiti": [
           "GS-PERF-RCAP-001",
           "GS-CONCUR-PAIR-001",
           "GS-CONCUR-MEM-001",
-          "GS-OPS-RCTRL-001"
+          "GS-OPS-RCTRL-001",
+          "GS-CONCUR-RHELP-001"
         ],
         "riapertura": [
           "Claiming capacity from completed throughput alone or an incompatible workload profile",
@@ -262,15 +268,15 @@
           "Scale-down based solely on current utilization, starvation or unbounded control-path work",
           "Changed routing, mutation visibility, client rejection or retry behavior without authority"
         ],
-        "rischio_residuo": "ADR 0049 is proposed. No capacity telemetry, global governor, helper path, multi-reader reclamation or associated safety/performance proofs are implemented. Existing local finite owner profiles and ADR 0048 copy improvements do not satisfy this gate. All platform rows and acceptance decisions remain pending; HAZ-045/046/047 are not accepted for release. Conditional abstract credit and local-hysteresis arguments do not establish global queue stability, starvation freedom, latency bounds or throughput optimality.",
+        "rischio_residuo": "ADR 0049 accepts the opt-in prototype. Default helper cap is zero; unknown profiles never activate adaptive helpers. Local credit, replay, equal-share and epoch-handoff proofs do not qualify capacity, thresholds, CPU cost, global stability or starvation freedom under arbitrary workload changes. All native platform acceptance rows and sustained multi-owner campaigns remain pending. HAZ-045/046/047 are not accepted for release.",
         "sezione": "verification",
-        "stato": "SPECIFICATA",
+        "stato": "IMPLEMENTATA",
         "titolo": "Adaptive read capacity preserves ownership, bounded resources and useful progress"
       },
       "id": "GATE-ADAPTIVE-READERS",
       "kind": "gates",
       "path": "engineering/gates/adaptive-readers.yaml",
-      "state": "SPECIFICATA"
+      "state": "IMPLEMENTATA"
     },
     {
       "data": {
@@ -2449,6 +2455,59 @@
     {
       "data": {
         "autorita": [
+          "docs/adr/0049-adaptive-read-capacity.md",
+          "docs/spec/concurrency-memory-model.md"
+        ],
+        "categoria": "concurrency",
+        "claim_massimo": "architectural-prototype",
+        "criticita": "critica",
+        "descrizione": "The owning Reactor registers an already-protected epoch before publishing a bounded task. Helpers never independently adopt generation pointers. Every subsequent primary adoption retains pending helper epochs, including selected large-value continuations and stale tokens. The result is encoded/copied before the lease drops. One task/result per helper and one delegated GET per connection preserve hard bounds, logical ownership and response order. Full cells and long keys use the primary path. Join ends helper access before Store teardown.",
+        "evidenze": [
+          {
+            "note": "Local explicit-selection, publication, fallback and cancellation proofs; no CI/platform closure",
+            "path": "engineering/evidence/read-capacity-local-2026-11-21/README.md"
+          }
+        ],
+        "gates": [
+          "GATE-ADAPTIVE-READERS"
+        ],
+        "hazards": [
+          "HAZ-008",
+          "HAZ-045",
+          "HAZ-047"
+        ],
+        "id": "GS-CONCUR-RHELP-001",
+        "implementazione": [
+          "src/server/read_helper_pool.cpp",
+          "src/server/reactor_read_helpers.cpp",
+          "src/server/reactor_execute.cpp",
+          "src/server/server_lifecycle.cpp"
+        ],
+        "piattaforme": [
+          "macos-arm64",
+          "linux-x86_64",
+          "freebsd-amd64",
+          "openbsd-amd64"
+        ],
+        "prove": [
+          "tests/integration/server_read_helper_tests.cpp"
+        ],
+        "rischio_residuo": [
+          "Only volatile GET is delegated; long-key and helper-pressure fallback retain primary costs",
+          "Large values are materialized on the primary and retain their generation until encoding",
+          "Multi-hour shutdown/cancellation schedules and native non-macOS platform rows remain open"
+        ],
+        "stato": "implementato",
+        "titolo": "Delegated volatile GET retains the exact generation until owning response encoding"
+      },
+      "id": "GS-CONCUR-RHELP-001",
+      "kind": "requirements",
+      "path": "engineering/requirements/adaptive-readers.yaml",
+      "state": "implementato"
+    },
+    {
+      "data": {
+        "autorita": [
           "docs/adr/0032-paired-concurrency-embedded-store.md",
           "engineering/formal/shard_pair/README.md"
         ],
@@ -3106,10 +3165,11 @@
         "categoria": "operations",
         "claim_massimo": "architectural-prototype",
         "criticita": "alta",
-        "descrizione": "Planned only. Per-shard observers request capacity from a global arbiter. Profile-qualified expansion and retirement hypotheses are separate from the CPU budget and rigid helper/memory caps; the revised experiment starts with 65/45 percent candidates. Account for observation, wakeup delay and uncertainty before qualification. Compare useful work per resource and preserve data/client contracts rather than forcing high CPU occupancy. Count arming and draining allocations until safe release. Retire for quiet using projected capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources fairly under contention. Do not force CPU utilization without useful work or add helpers for network, Writer-barrier or cold-I/O waits. Expose missing capacity and all control decisions.",
+        "descrizione": "Experimental opt-in implementation. Per-shard observers request capacity from a global arbiter. Profile-qualified expansion and retirement hypotheses are separate from the CPU budget and rigid helper/memory caps; the revised experiment starts with 65/45 percent candidates. Account for observation, wakeup delay and uncertainty before qualification. Compare useful work per resource and preserve data/client contracts rather than forcing high CPU occupancy. Count arming and draining allocations until safe release. Retire for quiet using projected capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources fairly under contention. Do not force CPU utilization without useful work or add helpers for network, Writer-barrier or cold-I/O waits. Expose missing capacity and all control decisions.",
         "evidenze": [
           {
-            "note": "Controller, shadow evaluation and threshold parameters are not implemented or qualified"
+            "note": "Local deterministic and lifetime proofs; thresholds and capacities are not qualified",
+            "path": "engineering/evidence/read-capacity-local-2026-11-21/README.md"
           }
         ],
         "gates": [
@@ -3120,27 +3180,36 @@
           "HAZ-047"
         ],
         "id": "GS-OPS-RCTRL-001",
-        "implementazione": [],
+        "implementazione": [
+          "src/server/read_capacity_controller.cpp",
+          "src/server/read_capacity_manager.cpp",
+          "src/server/read_helper_pool.cpp",
+          "src/server/reactor_read_helpers.cpp"
+        ],
         "piattaforme": [
           "macos-arm64",
           "linux-x86_64",
           "freebsd-amd64",
           "openbsd-amd64"
         ],
-        "prove": [],
+        "prove": [
+          "tests/unit/read_capacity_controller_tests.cpp",
+          "tests/integration/server_read_helper_tests.cpp",
+          "tests/unit/daemon_config_tests.cpp"
+        ],
         "rischio_residuo": [
           "CPU availability is estimated and does not reserve a physical core",
-          "Oscillation, delayed response to bursts and starvation remain untested",
+          "Equal-weight trace fairness is tested; weighted CPU-cost fairness, burst response and global stability remain open",
           "No overload policy can guarantee latency when useful total capacity is insufficient",
           "Candidate thresholds and improved resource economics are not measured or proven"
         ],
-        "stato": "bozza",
-        "titolo": "Govern a shared helper budget with qualified pressure, fairness and stable retirement"
+        "stato": "implementato",
+        "titolo": "Control a shared helper budget with qualified pressure, fairness and stable retirement"
       },
       "id": "GS-OPS-RCTRL-001",
       "kind": "requirements",
       "path": "engineering/requirements/adaptive-readers.yaml",
-      "state": "bozza"
+      "state": "implementato"
     },
     {
       "data": {
@@ -3415,10 +3484,10 @@
         "categoria": "performance",
         "claim_massimo": "architectural-prototype",
         "criticita": "alta",
-        "descrizione": "Planned only. Define sustainable validated GET capacity by workload, platform, CPU allocation and helper count under a declared latency objective and stable backlog. Distinguish observed demand, CPU service, blocked work and completed throughput. Capacity estimates have explicit unknown, qualified and stale states. Finite closed-loop rates are not accepted calibration.",
+        "descrizione": "Define sustainable validated GET capacity by workload, platform, CPU allocation and helper count under a declared latency objective and stable backlog. Distinguish observed demand, CPU service, blocked work and completed throughput. Capacity estimates have explicit unknown, qualified and stale states. Finite closed-loop rates are not accepted calibration.",
         "evidenze": [
           {
-            "note": "Design plan only; telemetry and sustained offered-rate campaign are not implemented"
+            "note": "Offered-rate tooling is implemented; sustained capacity and profile qualification remain open"
           }
         ],
         "gates": [
@@ -3429,14 +3498,19 @@
           "HAZ-047"
         ],
         "id": "GS-PERF-RCAP-001",
-        "implementazione": [],
+        "implementazione": [
+          "scripts/benchmark_read_capacity.py",
+          "src/server/reactor_read_helpers.cpp"
+        ],
         "piattaforme": [
           "macos-arm64",
           "linux-x86_64",
           "freebsd-amd64",
           "openbsd-amd64"
         ],
-        "prove": [],
+        "prove": [
+          "scripts/tests/test_benchmark_read_capacity.py"
+        ],
         "rischio_residuo": [
           "Existing owner profiles do not measure sustained offered-rate capacity or helper scaling",
           "Workload drift, memory bandwidth and client/server contention can invalidate capacity estimates"
@@ -5000,6 +5074,7 @@
         "probabilita": "bassa",
         "prove": [
           "tests/integration/concurrency_tests.cpp",
+          "tests/integration/server_read_helper_tests.cpp",
           "tests/unit/value_tests.cpp",
           "tests/unit/prepared_read_tests.cpp",
           "tests/unit/pair_read_generation_tests.cpp",
@@ -5009,10 +5084,11 @@
         "requisiti": [
           "GS-CONCUR-PAIR-001",
           "GS-CORE-CLOSE-001",
-          "GS-PERF-VREAD-001"
+          "GS-PERF-VREAD-001",
+          "GS-CONCUR-RHELP-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "ASan/UBSan CI smoke; not exhaustive schedules. ADR 0048's volatile Record views own no pin: the caller must retain the exact generation through use. The daemon copies small responses synchronously into owning output before releasing its Reader lease.",
+        "rischio_residuo": "ASan/UBSan CI smoke; not exhaustive schedules. ADR 0048's volatile Record views own no pin: the caller must retain the exact generation through use. The daemon copies small responses synchronously into owning output before releasing its Reader lease. ADR 0049's helpers extend that same primary epoch frontier through selected-result encoding, cancellation and reuse. Deterministic local tests cover ordinary/slot-pool generations; multi-OS and multi-hour helper lifetime campaigns remain pending.",
         "severita": "catastrofica",
         "stato": "mitigato"
       },
@@ -6539,9 +6615,9 @@
         "evento_pericoloso": "A hot shard saturates while other shard pairs retain unused capacity",
         "id": "HAZ-045",
         "prevenzione": [
-          "No dynamic balancing mechanism is implemented; a solution remains to be studied",
+          "Logical ownership stays fixed; the opt-in volatile helper prototype shares read execution only",
           "ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease",
-          "ADR 0049 proposes capacity measurement and bounded adaptive read helpers; no controller is implemented"
+          "ADR 0049 implements bounded experimental helpers and control; no capacity profile is qualified"
         ],
         "probabilita": "media",
         "prove": [
@@ -6560,7 +6636,7 @@
           "GS-OPS-RCTRL-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are proposed only; their profile-qualified threshold hypotheses, multi-reader safety and global budget are unproven. Revised 65/45 percent candidates are not measured capacity or cost claims. Compaction sustainability remains separate.",
+        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. ADR 0049 now has an opt-in volatile implementation with local deterministic and lifetime proofs. It is disabled by default; fixed-helper pilots do not qualify coupled capacity curves, thresholds, isolation or CPU cost. Revised 65/45 percent candidates remain hypotheses, not measured capacity or cost claims. Compaction sustainability remains separate.",
         "severita": "alta",
         "stato": "aperto"
       },
@@ -6590,7 +6666,11 @@
           "Clients use the routing identity and owner metadata defined by wire v2"
         ],
         "probabilita": "media",
-        "prove": [],
+        "prove": [
+          "tests/unit/read_capacity_controller_tests.cpp",
+          "tests/integration/server_read_helper_tests.cpp",
+          "scripts/tests/test_benchmark_read_capacity.py"
+        ],
         "requisiti": [
           "GS-PROTO-WIRE-001"
         ],
@@ -6606,7 +6686,7 @@
     },
     {
       "data": {
-        "accettazione_rischio": "Not accepted for release; design-only hazard and unimplemented mitigations",
+        "accettazione_rischio": "Not accepted for release; experimental local implementation, qualification pending",
         "cause": [
           "Treating completed throughput or total CPU occupancy as sufficient evidence of useful read capacity",
           "Independent per-owner pools oversubscribe the process or retain credits while parked or draining",
@@ -6619,23 +6699,27 @@
           "Writer, maintenance or sibling progress is reduced and read generations can remain retained"
         ],
         "contenimento": [
-          "No adaptive governor or read helpers are enabled in the current runtime",
-          "The planned disable path must drain readers before returning to the primary path"
+          "Default cap is zero; unknown profiles park helpers; fixed allocations require explicit configuration",
+          "Reassignment drains occupied cells; full pools fall back to the primary; helpers join before Store teardown"
         ],
-        "evento_pericoloso": "A future adaptive read governor amplifies overload or starves other owners and Writers",
+        "evento_pericoloso": "An opt-in adaptive read controller amplifies overload or starves other owners and Writers",
         "id": "HAZ-047",
         "prevenzione": [
-          "Proposed ADR 0049 separates calibrated capacity, local observers, a global budget and rigid credits",
-          "The design requires counterfactual scale-down, fairness and explicit unknown or stale measurements"
+          "Accepted ADR 0049 implements a pure controller, local observations, a shared CPU target and rigid cells",
+          "Counterfactual retirement, equal-weight arbitration and unknown or stale measurements have deterministic tests"
         ],
         "probabilita": "media",
-        "prove": [],
+        "prove": [
+          "tests/unit/read_capacity_controller_tests.cpp",
+          "tests/integration/server_read_helper_tests.cpp",
+          "scripts/tests/test_benchmark_read_capacity.py"
+        ],
         "requisiti": [
           "GS-PERF-RCAP-001",
           "GS-OPS-RCTRL-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Prospective design hazard, not an observed failure of an enabled feature. The controller, telemetry and helper path are not implemented. Candidate thresholds, economic benefits and time windows are hypotheses requiring sustained-load and deterministic state-machine proofs. Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.",
+        "rischio_residuo": "Experimental feature, disabled by default. Local deterministic and lifetime tests do not establish sustained benefit, calibrated thresholds, workload-independent stability, coupled multi-owner capacities or weighted CPU-cost fairness. Helper handoff safety is tested locally for ordinary and slot-pool generations; adversarial soaks/platform qualification remain open. Resource economics must be measured before enabling an automatic profile. HAZ-008 also applies.",
         "severita": "alta",
         "stato": "aperto"
       },

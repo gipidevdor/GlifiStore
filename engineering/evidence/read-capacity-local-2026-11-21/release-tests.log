@@ -1,0 +1,58 @@
+UpdateCTestConfiguration  from :/Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/DartConfiguration.tcl
+Parse Config file:/Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/DartConfiguration.tcl
+Test project /Users/gpicchiarelli/Documents/GlifiStore/build/macos-release
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 14
+    Start 14: glifistore_read_capacity_controller
+
+14: Test command: /Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/glifistore_tests "read capacity"
+14: Working Directory: /Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/tests
+14: Test timeout computed to be: 120
+14: [RUN] read capacity unknown stale overlapping and changed profiles cannot manufacture votes
+14: [PASS] read capacity unknown stale overlapping and changed profiles cannot manufacture votes
+14: [RUN] read capacity counts arming and draining and checks counterfactual retirement
+14: [PASS] read capacity counts arming and draining and checks counterfactual retirement
+14: [RUN] read capacity gaps and unversioned profile edits cannot trigger expansion
+14: [PASS] read capacity gaps and unversioned profile edits cannot trigger expansion
+14: [RUN] read capacity manager applies and drains a synthetic qualified allocation
+14: [PASS] read capacity manager applies and drains a synthetic qualified allocation
+14: [RUN] read capacity quiet retirement requires five seconds and no gain means no grant
+14: [PASS] read capacity quiet retirement requires five seconds and no gain means no grant
+14: [RUN] read capacity fractional thresholds never activate on zero demand
+14: [PASS] read capacity fractional thresholds never activate on zero demand
+14: [RUN] read capacity equal weight fairness and replay preserve every hard credit
+14: [PASS] read capacity equal weight fairness and replay preserve every hard credit
+14: 7 tests, 0 failures
+1/2 Test #14: glifistore_read_capacity_controller ...   Passed    0.27 sec
+test 15
+    Start 15: glifistore_read_helpers
+
+15: Test command: /Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/glifistore_tests "read helper"
+15: Working Directory: /Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/tests
+15: Test timeout computed to be: 120
+15: [RUN] daemon read helper experiments require bounded volatile owner configuration
+15: [PASS] daemon read helper experiments require bounded volatile owner configuration
+15: [RUN] read helper volatile pipeline preserves mutation barriers large values and owner
+15: [PASS] read helper volatile pipeline preserves mutation barriers large values and owner
+15: [RUN] read helper unknown capacity keeps the primary path usable
+15: [PASS] read helper unknown capacity keeps the primary path usable
+15: 3 tests, 0 failures
+2/2 Test #15: glifistore_read_helpers ...............   Passed    0.02 sec
+
+The following tests passed:
+	glifistore_read_capacity_controller
+	glifistore_read_helpers
+
+100% tests passed out of 2
+
+Label Time Summary:
+capacity       =   0.30 sec*proc (2 tests)
+concurrency    =   0.30 sec*proc (2 tests)
+server         =   0.30 sec*proc (2 tests)
+
+Total Test time (real) =   0.30 sec

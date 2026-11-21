@@ -127,6 +127,24 @@ auto materialize_from_settings(SettingMap settings, const bool show_help, const 
         !status) {
         return unexpected(status.error());
     }
+    if (auto status = set_size_option(read_helper_cap, "--read-helper-cap", 0, kMaximumReadHelpers,
+                                      options.server.read_helpers.maximum_helpers);
+        !status) {
+        return unexpected(status.error());
+    }
+    if (parsed->has(read_helper_fixed_owner)) {
+        std::size_t owner{};
+        if (auto status = set_size_option(read_helper_fixed_owner, "--read-helper-fixed-owner", 0,
+                                          kMaximumReadOwners - 1U, owner);
+            !status) {
+            return unexpected(status.error());
+        }
+        if (options.server.read_helpers.maximum_helpers == 0 || owner >= options.server.worker_count) {
+            return fail(ErrorCode::invalid_argument,
+                        "fixed read helper owner requires a nonzero cap and a valid owner");
+        }
+        options.server.read_helpers.fixed_owner = owner;
+    }
     if (auto status = set_size_option(durable_mutation_queue_capacity, "--durable-mutation-queue-capacity", 1,
                                       std::size_t{1} << 30U, options.server.durable_mutation_queue_capacity);
         !status) {
@@ -338,6 +356,9 @@ auto materialize_from_settings(SettingMap settings, const bool show_help, const 
         parsed->has(max_hot_cache_value_bytes) || parsed->has(disable_hot_cache) ||
         parsed->has(max_temporary_compaction_bytes);
     const bool durable = options.store.storage_mode != StorageMode::volatile_memory;
+    if (durable && options.server.read_helpers.maximum_helpers != 0) {
+        return fail(ErrorCode::invalid_argument, "read helpers currently require volatile storage");
+    }
     if (durable && !options.store.data_directory) {
         return fail(ErrorCode::invalid_argument, "--data-dir is required for durable storage");
     }

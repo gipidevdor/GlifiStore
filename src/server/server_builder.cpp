@@ -11,6 +11,14 @@ namespace glifistore::server {
 namespace {
 
 [[nodiscard]] auto validate_config(const ReactorConfig& config) -> Status {
+    if (config.read_helpers.maximum_helpers > kMaximumReadHelpers ||
+        (config.read_helpers.fixed_owner && (config.read_helpers.maximum_helpers == 0 ||
+                                             *config.read_helpers.fixed_owner >= config.worker_count)) ||
+        (!config.read_helpers.profiles.empty() &&
+         (config.read_helpers.maximum_helpers == 0 ||
+          config.read_helpers.profiles.size() != config.worker_count))) {
+        return fail(ErrorCode::invalid_argument, "invalid read helper capacity or owner");
+    }
     constexpr std::size_t maximum_queue_capacity = std::size_t{1} << 30U;
     if (config.maximum_connections == 0 || config.worker_count == 0 || config.event_batch_size == 0 ||
         config.connection_handoff_capacity == 0 || config.disk_read_queue_capacity == 0 ||

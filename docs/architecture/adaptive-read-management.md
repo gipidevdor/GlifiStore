@@ -1,10 +1,15 @@
-# Governo adattivo della capacità di lettura
+# Gestione adattivo della capacità di lettura
 
-**Piano proposto, 2026-11-21. Nessuna parte del controller o degli helper è implementata.**
-La [ADR 0049](../adr/0049-adaptive-read-capacity.md) propone il contratto futuro.
-Il gate `GATE-ADAPTIVE-READERS` resta `SPECIFICATA`, i requisiti sono in bozza e
-HAZ-045/046/047 rimangono aperti. Le verifiche di questo documento controllano il piano,
-non la correttezza o le prestazioni di un runtime futuro.
+**Prototipo sperimentale implementato, 2026-11-21; qualificazione aperta.**
+La [ADR 0049](../adr/0049-adaptive-read-capacity.md) è accettata per il percorso opt-in.
+Sono presenti controllore puro, adattatore periodico del budget CPU, pool condiviso e delega GET
+volatile con protezione dell'epoch del Reader. Cap predefinito zero; nessun profilo di capacità
+qualificato è distribuito. Il driver a offerta temporizzata conserva anche offerte mancate e
+latenza dall'istante pianificato. I test locali non chiudono HAZ-045/046/047 né le righe di piattaforma.
+Le fasi seguenti restano il piano completo: il prototipo usa un solo GET delegato per connessione,
+una cella per helper ed equità a pesi uguali; batch, pesi differenziati e qualificazione di costo
+restano da realizzare/verificare. La delega conserva il fronte unico del Reader invece di far
+registrare helper indipendenti: il mittente mantiene l'epoch fino alla codifica del risultato.
 L'[analisi matematica](adaptive-read-model.md) separa gli invarianti astratti dalle garanzie
 ancora mancanti: il controllo a soglie non ha una prova di stabilità globale o di ottimalità.
 
@@ -79,7 +84,7 @@ codifica, CPU di rete, tempi in coda, blocchi sull'output e barriere di visibili
 aggiungono le stesse misure per batch. Le attese, il parcheggio e il tempo deschedulato non
 sono CPU di lettura. La sola percentuale CPU complessiva dello shard non identifica il limite.
 
-| Condizione osservata | Decisione del governo |
+| Condizione osservata | Decisione del gestione |
 | --- | --- |
 | Letture delegabili, pressione persistente, beneficio parallelo qualificato | Richiedere un helper |
 | Output bloccato da client lento o rete satura | Conservare backpressure e crediti; nessuna espansione causata da quel blocco |
@@ -94,7 +99,7 @@ client. Il percorso GET non aggiorna un contatore globale conteso: si pubblicano
 per batch/turno. Un coordinatore raccoglie i dati fuori dal percorso ordinario. Non si introduce
 un timer di sistema per ogni GET se il costo della misura non è già qualificato.
 
-## 4. Due livelli di governo
+## 4. Due livelli di gestione
 
 **Governatore dello shard:** valuta pressione, lavoro realmente delegabile e punto utile della
 curva di capacità. Produce una richiesta di risorse; non crea autonomamente thread.
@@ -118,11 +123,11 @@ limiti di memoria non si superano mai.
 
 Il budget usa CPU/quota effettivamente accessibili e costi osservati di Reader principali,
 Writer, flush, compaction e sistema. Un Writer parcheggiato non occupa un core riservato:
-la sua capacità può essere usata temporaneamente dagli helper. Quando riparte, il governo
+la sua capacità può essere usata temporaneamente dagli helper. Quando riparte, il gestione
 riduce i permessi di lettura aggiuntivi. Non si sottrae per sempre un core inattivo per ogni
 Writer configurato, né si assume che ogni CPU logica abbia la stessa capacità. Dove la quota
 non è rilevabile in modo affidabile serve un limite operatore conservativo e dichiarato.
-`H_target` è una stima di governo, non una prenotazione di CPU presso il sistema operativo.
+`H_target` è una stima di gestione, non una prenotazione di CPU presso il sistema operativo.
 
 ## 5. Soglie candidate e taratura
 
@@ -204,7 +209,7 @@ Con pesi iniziali uguali, gli shard che richiedono aiuto ricevono prima il primo
 gli incrementi ulteriori. Crediti di tempo CPU e anzianità delle richieste evitano che uno shard
 o un flusso di GET piccoli monopolizzi il pool. L'equità riguarda risorse e opportunità di servizio,
 non lo stesso numero di GET per workload di costo diverso.
-La proposta per R1 è un deficit round robin in unità di costo CPU, con pesi positivi e
+Il prototipo R1 usa spareggi round robin stabili a pesi uguali; la variante futura è un deficit round robin in unità di costo CPU, con pesi positivi e
 cursore persistente. Il vantaggio del primo helper e i rinnovi devono rispettare tale
 avanzamento; l'anzianità nominale da sola non costituisce una prova di assenza di starvation.
 
@@ -214,7 +219,7 @@ e uno, un obiettivo iniziale ragionevole è tre più uno. Se il secondo smette d
 il credito torna disponibile al primo. Il trasferimento avviene dopo drain, mai con doppia proprietà.
 
 L'aggiunta o il rinnovo di una lease di assegnazione deve rispettare l'equità. Quando il budget
-è tutto occupato e compare un altro shard caldo, il governo può richiedere un trasferimento
+è tutto occupato e compare un altro shard caldo, il gestione può richiedere un trasferimento
 alla fine del quantum, anche se lo shard precedente resta sotto pressione. Questa è una decisione
 di equità, distinta dal ritiro per basso carico; non promette SLO simultanei quando la capacità
 totale è insufficiente. I Reader principali e i Writer devono conservare possibilità di progresso.
@@ -222,7 +227,7 @@ totale è insufficiente. I Reader principali e i Writer devono conservare possib
 Il sistema è conservativo sul lavoro: con backlog qualificato e permessi realmente liberi non
 lascia volontariamente helper parcheggiati oltre il tempo di reazione dichiarato. Se mancano
 crediti, beneficio, profilo o risorse, esporta la causa. Una CPU al 100% con goodput fermo non
-è un successo del governo. Ogni espansione deve avere un beneficio superiore all'incertezza
+è un successo del gestione. Ogni espansione deve avere un beneficio superiore all'incertezza
 misurata e restare entro SLO e budget memoria; altrimenti si arresta l'espansione e si drena
 la prova inefficace. Non si assume che `C_s(k)` sia sempre crescente.
 Un punto di parallelismo senza beneficio rimane escluso per quel profilo fino a una nuova
@@ -242,7 +247,9 @@ sostanzialmente diverse. Non si perde capacità futura per un giudizio tratto a 
 | Coda causata da output bloccato e poca CPU GET | Nessun aumento causato da quella coda |
 | Il primo helper non aumenta capacità utile | Ritiro della prova e blocco di ulteriori tentativi equivalenti sul profilo |
 
-Questi sono controlli ragionati della proposta, non test automatici già eseguiti sul controller.
+Il controllore puro ha ora test automatici di credito, replay, isteresi, finestre contigue,
+profili mancanti e rotazione a pesi uguali. La tabella comprende anche obiettivi futuri:
+ritiro su beneficio operativo e pesi CPU differenziati non sono prove già eseguite.
 
 ## 7. Dominio di lettura e ciclo di vita degli helper
 
@@ -258,9 +265,10 @@ sull'ordine di memoria e test dei casi concorrenti. Non basta aggiungere un mini
 senza chiudere la gara tra caricamento del puntatore e registrazione del lettore.
 
 I requisiti critici esistenti `GS-CONCUR-PAIR-001` e `GS-CONCUR-MEM-001` restano vincolanti.
-Prima di R2 occorre estenderne autorità e prove alla proposta accettata; le prove attuali
-non dimostrano il nuovo handoff. Il piano non introduce un requisito critico senza prove
-né usa questo documento come sostituto di una verifica di lifetime.
+La ADR accettata e `GS-CONCUR-RHELP-001` estendono il contratto al handoff del prototipo:
+il mittente mantiene la propria lease invece di far registrare autonomamente l'helper.
+I test locali fermano la selezione attraverso pubblicazioni, fallback e riuso della connessione,
+in entrambe le modalità di generazione. Soak e righe native restano da qualificare.
 
 ```mermaid
 stateDiagram-v2
@@ -322,7 +330,7 @@ Gli helper vanno uniti prima di distruggere generazioni e Store. Disabilitare il
 caldo significa passare per questo drain, non cambiare modalità mentre esistono borrow pendenti.
 HAZ-044 resta distinto: il controller non reinterpreta i conflitti di compaction o le mutation outcome.
 
-## 9. Telemetria del governo
+## 9. Telemetria del gestione
 
 Esportare, con unità e popolazioni esplicite: qualità/età del profilo, domanda osservabile,
 backlog pronto e bloccato, `rho`, CPU per fase, goodput, latenza di coda e totale, byte,
@@ -337,7 +345,7 @@ Le code non completate e i rifiuti restano visibili: non abbassano artificialmen
 L'energia viene riportata soltanto se misurabile affidabilmente; CPU occupata non equivale a
 watt misurati. Non si deducono costi monetari o ritorni economici da una sola percentuale CPU.
 
-La qualifica confronta percorso primario, numero fisso di helper qualificato e governo adattivo,
+La qualifica confronta percorso primario, numero fisso di helper qualificato e gestione adattivo,
 su carico basso, picco e ritorno alla quiete. Un helper deve aumentare il goodput utile o
 proteggere uno SLO/margine di picco dichiarato entro un budget di costo esplicito. Quando la
 domanda è già servita nello SLO, si preferisce la soluzione con minori risorse. A domanda
@@ -365,8 +373,12 @@ Non se ne importano riduzioni di concorrenza per calibrazione, errori aggiuntivi
 | R5 — piattaforme e durata | Campagne sostenute e native per le righe dichiarate | Evidenza conservata per piattaforma; nessuna promozione da una sola prova locale |
 
 R1 può preparare l'arbitro usando dati R0; non consente di abilitare helper prima di R2/R3.
-R0 è il prossimo passo concreto. Tutte le fasi sono ancora da implementare; questa pianificazione
-non crea configurazioni CLI, metriche, thread o supporto multilettore nel prodotto corrente.
+R0 ha strumenti a offerta temporizzata e metriche; manca la qualifica della capacità primaria.
+R1 ha controllore puro verificabile e adattatore periodico. R2 ha il prototipo volatile con prove
+locali di lifetime e visibilità. R3 ha solo piloti locali brevi, non curve qualificate. R4 è
+attuabile attraverso profili C++ esplicitamente qualificati dall'esterno, ma nessuno è distribuito:
+non esiste attivazione automatica predefinita. La variante a pesi CPU, gli esperimenti estesi R3,
+le verifiche d'abilitazione R4 e le righe R5 restano aperti.
 
 ## 11. Matrice minima delle prove future
 
@@ -394,4 +406,4 @@ chiusura di connessione, perdita di un helper e shutdown con generazioni ancora 
 L'accettazione richiede risposte e outcome corretti, limiti rigidi rispettati, progresso di Writer
 e shard fratelli, SLO e criterio di guadagno marginale prefissati, costi di memoria/CPU/risveglio
 conservati e un modo di disabilitazione verificato. Le soglie candidate e il 100% del budget disponibile
-sono obiettivi di governo da validare, non percentuali di efficienza già dimostrate.
+sono obiettivi di gestione da validare, non percentuali di efficienza già dimostrate.

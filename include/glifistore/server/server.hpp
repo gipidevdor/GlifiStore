@@ -73,6 +73,7 @@ class Server final {
     [[nodiscard]] auto executor_affinity_results() const -> std::vector<ExecutorAffinityResult>;
     /// Aggregate copy pressure from sliding input/output buffers across all Reactors.
     [[nodiscard]] auto reactor_buffer_stats() const noexcept -> ReactorBufferStats;
+    [[nodiscard]] auto delegated_reads() const noexcept -> std::uint64_t;
     [[nodiscard]] auto pair_writer_stats() const -> std::vector<PairWriterStats>;
     [[nodiscard]] auto durable_batch_stats() const -> std::vector<DurableBatchWorkerStats>;
 
@@ -118,6 +119,7 @@ class Server final {
 
     ReactorConfig config_;
     std::unique_ptr<Store> store_;
+    std::unique_ptr<ReadCapacityManager> read_capacity_;
     std::unique_ptr<DiskReadExecutor> disk_reads_;
     std::unique_ptr<PairWriterPool> pair_writers_;
     ConnectionHandoffMesh mesh_;

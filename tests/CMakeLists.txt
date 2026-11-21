@@ -200,6 +200,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/unit/client_transport_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/client_tls_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/benchmark_parse_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/unit/read_capacity_controller_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/benchmark_owner_workload_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/durable_flush_coordinator_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/unit/latency_histogram_tests.cpp
@@ -245,6 +246,7 @@ if(BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/tests/integration/rebuild_vacuum_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_paired_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_server_tests.cpp
+        ${CMAKE_SOURCE_DIR}/tests/integration/server_read_helper_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_mutation_window_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_durable_lifecycle_tests.cpp
         ${CMAKE_SOURCE_DIR}/tests/integration/server_reactor_durable_wire_tests.cpp
@@ -274,6 +276,10 @@ if(BUILD_TESTING)
     glifistore_enable_hardening(glifistore_tests)
     glifistore_enable_ipo(glifistore_tests)
     add_test(NAME glifistore_tests COMMAND glifistore_tests)
+    add_test(NAME glifistore_read_capacity_controller COMMAND glifistore_tests "read capacity")
+    add_test(NAME glifistore_read_helpers COMMAND glifistore_tests "read helper")
+    set_tests_properties(glifistore_read_capacity_controller glifistore_read_helpers
+        PROPERTIES LABELS "capacity;server;concurrency" TIMEOUT 120)
     if(GLIFISTORE_BUILD_LAB)
         add_executable(glifistore_lab_tests
             ${CMAKE_SOURCE_DIR}/tests/test_main.cpp

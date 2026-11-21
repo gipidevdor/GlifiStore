@@ -66,7 +66,38 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
         }
         current->mutation_visibility.clear();
         if (!durable_store_) {
+            ready_reads_.fetch_add(1U, std::memory_order_relaxed);
+            if (read_capacity_ != nullptr) {
+                ++read_window_gets_;
+                // The primary already protects this exact generation. Register the borrow
+                // before release-publishing the task; every later adoption includes it.
+                if (!has_pending_output(*current) && current->cold_reads.empty()) {
+                    const auto epoch = local_read_generation_->epoch();
+                    if (acquire_cold_read_lease(epoch)) {
+                        if (read_capacity_->pool().try_submit(executor_id_, token, request.request_id,
+                                                              *local_read_generation_, key_string, key_hash,
+                                                              cached_now_ns, wakeup_)) {
+                            ++helper_reads_outstanding_;
+                            delegated_reads_.fetch_add(1U, std::memory_order_relaxed);
+                            current->request_in_flight = true;
+                            return {};
+                        }
+                        if (!release_cold_read_lease(epoch)) {
+                            return fail(ErrorCode::corrupted_data, "helper lease rollback underflow");
+                        }
+                    }
+                }
+            }
+            if (read_capacity_ != nullptr) {
+                ++read_window_primary_gets_;
+            }
+            const bool sample = read_capacity_ != nullptr && (read_window_primary_gets_ % 64U) == 0U;
+            const auto cpu_before = sample ? read_thread_cpu_ns() : 0U;
             auto record = local_read_generation_->get_volatile_view(key, cached_now_ns);
+            if (sample) {
+                read_window_cpu_ns_ += read_thread_cpu_ns() - cpu_before;
+                ++read_window_samples_;
+            }
             if (!record) {
                 response.status = reactor_detail::response_status(record.error());
             } else {
@@ -301,6 +332,9 @@ auto Reactor::execute_local(const ConnectionToken token, const RequestView& requ
 auto Reactor::process_messages() -> Status {
     if (auto drained = wakeup_.drain(); !drained) {
         return drained;
+    }
+    if (auto completed = process_helper_read_completions(); !completed) {
+        return completed;
     }
     if (auto completed = process_disk_read_completions(); !completed) {
         return completed;

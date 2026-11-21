@@ -56,6 +56,8 @@ enum class Site : std::uint8_t {
     spill_reserve = 25,
     // macOS cannot satisfy a contiguous reservation even though fragmented space exists.
     spill_contiguous_reserve = 26,
+    // Helper selected an exact immutable view; primary must retain its epoch through completion.
+    read_helper_selected = 27,
 };
 
 #if defined(GLIFISTORE_FAULT_INJECTION)

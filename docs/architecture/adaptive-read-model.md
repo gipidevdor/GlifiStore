@@ -1,7 +1,10 @@
-# Proprietà matematiche del governo delle letture
+# Proprietà matematiche del controllo delle letture
 
-**Analisi della proposta, 2026-11-21. Nessuna prova del runtime multilettore.**
-Questo allegato distingue le proprietà del [piano di governo](adaptive-read-management.md)
+**Analisi e limiti del prototipo opt-in, 2026-11-21.**
+Il controllore puro ha test di replay, credito, equità a pesi uguali e isteresi;
+la delega volatile ha prove locali di lifetime e visibilità. Queste prove non stabiliscono
+stabilità globale, capacità sostenibile o garanzie universali di latenza.
+Questo allegato distingue le proprietà del [piano di controllo](adaptive-read-management.md)
 da quelle ancora da dimostrare. Il controllo a soglie è un'euristica progettata con vincoli,
 non un algoritmo già dimostrato stabile, ottimale o privo di starvation in tutte le condizioni.
 
@@ -167,8 +170,9 @@ massimo di assestamento.
 ## 6. Progresso, equità e tempi
 
 Un arbitro che riparte sempre dal primo owner può affamare gli altri pur rispettando i limiti.
-Prima di R1 va fissato l'algoritmo esatto: proposta di deficit round robin con pesi positivi,
-costo in CPU, cursore persistente e rinnovi che non scavalchino indefinitamente chi attende.
+Il prototipo usa minore assegnazione e cursore round robin persistente a pesi uguali,
+con rotazione dopo lease e restituzione effettiva. I test riproducono tali decisioni e i crediti.
+La variante di deficit round robin con pesi positivi e costo CPU resta da implementare e provare.
 I crediti maturati durante inattività non devono diventare una riserva illimitata al prossimo burst.
 
 Una prova di progresso necessita almeno di owner in numero finito, risorse che tornino

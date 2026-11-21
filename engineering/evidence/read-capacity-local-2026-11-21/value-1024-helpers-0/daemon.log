@@ -1,0 +1,7 @@
+{"ts":1795278575,"event":"start","program":"glifistored"}
+{"ts":1795278575,"event":"listen","program":"glifistored","bind":"127.0.0.1","cleartext_port":53058,"executors":1,"storage":"volatile"}
+{"ts":1795278575,"event":"ready","program":"glifistored","ready":1}
+{"ts":1795278579,"event":"shutdown_begin","program":"glifistored","signal":15}
+{"ts":1795278579,"event":"shutdown_drain_begin","program":"glifistored","drain_ms":30000}
+{"ts":1795278579,"event":"shutdown_drain_end","program":"glifistored","timed_out":0}
+{"ts":1795278579,"event":"stopped","program":"glifistored","signal":15}

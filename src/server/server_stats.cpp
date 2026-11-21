@@ -142,6 +142,8 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
         std::uint64_t input_buffer_bytes_moved{};
         std::uint64_t output_buffer_compactions{};
         std::uint64_t output_buffer_bytes_moved{};
+        std::uint64_t ready_volatile_reads{};
+        std::uint64_t delegated_volatile_reads{};
         std::uint64_t cold_reads_pipelined{};
         std::uint64_t cold_read_window_deferrals{};
         for (const auto& executor : snapshot.executors) {
@@ -155,6 +157,8 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
             input_buffer_bytes_moved += executor.input_buffer_bytes_moved;
             output_buffer_compactions += executor.output_buffer_compactions;
             output_buffer_bytes_moved += executor.output_buffer_bytes_moved;
+            ready_volatile_reads += executor.ready_volatile_reads;
+            delegated_volatile_reads += executor.delegated_volatile_reads;
             cold_reads_pipelined += executor.cold_reads_pipelined;
             cold_read_window_deferrals += executor.cold_read_window_deferrals;
         }
@@ -188,6 +192,22 @@ auto ServerStatsReporter::render(const ServerStatsSnapshot& snapshot, const std:
         out += "output_buffer_bytes_moved=";
         out += std::to_string(output_buffer_bytes_moved);
         out += '\n';
+        out += "read_helper_cap=" + std::to_string(snapshot.read_helper_cap) + "\n";
+        out += "read_helper_fixed_experiment=";
+        out += snapshot.read_helper_fixed_experiment ? "1\n" : "0\n";
+        out += "read_control_steps=" + std::to_string(snapshot.read_capacity.steps) + "\n";
+        out += "read_helper_soft_target=" + std::to_string(snapshot.read_capacity.soft_target) + "\n";
+        out += "read_helpers_occupied=" + std::to_string(snapshot.read_capacity.occupied) + "\n";
+        out += "read_helpers_arming=" + std::to_string(snapshot.read_capacity.arming) + "\n";
+        out += "read_helpers_active=" + std::to_string(snapshot.read_capacity.active) + "\n";
+        out += "read_helpers_draining=" + std::to_string(snapshot.read_capacity.draining) + "\n";
+        out += "read_helper_grants=" + std::to_string(snapshot.read_capacity.grants) + "\n";
+        out += "read_helper_retirements=" + std::to_string(snapshot.read_capacity.retirements) + "\n";
+        out += "ready_volatile_reads=";
+        out += std::to_string(ready_volatile_reads);
+        out += "\ndelegated_volatile_reads=";
+        out += std::to_string(delegated_volatile_reads);
+        out += "\n";
         out += "cold_reads_pipelined=";
         out += std::to_string(cold_reads_pipelined);
         out += '\n';

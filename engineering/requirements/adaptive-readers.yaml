@@ -5,31 +5,34 @@ requirements:
   criticita: alta
   stato: bozza
   descrizione: >-
-    Planned only. Define sustainable validated GET capacity by workload, platform, CPU allocation
+    Define sustainable validated GET capacity by workload, platform, CPU allocation
     and helper count under a declared latency objective and stable backlog. Distinguish observed
     demand, CPU service, blocked work and completed throughput. Capacity estimates have explicit
     unknown, qualified and stale states. Finite closed-loop rates are not accepted calibration.
   autorita:
   - docs/adr/0049-adaptive-read-capacity.md
   - docs/architecture/adaptive-read-management.md
-  implementazione: []
-  prove: []
+  implementazione:
+  - scripts/benchmark_read_capacity.py
+  - src/server/reactor_read_helpers.cpp
+  prove:
+  - scripts/tests/test_benchmark_read_capacity.py
   piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
   claim_massimo: architectural-prototype
   evidenze:
-  - note: Design plan only; telemetry and sustained offered-rate campaign are not implemented
+  - note: Offered-rate tooling is implemented; sustained capacity and profile qualification remain open
   rischio_residuo:
   - Existing owner profiles do not measure sustained offered-rate capacity or helper scaling
   - Workload drift, memory bandwidth and client/server contention can invalidate capacity estimates
   hazards: [HAZ-045, HAZ-047]
   gates: [GATE-ADAPTIVE-READERS]
 - id: GS-OPS-RCTRL-001
-  titolo: Govern a shared helper budget with qualified pressure, fairness and stable retirement
+  titolo: Control a shared helper budget with qualified pressure, fairness and stable retirement
   categoria: operations
   criticita: alta
-  stato: bozza
+  stato: implementato
   descrizione: >-
-    Planned only. Per-shard observers request capacity from a global arbiter. Profile-qualified
+    Experimental opt-in implementation. Per-shard observers request capacity from a global arbiter. Profile-qualified
     expansion and retirement hypotheses are separate from the CPU budget and rigid helper/memory
     caps; the revised experiment starts with 65/45 percent candidates. Account for observation,
     wakeup delay and uncertainty before qualification. Compare useful work per resource and
@@ -41,16 +44,57 @@ requirements:
   autorita:
   - docs/adr/0049-adaptive-read-capacity.md
   - docs/architecture/adaptive-read-management.md
-  implementazione: []
-  prove: []
+  implementazione:
+  - src/server/read_capacity_controller.cpp
+  - src/server/read_capacity_manager.cpp
+  - src/server/read_helper_pool.cpp
+  - src/server/reactor_read_helpers.cpp
+  prove:
+  - tests/unit/read_capacity_controller_tests.cpp
+  - tests/integration/server_read_helper_tests.cpp
+  - tests/unit/daemon_config_tests.cpp
   piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
   claim_massimo: architectural-prototype
   evidenze:
-  - note: Controller, shadow evaluation and threshold parameters are not implemented or qualified
+  - path: engineering/evidence/read-capacity-local-2026-11-21/README.md
+    note: Local deterministic and lifetime proofs; thresholds and capacities are not qualified
   rischio_residuo:
   - CPU availability is estimated and does not reserve a physical core
-  - Oscillation, delayed response to bursts and starvation remain untested
+  - Equal-weight trace fairness is tested; weighted CPU-cost fairness, burst response and global stability remain open
   - No overload policy can guarantee latency when useful total capacity is insufficient
   - Candidate thresholds and improved resource economics are not measured or proven
   hazards: [HAZ-045, HAZ-047]
+  gates: [GATE-ADAPTIVE-READERS]
+- id: GS-CONCUR-RHELP-001
+  titolo: Delegated volatile GET retains the exact generation until owning response encoding
+  categoria: concurrency
+  criticita: critica
+  stato: implementato
+  descrizione: >-
+    The owning Reactor registers an already-protected epoch before publishing a bounded task.
+    Helpers never independently adopt generation pointers. Every subsequent primary adoption
+    retains pending helper epochs, including selected large-value continuations and stale tokens.
+    The result is encoded/copied before the lease drops. One task/result per helper and one
+    delegated GET per connection preserve hard bounds, logical ownership and response order.
+    Full cells and long keys use the primary path. Join ends helper access before Store teardown.
+  autorita:
+  - docs/adr/0049-adaptive-read-capacity.md
+  - docs/spec/concurrency-memory-model.md
+  implementazione:
+  - src/server/read_helper_pool.cpp
+  - src/server/reactor_read_helpers.cpp
+  - src/server/reactor_execute.cpp
+  - src/server/server_lifecycle.cpp
+  prove:
+  - tests/integration/server_read_helper_tests.cpp
+  piattaforme: [macos-arm64, linux-x86_64, freebsd-amd64, openbsd-amd64]
+  claim_massimo: architectural-prototype
+  evidenze:
+  - path: engineering/evidence/read-capacity-local-2026-11-21/README.md
+    note: Local explicit-selection, publication, fallback and cancellation proofs; no CI/platform closure
+  rischio_residuo:
+  - Only volatile GET is delegated; long-key and helper-pressure fallback retain primary costs
+  - Large values are materialized on the primary and retain their generation until encoding
+  - Multi-hour shutdown/cancellation schedules and native non-macOS platform rows remain open
+  hazards: [HAZ-008, HAZ-045, HAZ-047]
   gates: [GATE-ADAPTIVE-READERS]

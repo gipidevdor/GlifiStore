@@ -1,0 +1,266 @@
+{
+  "status": "completed",
+  "command": [
+    "/Users/gpicchiarelli/Documents/GlifiStore/build/macos-release/glifistored",
+    "--port",
+    "0",
+    "--shard-pairs",
+    "1",
+    "--log-format",
+    "json",
+    "--max-connections",
+    "12",
+    "--read-helper-cap",
+    "2",
+    "--read-helper-fixed-owner",
+    "0"
+  ],
+  "qualification": "unqualified-local-experiment",
+  "scheduled": 45000,
+  "admitted": 45000,
+  "completed": 45000,
+  "missed": 0,
+  "p99_scheduled_to_response_ns": 1160626,
+  "slo_ns": 5000000,
+  "all_offers_served_and_p99_within_slo": true,
+  "windows": [
+    {
+      "elapsed_ns": 100016083,
+      "scheduled": 1500,
+      "admitted": 1500,
+      "completed": 1489,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 200621458,
+      "scheduled": 3009,
+      "admitted": 3009,
+      "completed": 2999,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 301132042,
+      "scheduled": 4516,
+      "admitted": 4516,
+      "completed": 4506,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 401337000,
+      "scheduled": 6020,
+      "admitted": 6020,
+      "completed": 6009,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 501345833,
+      "scheduled": 7520,
+      "admitted": 7520,
+      "completed": 7509,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 601529500,
+      "scheduled": 9022,
+      "admitted": 9022,
+      "completed": 9012,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 701914250,
+      "scheduled": 10528,
+      "admitted": 10528,
+      "completed": 10518,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 802571250,
+      "scheduled": 12038,
+      "admitted": 12038,
+      "completed": 12028,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 903203750,
+      "scheduled": 13548,
+      "admitted": 13548,
+      "completed": 13538,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1003396083,
+      "scheduled": 15050,
+      "admitted": 15050,
+      "completed": 15040,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1104090750,
+      "scheduled": 16561,
+      "admitted": 16561,
+      "completed": 16550,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1204453583,
+      "scheduled": 18066,
+      "admitted": 18066,
+      "completed": 18056,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1305054042,
+      "scheduled": 19575,
+      "admitted": 19575,
+      "completed": 19564,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1405286458,
+      "scheduled": 21079,
+      "admitted": 21079,
+      "completed": 21068,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1505920625,
+      "scheduled": 22588,
+      "admitted": 22588,
+      "completed": 22578,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1606484167,
+      "scheduled": 24097,
+      "admitted": 24097,
+      "completed": 24086,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1706524458,
+      "scheduled": 25597,
+      "admitted": 25597,
+      "completed": 25586,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1807167083,
+      "scheduled": 27107,
+      "admitted": 27107,
+      "completed": 27096,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 1907776625,
+      "scheduled": 28616,
+      "admitted": 28616,
+      "completed": 28605,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2007851208,
+      "scheduled": 30117,
+      "admitted": 30117,
+      "completed": 30107,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2108353417,
+      "scheduled": 31625,
+      "admitted": 31625,
+      "completed": 31614,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2209090292,
+      "scheduled": 33136,
+      "admitted": 33136,
+      "completed": 33124,
+      "outstanding": 12,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2309231542,
+      "scheduled": 34638,
+      "admitted": 34638,
+      "completed": 34627,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2409326083,
+      "scheduled": 36139,
+      "admitted": 36139,
+      "completed": 36128,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2509876958,
+      "scheduled": 37648,
+      "admitted": 37648,
+      "completed": 37637,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2610356125,
+      "scheduled": 39155,
+      "admitted": 39155,
+      "completed": 39145,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2710934833,
+      "scheduled": 40664,
+      "admitted": 40664,
+      "completed": 40653,
+      "outstanding": 11,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2811036333,
+      "scheduled": 42165,
+      "admitted": 42165,
+      "completed": 42155,
+      "outstanding": 10,
+      "missed": 0
+    },
+    {
+      "elapsed_ns": 2911169417,
+      "scheduled": 43667,
+      "admitted": 43667,
+      "completed": 43657,
+      "outstanding": 10,
+      "missed": 0
+    }
+  ],
+  "server_stats": "GlifiStore/stats\nversion=0.1.0\nlive=1\nready=1\nexecutors=1\nread_generation_spare_mapping_bytes=0\nconnections_active=8\nconnections_adopted=8\noutput_scatter_responses=0\noutput_scatter_bytes=0\noutput_scatter_partial_writes=0\noutput_scatter_completions=0\ninput_buffer_compactions=8\ninput_buffer_bytes_moved=0\noutput_buffer_compactions=0\noutput_buffer_bytes_moved=0\nread_helper_cap=2\nread_helper_fixed_experiment=1\nread_control_steps=0\nread_helper_soft_target=2\nread_helpers_occupied=2\nread_helpers_arming=0\nread_helpers_active=2\nread_helpers_draining=0\nread_helper_grants=0\nread_helper_retirements=0\nready_volatile_reads=45000\ndelegated_volatile_reads=26191\ncold_reads_pipelined=0\ncold_read_window_deferrals=0\nabuse_accepts_rejected=0\nabuse_idle_closed=0\nabuse_request_timeout_closed=0\nabuse_connection_rate_rejected=0\nabuse_principal_request_rejected=0\nabuse_principal_bandwidth_rejected=0\ntls_enabled=0\ntls_mtls=0\ntls_crl=0\ntls_ocsp_fail_closed=0\nauthz_enabled=0\nauthz_principals=0\nauth_accepts=0\nauth_denies=0\nauthz_denies=0\ntls_errors=0\naudit_events_suppressed=0\naudit_events_written=0\naudit_events_pending=0\naudit_events_write_failed=0\nmaintenance_state=idle\nmaintenance_pressure=normal\nmutations_rejected=0\ncompact_attempts=1\ncompact_completed=0\nuseful_compactions=0\nmaintenance_last_compaction_pacing_delay_ns=0\nmaintenance_total_compaction_pacing_delay_ns=0\nmaintenance_last_compaction_pacing_sleep_count=0\nmaintenance_last_compaction_pacing_burst_bytes=0\nmaintenance_skips=1\nmaintenance_consecutive_no_gain=1\nmaintenance_last_skip_reason=no_gain\nmaintenance_last_activation_reason=scheduled\nmaintenance_last_no_gain_source_records_verified=0\nmaintenance_last_no_gain_source_bytes_verified=0\nmaintenance_last_no_gain_expired_records_dropped=0\nmaintenance_total_no_gain_source_records_verified=0\nmaintenance_total_no_gain_source_bytes_verified=0\nmaintenance_total_no_gain_expired_records_dropped=0\nmaintenance_no_gain_scans_suppressed=0\nmaintenance_no_gain_retry_after_ns=56979941375\nmaintenance_sequence_conflicts=0\ndurable_rotation_attempts=0\ndurable_rotations_committed=0\ndurable_rotation_compaction_waits=0\ndurable_rotation_final_record_commit_attempts=0\ndurable_rotation_final_record_commits=0\ndurable_rotation_last_publication_wait_ns=0\ndurable_rotation_total_publication_wait_ns=0\ndurable_rotation_maximum_publication_wait_ns=0\ndurable_rotation_last_seal_ns=0\ndurable_rotation_total_seal_ns=0\ndurable_rotation_maximum_seal_ns=0\ndurable_rotation_last_create_ns=0\ndurable_rotation_total_create_ns=0\ndurable_rotation_maximum_create_ns=0\ndurable_rotation_last_manifest_publication_ns=0\ndurable_rotation_total_manifest_publication_ns=0\ndurable_rotation_maximum_manifest_publication_ns=0\ndurable_rotation_last_execution_ns=0\ndurable_rotation_total_execution_ns=0\ndurable_rotation_maximum_execution_ns=0\ndurable_rotation_last_total_ns=0\ndurable_rotation_total_ns=0\ndurable_rotation_maximum_total_ns=0\ndurable_rotation_last_final_record_commit_ns=0\ndurable_rotation_total_final_record_commit_ns=0\ndurable_rotation_maximum_final_record_commit_ns=0\nmaintenance_candidate_worker=none\nmaintenance_candidate_sealed_record_bytes=0\nmaintenance_candidate_live_record_bytes=0\nmaintenance_candidate_dead_record_bytes=0\nmaintenance_candidate_dead_byte_ratio_bp=none\nmaintenance_candidate_scheduling_dead_byte_ratio_bp=none\nmaintenance_unread_ttl_probe_performed=0\nmaintenance_candidate_unread_expired_sealed_record_count=0\nmaintenance_candidate_unread_expired_sealed_record_bytes=0\nmaintenance_rate_window_bytes_copied=0\nmaintenance_rate_window_cpu_ns=7208\nmaintenance_foreground_latency_samples=0\nmaintenance_last_foreground_p99_ns=0\nmaintenance_latency_suspends=0\nmaintenance_latency_guard_active=0\nmaintenance_latency_deferral_age_ns=0\nmaintenance_latency_debt_overrides=0\nlane[0].reader_safe_epoch=1\nlane[0].writer_epoch=1\nlane[0].queue_depth=0\nlane[0].queued_bytes=0\nlane[0].maximum_queue_depth=1\nlane[0].maximum_queued_bytes=1169\nlane[0].payload_slot_capacity=256\nlane[0].payload_slots_in_use=0\nlane[0].maximum_payload_slots_in_use=1\nlane[0].payload_arena_capacity_bytes=16777216\nlane[0].payload_arena_storage_bytes=33554432\nlane[0].payload_arena_bytes_in_use=0\nlane[0].maximum_payload_arena_bytes_in_use=1041\nlane[0].payload_admission_bytes_in_use=0\nlane[0].maximum_payload_admission_bytes_in_use=1169\nlane[0].payload_slot_full_total=0\nlane[0].payload_arena_full_total=0\nlane[0].payload_too_large_total=0\nlane[0].admitted=1\nlane[0].rejected=0\nlane[0].expired_before_store=0\nlane[0].completed=1\nlane[0].conflict_retries=0\nlane[0].conflict_retry_commits=0\nlane[0].writer_batches=1\nlane[0].writer_batch_records=1\nlane[0].maximum_writer_batch_records=1\nlane[0].total_writer_batch_wait_ns=250\nlane[0].maximum_writer_batch_wait_ns=250\nlane[0].writer_batch_durability_deadline_closes=0\nlane[0].writer_batch_queue_deadline_closes=0\nlane[0].sync_drain_turns=0\nlane[0].sync_turn_splits=0\nlane[0].sync_async_fairness_turns=0\nlane[0].publications=1\nlane[0].publication_records=1\nlane[0].completion_notifications=1\nlane[0].read_catalog_revision=0\nlane[0].read_refresh_attempts=0\nlane[0].read_refresh_successes=0\nlane[0].read_refresh_failures=0\nlane[0].read_refresh_deferrals=0\nlane[0].generations_retired=1\nlane[0].shutdown_generations_reclaimed=0\nlane[0].generation_admission_backpressure_total=0\nlane[0].reader_shutdown_finalized=0\nlane[0].retired_generation_count=0\nlane[0].delta_entries=1\nlane[0].delta_record_versions=1\nlane[0].delta_arena_record_bytes=4096\nlane[0].delta_arena_key_bytes=17\nlane[0].delta_arena_key_storage_bytes=4096\nlane[0].read_generation_base_entries=0\nlane[0].read_generation_base_capacity=8\nlane[0].read_generation_base_record_storage_bytes=0\nlane[0].read_generation_base_record_mapped_storage_bytes=0\nlane[0].read_generation_base_lookup_storage_bytes=40\nlane[0].read_generation_base_key_bytes=0\nlane[0].read_generation_base_key_storage_bytes=0\nlane[0].read_generation_base_pin_storage_bytes=0\nlane[0].read_generation_base_allocated_lower_bound_bytes=384\nlane[0].read_generation_delta_capacity=65536\nlane[0].read_generation_delta_lookup_storage_bytes=1040\nlane[0].read_generation_delta_allocated_lower_bound_bytes=9232\nlane[0].read_generation_shell_bytes=184\nlane[0].read_generation_current_allocated_lower_bound_bytes=9800\nlane[0].read_merge_active=0\nlane[0].read_merge_post_entries=0\nlane[0].read_merge_starts=0\nlane[0].read_merge_completions=0\nlane[0].read_merge_failures=0\nlane[0].read_merge_backpressure=0\nlane[0].read_merge_slots_processed=0\nlane[0].read_merge_remaining_slots=0\nlane[0].read_merge_post_capacity_remaining=0\nlane[0].maximum_read_merge_quantum_slots=0\nlane[0].queue_wait_ns.count=1\nlane[0].queue_wait_ns.sum=13542\nlane[0].queue_wait_ns.le_1000=0\nlane[0].queue_wait_ns.le_10000=0\nlane[0].queue_wait_ns.le_100000=1\nlane[0].queue_wait_ns.le_1000000=1\nlane[0].queue_wait_ns.le_10000000=1\nlane[0].queue_wait_ns.le_100000000=1\nlane[0].queue_wait_ns.le_1000000000=1\nlane[0].queue_wait_ns.le_inf=1\nlane[0].queue_wait_ns.p50=100000\nlane[0].queue_wait_ns.p99=100000\nlane[0].service_ns.count=1\nlane[0].service_ns.sum=16791\nlane[0].service_ns.le_1000=0\nlane[0].service_ns.le_10000=0\nlane[0].service_ns.le_100000=1\nlane[0].service_ns.le_1000000=1\nlane[0].service_ns.le_10000000=1\nlane[0].service_ns.le_100000000=1\nlane[0].service_ns.le_1000000000=1\nlane[0].service_ns.le_inf=1\nlane[0].service_ns.p50=100000\nlane[0].service_ns.p99=100000\n",
+  "daemon_returncode": 0,
+  "server_user_cpu_seconds": 0.302745,
+  "server_system_cpu_seconds": 0.596088,
+  "binary_unchanged": true,
+  "codec_unchanged": true
+}

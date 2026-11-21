@@ -75,6 +75,12 @@ auto format_daemon_config_dump(const DaemonOptions& options) -> std::string {
     out += options.server.reuse_port ? "true" : "false";
     out += "\nexecutor-affinity=";
     out += options.server.executor_affinity ? "true" : "false";
+    out += "\nread-helper-cap=";
+    out += std::to_string(options.server.read_helpers.maximum_helpers);
+    out += "\nread-helper-fixed-owner=";
+    if (options.server.read_helpers.fixed_owner) {
+        out += std::to_string(*options.server.read_helpers.fixed_owner);
+    }
     out += "\nstorage-mode=";
     out += storage_mode_name(options.store.storage_mode);
     out += "\ndata-dir=";

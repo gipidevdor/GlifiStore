@@ -151,6 +151,19 @@ auto Server::create(const ReactorConfig& config, StoreConfig store_config)
         return unexpected(reactors.error());
     }
     server->reactors_ = std::move(*reactors);
+    if (config.read_helpers.maximum_helpers != 0) {
+        if (detail::StoreAccess::is_durable(*server->store_)) {
+            return fail(ErrorCode::invalid_argument, "read helpers currently require a volatile Store");
+        }
+        auto manager = ReadCapacityManager::create(config.worker_count, config.read_helpers);
+        if (!manager) {
+            return unexpected(manager.error());
+        }
+        server->read_capacity_ = std::move(*manager);
+        for (auto& reactor : server->reactors_) {
+            reactor->attach_read_capacity(*server->read_capacity_);
+        }
+    }
     return server;
 }
 
@@ -182,6 +195,14 @@ auto Server::first_failure() const -> std::optional<Error> {
     return failure_;
 }
 
+auto Server::delegated_reads() const noexcept -> std::uint64_t {
+    std::uint64_t total{};
+    for (const auto& reactor : reactors_) {
+        total += reactor->delegated_reads();
+    }
+    return total;
+}
+
 auto Server::reactor_buffer_stats() const noexcept -> ReactorBufferStats {
     ReactorBufferStats stats;
     for (const auto& reactor : reactors_) {
@@ -205,6 +226,11 @@ auto Server::stats_report() const -> Result<std::string> {
         .mutations = pair_writer_stats(),
         .batches = durable_batch_stats(),
     };
+    snapshot.read_helper_cap = config_.read_helpers.maximum_helpers;
+    snapshot.read_helper_fixed_experiment = config_.read_helpers.fixed_owner.has_value();
+    if (read_capacity_) {
+        snapshot.read_capacity = read_capacity_->stats();
+    }
     snapshot.executors.reserve(reactors_.size());
     for (const auto& reactor : reactors_) {
         snapshot.executors.push_back(ExecutorStats{
@@ -218,6 +244,8 @@ auto Server::stats_report() const -> Result<std::string> {
             .input_buffer_bytes_moved = reactor->input_buffer_bytes_moved(),
             .output_buffer_compactions = reactor->output_buffer_compactions(),
             .output_buffer_bytes_moved = reactor->output_buffer_bytes_moved(),
+            .ready_volatile_reads = reactor->ready_reads(),
+            .delegated_volatile_reads = reactor->delegated_reads(),
             .cold_reads_pipelined = reactor->cold_reads_pipelined(),
             .cold_read_window_deferrals = reactor->cold_read_window_deferrals(),
         });

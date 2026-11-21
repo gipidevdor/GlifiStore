@@ -172,6 +172,7 @@ hazards:
   - Stop serving affected ops; operator repair/salvage modes are explicit
   prove:
   - tests/integration/concurrency_tests.cpp
+  - tests/integration/server_read_helper_tests.cpp
   - tests/unit/value_tests.cpp
   - tests/unit/prepared_read_tests.cpp
   - tests/unit/pair_read_generation_tests.cpp
@@ -180,13 +181,17 @@ hazards:
   rischio_residuo: >-
     ASan/UBSan CI smoke; not exhaustive schedules. ADR 0048's volatile Record views own no
     pin: the caller must retain the exact generation through use. The daemon copies small
-    responses synchronously into owning output before releasing its Reader lease.
+    responses synchronously into owning output before releasing its Reader lease. ADR 0049's
+    helpers extend that same primary epoch frontier through selected-result encoding, cancellation
+    and reuse. Deterministic local tests cover ordinary/slot-pool generations; multi-OS and
+    multi-hour helper lifetime campaigns remain pending.
   stato: mitigato
   accettazione_rischio: Sanitizer CI + generation model; adversarial schedules Phase B
   requisiti:
   - GS-CONCUR-PAIR-001
   - GS-CORE-CLOSE-001
   - GS-PERF-VREAD-001
+  - GS-CONCUR-RHELP-001
 - id: HAZ-009
   evento_pericoloso: Recupero prematuro di segmenti
   cause:

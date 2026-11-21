@@ -7,7 +7,7 @@ Generated from `engineering/gates/`. See also the derived
 
 | ID | Section | State | Release | Requirements |
 | --- | --- | --- | --- | --- |
-| `GATE-ADAPTIVE-READERS` | verification | `SPECIFICATA` | `prototype` | `GS-PERF-RCAP-001`, `GS-CONCUR-PAIR-001`, `GS-CONCUR-MEM-001`, `GS-OPS-RCTRL-001` |
+| `GATE-ADAPTIVE-READERS` | verification | `IMPLEMENTATA` | `prototype` | `GS-PERF-RCAP-001`, `GS-CONCUR-PAIR-001`, `GS-CONCUR-MEM-001`, `GS-OPS-RCTRL-001`, `GS-CONCUR-RHELP-001` |
 | `GATE-API-ABI-POLICY` | public_contract | `PROVATA_IN_CI` | `alpha` | `GS-COMPAT-FIXTURE-001`, `GS-COMPAT-NN1-001`, `GS-COMPAT-CABI-001` |
 | `GATE-ARTIFACT-DELIVERY` | distribution_lifecycle | `IMPLEMENTATA` | `rc` | `GS-RELEASE-ARTIFACT-001` |
 | `GATE-AUTH-TRANSPORT` | operations_security | `PROVATA_IN_CI` | `beta` | `GS-SEC-PROFILE-001`, `GS-SEC-BOUNDS-001` |

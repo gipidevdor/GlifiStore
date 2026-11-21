@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("check", choices=("metadata", "format", "native", "capacity"))
+    parser.add_argument("check", choices=("metadata", "format", "native", "capacity", "read-capacity"))
     args = parser.parse_args()
     python = ROOT / ".tools/venv/bin/python3"
     interpreter = str(python) if python.is_file() else sys.executable
@@ -31,6 +31,11 @@ def main() -> int:
                      [interpreter, "-m", "unittest", "discover", "-s", "engineering/tests", "-p", "test_gdev*.py"]],
         "format": [["./scripts/dev.sh", "format-check"]],
         "native": [["./scripts/dev.sh", "test"]],
+        "read-capacity": [[interpreter, "engineering/tools/gdev_verify.py", "metadata"],
+                          [interpreter, "-m", "unittest", "scripts.tests.test_benchmark_read_capacity"],
+                          [cmake, "--preset", preset],
+                          [cmake, "--build", "--preset", preset, "--target", "glifistore_tests", "glifistored"],
+                          [ctest, "--test-dir", f"build/{preset}", "-R", "glifistore_read_", "--output-on-failure"]],
         "capacity": [[interpreter, "engineering/tools/gdev_verify.py", "metadata"],
                      [interpreter, "-m", "unittest", "scripts.tests.test_owner_capacity_report", "scripts.tests.test_benchmark_report"],
                      [cmake, "--preset", preset],

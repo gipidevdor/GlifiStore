@@ -318,6 +318,10 @@ add_library(glifistore_server_core
     ${CMAKE_SOURCE_DIR}/src/server/reactor_tls.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_timeouts.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_dispatch.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/read_capacity_controller.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/read_capacity_manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/read_helper_pool.cpp
+    ${CMAKE_SOURCE_DIR}/src/server/reactor_read_helpers.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_execute.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_io.cpp
     ${CMAKE_SOURCE_DIR}/src/server/reactor_factory.cpp

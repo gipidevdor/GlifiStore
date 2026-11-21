@@ -53,7 +53,7 @@ con directory e comando dichiarato dal progetto. La lettura non lo esegue.
 Per registrare una campagna apri una lavorazione, collega
 `.gdev-assurance/work/gdev-integration.eld` e l'istantanea del progetto,
 segui le transizioni consentite e usa `esegui-procedura` in verifica.
-Le procedure `GS-GDEV-METADATA`, `GS-FORMAT` e `GS-NATIVE` chiamano i
+Le procedure `GS-GDEV-METADATA`, `GS-FORMAT`, `GS-NATIVE` e `GS-READ-CAPACITY` chiamano i
 controlli reali. Il database locale `.gdev/` è ignorato da Git e conserva
 tentativi, errori e revisioni. Una modifica successiva alle fonti invalida
 le prove precedenti. Le approvazioni umane restano passaggi separati.
@@ -85,3 +85,7 @@ Per usare gli strumenti locali anche nell'editor, `M-x gdev-trust-project`
 usa il controllo di fiducia già previsto da GDev. Per clangd seleziona il
 preset CMake del progetto; la sola presenza di più preset non equivale
 alla scelta di uno di essi.
+
+La procedura `GS-READ-CAPACITY` verifica il [prototipo di lettura](../benchmarks/read-capacity.md),
+con controllore deterministico, helper e regressione del generatore a offerta temporizzata.
+Il suo esito non qualifica capacità o soglie per il rilascio.

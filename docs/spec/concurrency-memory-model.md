@@ -139,6 +139,14 @@ generation's Reader lease. Small responses are copied synchronously into the con
 output buffer before `execute_local` returns. No borrowed span escapes into held responses, async
 tasks or socket output leases. Large scatter responses and public Store reads remain owning.
 
+ADR 0049 adds opt-in volatile GET helpers. The primary registers an asynchronous epoch lease
+before publishing a task from its already-protected generation, and includes that epoch in every
+later adoption. Helpers never independently adopt publication pointers. The exact selected view
+stays protected until primary encoding/copying, including large-value continuation and stale-token
+discard. Each helper owns at most one task/result; reassignment waits for an empty cell. Helpers
+join before Store teardown. The cell release/acquire cycle publishes task/result payloads; the
+existing Reader epoch frontier, not the helper signal or embedded read counter, protects lifetime.
+
 ## 7. Linearization points
 
 | Operation | Linearization point |

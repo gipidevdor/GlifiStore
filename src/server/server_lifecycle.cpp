@@ -19,6 +19,13 @@ auto Server::start() -> Status {
         disk_reads_->stop();
         return started;
     }
+    if (read_capacity_) {
+        if (auto helpers = read_capacity_->start(); !helpers) {
+            static_cast<void>(pair_writers_->stop_and_drain());
+            disk_reads_->stop();
+            return helpers;
+        }
+    }
     try {
         for (std::size_t executor = 0; executor < reactors_.size(); ++executor) {
             threads_.emplace_back([this, executor] { run(executor); });
@@ -33,6 +40,9 @@ auto Server::start() -> Status {
         threads_.clear();
         static_cast<void>(pair_writers_->stop_and_drain());
         disk_reads_->stop();
+        if (read_capacity_) {
+            read_capacity_->stop();
+        }
         return fail(ErrorCode::io_error, std::string{"failed to start server executor: "} + exception.what());
     }
     return {};
@@ -83,6 +93,11 @@ auto Server::join() -> Status {
     drained = pair_writers_->stop_and_drain(remaining);
     if (disk_reads_) {
         disk_reads_->stop();
+    }
+    // Helpers may still hold a result after an executor failure/deadline. Join and
+    // discard those views before closing the Store, even when no Reactor can resume.
+    if (read_capacity_) {
+        read_capacity_->stop();
     }
     auto closed = store_->close();
     if (failure_) {

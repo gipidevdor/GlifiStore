@@ -220,6 +220,25 @@
       "required_happens_before": "none for value payloads; the successful atomic compare/exchange reserves capacity before allocation and the scope guard releases it",
       "invariant": "successful reservations do not exceed the materialization cap and every acquired charge is released without publishing another read payload",
       "relaxed_justification": "the relaxed load is only the initial compare/exchange candidate; the successful RMW decides admission and no non-atomic payload is published through the counter"
+    },
+    {
+      "id": "server-read-helper-cells",
+      "paths": [
+        "src/server/read_helper_pool.cpp"
+      ],
+      "classification": "critical bounded task/result ownership and safe reassignment",
+      "allowed_orders": [
+        "relaxed",
+        "acquire",
+        "release",
+        "acq_rel"
+      ],
+      "writer": "originating owner Reactor, helper thread and serialized capacity control adapter",
+      "readers": "assigned helper, origin Reactor and control/shutdown paths",
+      "published_or_protected_data": "one key/task/selected-result cell per helper and stable completion endpoint",
+      "required_happens_before": "pending release publishes task to running acquire; complete release publishes result to consuming acquire; empty release hands the cell to an acquiring submitter or control transition",
+      "invariant": "one cell owner at a time; reassignment waits for empty; origin primary epoch frontier retains generation until encoding; join precedes Store teardown",
+      "relaxed_justification": "owner loads are hints rechecked after acquiring exclusive cell ownership; state conveys payload ownership; generation lifetime is protected separately by the origin Reactor epoch lease"
     }
   ]
 }

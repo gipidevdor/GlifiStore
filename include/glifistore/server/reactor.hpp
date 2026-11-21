@@ -16,6 +16,7 @@
 #include "glifistore/server/pair_writer.hpp"
 #include "glifistore/server/poller.hpp"
 #include "glifistore/server/protocol.hpp"
+#include "glifistore/server/read_capacity_manager.hpp"
 #include "glifistore/server/security_audit.hpp"
 #include "glifistore/server/socket.hpp"
 #include "glifistore/server/tls.hpp"
@@ -101,6 +102,7 @@ struct ReactorConfig {
     /// and --secure-profile; counters still accumulate when the shared audit sink exists.
     bool security_audit_events{};
     bool quiet{};
+    ReadHelperConfig read_helpers{};
     /// Phase 8 / ADR 0029: optional AF_UNIX listener (same wire protocol). Empty = disabled.
     std::filesystem::path unix_socket_path{};
     /// Derive authz principal from OS peer credentials (unix:uid=N). Complementary to mTLS.
@@ -130,6 +132,19 @@ class Reactor final {
     Reactor(Reactor&&) = delete;
     auto operator=(Reactor&&) -> Reactor& = delete;
 
+    /// Attach before start. Manager and pool must outlive Reactor threads and all completions.
+    void attach_read_capacity(ReadCapacityManager& manager) noexcept {
+        read_capacity_ = &manager;
+    }
+
+    [[nodiscard]] auto ready_reads() const noexcept -> std::uint64_t {
+        return ready_reads_.load(std::memory_order_relaxed);
+    }
+
+    [[nodiscard]] auto delegated_reads() const noexcept -> std::uint64_t {
+        return delegated_reads_.load(std::memory_order_relaxed);
+    }
+
     [[nodiscard]] auto run_once(int timeout_ms) -> Status;
     /// Remove listeners from the poller and close them. Existing connections stay
     /// open until drained or force-closed. Safe only on the owning executor thread.
@@ -146,7 +161,8 @@ class Reactor final {
 
     [[nodiscard]] auto idle_for_shutdown() const noexcept -> bool {
         return active_connections_.load(std::memory_order_relaxed) == 0 && disk_reads_outstanding_ == 0 &&
-               mutations_outstanding_ == 0 && !mesh_.has_pending(executor_id_);
+               mutations_outstanding_ == 0 && helper_reads_outstanding_ == 0 &&
+               !mesh_.has_pending(executor_id_);
     }
 
     /// Cleartext listen port, or 0 when this reactor has no cleartext listener.
@@ -328,6 +344,8 @@ class Reactor final {
                                      std::uint64_t key_hash, std::uint64_t& cached_now_ns) -> Status;
     [[nodiscard]] auto process_messages() -> Status;
     [[nodiscard]] auto process_handoffs() -> Status;
+    [[nodiscard]] auto process_helper_read_completions() -> Status;
+    void observe_read_capacity();
     [[nodiscard]] auto process_disk_read_completions() -> Status;
     [[nodiscard]] auto process_mutation_completions() -> Status;
     void flush_deferred_mutation_payloads() noexcept;
@@ -376,6 +394,16 @@ class Reactor final {
     /// generation while asynchronous materialization is in flight.
     const PairReadGeneration* local_read_generation_{};
     bool durable_store_{};
+    ReadCapacityManager* read_capacity_{};
+    std::size_t helper_reads_outstanding_{};
+    std::atomic_uint64_t delegated_reads_{};
+    std::atomic_uint64_t ready_reads_{};
+    std::uint64_t read_window_begin_ms_{};
+    std::uint64_t read_window_gets_{};
+    std::uint64_t read_window_primary_gets_{};
+    std::uint64_t read_window_cpu_ns_{};
+    std::uint64_t read_window_samples_{};
+    std::uint64_t helper_cpu_ns_{};
     ServerLifecycleProbes lifecycle_probes_{};
     std::shared_ptr<TlsContext> tls_;
     std::shared_ptr<AbuseController> abuse_;

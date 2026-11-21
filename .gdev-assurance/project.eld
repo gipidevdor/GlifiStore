@@ -18,7 +18,7 @@
  :source-roots ("include" "src" "tests" "benchmarks" "cmake" "scripts" "engineering" "docs")
  :source-files ("AGENTS.md" "CMakeLists.txt" "CMakePresets.json" ".clang-format-version" ".gdev-project.eld" ".codex/config.toml"
                 ".gdev-assurance/work/gdev-integration.eld" ".gdev-assurance/work/shard-capacity.eld" ".gdev-assurance/work/hot-reader.eld"
-                ".gdev-assurance/work/read-governor-plan.eld")
+                ".gdev-assurance/work/read-governor-plan.eld" ".gdev-assurance/work/read-capacity-runtime.eld")
  :requirements
  ((:id "GS-GDEV-001" :version 1 :statement "La vista GDev conserva ID, stati e riferimenti delle fonti YAML e segnala le viste superate."
    :origin "Mandato di integrazione dell'utente" :rationale "Un'autorità per ogni dato; nessuna promozione implicita dei gate."
@@ -27,7 +27,11 @@
    :method test :sources ("engineering/tools/export_gdev_catalog.py" "engineering/tools/gdev_verify.py")
    :tests ("engineering/tools/gdev_verify.py") :procedure "GS-GDEV-METADATA"))
  :procedures
- ((:id "GS-CAPACITY" :version 1 :title "Contratto del benchmark per owner" :mode verification :types ("feature" "bugfix")
+ ((:id "GS-READ-CAPACITY" :version 1 :title "Controllo e helper GET" :mode verification :types ("feature" "bugfix")
+   :requirements ("GS-GDEV-001")
+   :steps ((:id "read-capacity" :plan ".gdev-assurance/procedures/read-capacity.lavorazione" :timeout 1200 :replay safe :required t
+            :inputs ("engineering/tools/gdev_verify.py") :outputs nil)))
+  (:id "GS-CAPACITY" :version 1 :title "Contratto del benchmark per owner" :mode verification :types ("feature" "bugfix")
    :requirements ("GS-GDEV-001")
    :steps ((:id "capacity" :plan ".gdev-assurance/procedures/capacity.lavorazione" :timeout 1200 :replay safe :required t
             :inputs ("engineering/tools/gdev_verify.py") :outputs nil)))

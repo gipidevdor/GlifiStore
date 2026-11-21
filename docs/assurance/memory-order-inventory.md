@@ -11,14 +11,14 @@ Requirement: `GS-CONCUR-MEM-001`.
 
 The machine-checked companion
 [`engineering/evidence/memory-order-inventory-2026-08-30.json`](../../engineering/evidence/memory-order-inventory-2026-08-30.json)
-records all 1,125 explicit `std::memory_order_*` occurrences in production headers/sources with exact
+records all 1,157 explicit `std::memory_order_*` occurrences in production headers/sources with exact
 file, line, object expression, operation, writer/readers, protected data, required happens-before,
 invariant, and positive `relaxed` justification. It is regenerated and checked by
 `engineering/tools/audit_memory_orders.py`; a new source occurrence, an unsupported order, an ambiguous
 domain, or stale evidence fails closed. This is coverage of the audit inventory, not a formal proof that
 each argument is correct.
 
-The current inventory covers 18 domains, including owning blob-read materialization admission. The
+The current inventory covers 19 domains, including owning blob-read materialization admission. The
 blob byte counter reserves capacity without publishing another read's payload. ADR 0044 retired the
 bounded compaction journal and its overflow flag; the commit-time remap is ordered by the Worker mutex
 and the Index quiesce gate. These arguments are recorded in the
@@ -55,6 +55,7 @@ and the Index quiesce gate. These arguments are recorded in the
 | --- | --- | --- | --- |
 | SPSC `head`/`tail` | release publish; acquire consume | Cell ownership; full → backpressure (no overwrite) | unit tests + TSan; Wave 2 hot-producer / slow-consumer litmus |
 | MPSC cell `sequence` | release / acquire | Connection handoff | bounded_mpsc tests |
+| Read-helper cell state / signal / assignment | release task/result/empty; acquire exclusive ownership; relaxed owner hint rechecked after CAS | One task or result per helper; empty-only reassignment. Origin Reader epoch protects the selected view through encoding | `server_read_helper_tests`, local ASan/UBSan/TSan; no platform closure |
 
 Both queue families keep capacity below half the unsigned cursor range. MPSC ordering uses unsigned modular
 distance (never signed subtraction), and both constructors reject a capacity for which wrap ordering would be

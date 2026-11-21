@@ -11,9 +11,9 @@ hazards:
   probabilita: media
   rilevabilita: alta
   prevenzione:
-  - No dynamic balancing mechanism is implemented; a solution remains to be studied
+  - Logical ownership stays fixed; the opt-in volatile helper prototype shares read execution only
   - ADR 0048 removes intermediate materialization of small volatile GET values within the Reader lease
-  - ADR 0049 proposes capacity measurement and bounded adaptive read helpers; no controller is implemented
+  - ADR 0049 implements bounded experimental helpers and control; no capacity profile is qualified
   contenimento:
   - Bounded lanes constrain queued work but do not redistribute it
   prove:
@@ -33,9 +33,10 @@ hazards:
     A shard pair is not a single CPU core. Offline migration is not runtime balancing and does
     not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a
     reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime
-    redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are
-    proposed only; their profile-qualified threshold hypotheses, multi-reader safety and global
-    budget are unproven. Revised 65/45 percent candidates are not measured capacity or cost claims.
+    redistribution or a general tail-latency improvement. ADR 0049 now has an opt-in volatile
+    implementation with local deterministic and lifetime proofs. It is disabled by default;
+    fixed-helper pilots do not qualify coupled capacity curves, thresholds, isolation or CPU cost.
+    Revised 65/45 percent candidates remain hypotheses, not measured capacity or cost claims.
     Compaction sustainability remains separate.
   stato: aperto
   accettazione_rischio: Not accepted for release; fixed-owner capacity limit remains unresolved
@@ -56,7 +57,10 @@ hazards:
   contenimento:
   - Wrong-owner requests are rejected rather than applied to the wrong shard
   - Official clients mark the client unhealthy under client-semantics-v1
-  prove: []
+  prove:
+  - tests/unit/read_capacity_controller_tests.cpp
+  - tests/integration/server_read_helper_tests.cpp
+  - scripts/tests/test_benchmark_read_capacity.py
   rischio_residuo: >-
     Open integration limitation of the current routing contract, not a claim that
     WRONG_OWNER violates wire v2. Connection management and recovery remain client
@@ -67,7 +71,7 @@ hazards:
   accettazione_rischio: Not accepted for release; problem recorded only, solution deferred
   requisiti: [GS-PROTO-WIRE-001]
 - id: HAZ-047
-  evento_pericoloso: A future adaptive read governor amplifies overload or starves other owners and Writers
+  evento_pericoloso: An opt-in adaptive read controller amplifies overload or starves other owners and Writers
   cause:
   - Treating completed throughput or total CPU occupancy as sufficient evidence of useful read capacity
   - Independent per-owner pools oversubscribe the process or retain credits while parked or draining
@@ -81,17 +85,21 @@ hazards:
   probabilita: media
   rilevabilita: alta
   prevenzione:
-  - Proposed ADR 0049 separates calibrated capacity, local observers, a global budget and rigid credits
-  - The design requires counterfactual scale-down, fairness and explicit unknown or stale measurements
+  - Accepted ADR 0049 implements a pure controller, local observations, a shared CPU target and rigid cells
+  - Counterfactual retirement, equal-weight arbitration and unknown or stale measurements have deterministic tests
   contenimento:
-  - No adaptive governor or read helpers are enabled in the current runtime
-  - The planned disable path must drain readers before returning to the primary path
-  prove: []
+  - Default cap is zero; unknown profiles park helpers; fixed allocations require explicit configuration
+  - Reassignment drains occupied cells; full pools fall back to the primary; helpers join before Store teardown
+  prove:
+  - tests/unit/read_capacity_controller_tests.cpp
+  - tests/integration/server_read_helper_tests.cpp
+  - scripts/tests/test_benchmark_read_capacity.py
   rischio_residuo: >-
-    Prospective design hazard, not an observed failure of an enabled feature. The controller,
-    telemetry and helper path are not implemented. Candidate thresholds, economic benefits and time
-    windows are hypotheses requiring sustained-load and deterministic state-machine proofs.
-    Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.
+    Experimental feature, disabled by default. Local deterministic and lifetime tests do not
+    establish sustained benefit, calibrated thresholds, workload-independent stability, coupled
+    multi-owner capacities or weighted CPU-cost fairness. Helper handoff safety is tested locally
+    for ordinary and slot-pool generations; adversarial soaks/platform qualification remain open.
+    Resource economics must be measured before enabling an automatic profile. HAZ-008 also applies.
   stato: aperto
-  accettazione_rischio: Not accepted for release; design-only hazard and unimplemented mitigations
+  accettazione_rischio: Not accepted for release; experimental local implementation, qualification pending
   requisiti: [GS-PERF-RCAP-001, GS-OPS-RCTRL-001]

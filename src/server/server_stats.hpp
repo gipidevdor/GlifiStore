@@ -4,6 +4,7 @@
 #include "glifistore/persistence/runtime_catalog.hpp"
 #include "glifistore/server/abuse_limits.hpp"
 #include "glifistore/server/pair_writer.hpp"
+#include "glifistore/server/read_capacity_manager.hpp"
 #include "glifistore/server/security_audit.hpp"
 #include "glifistore/store/maintenance_types.hpp"
 
@@ -26,6 +27,8 @@ struct ExecutorStats final {
     std::uint64_t input_buffer_bytes_moved{};
     std::uint64_t output_buffer_compactions{};
     std::uint64_t output_buffer_bytes_moved{};
+    std::uint64_t ready_volatile_reads{};
+    std::uint64_t delegated_volatile_reads{};
     std::uint64_t cold_reads_pipelined{};
     std::uint64_t cold_read_window_deferrals{};
 };
@@ -33,6 +36,9 @@ struct ExecutorStats final {
 // Consistent point-in-time view used by ServerStatsReporter. Collection of
 // these fields is separate from ASCII serialization.
 struct ServerStatsSnapshot final {
+    ReadCapacityControlStats read_capacity{};
+    std::size_t read_helper_cap{};
+    bool read_helper_fixed_experiment{};
     bool live{};
     bool ready{};
     bool store_operational{};

@@ -1,0 +1,20 @@
+usage: python3 -m unittest [-h] --binary BINARY --output OUTPUT [--rate RATE]
+                           [--duration-ms DURATION_MS] [--clients CLIENTS]
+                           [--value-size VALUE_SIZE] [--helpers HELPERS]
+                           [--slo-us SLO_US]
+python3 -m unittest: error: experiment bounds exceeded (maximum two million scheduled GETs)
+usage: python3 -m unittest [-h] --binary BINARY --output OUTPUT [--rate RATE]
+                           [--duration-ms DURATION_MS] [--clients CLIENTS]
+                           [--value-size VALUE_SIZE] [--helpers HELPERS]
+                           [--slo-us SLO_US]
+python3 -m unittest: error: experiment bounds exceeded (maximum two million scheduled GETs)
+usage: python3 -m unittest [-h] --binary BINARY --output OUTPUT [--rate RATE]
+                           [--duration-ms DURATION_MS] [--clients CLIENTS]
+                           [--value-size VALUE_SIZE] [--helpers HELPERS]
+                           [--slo-us SLO_US]
+python3 -m unittest: error: experiment bounds exceeded (maximum two million scheduled GETs)
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.919s
+
+OK

@@ -783,6 +783,7 @@ auto Reactor::process_handoffs() -> Status {
 }
 
 auto Reactor::run_once(const int timeout_ms) -> Status {
+    observe_read_capacity();
     pair_writers_.request_read_refresh(executor_id_);
     local_read_generation_ = pair_writers_.adopt_read_generation(executor_id_, minimum_cold_read_epoch());
     if (!local_read_generation_) {
