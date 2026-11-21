@@ -3,7 +3,7 @@
 **Piano proposto, 2026-11-21. Nessuna parte del controller o degli helper è implementata.**
 La [ADR 0049](../adr/0049-adaptive-read-capacity.md) propone il contratto futuro.
 Il gate `GATE-ADAPTIVE-READERS` resta `SPECIFICATA`, i requisiti sono in bozza e
-HAZ-045/046 rimangono aperti. Le verifiche di questo documento controllano il piano,
+HAZ-045/046/047 rimangono aperti. Le verifiche di questo documento controllano il piano,
 non la correttezza o le prestazioni di un runtime futuro.
 L'[analisi matematica](adaptive-read-model.md) separa gli invarianti astratti dalle garanzie
 ancora mancanti: il controllo a soglie non ha una prova di stabilità globale o di ottimalità.
@@ -11,11 +11,18 @@ ancora mancanti: il controllo a soglie non ha una prova di stabilità globale o 
 ## 1. Obiettivo e perimetro
 
 Usare tutta la capacità **utile e disponibile** per servire letture quando esiste domanda.
-La soglia iniziale del 70% anticipa l'espansione di uno shard caldo; non limita al 70%
-il carico totale del processo. A domanda bassa gli helper si parcheggiano. A domanda alta
+La soglia qualificata anticipa l'espansione di uno shard caldo; il candidato iniziale è 65%,
+da confrontare anche con l'esempio originario del 70%. Non è un limite al carico totale
+del processo. A domanda bassa gli helper si parcheggiano. A domanda alta
 si può impiegare l'intero budget qualificato, conservando i limiti di memoria e di lavoro.
 Non si genera lavoro artificiale per mantenere la CPU al 100% e non si promette di
 servire un'offerta superiore alla capacità fisica o seriale del sistema.
+
+Proteggere l'investimento significa valorizzare CPU, memoria e capacità già acquistate e
+conservare dati, client e contratti durante l'evoluzione. Si misura il lavoro utile ottenuto
+per risorsa consumata, insieme alla latenza e alla capacità sotto picco. Un helper che aumenta
+solo occupazione CPU o traffico fra core non dimostra un beneficio. La necessità di ulteriore
+hardware va motivata identificando il limite residuo, non dedotta da un solo shard saturo.
 
 Prima realizzazione: GET volatili, con un solo Writer autorevole per shard, un Reactor
 proprietario delle connessioni e un pool condiviso di helper di lettura. Gli helper possono
@@ -63,7 +70,7 @@ rientro e l'eventuale capacità insufficiente devono essere visibili.
 
 Le misure [finite per owner](../../engineering/evidence/owner-capacity-local-2026-11-21/README.md)
 e il [confronto sulle copie](../../engineering/evidence/hot-reader-copy-local-2026-11-21/README.md)
-sono ricognizioni utili. Non qualificano ancora `C_s(k, p)` né una capacità sostenuta al 70%.
+sono ricognizioni utili. Non qualificano ancora `C_s(k, p)` o le soglie del controller.
 
 ## 3. Osservazione prima dell'attuazione
 
@@ -117,7 +124,7 @@ Writer configurato, né si assume che ogni CPU logica abbia la stessa capacità.
 non è rilevabile in modo affidabile serve un limite operatore conservativo e dichiarato.
 `H_target` è una stima di governo, non una prenotazione di CPU presso il sistema operativo.
 
-## 5. Regole iniziali e stabilità
+## 5. Soglie candidate e taratura
 
 Questi valori sono **ipotesi per la prima campagna**, non configurazione già supportata o
 valori accettati per rilascio. Lo SLO di latenza e i limiti di memoria vanno dichiarati prima
@@ -125,33 +132,71 @@ della campagna; non si ricavano dai risultati dopo averli osservati.
 
 | Parametro | Ipotesi iniziale |
 | --- | --- |
-| Finestra di osservazione del controllo | 100 ms, aggregata con stima smussata e qualità dei campioni |
-| Richiesta di espansione | Pressione almeno 70% per 3 finestre valide, con lavoro delegabile |
+| Finestra di osservazione del controllo | Candidato 50 ms, aggregato con stima smussata e qualità dei campioni |
+| Richiesta di espansione | Candidato 65% per 2 finestre valide, con lavoro delegabile; soglia finale qualificata per profilo |
 | Incremento | Un helper per decisione, entro i crediti globali e la curva qualificata |
-| Verifica del beneficio | Dopo assestamento, sul tempo CPU utile, goodput e latenza; niente crescite cieche |
-| Ritiro per scarso carico | Pressione prevista senza quell'helper sotto 40% per almeno 5 s |
+| Verifica del beneficio | Dopo assestamento, su CPU utile, goodput, latenza e costo per lettura; niente crescite cieche |
+| Ritiro per scarso carico | Candidato 45% previsto senza quell'helper per almeno 5 s; banda allargabile verso il basso per rumore e ritardi |
 | Permanenza minima prima di trasferimento ordinario | 500 ms, salvo stop o pressione sulle risorse |
 | Dimensioni di batch | Limiti separati su richieste, byte e lavoro CPU; da qualificare prima dell'abilitazione |
 
-La pressione comprende `rho_s(k)` e segnali di coda/CPU di lettura; i campioni devono avere
-numerosità sufficiente. Un percentile ricavato da poche risposte non autorizza una decisione.
-La soglia 70% non forza un helper a uno shard senza lavoro pronto e non supera i limiti globali.
-L'arbitro cerca il minimo `k` qualificato che riporti la pressione sotto soglia. Se la domanda
-continua a crescere, può assegnare tutti i permessi disponibili fino ai limiti rigidi.
+La pressione comprende `rho_s(k)` e segnali di coda/CPU di lettura. Servono campioni sufficienti;
+un percentile di poche risposte non autorizza una decisione. La soglia non forza un helper senza
+lavoro delegabile e non supera i limiti globali. L'arbitro cerca il minimo `k` qualificato che
+riporti la pressione sotto soglia. Con domanda crescente può usare tutti i permessi disponibili.
+Superare la soglia produce una richiesta, non un'attivazione incondizionata: l'arbitro verifica
+anche il beneficio attuale o il margine di picco dichiarato e il costo ammesso.
 
-Il ritiro valuta la capacità **controfattuale** `C_s(k-1, p)`, non il basso utilizzo dopo
-l'espansione. Esempio illustrativo: `C_s(0)=1 M GET/s`, domanda `0,75 M`, `C_s(1)=1,6 M`.
-Dopo l'aggiunta il carico relativo è circa 47%; senza helper tornerebbe al 75%. L'helper
-non va ritirato per questo calo. Un ritiro basato solo sulla media corrente produrrebbe
-un ciclo continuo di aggiunte e rimozioni.
+Il 65% è un candidato più anticipato del 70%, non una soglia dimostrata migliore. R0/R3 devono
+misurare l'inizio della crescita persistente di coda/latenza, chiamato `rho_knee`, e il tempo
+`T_act` fra osservazione e primo risultato utile dell'helper. `T_act` include conferme,
+arbitraggio, risveglio, registrazione e avviamento. Una taratura candidata è
+
+```text
+theta_up[k] = rho_knee[k] - m_signal[k] - m_lead[k]
+m_lead[k] = max(0, crescita_domanda) * T_act / C_s(k,p)
+```
+
+I margini sono adimensionali, nelle stesse unità di domanda e capacità; `m_signal` copre
+l'incertezza del segnale. Non si sottrae due volte lo stesso margine usando anche una previsione
+già corretta per quel rumore o ritardo. La prima griglia confronta 55/60/65/70/75%: un valore
+esterno richiede nuova qualifica, non viene forzato nell'intervallo mediante un clamp.
+
+Per il ritiro, il candidato 45% vale solo se la banda è sufficiente. Con errore del rapporto
+limitato da `e`, variazione del rapporto vero nel confronto limitata da `d` e margine positivo
+`delta`, una taratura della banda richiede
+
+```text
+gap[k] = max(0.20, 2*e[k] + d[k] + delta[k])
+theta_down[k+1 -> k] = min(0.45, theta_up[k] - gap[k])
+```
+
+Se manca un valore positivo utile di ritiro o mancano stime affidabili, non si inventa una
+banda sicura: si applica la gestione unknown/stale. Margini statistici danno una regola di
+taratura, non una prova deterministica. Soglie e curva sono congelate per revisione qualificata;
+un cambio azzera le conferme pendenti. Il controller non sposta le soglie a ogni finestra.
+Ogni coppia di livelli usa la stessa curva e revisione: il ritiro da `k+1` confronta la
+domanda con `C_s(k,p)` e con la banda dell'espansione da `k`, non con la soglia corrente
+di un diverso livello. Così una taratura diversa per numero di helper non rompe l'isteresi.
+
+Le due finestre candidate richiedono almeno 100 ms di osservazioni valide e non sovrapposte.
+Dopo un'assegnazione, le conferme per un altro incremento ripartono da finestre successive al
+primo lavoro utile e all'assestamento qualificato. Un p99 misurato del risveglio non è un limite
+assoluto. Si cerca una risposta più rapida dei precedenti 300 ms di conferma; nessuno dei due
+valori è ancora una prestazione dimostrata o un SLO garantito.
+
+Il ritiro valuta `C_s(k-1, p)`, la capacità **senza** l'helper. Esempio illustrativo:
+`C_s(0)=1 M GET/s`, domanda `0,70 M`, `C_s(1)=2 M`. Il carico corrente scende al 35%, ma
+senza helper tornerebbe al 70%. Ritirarlo sotto il 45% corrente farebbe ricominciare il ciclo;
+il rapporto controfattuale mantiene invece l'helper. Questi numeri non assumono scaling lineare reale.
 
 Il controllo periodico non garantisce latenze di pochi microsecondi durante un gradino improvviso.
-Un evento di backlog, deduplicato e limitato per shard, può svegliare rapidamente un helper
-già assegnato o l'arbitro. Non può creare thread, prestare permessi già impegnati o aggirare la
-registrazione della generazione. Tempi di risveglio, assestamento e sovraelongazione vanno misurati.
+Un evento di backlog, deduplicato e limitato per shard, può svegliare rapidamente un helper già
+assegnato o l'arbitro. Non può creare thread, prestare permessi impegnati o aggirare registrazione
+e guardie di assegnazione. Risveglio, assestamento e sovraelongazione vanno misurati.
 
-La politica iniziale è una macchina a stati con isteresi. PID e apprendimento automatico
-rimangono fuori dal primo passo: mancano ancora curva dell'impianto, ritardi e qualità dei segnali.
+La politica iniziale rimane una macchina a stati con isteresi. PID e apprendimento automatico
+sono fuori dal primo passo: mancano ancora curva dell'impianto, ritardi e qualità dei segnali.
 
 ## 6. Equità e uso del budget
 
@@ -183,6 +228,10 @@ la prova inefficace. Non si assume che `C_s(k)` sia sempre crescente.
 Un punto di parallelismo senza beneficio rimane escluso per quel profilo fino a una nuova
 calibrazione o a un cambiamento sostanziale verificato. Non si ripete la stessa prova ogni
 finestra. Questa memoria delle decisioni ha cardinalità limitata, senza etichette client arbitrarie.
+Distinguere assenza di guadagno nella capacità qualificata da scarsa utilità al carico corrente.
+Un helper superfluo a domanda bassa non invalida la sua curva di capacità sotto picco: il
+holdoff operativo include il regime di domanda e si rivaluta solo per crescita o pressione
+sostanzialmente diverse. Non si perde capacità futura per un giudizio tratto a carico leggero.
 
 | Caso di controllo | Esito atteso del modello |
 | --- | --- |
@@ -281,6 +330,22 @@ helper per stato, crediti rigidi e budget obiettivo, generazioni e byte trattenu
 tempo di assestamento, trasferimenti e richieste di aiuto non soddisfatte con motivo.
 Registrare decisioni e causa in un registro limitato; non un log per ogni GET.
 
+Per verificare il valore dell'investimento, conservare CPU-ns di lettura per milione di GET
+utili, CPU totale del processo sullo stesso workload, memoria del pool/output, byte trattenuti
+e costo di risvegli, controllo e drain. Dichiarare l'attribuzione dei costi condivisi con i Writer.
+Le code non completate e i rifiuti restano visibili: non abbassano artificialmente il costo medio.
+L'energia viene riportata soltanto se misurabile affidabilmente; CPU occupata non equivale a
+watt misurati. Non si deducono costi monetari o ritorni economici da una sola percentuale CPU.
+
+La qualifica confronta percorso primario, numero fisso di helper qualificato e governo adattivo,
+su carico basso, picco e ritorno alla quiete. Un helper deve aumentare il goodput utile o
+proteggere uno SLO/margine di picco dichiarato entro un budget di costo esplicito. Quando la
+domanda è già servita nello SLO, si preferisce la soluzione con minori risorse. A domanda
+insoddisfatta si usa altro budget solo se porta beneficio marginale; non si riempiono i core
+per rappresentare una percentuale di efficienza. Anche le previsioni di crescita non avverate
+e il costo della capacità predisposta vanno conservati. Se il confronto non giustifica
+complessità e costo operativo aggiuntivi, il piano si arresta prima dell'abilitazione.
+
 Il piano misura anche il costo dell'osservatore. Se contatori o controllo consumano il guadagno,
 la politica non è qualificata. L'uso di segnali locali di risorse segue un criterio analogo a
 [Google SRE](https://sre.google/sre-book/handling-overload/), senza introdurne politiche di rifiuto.
@@ -296,7 +361,7 @@ Non se ne importano riduzioni di concorrenza per calibrazione, errori aggiuntivi
 | R1 — modello di controllo | Arbitro in simulazione e in osservazione, senza attuazione | Invarianti di budget, equità, isteresi e segnali incompleti provate con clock finto |
 | R2 — sicurezza multilettore | Registro/lease, handoff, drain e prototipo helper a numero fissato | ADR accettata, argomento di memoria, sanitizer, fault e prove di visibilità riusciti |
 | R3 — curve parallele | Misure con 0/1/2/4 helper, nei limiti della macchina | Beneficio marginale e costi di code/output qualificati, compresi valori grandi |
-| R4 — attuazione adattiva | Espansione al 70%, equità e ritiro controfattuale | Burst, soglie e budget variabili rispettano criteri dichiarati; disabilitazione provata |
+| R4 — attuazione adattiva | Espansione a soglia qualificata, equità e ritiro controfattuale | Burst, soglie e budget variabili rispettano criteri dichiarati; disabilitazione provata |
 | R5 — piattaforme e durata | Campagne sostenute e native per le righe dichiarate | Evidenza conservata per piattaforma; nessuna promozione da una sola prova locale |
 
 R1 può preparare l'arbitro usando dati R0; non consente di abilitare helper prima di R2/R3.
@@ -319,7 +384,7 @@ finestre stazionarie di almeno 30 s e almeno sette ripetizioni per cella, con sw
 Un client remoto o risorse CPU separate evitano la competizione del precedente loopback; se non
 possibile si dichiara la contesa e la riga non diventa una capacità isolata del server.
 
-Le prove del controller devono includere: carico oscillante attorno al 70%, riduzione di budget
+Le prove del controller devono includere: carico oscillante attorno alla soglia qualificata, riduzione di budget
 mentre esistono drain, pressione attuale bassa ma controfattuale alta, saturazione simultanea di
 più owner, starvation, pool completo, nessun helper utile, telemetria assente/stale, clock e
 contatori anomali, risveglio del Writer e client lenti. Le prove del runtime devono esplorare
@@ -328,5 +393,5 @@ chiusura di connessione, perdita di un helper e shutdown con generazioni ancora 
 
 L'accettazione richiede risposte e outcome corretti, limiti rigidi rispettati, progresso di Writer
 e shard fratelli, SLO e criterio di guadagno marginale prefissati, costi di memoria/CPU/risveglio
-conservati e un modo di disabilitazione verificato. La soglia 70% e il 100% del budget disponibile
+conservati e un modo di disabilitazione verificato. Le soglie candidate e il 100% del budget disponibile
 sono obiettivi di governo da validare, non percentuali di efficienza già dimostrate.

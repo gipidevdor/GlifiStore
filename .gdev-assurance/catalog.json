@@ -47,11 +47,11 @@
     },
     {
       "path": "engineering/hazards/routing-capacity.yaml",
-      "sha256": "e75ec1dbc4dc3ceb7eb0111b430e62c00126c6867c6cf7cfdadd689cc16ebdd3"
+      "sha256": "f57842684feb829cf1161bc48e68944557c539047e8755bf6cd9bc5b30ae8a5c"
     },
     {
       "path": "engineering/requirements/adaptive-readers.yaml",
-      "sha256": "ec0ebbbf43b6f60e59594f4c7fd9a32f27edaea08bd2c7267a6ad2e503e31f08"
+      "sha256": "822ee12c9b23f513841b1f74e36e3ed2a23bbaace1e0acfd4e3db2569ba5d6fa"
     },
     {
       "path": "engineering/requirements/compaction-delta.yaml",
@@ -3106,7 +3106,7 @@
         "categoria": "operations",
         "claim_massimo": "architectural-prototype",
         "criticita": "alta",
-        "descrizione": "Planned only. Per-shard observers request capacity from a global arbiter. The initial 70 percent expansion hypothesis is separate from the process-wide CPU budget and rigid helper/memory caps. Count arming and draining allocations until safe release. Retire for quiet using projected capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources fairly under contention. Do not force CPU utilization without useful work or add helpers for network, Writer-barrier or cold-I/O waits. Expose missing capacity and all control decisions.",
+        "descrizione": "Planned only. Per-shard observers request capacity from a global arbiter. Profile-qualified expansion and retirement hypotheses are separate from the CPU budget and rigid helper/memory caps; the revised experiment starts with 65/45 percent candidates. Account for observation, wakeup delay and uncertainty before qualification. Compare useful work per resource and preserve data/client contracts rather than forcing high CPU occupancy. Count arming and draining allocations until safe release. Retire for quiet using projected capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources fairly under contention. Do not force CPU utilization without useful work or add helpers for network, Writer-barrier or cold-I/O waits. Expose missing capacity and all control decisions.",
         "evidenze": [
           {
             "note": "Controller, shadow evaluation and threshold parameters are not implemented or qualified"
@@ -3131,7 +3131,8 @@
         "rischio_residuo": [
           "CPU availability is estimated and does not reserve a physical core",
           "Oscillation, delayed response to bursts and starvation remain untested",
-          "No overload policy can guarantee latency when useful total capacity is insufficient"
+          "No overload policy can guarantee latency when useful total capacity is insufficient",
+          "Candidate thresholds and improved resource economics are not measured or proven"
         ],
         "stato": "bozza",
         "titolo": "Govern a shared helper budget with qualified pressure, fairness and stable retirement"
@@ -6559,7 +6560,7 @@
           "GS-OPS-RCTRL-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are proposed only; their 70 percent hypothesis, multi-reader safety and global budget are unproven. Compaction sustainability remains separate.",
+        "rischio_residuo": "Open capacity limitation. The retained local Release exploration on 2026-11-21 compares 75 and 90 percent finite total-work allocations with balanced client bindings. It validates the measurement tooling, not sustained offered-load saturation or sibling isolation: cold clients can finish early. Ten-client rows have a 14-thread foreground floor on 10 logical CPUs and remain oversubscription sensitivity observations. Single-hot-key contention, per-owner CPU/queue decomposition, long overlap and native Linux/BSD campaigns are pending. A shard pair is not a single CPU core. Offline migration is not runtime balancing and does not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are proposed only; their profile-qualified threshold hypotheses, multi-reader safety and global budget are unproven. Revised 65/45 percent candidates are not measured capacity or cost claims. Compaction sustainability remains separate.",
         "severita": "alta",
         "stato": "aperto"
       },
@@ -6634,7 +6635,7 @@
           "GS-OPS-RCTRL-001"
         ],
         "rilevabilita": "alta",
-        "rischio_residuo": "Prospective design hazard, not an observed failure of an enabled feature. The controller, telemetry and helper path are not implemented. The 70 percent threshold and initial time windows are hypotheses requiring sustained-load and deterministic state-machine proofs. Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.",
+        "rischio_residuo": "Prospective design hazard, not an observed failure of an enabled feature. The controller, telemetry and helper path are not implemented. Candidate thresholds, economic benefits and time windows are hypotheses requiring sustained-load and deterministic state-machine proofs. Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.",
         "severita": "alta",
         "stato": "aperto"
       },

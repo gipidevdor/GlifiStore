@@ -130,6 +130,9 @@ Considerare livelli adiacenti `k` e `k+1`, domanda costante `lambda`, profilo fi
 `C_s(k,p) > 0`, misure esatte e nessun trasferimento per equità o cambio di budget.
 L'espansione confronta `lambda / C_s(k,p)` con `theta_up`; il ritiro da `k+1` confronta
 lo stesso rapporto controfattuale con `theta_down`.
+Le soglie sono quelle della coppia `k <-> k+1` nella medesima revisione qualificata.
+Se il ginocchio delle latenze cambia con `k`, il ritiro usa la banda legata all'espansione
+da `k`; usare invece la soglia del livello `k+1` non soddisferebbe questa premessa.
 
 Se `theta_down < theta_up`, non possono valere insieme
 
@@ -140,13 +143,20 @@ lambda / C_s(k,p) <= theta_down
 
 La banda morta esclude il ciclo di andata e ritorno su quello stesso collegamento nel regime
 stazionario ideale. Il carico corrente con `k+1` non dà tale proprietà: con capacità illustrative
-`C(0)=1`, `C(1)=2` e domanda `0,75`, il carico passa dal 75% al 37,5%. Ritirare sotto il 40%
-del carico corrente spegnerebbe l'helper e ricomincerebbe il ciclo; senza helper rimane invece 75%.
+`C(0)=1`, `C(1)=2` e domanda `0,70`, il carico passa dal 70% al 35%. Con i candidati 65/45%,
+ritirare sotto il 45% corrente spegnerebbe l'helper e ricomincerebbe il ciclo; senza helper rimane 70%.
 
 Se l'errore sul rapporto di riferimento è sempre limitato in valore assoluto da `epsilon`, una
 condizione sufficiente per escludere i due attraversamenti sullo stesso rapporto costante è
 `theta_up - theta_down > 2*epsilon`. Il limite deve coprire tutti gli errori pertinenti.
 Intervalli di confidenza statistici non sono automaticamente limiti deterministici.
+Se tra due decisioni il rapporto vero può inoltre variare di al massimo `d`, la separazione
+`theta_up - theta_down > 2*epsilon + d` esclude quella coppia di attraversamenti sotto tali
+ipotesi. Infatti l'espansione richiede un rapporto vero almeno `theta_up-epsilon`, il ritiro
+uno al massimo `theta_down+epsilon`: la differenza supererebbe `d`. Questo vale per la stessa
+revisione di soglie/curva e l'intervallo confrontato, non per variazioni reali oltre il budget.
+La banda candidata 65/45% ha ampiezza 0,20 e non eredita automaticamente la tolleranza 0,30
+del precedente esempio 70/40%. La taratura deve quindi verificarne il margine o allargarla.
 Domanda variabile, profili aggiornati, ritardi e allocazioni diverse agli altri owner escono
 da questa dimostrazione. Non ne segue la stabilità globale o una latenza massima dei burst.
 Anche la convergenza del numero di helper, quando dimostrabile nel caso ideale a livelli finiti,
@@ -176,6 +186,9 @@ Massimizzare GET/s, dare risorse eque e rispettare tutte le latenze può richied
 con workload di costo diverso. L'ordine proposto è: sicurezza e contratti, progresso di Writer e
 altri owner, SLO nel dominio qualificato, equità delle risorse, poi aumento del goodput utile.
 Non è ancora un problema di ottimizzazione risolto o un teorema di ottimalità della politica.
+La protezione dell'investimento aggiunge il costo per lavoro utile e la continuità dei
+contratti tra i criteri di qualifica. Più CPU attiva non dimostra da sola risparmio economico;
+una politica che soddisfa già domanda e SLO deve giustificare l'impiego di ulteriori risorse.
 
 ## 7. Stato delle proprietà
 

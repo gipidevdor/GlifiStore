@@ -12,7 +12,8 @@
 
 HAZ-045 exposes fixed-owner read capacity while other CPUs may be available. The maintainer
 requests measured read capacity, use of all useful available capacity and an initial 70%
-hot-owner expansion signal. Existing finite-loop evidence and ADR 0048 do not establish a
+hot-owner expansion example, subsequently allowing better thresholds and emphasizing protection
+of hardware and integration investments. Existing finite-loop evidence and ADR 0048 do not establish a
 sustainable capacity curve or a multi-reader reclamation protocol.
 
 ## Proposed decision
@@ -23,7 +24,8 @@ may execute read batches against that same owner's immutable generations. Parked
 are offline readers; waking, draining and reassignment retain explicit resource ownership.
 
 Use local observers and one global resource arbiter. Separate the hard helper/memory limits
-from a dynamic CPU target. Expand on sustained qualified read pressure, starting with 70%;
+from a dynamic CPU target. Expand on sustained qualified read pressure; the revised experiment
+starts with 65/45% candidates and qualifies thresholds by latency growth, noise and actuation delay;
 retire for quiet only after checking capacity with one fewer helper. Allocate fairly between
 hot owners and lend all unused eligible capacity to owners with demand. Do not infer spare
 CPU from configured thread counts or assume linear scaling with helpers.
@@ -33,6 +35,11 @@ registration/adoption races and leases crossing completion or large-value contin
 The current daemon epoch frontier does not automatically include embedded read-lease counters.
 Keep response order, post-mutation visibility barriers, bounded result credits and safe drain.
 Helper pressure alone must not introduce client rejection, automatic reroute or mutation retry.
+
+Thresholds remain fixed within a qualified profile revision. The plan compares candidate
+settings, includes wakeup and observation lead time, and widens retirement hysteresis when
+needed. It does not claim that 65/45% is optimal. Qualification also measures useful work per
+resource and compares primary, fixed-helper and adaptive paths; no economic return is asserted.
 
 ## Alternatives and boundaries
 

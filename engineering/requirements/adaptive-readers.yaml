@@ -29,8 +29,11 @@ requirements:
   criticita: alta
   stato: bozza
   descrizione: >-
-    Planned only. Per-shard observers request capacity from a global arbiter. The initial 70 percent
-    expansion hypothesis is separate from the process-wide CPU budget and rigid helper/memory caps.
+    Planned only. Per-shard observers request capacity from a global arbiter. Profile-qualified
+    expansion and retirement hypotheses are separate from the CPU budget and rigid helper/memory
+    caps; the revised experiment starts with 65/45 percent candidates. Account for observation,
+    wakeup delay and uncertainty before qualification. Compare useful work per resource and
+    preserve data/client contracts rather than forcing high CPU occupancy.
     Count arming and draining allocations until safe release. Retire for quiet using projected
     capacity with one fewer helper, lend unused budget to demanding owners, and transfer resources
     fairly under contention. Do not force CPU utilization without useful work or add helpers for
@@ -48,5 +51,6 @@ requirements:
   - CPU availability is estimated and does not reserve a physical core
   - Oscillation, delayed response to bursts and starvation remain untested
   - No overload policy can guarantee latency when useful total capacity is insufficient
+  - Candidate thresholds and improved resource economics are not measured or proven
   hazards: [HAZ-045, HAZ-047]
   gates: [GATE-ADAPTIVE-READERS]

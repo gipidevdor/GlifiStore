@@ -94,5 +94,6 @@ retains an old/candidate/old run order for a reduction in volatile Reader copies
 It includes the hot-owner cases and preserves the same finite-loop limitations.
 
 The proposed [read-management plan](../architecture/adaptive-read-management.md) defines the
-future sustained-capacity campaign and adaptive-helper qualification. Its 70 percent trigger
-cannot be calibrated from the finite profiles above; the governor is not implemented.
+future sustained-capacity campaign and adaptive-helper qualification. Its candidate thresholds
+and cost per useful read cannot be calibrated from the finite profiles above; the governor is
+not implemented.

@@ -34,7 +34,8 @@ hazards:
     not by itself resolve a single hot key. ADR 0048's local old/candidate/old comparison shows a
     reduction in Reader copy work (about 9 percent for the hot-owner 1 KiB GET case), not runtime
     redistribution or a general tail-latency improvement. ADR 0049 and the read-management plan are
-    proposed only; their 70 percent hypothesis, multi-reader safety and global budget are unproven.
+    proposed only; their profile-qualified threshold hypotheses, multi-reader safety and global
+    budget are unproven. Revised 65/45 percent candidates are not measured capacity or cost claims.
     Compaction sustainability remains separate.
   stato: aperto
   accettazione_rischio: Not accepted for release; fixed-owner capacity limit remains unresolved
@@ -88,7 +89,7 @@ hazards:
   prove: []
   rischio_residuo: >-
     Prospective design hazard, not an observed failure of an enabled feature. The controller,
-    telemetry and helper path are not implemented. The 70 percent threshold and initial time
+    telemetry and helper path are not implemented. Candidate thresholds, economic benefits and time
     windows are hypotheses requiring sustained-load and deterministic state-machine proofs.
     Generation lifetime hazards are also tracked under HAZ-008; no release acceptance exists.
   stato: aperto
