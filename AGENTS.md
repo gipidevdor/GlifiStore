@@ -39,6 +39,19 @@ or updated ADR plus linked requirements, proofs, and evidence.
 
 ## Assurance system
 
+### GDev and coding agents
+
+The versioned GDev project is `.gdev-assurance/project.eld`; everyday operations
+in `.gdev-project.eld` wrap the existing developer script. Follow
+`docs/development/gdev.md` for CLI/MCP, procedures and agent sessions.
+The YAML catalogs under `engineering/` remain authoritative. After editing them,
+validate assurance, regenerate the GDev view with `export_gdev_catalog.py`
+and run `engineering/tools/gdev_verify.py metadata` with the local Python.
+Do not promote a source gate because a GDev procedure or derived catalog passes.
+For each reproducible integration error, fix the responsible layer, add a reusable
+regression and repeat the affected cross-project flow; retain failed attempts and
+stop repeated retries that produce no new evidence.
+
 | Path | Role |
 | --- | --- |
 | [`docs/assurance/engineering-baseline.md`](docs/assurance/engineering-baseline.md) | Gap recon and Phase A baseline |

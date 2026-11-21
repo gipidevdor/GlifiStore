@@ -4,6 +4,7 @@
 /cmake-build-*/
 /CMakeUserPresets.json
 /compile_commands.json
+/.gdev/
 
 # Local development toolchain
 /.tools/

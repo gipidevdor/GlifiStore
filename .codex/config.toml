@@ -1,0 +1,4 @@
+# Requires GDev's bin directory on PATH. No machine-specific checkout path.
+[mcp_servers.gdev]
+command = "gdev-mcp"
+args = []

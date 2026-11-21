@@ -97,6 +97,7 @@ verify() {
     for step in \
         "format_code.py --check" \
         validate_assurance.py \
+        "export_gdev_catalog.py --check" \
         validate_documentation.py \
         validate_cmake_deps.py \
         validate_structure_debt.py \
@@ -115,6 +116,7 @@ verify() {
         "$python" "$root/engineering/tools/$tool" "$@" ||
             die "verify step failed: engineering/tools/$step"
     done
+    "$python" -m unittest discover -s "$root/engineering/tests" -p 'test_gdev*.py'
     "$python" -m unittest discover -s "$root/scripts/tests"
 }
 
