@@ -193,6 +193,22 @@ Clients cache routing only together with Worker count, routing epoch, algorithm,
 another bound owner receives `WRONG_OWNER`; it is never forwarded. Changing Worker count requires
 the offline migration tool. Online resharding and routing-seed rotation are not part of 0.1.x.
 
+### Open operational limitations
+
+[HAZ-045](../assurance/hazards.md) records hot-shard saturation with unused capacity on other
+shard pairs: bounded lanes contain queued work but do not rebalance it. A 90% traffic share on
+one shard is an illustrative scenario, not measured evidence. The bottleneck may be its Reader
+or Writer, depending on the operation mix. Online rebalance remains deferred under
+[ADR 0033](../adr/0033-online-rebalance-deferred.md).
+
+[HAZ-046](../assurance/hazards.md) records the client integration cost of owner-bound connections
+and no forwarding. After `INIT` and one `BIND_WORKER`, a wrong-owner key returns `WRONG_OWNER`;
+[official client semantics](client-semantics-v1.md) mark the client unhealthy. Applications depend
+on client routing and connection management rather than transparent server rerouting.
+
+Both problems remain open for study. No solution or change to ownership, wire behavior, or retry
+semantics is approved here; their workload impact has not been quantified by this registration.
+
 ## 9. TCP runtime
 
 `glifistored` runs one Reader/Reactor and one serial Writer per shard pair. Linux uses edge-triggered

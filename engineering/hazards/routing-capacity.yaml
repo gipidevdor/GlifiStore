@@ -1,0 +1,52 @@
+hazards:
+- id: HAZ-045
+  evento_pericoloso: A hot shard saturates while other shard pairs retain unused capacity
+  cause:
+  - Fixed key ownership and no runtime load redistribution (ADR 0033)
+  - A hot key or asymmetric request distribution concentrates work on one Reader or Writer
+  conseguenze:
+  - Throughput is limited by the hot shard rather than aggregate CPU capacity
+  - Tail latency and bounded-lane backpressure increase for traffic targeting that owner
+  severita: alta
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - No dynamic balancing mechanism is implemented; a solution remains to be studied
+  contenimento:
+  - Bounded lanes constrain queued work but do not redistribute it
+  prove: []
+  rischio_residuo: >-
+    Open capacity limitation. A scenario with 90 percent of requests targeting one shard
+    is illustrative, not a measured result. Reader and Writer saturation depends on the
+    operation mix; a shard pair is not a single CPU core. The impact and isolation from
+    sibling shards require a dedicated skewed-load campaign. Offline migration is not
+    runtime balancing and does not by itself resolve a single hot key.
+  stato: aperto
+  accettazione_rischio: Not accepted for release; problem recorded only, solution deferred
+  requisiti: [GS-CONCUR-PAIR-001]
+- id: HAZ-046
+  evento_pericoloso: Client routing mismatch rejects requests without server-side forwarding
+  cause:
+  - INIT is followed by one BIND_WORKER binding the connection to one owner
+  - A request key belongs to a different owner from the bound connection
+  conseguenze:
+  - The server returns WRONG_OWNER instead of executing or forwarding the request
+  - Clients must manage owner-specific routing and connections; mismatch can interrupt application work
+  severita: media
+  probabilita: media
+  rilevabilita: alta
+  prevenzione:
+  - Clients use the routing identity and owner metadata defined by wire v2
+  contenimento:
+  - Wrong-owner requests are rejected rather than applied to the wrong shard
+  - Official clients mark the client unhealthy under client-semantics-v1
+  prove: []
+  rischio_residuo: >-
+    Open integration limitation of the current routing contract, not a claim that
+    WRONG_OWNER violates wire v2. Connection management and recovery remain client
+    responsibilities. The availability and connection-cost impact needs measurement;
+    no transparent forwarding, automatic reroute or retry guarantee is introduced.
+    A solution remains to be studied separately from online rebalancing.
+  stato: aperto
+  accettazione_rischio: Not accepted for release; problem recorded only, solution deferred
+  requisiti: [GS-PROTO-WIRE-001]

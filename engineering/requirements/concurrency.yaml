@@ -71,6 +71,7 @@ requirements:
   - HAZ-028
   - HAZ-031
   - HAZ-032
+  - HAZ-045
   gates:
   - GATE-CONCURRENCY-SPEC
 - id: GS-CONCUR-COMBINE-001
